@@ -79,6 +79,12 @@ function instanceDerivedStatus(instance, A, today) {
 
 const SHIP_SETTLE_MODE = 'manual';
 
+/**
+ * §6.10: a ship line's name, `<supplier> · <poNumber> · deposit|balance`, leaving out what
+ * the feed does not know. The engine's lines and a `ship.` adjustment's `current.name`.
+ */
+const shipName = (row) => [row.supplier, row.poNumber, row.feedKind].filter((p) => p != null && p !== '').join(' · ');
+
 /** Any overlay column set (the `planned` flag, SHIP_PLAN_ORPHANED). */
 function hasShipOverlay(row) {
     return row.plannedDate != null || row.plannedAmount != null || Boolean(Number(row.plannedSkipped || 0))
@@ -156,5 +162,5 @@ function shipDerivedStatus(row, A, today) {
 
 module.exports = {
     itemLine, itemDerivedStatus, instanceLine, instanceDerivedStatus,
-    SHIP_SETTLE_MODE, hasShipOverlay, shipEffectiveValues, shipLine, shipDerivedStatus,
+    SHIP_SETTLE_MODE, shipName, hasShipOverlay, shipEffectiveValues, shipLine, shipDerivedStatus,
 };

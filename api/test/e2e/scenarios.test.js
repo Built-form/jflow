@@ -4,7 +4,7 @@
 // against a per-run jflow_test_<runid> schema, `today` pinned through ?today= (D24):
 //   - scenario CRUD: validation, list filters and order, archive (D36) as a terminal
 //     status, soft delete keeping the adjustments, STALE_WRITE;
-//   - adjustment PUT / DELETE: ITEM_KEY_INVALID, TARGET_MISSING (incl. a `ship.` key — D8),
+//   - adjustment PUT / DELETE: ITEM_KEY_INVALID, TARGET_MISSING (incl. a `ship.` key with no row),
 //     TARGET_SETTLED, ADJUSTMENT_DATE_IN_PAST, bases from the loader never the body, the PUT
 //     as a full replace, `current` with name and currency, SCENARIO_NOT_DRAFT;
 //   - GET's stale/current on a draft (all four reasons, DATE_PASSED via ?today=), null otherwise;
@@ -230,7 +230,7 @@ describe('scenarios', () => {
             }
         });
 
-        test('TARGET_MISSING (404): no such item, a deleted item, a ship. key (D8)', async () => {
+        test('TARGET_MISSING (404): no such item, a deleted item, a ship. key with no external_items row', async () => {
             const s = await makeScenario();
             const gone = await makeItem();
             await del(`/items/${gone.id}`).expect(204);
@@ -471,7 +471,7 @@ describe('scenarios', () => {
             adjs.missing = (await putAdj(s.id, missing.key, { kind: 'exclude' }).expect(201)).body;
             adjs.changed = (await putAdj(s.id, changed.key, { kind: 'adjust', newAmount: '90.00' }).expect(201)).body;
             adjs.passing = (await putAdj(s.id, passing.key, { kind: 'adjust', newDate: '2026-03-12', newAmount: '1.00' }).expect(201)).body;
-            // D8: a ship. adjustment cannot be written in phase 1; one put there by hand reads TARGET_MISSING.
+            // A ship. key with no external_items row (put there by hand) reads TARGET_MISSING; ship-overlay.test.js covers real ones.
             const [ship] = await h.sql(
                 `INSERT INTO scenario_adjustments (scenario_id, item_key, target_kind, target_id, kind, base_date, base_amount, created_by)
                  VALUES (?, 'ship.PO-1', 'ship', 'PO-1', 'exclude', '2026-04-01', '10.00', 'e2e')`, [s.id]

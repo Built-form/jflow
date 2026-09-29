@@ -1,6 +1,7 @@
 'use strict';
 
-// Scenario routes (CONTRACT §6.11, §10.7–10.10; D4, D8, D11, D18, D20, D33, D36, D38).
+// Scenario routes (CONTRACT §6.11, §10.7–10.10; D4, D11, D18, D20, D33, D36, D38; Phase 2
+// P6, P7, P11 for `ship.` targets — D8 is retired).
 //
 // A scenario is a named sandbox of adjustments, one per forecast key (§4): `adjust`
 // (new date and/or amount) or `exclude`. Rules:
@@ -14,9 +15,12 @@
 //   - `archived` is terminal and set only by PUT from draft or applied (D36); soft delete
 //     keeps the adjustments (D18). Rework an applied scenario by duplicating it.
 //
-// Locks (§10.1): scenario row → schedules (asc id) → cash_items (asc id) → overrides,
-// through services/scenarios.js lockScenario / lockTargets. Every read that the re-check
-// depends on happens after those locks (see that file's header).
+// Locks (§10.1): scenario row → schedules (asc id) → cash_items (asc id) → external_items
+// (asc id, Phase 2 P11) → overrides, through services/scenarios.js lockScenario /
+// lockTargets. Every read that the re-check depends on happens after those locks (see that
+// file's header). No network I/O in any transaction: a `ship.` target is checked against the
+// snapshot in external_items, never live shipping, and its apply writes only the overlay
+// (§10.9 step 5, P6, P7) — nothing goes back to shipping.
 
 const express = require('express');
 
@@ -32,6 +36,7 @@ const {
 const { adjustmentStale, staleAfterRebase } = require('../lib/stale');
 const { readItem } = require('../services/items');
 const { loadTarget } = require('../services/forecastLoad');
+const { lockExternalItem, auditOverlay } = require('../services/externalItems');
 const {
     SCENARIO_SELECT, readScenario, readScenarioRow, lockScenario, requireDraft, readAdjustments,
     targetOf, lockTargets, loadCurrent, currentJson, resolveAdjustments,
@@ -156,6 +161,41 @@ async function applyToInstance(conn, adj, target, scenarioId, userEmail) {
     });
     return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'schedule_override', entityId: Number(overrideId) };
 }
+
+/**
+ * §10.9 step 5 for a `ship.` target (Phase 2): the overlay only, never a feed column.
+ * `adjust` → planned_date = new_date ?? planned_date, planned_amount = new_amount ??
+ * planned_amount and, when new_amount is set, planned_base_amount = the feed amount under
+ * the lock (P6); `exclude` → planned_skipped = 1 (P7). Both stamp source_scenario_id,
+ * planned_by and planned_at and bump row_version; audit `external_item`/`apply`. The row is
+ * already locked (lockTargets); lockExternalItem re-reads it as it is now.
+ */
+async function applyToShip(conn, adj, target, scenarioId, userEmail) {
+    const before = await lockExternalItem(conn, target.id);
+    if (adj.kind === 'exclude') {
+        await conn.query(
+            `UPDATE external_items
+                SET planned_skipped = 1, source_scenario_id = ?, planned_by = ?, planned_at = UTC_TIMESTAMP(),
+                    row_version = row_version + 1
+              WHERE id = ?`,
+            [scenarioId, userEmail, before.id]
+        );
+    } else {
+        await conn.query(
+            `UPDATE external_items
+                SET planned_date = COALESCE(?, planned_date), planned_amount = COALESCE(?, planned_amount),
+                    planned_base_amount = IF(? IS NULL, planned_base_amount, amount),
+                    source_scenario_id = ?, planned_by = ?, planned_at = UTC_TIMESTAMP(), row_version = row_version + 1
+              WHERE id = ?`,
+            [adj.newDate, adj.newAmount, adj.newAmount, scenarioId, userEmail, before.id]
+        );
+    }
+    const after = await lockExternalItem(conn, target.id);
+    await auditOverlay(conn, { action: 'apply', before, after, userEmail });
+    return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'external_item', entityId: Number(before.id) };
+}
+
+const APPLY_TO = { item: applyToItem, sched: applyToInstance, ship: applyToShip };
 
 module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
     const router = express.Router();
@@ -641,9 +681,7 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
 
                 const applied = [];
                 for (const { adj, target } of checked) {
-                    applied.push(adj.targetKind === 'item'
-                        ? await applyToItem(conn, adj, target, id, req.userEmail)
-                        : await applyToInstance(conn, adj, target, id, req.userEmail));
+                    applied.push(await APPLY_TO[adj.targetKind](conn, adj, target, id, req.userEmail));
                 }
                 await conn.query(
                     `UPDATE scenarios SET status = 'applied', applied_at = UTC_TIMESTAMP(), applied_by = ?,

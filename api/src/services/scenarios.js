@@ -10,8 +10,14 @@
 // rows — and only then read plainly. The snapshot is then taken after every lock is held,
 // and a pay that committed while we waited on a schedule or item lock is visible to the
 // re-check.
+//
+// Phase 2 (step 21): `ship.` targets lock their external_items rows after cash_items and
+// before schedule_overrides, ascending id (P11). Their ids are found with a plain read, so
+// for them the snapshot comes BEFORE the lock; lockTargets closes that gap with a
+// row_version check and a restart (see there).
 
 const { apiError, adjustmentToJson } = require('../lib/shape');
+const { shipName } = require('../lib/lines');
 const { adjustmentStale } = require('../lib/stale');
 const { loadTarget } = require('./forecastLoad');
 
@@ -74,25 +80,59 @@ const targetOf = (row) => ({
 const byId = (a, b) => (BigInt(a) < BigInt(b) ? -1 : BigInt(a) > BigInt(b) ? 1 : 0);
 
 /**
+ * A synthetic deadlock: withTransaction (D27) re-runs the whole body once, in a fresh
+ * transaction with a fresh snapshot. Thrown when a ship row changed between the plain read
+ * that found its id and its row lock (lockTargets) — as routes/schedules.js's split race
+ * guard does for its own out-of-order case.
+ */
+function shipLockRestart(id) {
+    const err = new Error(`external_items row ${id} changed while the scenario waited for its lock; restarting.`);
+    err.code = 'ER_LOCK_DEADLOCK';
+    return err;
+}
+
+/**
  * Lock the targets of `parsedKeys` in the standing order (§10.1, §10.9 step 2):
  * `schedules` rows of the `sched.` targets ascending by id, then `cash_items` rows of the
- * `item.` targets ascending by id, then the `schedule_overrides` rows of the `sched.`
- * targets that exist. A `ship.` key locks nothing (D8). A row that is not live is simply
- * not there; loadTarget then answers null (TARGET_MISSING).
+ * `item.` targets ascending by id, then (Phase 2, P11) the `external_items` rows of the
+ * `ship.` targets ascending by id, gone or not, then the `schedule_overrides` rows of the
+ * `sched.` targets that exist. A row that is not live (or absent) is simply not there;
+ * loadTarget then answers null (TARGET_MISSING).
+ *
+ * The ship rows are named by (source, ext_id) but ordered by id, so their ids are found
+ * first — with a plain read, which is then the transaction's first non-locking read and
+ * fixes its REPEATABLE READ snapshot before the ship locks. A change that commits while
+ * we wait for one of those locks (a refresh UPDATE, an overlay edit, another apply) would
+ * be invisible to loadTarget's plain reads, so each row's row_version is read again under
+ * its lock: every writer of external_items bumps it (§2.9, §10.12), and a mismatch
+ * restarts the body once (shipLockRestart), whose fresh snapshot sees the change. No
+ * network I/O: the check is against the snapshot, never live shipping.
  *
  * The override rows: every writer of an override holds its schedule's lock (taken just
  * above), so the set of overrides for these schedules cannot change now. The plain read
- * that finds them is the transaction's first non-locking read — its snapshot is taken
- * after every schedule and item lock — and the rows it finds are then locked by primary
- * key, a record lock with no gap.
+ * that finds them comes after every schedule, item and ship lock, and the rows it finds
+ * are then locked by primary key, a record lock with no gap.
  */
 async function lockTargets(conn, parsedKeys) {
-    const ids = (kind) => [...new Set(parsedKeys.filter((p) => p && p.targetKind === kind).map((p) => p.targetId))].sort(byId);
-    for (const id of ids('sched')) {
+    const ids = (kind) => [...new Set(parsedKeys.filter((p) => p && p.targetKind === kind).map((p) => p.targetId))];
+    for (const id of ids('sched').sort(byId)) {
         await conn.query('SELECT id FROM schedules WHERE id = ? AND deleted_at IS NULL FOR UPDATE', [id]);
     }
-    for (const id of ids('item')) {
+    for (const id of ids('item').sort(byId)) {
         await conn.query('SELECT id FROM cash_items WHERE id = ? AND deleted_at IS NULL FOR UPDATE', [id]);
+    }
+    const extIds = ids('ship');
+    if (extIds.length) {
+        const [ships] = await conn.query(
+            `SELECT id, row_version FROM external_items
+              WHERE source = 'ship' AND ext_id IN (${extIds.map(() => '?').join(', ')})
+              ORDER BY id ASC`,
+            extIds
+        );
+        for (const ship of ships) {
+            const [[locked]] = await conn.query('SELECT row_version FROM external_items WHERE id = ? FOR UPDATE', [ship.id]);
+            if (Number(locked.row_version) !== Number(ship.row_version)) throw shipLockRestart(ship.id);
+        }
     }
     const instances = parsedKeys.filter((p) => p && p.targetKind === 'sched');
     if (!instances.length) return;
@@ -110,11 +150,19 @@ async function lockTargets(conn, parsedKeys) {
 /**
  * loadTarget (§8) plus the target's `name`, which loadTarget does not return and an
  * adjustment's `current` carries (the web's scenario screen shows it). Same null cases:
- * not live, not an occurrence, a `ship.` key.
+ * not live, not an occurrence; a `ship.` row absent, gone or undated. A ship line's name
+ * is the forecast's (lib/lines.js shipName).
  */
 async function loadCurrent(conn, parsed, today) {
     const target = await loadTarget(conn, parsed, today);
     if (!target) return null;
+    if (target.kind === 'ship') {
+        const [rows] = await conn.query(
+            "SELECT ext_id, supplier, po_number, feed_kind FROM external_items WHERE source = 'ship' AND ext_id = ?", [target.id]
+        );
+        const row = rows.find((r) => r.ext_id === target.id);
+        return { ...target, name: row ? shipName({ supplier: row.supplier, poNumber: row.po_number, feedKind: row.feed_kind }) : null };
+    }
     const table = target.kind === 'item' ? 'cash_items' : 'schedules';
     const [rows] = await conn.query(`SELECT name FROM ${table} WHERE id = ?`, [target.id]);
     return { ...target, name: rows.length ? rows[0].name : null };

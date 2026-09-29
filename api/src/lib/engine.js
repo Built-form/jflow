@@ -43,7 +43,7 @@ const { parseMinor, parseRate, toGbp, fromGbp } = require('./money');
 const { buildItemKey, buildSchedKey, buildShipKey } = require('./keys');
 const { occurrences, isOccurrence, effectiveValues } = require('./recurrence');
 const { classify } = require('./classify');
-const { itemLine, shipLine, shipEffectiveValues, hasShipOverlay } = require('./lines');
+const { itemLine, shipLine, shipName, shipEffectiveValues, hasShipOverlay } = require('./lines');
 
 /**
  * CONTRACT §8's `engineInput`, field for field. Rows are the camelCase JSON of lib/shape.js
@@ -362,9 +362,6 @@ function requireFeedStatus(row) {
     }
     return row.feedStatus;
 }
-
-/** §6.10: `<supplier> · <poNumber> · deposit|balance`, leaving out what the feed does not know. */
-const shipName = (row) => [row.supplier, row.poNumber, row.feedKind].filter((p) => p != null && p !== '').join(' · ');
 
 /** §6.10's ship flags, carried on the line; none of them changes a band. */
 function shipFlags(row) {

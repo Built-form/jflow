@@ -10,7 +10,14 @@
 //
 // Shared by GET /external-items (step 20) and the overlay writes (step 21), which answer
 // with the same row JSON.
+//
+// Step 21 adds the overlay side (§10.9 step 5, §10.11): the row lock, the "overlay set"
+// predicate, and the one audit shape of `plan`, `unplan` and `apply`. The overlay columns
+// are written only by a user edit (PUT/DELETE /external-items/:key) or a scenario apply,
+// never by the refresh; neither writer ever touches a feed column.
 
+const { recordAudit } = require('../lib/audit');
+const { buildShipKey } = require('../lib/keys');
 const { externalItemToJson } = require('../lib/shape');
 const { shipDerivedStatus } = require('../lib/lines');
 const { shipResolvedSelect, loadAnchors } = require('./forecastLoad');
@@ -88,4 +95,74 @@ async function readExternalItem(conn, extId) {
     return row || null;
 }
 
-module.exports = { EFFECTIVE_DATE_SQL, decorateExternalItems, listExternalItems, readExternalItem };
+/** One row as the §6.12 JSON with `derivedStatus` (gone or not), or null. */
+async function externalItemJson(conn, extId, today) {
+    const row = await readExternalItem(conn, extId);
+    return row ? (await decorateExternalItems(conn, [row], today))[0] : null;
+}
+
+// ── The overlay (step 21: CONTRACT §3.5, §10.9 step 5, §10.11) ────────────────────────
+
+/**
+ * `SELECT … FOR UPDATE` on the ship row with this ext_id, gone or not (§10.11 step 1) → the
+ * raw row as it is now (a locking read never reads an older snapshot), or null. The unique
+ * key compares ext_id case-insensitively (the schema's collation), so the row must also match
+ * exactly, as loadTarget requires; a row of another case is locked but is not this key's.
+ */
+async function lockExternalItem(conn, extId) {
+    const [rows] = await conn.query("SELECT * FROM external_items WHERE source = 'ship' AND ext_id = ? FOR UPDATE", [extId]);
+    return rows.find((r) => r.ext_id === extId) || null;
+}
+
+/** Any overlay column set on a raw row, stamps included — DELETE's "nothing to revert" is its negation. */
+function hasOverlay(r) {
+    return r.planned_date != null || r.planned_amount != null || Number(r.planned_skipped) === 1
+        || r.planned_base_amount != null || r.planned_note != null || r.source_scenario_id != null
+        || r.planned_by != null || r.planned_at != null;
+}
+
+const isoOrNull = (v) => (v == null ? null : v instanceof Date ? v.toISOString() : String(v));
+
+/** A raw row's overlay columns in their §6.12 names (`plannedAt` as ISO: audit.js's diff sees any two Dates as equal). */
+function overlaySnapshot(r) {
+    return {
+        plannedDate: r.planned_date,
+        plannedAmount: r.planned_amount,
+        plannedSkipped: Number(r.planned_skipped) === 1,
+        plannedBaseAmount: r.planned_base_amount,
+        plannedNote: r.planned_note,
+        sourceScenarioId: r.source_scenario_id == null ? null : Number(r.source_scenario_id),
+        plannedBy: r.planned_by,
+        plannedAt: isoOrNull(r.planned_at),
+    };
+}
+
+/**
+ * The audit row of an overlay write (§2.8: `external_item`, entity_id = external_items.id;
+ * §10.11: before/after = the overlay columns plus `key`), inside the caller's transaction.
+ * `action` is `plan`, `unplan` or `apply`; `before` / `after` are the raw rows. `key` rides
+ * on `after` only: audit.js keeps just the keys that differ, so a key on both sides would be
+ * dropped from both.
+ */
+function auditOverlay(conn, { action, before, after, userEmail }) {
+    return recordAudit(conn, {
+        entityType: 'external_item',
+        entityId: Number(after.id),
+        action,
+        before: overlaySnapshot(before),
+        after: { key: buildShipKey(after.ext_id), ...overlaySnapshot(after) },
+        userEmail,
+    });
+}
+
+module.exports = {
+    EFFECTIVE_DATE_SQL,
+    decorateExternalItems,
+    listExternalItems,
+    readExternalItem,
+    externalItemJson,
+    lockExternalItem,
+    hasOverlay,
+    overlaySnapshot,
+    auditOverlay,
+};

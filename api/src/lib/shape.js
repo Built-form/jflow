@@ -448,19 +448,23 @@ function scenarioToJson(r) {
     return out;
 }
 
+/** A DATETIME (a UTC Date from mysql2, `timezone: 'Z'`) → ISO 8601 UTC text; null stays null. */
+const isoOrNull = (v) => (v == null ? null : v instanceof Date ? v.toISOString() : String(v));
+
 /**
  * The `external_sync` row (Phase 2, CONTRACT §6.12 GET /external/status). `companies` is
  * `companies_json` parsed — the feed's companies for the Settings picker — or [] before
  * the first successful refresh. `extras.configured` (shipping.isConfigured()) is added by
- * the route; the row does not hold it.
+ * the route; the row does not hold it. The timestamps are ISO 8601 UTC text, as everywhere
+ * `lastSuccessAt` appears (/forecast's shipping block and SHIPPING_UNAVAILABLE).
  */
 function externalSyncToJson(r, extras = {}) {
     if (!r) return null;
     const companies = json(r.companies_json);
     const out = {
         source: r.source,
-        lastAttemptAt: r.last_attempt_at,
-        lastSuccessAt: r.last_success_at,
+        lastAttemptAt: isoOrNull(r.last_attempt_at),
+        lastSuccessAt: isoOrNull(r.last_success_at),
         feedToday: r.feed_today,
         lastError: r.last_error,
         itemCount: Number(r.item_count),
@@ -468,7 +472,7 @@ function externalSyncToJson(r, extras = {}) {
         companies: Array.isArray(companies) ? companies : [],
     };
     if ('configured' in extras) out.configured = extras.configured;
-    out.updatedAt = r.updated_at;
+    out.updatedAt = isoOrNull(r.updated_at);
     return out;
 }
 
