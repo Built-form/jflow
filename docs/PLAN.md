@@ -21,7 +21,8 @@ Phase 2 reads a **new read-only feed endpoint in the shipping API**.
   "IIFE at cold start".
 - Stock payment *projections* are not in the shipping API. They are computed in the
   browser by `ShipLine/src/components/payments/paymentsFlowMath.ts`
-  (`buildPaymentsFlow`, ~2,500 lines).
+  (`buildPaymentsFlow`, 2,786 lines at the frozen commit `f9499bc`). Phase 2 moves them
+  to the shipping API (below).
 - "Cashboard" and "Payments" already exist in the estate; JFlow avoids both names.
 
 ## Naming
@@ -178,7 +179,7 @@ Never rely on InnoDB gap locks. **Every writer of an instance locks the parent
 end, and scenario apply. That serialises them against the split guard at any isolation
 level, including "mark paid" on an instance that has no override row yet. Lock order,
 always: scenarios (ascending id) → schedules (ascending id) → cash_items (ascending id)
-→ overrides → payments (only ever touched under their parent's lock). A writer that will need a lock earlier in that order takes it up front,
+→ external_items (ascending id, Phase 2) → overrides → payments (only ever touched under their parent's lock). A writer that will need a lock earlier in that order takes it up front,
 which is why the split finds its draft scenarios before locking the schedule.
 `withTransaction` retries the whole body once on `ER_LOCK_DEADLOCK`; bodies keep every
 read inside the transaction so the retry is safe.
@@ -324,27 +325,46 @@ PWA, read-mostly: today's cash and lowest point in 30/60/90 days, chart, upcomin
 days, enter this morning's start-of-day balances, mark paid / tune an amount, view a
 scenario. Scenario editing stays on web. API GETs network-first; writes online only.
 
-## Phase 2 — stock payments (outline, own plan when started)
+## Phase 2 — stock payments (plan adopted 2026-09-29)
 
-- **Phase 2 must end with ONE implementation of the payment math, not two.** A straight
-  port leaves a server copy drifting from ShipLine's, which keeps evolving. Two routes,
-  chosen in the Phase 2 plan:
-  1. extract `paymentsFlowMath` into a shared package, built to CJS + ESM, imported by
-     ShipLine's bundle and by the shipping API. Note this breaks the estate's
-     copy-don't-share convention and needs somewhere to publish it (git dependency or
-     private registry);
-  2. move the math to the shipping API and have ShipLine's Payments page read the
-     endpoint.
+The plan is `docs/PHASE2.md` (decisions P1–P12, steps 13–23, risks); the contract detail is
+`api/docs/CONTRACT.md` (§1.1, §3.5, §6.12, §8 rule 11, §9.3.1, §10.11–10.12, §11). This
+section states only what PLAN fixes; where the three disagree, this file wins.
+
+- **Phase 2 must end with ONE implementation of the payment math, not two.** Of the two
+  routes considered (a shared package built to CJS + ESM, or moving the math into the
+  shipping API), **route 2 is chosen (P1)**: `buildPaymentsFlow` and its callees move to
+  `shipping/src/lib/payments-flow/` (CommonJS), ShipLine's Payments page reads shipping's
+  `GET /api/v1/payments-flow` (JWT), and the math is deleted from ShipLine at step 17.
+  Route 1 was rejected because the inputs are all shipping tables, no repo in the estate
+  shares a package, shipping has no TS build, and a shared package would still answer
+  differently in the browser (London) and on Lambda (UTC).
 - **shipping**: read-only `GET /api/internal/payments-forecast`, app-to-app `X-Api-Key`
-  route, returning stable id, supplier, company, amount, currency, due date,
-  estimated/firm, **paid status**.
+  route with **a new shipping key, not JFPRO's** (P12), returning stable id (grammar
+  `[A-Za-z0-9_-]{1,64}`, P2), supplier, company, amount, currency, due date,
+  estimated/firm/undated, **paid status** (P3). Shipping stays on **its current Lambda
+  runtime for now** (risk 1 accepted by Dev); if AWS blocks an update, Phase 2 pauses there.
 - **jflow**: `src/services/shipping.js` modelled on `workflows/api/src/services/jfpro.js`
   (5s timeout, degrade to a warning). Snapshot table `external_items` refreshed
-  **outside** transactions. The refresh writes **feed columns only**; it never touches
-  `planned_date` / `planned_amount`, which are written only by scenario apply or a user
-  edit. That overlay is the only home for an applied `ship.` adjustment, since nothing
-  writes back to shipping.
-- Engine already accepts `externalItems`; no engine rewrite.
+  **outside** transactions, on demand (P4). The refresh writes **feed columns only**; it
+  never touches the overlay — `planned_date` / `planned_amount` / `planned_skipped` (P7,
+  the "exclude" column) — which is written only by scenario apply or a user edit. That
+  overlay is the only home for an applied `ship.` adjustment, since nothing writes back to
+  shipping. `planned_amount` holds only while the feed amount is unchanged (P6). The
+  account is resolved at read time, currency-matched then the company default (P5); POs
+  with no company stay unmapped and are counted (`SHIP_UNMAPPED`). Ship lines are always
+  `manual` (P9) and use the 45-day cut-off like everything else; a ship currency with no
+  rate is the same `FX_RATE_MISSING`. The "Stock payments" category is a system row (P10).
+  `external_items` joins the lock order after `cash_items` (P11).
+- The engine already accepts `externalItems`; Phase 2 adds only the mapping of a feed row
+  to a line (P9). No engine rewrite.
+- **Source of truth**: ShipLine commit `f9499bc` (GitHub main/test, 2026-09-29);
+  `paymentsFlowMath.ts` there is 2,786 lines, last changed 2026-09-28 (`ec1cd76`), and is
+  **frozen until step 17**. PHASE2.md's line numbers refer to an older 2,470-line copy.
+- **Deferred by Dev: supplier tags on the server (Q5).** The server assembler passes
+  suppliers with `tags: []`. Consequence: Golden A is unaffected (the port and the frozen
+  TS see the same input), Golden B must compare with tags stripped from the page-built
+  input, and tag-driven payment rules do not apply server-side until tags are wired.
 
 ## Build order
 

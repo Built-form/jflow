@@ -27,7 +27,7 @@ workflows convention was preferred; where that was silent too, the smaller, reve
 | D5 | **Roles**: `allowed_emails.type` is `standard \| admin` with the pre-2026-09-16 workflows meaning — `standard` can do everything except user management; `admin` adds user management. Admin-only routes are exactly `POST/PATCH/DELETE /users` and `GET /audit?entityType=allowed_email` (403 `ADMIN_REQUIRED`). No `manager` type, no reviewer flag, no answer-only boundary. The routes table (§6) carries a permission column. **Confirmed by Dev 2026-09-29.** | PLAN says `type standard \| admin` "as workflows"; today's workflows three-type model and its delete-is-admin rule were workflows-specific user decisions. Reversible by one gate. |
 | D6 | Week buckets start on **Monday** (ISO week); buckets are calendar-aligned (Mon–Sun, calendar month) and the first and last buckets are clipped to the window, so they may be partial. | UK business week; calendar alignment matches how people read a month. |
 | D7 | `include` defaults to `grid`. `bucket` defaults to `week`. `from` defaults to `today`, `to` defaults to `today + 90 days`. | Web is the primary client; mobile passes `include=summary` explicitly. |
-| D8 | A `ship.<id>` key is grammar-valid and parses to `target_kind = 'ship'`, but in phase 1 there is nothing behind it: an adjustment `PUT` with a `ship.` key answers 404 `TARGET_MISSING`; an existing `ship.` adjustment (none can exist yet) reads stale `TARGET_MISSING`. | PLAN reserves the grammar for phase 2 and forbids inventing scope. |
+| D8 | **Retired by Phase 2 (P2/§4.4).** Phase 1 had nothing behind a `ship.` key; from Phase 2 a `ship.<ext_id>` key names an `external_items` row (§4, §8 rule 6, §8 `loadTarget`). | Superseded by the Phase 2 table below. |
 | D9 | The 45-day overdue boundary is inclusive: `today − effectiveDate <= 45` is **overdue**, `> 45` is **unresolved**. So `today − 45` is overdue, `today − 46` unresolved. The constant is `OVERDUE_WINDOW_DAYS = 45` in `lib/classify.js`. | BUILD_PLAN's tests fix −44 and −46; inclusive reads naturally as "within 45 days". |
 | D10 | `derivedStatus` values are `expected \| overdue \| unresolved \| assumed \| assumedSettled \| paid \| skipped`, one per item or instance, computed by the same `lib/classify.js` call the engine makes (§9.6). A `part_paid` item reports its **remainder's** band (`expected \| overdue \| unresolved`, never `assumed*` — the remainder is forced manual) and keeps `status: 'part_paid'`. | One vocabulary, one function, so `/items` and `/forecast` cannot disagree. |
 | D11 | The stale check on a `sched.` target compares `base_date`/`base_amount` against the **override-adjusted** effective values (override `due_date`/`amount` when set, else the weekend-adjusted natural date and the schedule's amount). A tune written after the adjustment therefore reads `BASE_CHANGED`. | "Base = the loader's current pre-adjustment effective values" — the override is part of the base, the adjustment is not. |
@@ -59,6 +59,44 @@ workflows convention was preferred; where that was silent too, the smaller, reve
 | D37 | **Schedule structure** = `amount, currency, accountId, frequency, intervalCount, startDate, occurrenceCount, endDate, weekendRule, settleMode`. Editable in place only while `start_date > today` **and** no override row exists for the schedule; otherwise 409 `SCHEDULE_STRUCTURE_LOCKED` naming the fields. `name, counterparty, categoryId, notes` edit in place always. `occurrenceCount`/`endDate` are structural: a used schedule is shortened only through `POST …/end`; extending one is a new schedule (or a split whose `changes` set the end). A split's successor has `start_date <= today` and is therefore born locked. **`settleMode` stays structural** (a review proposed making it editable in place — rejected): flipping a used schedule between `auto` and `manual` would retroactively reclassify past instances — auto→manual floods overdue/unresolved with up to 730 days of instances, manual→auto silently assumes owed instances settled. A split from *k* changes it forward only; per-instance "Didn't happen" is the override's `settle_mode`. | BUILD_PLAN step 5's list, plus the two end fields, which change which natural dates exist exactly as frequency does. |
 | D38 | A fourth stale reason, **`DATE_PASSED`**: an `adjust` whose `new_date < today` at read time. Checked in §9.5 and again in apply's re-check; rebase cannot fix it (the user must re-date), so `dropStale: true` removes `TARGET_SETTLED`, `TARGET_MISSING` **and** `DATE_PASSED` adjustments. | A stale `new_date` would otherwise place a scenario line before today, which §9.10 forbids (Dev, 2026-09-29). |
 
+### 1.1 Phase 2 decisions (stock payments) — adopted by Dev 2026-09-29
+
+`docs/PHASE2.md` is the Phase 2 plan; its §5 decisions P1–P12 were **adopted as written**
+at step 13 and are folded into this file (§2.1, §2.2, §2.7–2.9, §3.5, §4, §6.2, §6.4,
+§6.10, §6.12, §7, §8, §9.3.1, §10.1, §10.7–10.12, §11, §12). PHASE2.md's line numbers
+refer to an older 2,470-line copy of `paymentsFlowMath.ts`; the source of truth is the
+commit named below. Where this file and PHASE2.md differ on a detail, this file is the one
+the code follows and the difference is recorded in `docs/PROGRESS.md`.
+
+| # | Decision | Consequence here |
+|---|---|---|
+| P1 | **Route 2**: one implementation of the payment math, in `shipping/src/lib/payments-flow/`. ShipLine reads shipping's `GET /api/v1/payments-flow` (JWT); JFlow reads `GET /api/internal/payments-forecast` (`X-Api-Key`). | JFlow holds no payment math; it stores a feed snapshot (`external_items`) and an overlay. |
+| P2 | Feed id grammar is exactly §4's `[A-Za-z0-9_-]{1,64}` (`dep-<po>`, `pi-<ip>[-<g>]`, `bal-<po>-<g>`, `inv-<sp>-<po>-a` or `-s`, `pay-<sp>-…`, `spd-<sp>-<po>`; `<g>` = `s<shipmentId>`, `r<10 hex>` or `n`). Ids survive date drift, amount changes, part payments and a draft becoming real; **a stage change mints a new id** (a PI replacing a derived deposit, lines booked, an invoice recorded). | `ship.<ext_id>` needs no escaping (§4). An overlay or adjustment does not follow a stage change: the old row goes `gone` and reads `SHIP_PLAN_ORPHANED` / `TARGET_MISSING`. D8 retired. |
+| P3 | Paid rows = transfer lines with `paid_on >= paidSince` plus balance records marked paid without a transfer; split per PO so each has one company. A PI marked paid with no transfer has no date and emits nothing. | A paid feed row is one payment line (§9.3.1); assumed-paid money leaves the feed with no paid row and reads as settled before the anchor. |
+| P4 | Refresh on demand: `/forecast` runs it first when `last_success_at` is over 10 minutes old or `feed_today ≠ today`; `POST /external/refresh` forces one. No schedule. | §6.12, §10.12. A failed refresh never fails `/forecast` (`SHIPPING_UNAVAILABLE`, last snapshot kept). |
+| P5 | The account is resolved in SQL at load time and never stored: the JFlow company whose `shipping_company_id` matches the row, then its live active account in the row's currency (lowest `sort_order`, then id), else its default account. No match → the row is omitted and counted in `SHIP_UNMAPPED`. **Dev (Q3): confirmed.** **Dev (Q2): POs with no company stay unmapped**, counted under `shippingCompanyId: null`. | §8 rule 11. Ship lines do not enter D17's deactivation guard: resolution is dynamic, so deactivating an account moves them to the default, never drops them (a company with no live active account resolves nothing and its rows count as unmapped). |
+| P6 | `planned_amount` applies only while `planned_base_amount` equals the feed `amount`; otherwise the feed amount is used and `SHIP_PLAN_STALE {key}` is warned. Every write of `planned_amount` stores `planned_base_amount = amount`. | §9.3.1, §10.9 step 5, §10.11. |
+| P7 | `exclude` on a `ship.` target → `planned_skipped = 1`, a third overlay column beyond PLAN's `planned_date` / `planned_amount`. **Dev (Q6): keep it.** | §10.9 step 5; `skipped` is also settable by hand (§6.12). |
+| P8 | The refresh writes **no per-row audit**; overlay writes (`plan`, `unplan`, `apply`) are audited. **Dev (Q6): acceptable.** | §2.8, §10.12. |
+| P9 | Ship lines are always settle mode `manual` (shipping, not the calendar, says a supplier was paid); undated open lines are counted, not banded. | §9.3.1. **Dev (Q8): 45 days stays** the overdue/unresolved cut-off for supplier money (D9 unchanged). |
+| P10 | System category "Stock payments" via `categories.system_key = 'ship'`, seeded by the Phase 2 migration; it refuses delete and direction change with `CATEGORY_IN_USE`. | §3.5, §6.4. |
+| P11 | `external_items` sits **after `cash_items`** in the lock order; the refresh takes no transaction. | §10.1. |
+| P12 | A **new** shipping key, not JFPRO's: `SHIPPING_INTERNAL_API_KEY` in `shipping/test\|prod`, `SHIPPING_API_KEY` beside `SHIPPING_API_BASE` in `jflow/test\|prod`. **Dev (Q7): confirmed.** | §2.1. |
+
+Open questions answered at sign-off that are not a P-row: **Q4** — a ship currency with no
+rate is 422 `FX_RATE_MISSING`, one rule for every currency (§3.4 currencies in scope).
+**Q1** — the source of truth is ShipLine commit **`f9499bc`** (GitHub main/test,
+2026-09-29); `paymentsFlowMath.ts` there is 2,786 lines, last changed 2026-09-28 (`ec1cd76`,
+"balance number dupe in pop up"), and it is **frozen until step 17**. **Risk 1** —
+shipping stays on its current Lambda runtime for now; if AWS blocks an update, Phase 2
+pauses there. **Q5 (supplier tags) — not now**: see §11.
+
+Two details PHASE2.md left open are fixed here, not in the P-rows: an **undated** open ship
+row (no `due_date`, no `planned_date`) is not an adjustment target — `loadTarget` returns
+`null` for it (§8), so a `PUT` answers 404 `TARGET_MISSING` and the user dates it through
+the overlay first (`scenario_adjustments.base_date` is `NOT NULL`, so there is no base to
+record); and `POST /external/refresh` honours the 60-second claim (§6.12).
+
 ---
 
 ## 2. Conventions
@@ -80,6 +118,12 @@ workflows convention was preferred; where that was silent too, the smaller, reve
   no uploads exist.
 - Every route awaits `schemaReady`; in Lambda it resolves at once (no DDL ever runs there);
   locally it runs `ensureSchema` once per container.
+- **Phase 2 (P12):** `services/shipping.js` reads `SHIPPING_API_BASE` and `SHIPPING_API_KEY`
+  per call (from `jflow/<stage>` via `serverless.yml` `${self:custom.secrets.…, ''}`, both in
+  put-secret's `OPTIONAL_DEPLOY_KEYS`). The key travels only in `X-Api-Key` to shipping's
+  `GET /api/internal/payments-forecast`; 5 s timeout on an `AbortController`; `isConfigured()`
+  is false when either is unset, and then no call is made. The key is a new random value,
+  not JFPRO's; to rotate, update both secrets and redeploy both.
 
 ### 2.2 Envelopes and status codes
 
@@ -96,6 +140,7 @@ workflows convention was preferred; where that was silent too, the smaller, reve
 | Payload too large | 413 | `{error}` |
 | Business rule on otherwise valid input (dates, amounts, keys, FX) | 422 | `{error, code, details?}` |
 | Unhandled | 500 | `{error: 'An internal error occurred.', requestId}` |
+| Shipping feed unreachable on a forced refresh (`POST /external/refresh` only) | 503 | `{error, code: 'SHIPPING_UNAVAILABLE', details}` |
 
 `fail(res, status, message, code?, details?)` and `apiError(status, code, message, details?)`
 from `lib/shape.js` build every refusal; a refusal thrown inside `withTransaction` rolls it
@@ -168,6 +213,8 @@ an unknown value is a message-only 400. Sort per D28. Path ids go through `parse
 | `payments` | **hard**, only by unpay (all rows of the parent); audit row per payment with the before-snapshot | none — the parent's lock serialises it |
 | `scenario_adjustments` | **hard**, only while the scenario is `draft` | `SCENARIO_NOT_DRAFT` otherwise |
 | `allowed_emails` | hard | self-lockout and last-admin guards as workflows |
+| `external_items` (Phase 2) | **never deleted**; a row that leaves the feed gets `gone_at` and is kept for its overlay and adjustments | `DELETE /external-items/:key` clears the overlay only |
+| `external_sync` (Phase 2) | never deleted; one row per source | — |
 
 Soft-deleted rows are invisible to every read without `includeDeleted=1`, to the loader,
 and to every lock-and-check (`WHERE id = ? AND deleted_at IS NULL FOR UPDATE`).
@@ -190,15 +237,19 @@ inside the mutation's transaction. Snapshots are the row's JSON shape (camelCase
 | `scenario` | `create`, `update`, `delete`, `duplicate`, `rebase`, `apply` |
 | `scenario_adjustment` | `create`, `update` (edit, rebase, re-key), `delete` |
 | `allowed_email` | `create`, `update`, `delete` — `entity_id` 0, email in the JSON |
+| `external_item` (Phase 2) | `plan` (user edit), `unplan` (revert), `apply` — `entity_id` = `external_items.id`, `key` in the JSON. **The refresh writes no audit rows** (P8): feed columns are shipping's data, and `feed_hash` / `updated_at` say when they moved |
 
 ### 2.9 `row_version`, `created_by`
 
-Every table except `jflow_schema_meta`, `allowed_emails`, `audit_log` and `payments`
-(append-only rows: inserted by pay, deleted by unpay, never updated) has
-`row_version INT NOT NULL DEFAULT 0`; every UPDATE sets `row_version = row_version + 1`.
-`created_by` is the caller's email on insert (`entered_by` on balances). Optimistic lock
-per D4: `baseVersion` optional; sent and `≠ row_version` under the row lock →
-409 `STALE_WRITE {currentVersion}`.
+Every table except `jflow_schema_meta`, `allowed_emails`, `audit_log`, `payments`
+(append-only rows: inserted by pay, deleted by unpay, never updated) and `external_sync`
+(meta, one row per source) has `row_version INT NOT NULL DEFAULT 0`; every UPDATE sets
+`row_version = row_version + 1`. `created_by` is the caller's email on insert (`entered_by`
+on balances; `'shipping-feed'` on `external_items`, which the refresh inserts). Optimistic
+lock per D4: `baseVersion` optional; sent and `≠ row_version` under the row lock →
+409 `STALE_WRITE {currentVersion}`. On `external_items` the refresh's feed `UPDATE`s bump
+`row_version` too, so an overlay edit sent with a `baseVersion` read before the feed moved
+is refused — intended: the user re-reads the new date or amount first.
 
 ### 2.10 Users and allowlist
 
@@ -215,10 +266,13 @@ and by local `ensureSchema`.
 
 ### 3.1 Migration rules
 
-- One file, `src/db/migrations/2026-09-29_jflow_core.sql`, every statement
+- Phase 1: one file, `src/db/migrations/2026-09-29_jflow_core.sql`, every statement
   `CREATE TABLE IF NOT EXISTS`, plus the idempotent company seed. Later files use the
   `information_schema` guard pattern of workflows' `2026-09-08_stages.sql`
   (`SET @missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS …); PREPARE/EXECUTE`).
+- Phase 2: a second file, `src/db/migrations/2026-09-29_jflow_ship.sql` (§3.5): two new
+  tables, two guarded `ALTER`s and the system-category seed. It sorts after the core file
+  and is re-runnable (migrate twice → 0 applied).
 - DDL runs from `tools/migrate.js --stage <stage>` (called by `deploy.sh` before packaging;
   it keeps `schema_migrations(filename, checksum, applied_at)` and refuses a changed applied
   file) and from local `ensureSchema` (`lib/schema.js`, sentinel `jflow_schema_meta`,
@@ -228,7 +282,8 @@ and by local `ensureSchema`.
 - Money `DECIMAL(14,2)`; rates `DECIMAL(12,6)`; dates `DATE`; ids `BIGINT UNSIGNED
   AUTO_INCREMENT`; emails `VARCHAR(255)`; enums `VARCHAR(n)`.
 - `schema_migrations` is created by `migrate.js` itself; a fully migrated schema holds
-  15 tables (14 below + that one).
+  **17 tables**: the 14 below, the 2 in §3.5 (`external_items`, `external_sync`) and that
+  one. (Phase 1 alone was 15.)
 
 ### 3.2 Tables
 
@@ -469,8 +524,95 @@ SELECT 'HW', 'Hangerworld', 2 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM companie
   appears). It reads the cache columns only; because the cache is rewritten in the same
   transaction as every `payments` write under the parent's lock, the guard needs no join.
 - **Currencies in scope** (for `FX_RATE_MISSING` and `meta.ratesUsed`) = the in-scope
-  accounts' currencies ∪ the currencies of every loaded item and schedule, adjustment
-  targets included. Defined once here; §6.10, §8 and §9.7 refer to it.
+  accounts' currencies ∪ the currencies of every loaded item, schedule **and ship row**
+  (§8 rule 11, undated rows included), adjustment targets included. Defined once here;
+  §6.10, §8 and §9.7 refer to it. A ship currency with no rate is the same 422
+  `FX_RATE_MISSING` as any other — one rule (Dev, Q4).
+- **Phase 2, derived at load time and never stored:** a ship row's company = the live
+  JFlow company whose `shipping_company_id = external_items.shipping_company_id`; its
+  account = that company's live active account in the row's `currency` (lowest
+  `sort_order`, then id), else the company's `is_default` account (P5). No company, no
+  active account → the row is unmapped (`SHIP_UNMAPPED`). A ship row's effective date =
+  `planned_date ?? due_date` (may be null: undated); effective amount = `planned_amount`
+  while `planned_base_amount = amount`, else `amount` (P6); effective status = `paid` when
+  `feed_status = 'paid'`, `skipped` when `planned_skipped`, else `expected`; settle mode is
+  always `manual` (P9).
+
+### 3.5 Phase 2 migration — `src/db/migrations/2026-09-29_jflow_ship.sql`
+
+Feed columns are written by the refresh only; overlay columns by a user edit or scenario
+apply only (§10.11, §10.9). The two never touch each other's columns.
+
+```sql
+CREATE TABLE IF NOT EXISTS external_items (              -- feed snapshot; rows never deleted
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  source VARCHAR(8) NOT NULL, ext_id VARCHAR(64) NOT NULL,  -- 'ship'; key = ship.<ext_id> (§4)
+  -- feed columns: written by the refresh only
+  feed_kind VARCHAR(8) NOT NULL, feed_status VARCHAR(8) NOT NULL,     -- deposit | balance; open | paid
+  supplier VARCHAR(255) NULL, shipping_company_id BIGINT UNSIGNED NULL,
+  po_id BIGINT UNSIGNED NULL, po_number VARCHAR(64) NULL,
+  shipment_id BIGINT UNSIGNED NULL, container_ref VARCHAR(100) NULL,
+  currency CHAR(3) NOT NULL, amount DECIMAL(14,2) NOT NULL,           -- open: still owed; paid: this payment
+  due_date DATE NULL, paid_on DATE NULL, settles VARCHAR(64) NULL,    -- settles = the open row's ext_id
+  date_basis VARCHAR(12) NOT NULL, amount_basis VARCHAR(8) NOT NULL,  -- firm | estimated | undated; stated | derived
+  blocked VARCHAR(16) NULL, flags_json JSON NULL,                     -- blocked: shipment | artwork | pi | pi_signed
+  feed_hash CHAR(64) NOT NULL,                           -- sha256 of the feed columns
+  gone_at DATETIME NULL,                                 -- left the feed; kept for overlays and adjustments
+  -- overlay: written by user edit or scenario apply only, never by the refresh
+  planned_date DATE NULL, planned_amount DECIMAL(14,2) NULL,
+  planned_skipped TINYINT(1) NOT NULL DEFAULT 0,         -- P7
+  planned_base_amount DECIMAL(14,2) NULL,                -- feed amount when planned_amount was set (P6)
+  planned_note VARCHAR(500) NULL, source_scenario_id BIGINT UNSIGNED NULL,
+  planned_by VARCHAR(255) NULL, planned_at DATETIME NULL,
+  row_version INT NOT NULL DEFAULT 0, created_by VARCHAR(255) NULL,  -- 'shipping-feed'
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_source_ext (source, ext_id),
+  KEY idx_status_due (source, feed_status, due_date), KEY idx_paid_on (paid_on), KEY idx_gone (gone_at)
+) DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS external_sync (                -- one row per source; meta, outside §2.9
+  source VARCHAR(8) NOT NULL PRIMARY KEY,
+  last_attempt_at DATETIME NULL, last_success_at DATETIME NULL, feed_today DATE NULL,
+  last_error VARCHAR(500) NULL, item_count INT NOT NULL DEFAULT 0, rejected_count INT NOT NULL DEFAULT 0,
+  companies_json JSON NULL,                              -- feed companies[], for the Settings picker
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) DEFAULT CHARSET=utf8mb4;
+INSERT INTO external_sync (source)
+SELECT 'ship' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM external_sync WHERE source = 'ship');
+
+SET @ship_company_missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'companies' AND COLUMN_NAME = 'shipping_company_id');
+SET @ddl := IF(@ship_company_missing = 1,
+  'ALTER TABLE companies ADD COLUMN shipping_company_id BIGINT UNSIGNED NULL AFTER sort_order, ADD KEY idx_shipping_company (shipping_company_id)',
+  'SELECT 1');
+PREPARE ship_stmt1 FROM @ddl;
+EXECUTE ship_stmt1;
+DEALLOCATE PREPARE ship_stmt1;
+
+SET @ship_syskey_missing := (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'categories' AND COLUMN_NAME = 'system_key');
+SET @ddl := IF(@ship_syskey_missing = 1,
+  'ALTER TABLE categories ADD COLUMN system_key VARCHAR(16) NULL AFTER sort_order, ADD KEY idx_system_key (system_key)',
+  'SELECT 1');
+PREPARE ship_stmt2 FROM @ddl;
+EXECUTE ship_stmt2;
+DEALLOCATE PREPARE ship_stmt2;
+
+INSERT INTO categories (name, direction, sort_order, system_key)
+SELECT 'Stock payments', 'out', 900, 'ship' FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE system_key = 'ship');
+```
+
+- `companies.shipping_company_id` is **not seeded** (shipping's company ids differ per
+  stage); it is picked in Settings from `external_sync.companies_json` and is unique among
+  live companies (§6.2, `SHIPPING_COMPANY_TAKEN`).
+- `categories.system_key = 'ship'` marks the system category (P10). It is never settable
+  through the API; delete and direction change are refused with `CATEGORY_IN_USE` (§6.4).
+  Hand-entered `cash_items` may use the category (they must be removed at Phase 2 step 23
+  to avoid double counting — PHASE2.md risk 6).
+- `external_items` has no `account_id` and no `company_id` of its own: both are derived
+  (§3.4), so a re-mapped company or a new account moves every ship line with it.
 
 ---
 
@@ -486,9 +628,14 @@ pattern-matches a key string itself.
 |---|---|---|---|
 | one-off item | `^item\.([1-9][0-9]{0,17})$` | `item.123` | `{targetKind: 'item', targetId: '123', targetDate: null}` |
 | schedule instance | `^sched\.([1-9][0-9]{0,17})\.([0-9]{4}-[0-9]{2}-[0-9]{2})$` and the date is a real calendar date | `sched.45.2026-06-01` | `{targetKind: 'sched', targetId: '45', targetDate: '2026-06-01'}` |
-| shipping payment (phase 2) | `^ship\.([A-Za-z0-9_-]{1,64})$` | `ship.PO-778` | `{targetKind: 'ship', targetId: 'PO-778', targetDate: null}` |
+| shipping payment (Phase 2, live) | `^ship\.([A-Za-z0-9_-]{1,64})$` | `ship.bal-812-s311` | `{targetKind: 'ship', targetId: 'bal-812-s311', targetDate: null}` |
 
 - `targetDate` is the instance's **natural** date, never its effective date.
+- **`ship.` keys are live from Phase 2 (P2, D8 retired).** `buildShipKey(extId)` →
+  `ship.<extId>`; `targetId` is the feed's `ext_id` verbatim and names the
+  `external_items` row with `source = 'ship' AND ext_id = ?`. The feed grammar is exactly
+  this table's, so nothing is escaped and the feed validator (`validateFeed`) rejects any
+  id `parseKey` would. Every feed id form (P2) is built from `[A-Za-z0-9-]` only.
 - Total length ≤ 80 (`item_key VARCHAR(80)`).
 - API:
   `buildItemKey(id)`, `buildSchedKey(scheduleId, naturalDate)`, `buildShipKey(id)`,
@@ -600,17 +747,20 @@ DECIMAL strings (D1) except on `/forecast`.
 
 ### 6.2 Companies
 
-Row JSON: `{id, code, name, sortOrder, rowVersion, createdBy, createdAt, updatedAt, deletedAt}`.
+Row JSON: `{id, code, name, sortOrder, shippingCompanyId, rowVersion, createdBy, createdAt, updatedAt, deletedAt}`
+(`shippingCompanyId` from Phase 2; `null` until mapped).
 
 | Method, path | Perm | Request | Response / refusals | Audit |
 |---|---|---|---|---|
 | `GET /companies?q&includeDeleted&page&limit` | any | — | list, sorted `sort_order, name`; `q` over `code, name` | — |
 | `POST /companies` | any | `{code, name, sortOrder?}` | 201; 400 code grammar / blank name; 409 `COMPANY_CODE_TAKEN {companyId}` among live rows | `company`/`create` |
 | `GET /companies/:id` | any | — | row; 404 | — |
-| `PUT /companies/:id` | any | `{code?, name?, sortOrder?, baseVersion?}` | row; same 400/409; 409 `STALE_WRITE` | `update` |
+| `PUT /companies/:id` | any | `{code?, name?, sortOrder?, shippingCompanyId?, baseVersion?}` | row; same 400/409; 409 `STALE_WRITE`. **Phase 2:** `shippingCompanyId` is a positive integer or `null` (clears the mapping); 409 `SHIPPING_COMPANY_TAKEN {companyId}` when another live company already holds it (code-enforced among live rows, as `COMPANY_CODE_TAKEN`); it is **not** validated against the feed's `companies[]` (the feed may be down) — Settings offers the picker from `GET /external/status` | `update` |
 | `DELETE /companies/:id` | any | `{baseVersion?}` | 204 soft; 409 `COMPANY_IN_USE {accountIds}` while any live account belongs to it | `delete` |
 
 Code is upper-cased and trimmed on write. The two seeded companies are ordinary rows.
+A company's ship rows follow its mapping at read time (§3.4): re-mapping or clearing
+`shippingCompanyId` moves or unmaps them on the next `/forecast`, and nothing is rewritten.
 
 ### 6.3 Accounts
 
@@ -626,15 +776,17 @@ Row JSON: `{id, companyId, name, currency, sortOrder, isActive, isDefault, rowVe
 
 ### 6.4 Categories
 
-Row JSON: `{id, name, direction, sortOrder, rowVersion, createdBy, createdAt, updatedAt, deletedAt}`.
+Row JSON: `{id, name, direction, sortOrder, systemKey, rowVersion, createdBy, createdAt, updatedAt, deletedAt}`
+(`systemKey` from Phase 2: `'ship'` on the seeded "Stock payments" category, else `null`; never
+accepted in a body — a body field of that name is ignored per D29).
 
 | Method, path | Perm | Request | Response / refusals | Audit |
 |---|---|---|---|---|
 | `GET /categories?direction&q&includeDeleted&page&limit` | any | — | list sorted `direction, sort_order, name` | — |
 | `POST /categories` | any | `{name, direction, sortOrder?}` | 201; 400 | `category`/`create` |
 | `GET /categories/:id` | any | — | row; 404 | — |
-| `PUT /categories/:id` | any | `{name?, sortOrder?, baseVersion?}` | row; `direction` immutable once any live item or schedule uses the category (409 `CATEGORY_IN_USE`), else editable | `update` |
-| `DELETE /categories/:id` | any | `{baseVersion?}` | 204 soft; 409 `CATEGORY_IN_USE {itemCount, scheduleCount}` | `delete` |
+| `PUT /categories/:id` | any | `{name?, sortOrder?, baseVersion?}` | row; `direction` immutable once any live item or schedule uses the category (409 `CATEGORY_IN_USE`), else editable; **a system category's `direction` is always immutable** (409 `CATEGORY_IN_USE {systemKey}`, P10); its `name`/`sortOrder` edit freely | `update` |
+| `DELETE /categories/:id` | any | `{baseVersion?}` | 204 soft; 409 `CATEGORY_IN_USE {itemCount, scheduleCount}`; **a system category is never deletable** (409 `CATEGORY_IN_USE {systemKey}`) | `delete` |
 
 ### 6.5 FX rates
 
@@ -747,9 +899,10 @@ accounts' currencies ∪ currencies of every loaded item and schedule, adjustmen
 included) other than GBP has no rate with `effective_from <= today`.
 
 Account set: live, `is_active` accounts of the company (or all companies). The route
-computes `today`, calls `services/forecastLoad.js` (§8), then `lib/engine.js` (§9), and
-serialises. All money below is **integer minor units**; GBP unless the name says
-`Native`/`amountMinor`.
+computes `today`, **runs the shipping refresh first when it is due** (P4, §10.12: no DB
+connection held while it fetches; a failure only adds `SHIPPING_UNAVAILABLE`), then calls
+`services/forecastLoad.js` (§8), then `lib/engine.js` (§9), and serialises. All money
+below is **integer minor units**; GBP unless the name says `Native`/`amountMinor`.
 
 ```
 {
@@ -770,10 +923,12 @@ serialises. All money below is **integer minor units**; GBP unless the name says
   buckets: [ { start, end, opening, inflow, outflow, net, closing, minClosing, minDate } ],
   rows:    [ { categoryId, categoryName, direction, sortOrder,
                totals: [ perBucketGbp… ], total,
-               items: [ { key, kind: 'item' | 'sched', id, scheduleId?, naturalDate?,
+               items: [ { key, kind: 'item' | 'sched' | 'ship', id, scheduleId?, naturalDate?,
                           name, counterparty, accountId, currency,
                           amountMinor, accountMinor, gbpMinor, date, dueDate, bucketIndex,
                           status, settleMode, flags: [...], editable, paymentId?,
+                          ship?: { kind: 'deposit' | 'balance', poNumber, containerRef,     // kind 'ship' only
+                                   dateBasis, amountBasis, blocked, feedDate, feedAmountMinor },
                           baseline: { date, amountMinor, gbpMinor, flags } | null } ] } ],
   summary: { opening, inflow, outflow, net, closing, minClosing, minDate,
              unresolvedCount, unresolvedTotal, absorbedCount },
@@ -782,12 +937,47 @@ serialises. All money below is **integer minor units**; GBP unless the name says
               warnings: [ { code, key, reason? } ] } | null,
   unresolved: [ { key, kind, name, categoryId, accountId, currency, amountMinor, gbpMinor,
                   direction, date, ageDays, settleMode } ],
-  warnings:   [ { code: 'NO_ANCHOR', accountId } | { code: 'ORPHAN_OVERRIDE', scheduleId, naturalDate, overrideId } ]
+  shipping:   { lastSuccessAt, feedToday, openCount, undatedCount, undatedGbp, unmappedCount } | null,   // Phase 2
+  warnings:   [ { code: 'NO_ANCHOR', accountId } | { code: 'ORPHAN_OVERRIDE', scheduleId, naturalDate, overrideId }
+              | { code: 'SHIPPING_UNAVAILABLE', reason, lastSuccessAt }
+              | { code: 'SHIP_UNMAPPED', shippingCompanyId, count }
+              | { code: 'SHIP_PLAN_ORPHANED', key } | { code: 'SHIP_PLAN_STALE', key } ]
 }
 ```
 
-- `include=summary` omits `rows` (the key is absent) and keeps everything else; the
-  mobile app uses it.
+- `include=summary` omits `rows` (the key is absent) and keeps everything else, the
+  `shipping` block included; the mobile app uses it.
+- **Ship lines (Phase 2, §9.3.1).** They sit in the "Stock payments" row (the
+  `system_key = 'ship'` category, direction `out`) with `kind: 'ship'`, `id` = the feed
+  `ext_id`, `key` = `ship.<ext_id>`, `name` = `<supplier> · <poNumber> · deposit|balance`,
+  `counterparty` = the supplier, `accountId` = the account resolved at load (§3.4),
+  `status` `expected | paid | skipped`, `settleMode` always `manual`, and the `ship` block
+  (`feedDate` = the feed `due_date`, `feedAmountMinor` = the feed `amount`, so the client
+  can show what was planned against what shipping says). Their flags are `estimated`
+  (`dateBasis = 'estimated'`), `projected` (`amountBasis = 'derived'`), `blocked` (the feed's
+  `blocked` is set), `planned` (any overlay column set) — **none of which changes a band** —
+  plus `overdue`, `paid`, `adjusted`, `excluded`, `stale` and `fromScenario` with their
+  usual meaning; never `tuned`, `partial` or `remainder`. `paymentId` is absent on a ship
+  payment line (there is no `payments` row; the feed row is the payment). `editable` is the
+  same formula as below; without a scenario an edit writes the overlay
+  (`PUT /external-items/:key`), inside a draft scenario it writes a `ship.` adjustment.
+  Paid ship lines in `[A, today)` go to `accounts[].absorbed[]` (flags `['paid']`); open
+  lines more than 45 days overdue go to `unresolved[]` with `kind: 'ship'`; undated open
+  lines appear nowhere in `rows[]` and are counted in `shipping.undatedCount`.
+- **`shipping` block (Phase 2).** `null` until the feed has succeeded once
+  (`external_sync.last_success_at` null). Otherwise `lastSuccessAt`, `feedToday` (the
+  `today` the snapshot was built for), and — over the rows §8 rule 11 loaded for this
+  scope — `openCount` (open rows), `undatedCount` / `undatedGbp` (open rows with no
+  effective date; GBP at §9.7's rates) and `unmappedCount` (rows omitted for want of a
+  company or account, the sum of the `SHIP_UNMAPPED` counts).
+- **`warnings[]` (Phase 2).** `SHIPPING_UNAVAILABLE {reason, lastSuccessAt}` when the
+  refresh that was due did not succeed (`reason` one of `unconfigured | timeout |
+  unreachable | http_401 | http_<status> | bad_response`); the response is built on the
+  last snapshot, or with no ship lines when there has never been one. `SHIP_UNMAPPED
+  {shippingCompanyId, count}` once per distinct `shippingCompanyId` (including `null`, Q2)
+  among omitted rows. `SHIP_PLAN_ORPHANED {key}` for an overlay on a `gone` row.
+  `SHIP_PLAN_STALE {key}` when `planned_amount` is ignored because the feed amount moved
+  (P6).
 - `days[]` is one entry per date in `[today, to]`; `days[0].opening` is `Σ accounts.openingGbp`
   and the sum of `net` over every day reconciles to `summary.closing − summary.opening`.
   `baselineClosing` is present only with `scenarioId` (D34).
@@ -846,10 +1036,42 @@ are history, not a live comparison.
 | `PUT /scenarios/:id/adjustments/:itemKey` | any | `{kind, newDate?, newAmount?, note?, baseVersion?}` — `kind` is `adjust` or `exclude`; `adjust` needs at least one of `newDate`/`newAmount`; `exclude` takes neither | 200 (updated) / 201 (created) adjustment, carrying `stale` and `current` like a read. The PUT is a **full replace**: an omitted `newDate`, `newAmount` or `note` is cleared. `baseVersion` is checked against an existing adjustment and ignored on create. §10.7. 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT {status}`; 404 `TARGET_MISSING {key}`; 409 `TARGET_SETTLED {key, status}`; 422 `ADJUSTMENT_DATE_IN_PAST {newDate, today}`; 400 amount grammar. `baseDate`/`baseAmount` are set by the server from the loader, never from the body | `scenario_adjustment`/`create` or `update` |
 | `DELETE /scenarios/:id/adjustments/:itemKey` | any | `{baseVersion?}` | 204 hard; 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT`; 404 | `delete` |
 | `POST /scenarios/:id/rebase` | any | `{dropStale?}` (boolean) | 200 `{scenario, adjustments: [{...adjustment, rebased, stale, dropped}]}`. §10.8. `dropStale: true` removes `TARGET_SETTLED`, `TARGET_MISSING` and `DATE_PASSED` adjustments (D38); `BASE_CHANGED` ones are rebased. 409 `SCENARIO_NOT_DRAFT` | `scenario`/`rebase`; `scenario_adjustment`/`update` per rebased row, `delete` per dropped |
-| `POST /scenarios/:id/apply` | any | `{baseVersion?}` | 200 `{scenario, applied: [{itemKey, kind, wrote, entityId}]}` where `wrote` is `cash_item` or `schedule_override`. §10.9. 409 `SCENARIO_NOT_DRAFT {status}` (a second apply lands here); 409 `SCENARIO_STALE {stale: [{itemKey, reason}]}` — nothing written | `scenario`/`apply`; `cash_item`/`apply` or `schedule_override`/`apply` per target |
+| `POST /scenarios/:id/apply` | any | `{baseVersion?}` | 200 `{scenario, applied: [{itemKey, kind, wrote, entityId}]}` where `wrote` is `cash_item`, `schedule_override` or (Phase 2) `external_item`. §10.9. 409 `SCENARIO_NOT_DRAFT {status}` (a second apply lands here); 409 `SCENARIO_STALE {stale: [{itemKey, reason}]}` — nothing written | `scenario`/`apply`; `cash_item`/`apply`, `schedule_override`/`apply` or `external_item`/`apply` per target |
 
 `:itemKey` arrives un-encoded (unreserved characters only, §4); Express matches it as one
 path segment. Every adjustment route parses it with `parseKey` before touching the DB.
+A `ship.` key is an ordinary target from Phase 2 (§10.7): the base is the row's effective
+date and amount (overlay included, as D11), and because ETAs drift `BASE_CHANGED` is common
+on estimated lines — rebase, then apply. An applied `ship.` adjustment lives only in the
+overlay (nothing is written back to shipping).
+
+### 6.12 External items and the shipping feed (Phase 2)
+
+Row JSON (`GET /external-items` and every overlay mutation response):
+`{key, id, source, extId, feedKind, feedStatus, supplier, shippingCompanyId, companyId, accountId,
+poId, poNumber, shipmentId, containerRef, currency, amount, dueDate, paidOn, settles, dateBasis,
+amountBasis, blocked, flags, goneAt, plannedDate, plannedAmount, plannedSkipped, plannedBaseAmount,
+plannedNote, sourceScenarioId, plannedBy, plannedAt, effectiveDate, effectiveAmount, planStale,
+derivedStatus, rowVersion, createdBy, createdAt, updatedAt}`. `key` = `buildShipKey(extId)`;
+`companyId`/`accountId` are resolved per §3.4 (`null` when unmapped); `effectiveDate`,
+`effectiveAmount` and `planStale` (`planned_amount` set but ignored, P6) per §3.4; money is
+DECIMAL strings (D1); `flags` is the feed's `flags_json` array. `derivedStatus` is §9.6's
+band of the row against its resolved account's anchor — `expected | overdue | unresolved |
+paid | skipped` — and **`null`** for an undated open row, a gone row or an unmapped row
+(nothing is classified). It agrees with `/forecast` for the same data; a test compares
+them.
+
+| Method, path | Perm | Request | Response / refusals | Audit |
+|---|---|---|---|---|
+| `GET /external-items?status&companyId&from&to&includeGone&q&page&limit` | any | `status` comma list of `open, paid` (default both); `companyId` a live company or `all` (default); `from`/`to` bound the effective date; `includeGone=1` adds `gone_at` rows; `q` over `supplier, po_number, container_ref` | list sorted effective date ascending, undated last, then id; gone rows excluded by default | — |
+| `PUT /external-items/:key` | any | `{plannedDate?, plannedAmount?, skipped?, note?, baseVersion?}` — a **merge** like tune: absent = unchanged, `null` clears `plannedDate` / `plannedAmount` / `note`; `skipped` boolean | 200 row. §10.11. 404 no `external_items` row for the key (or not a `ship.` key); 404 `TARGET_MISSING {key}` when the row is gone; 409 `TARGET_SETTLED {key, status: 'paid'}` when `feedStatus = 'paid'`; 422 `PLANNED_DATE_IN_PAST {plannedDate, today}`; 400 `plannedAmount <= 0`, grammar, or nothing set after the merge ("nothing to plan; DELETE reverts"); 409 `STALE_WRITE`. Setting `plannedAmount` also stores `plannedBaseAmount` = the feed `amount` now (P6) | `external_item`/`plan` |
+| `DELETE /external-items/:key` | any | `{baseVersion?}` | 204: clears every `planned_*` column, `planned_skipped` and `source_scenario_id` (revert to the feed). Works on a **gone** row too — this is how an orphaned overlay (`SHIP_PLAN_ORPHANED`) is cleaned up. 404 when no row has the key or no overlay is set | `external_item`/`unplan` |
+| `POST /external/refresh` | any | — | 200 `{ran: boolean, status: <status row below>}` after a forced run (P4): the 10-minute TTL is ignored, the 60-second claim is not (`ran: false` when another run holds it, and the current status is returned). 503 `SHIPPING_UNAVAILABLE {reason, lastSuccessAt}` when the run fails (unconfigured, timeout, unreachable, 401, other HTTP status, bad response); the last snapshot is untouched. §10.12 | none (P8) |
+| `GET /external/status` | any | — | `{source: 'ship', lastAttemptAt, lastSuccessAt, feedToday, lastError, itemCount, rejectedCount, companies: [{id, name}], configured, updatedAt}` from `external_sync` (`companies` = `companies_json`, for the Settings picker; `configured` = `isConfigured()`) | — |
+
+`:key` arrives un-encoded (§4) and is parsed with `parseKey` before any DB read; a key
+whose kind is not `ship` is a 404, not a 422 (the grammar is fine, the row does not
+exist here).
 
 ---
 
@@ -872,7 +1094,14 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 | `COMPANY_CODE_TAKEN` | 409 | refusal | Company `code` already held by a live company; `details {companyId}` |
 | `COMPANY_IN_USE` | 409 | refusal | Deleting a company with live accounts; `details {accountIds}` |
 | `ACCOUNT_IN_USE` | 409 | refusal | Deleting an account, or changing its currency, while live items, schedules or balances reference it (`details {itemCount, scheduleCount, balanceCount}`); or deactivating it while it has owed one-offs, a schedule with an occurrence on or after today, or an overdue/unresolved instance (D17; `details {owedItems, liveSchedules, owedInstances}`, keys capped at 50 per kind) |
-| `CATEGORY_IN_USE` | 409 | refusal | Deleting a category, or changing its direction, while live items or schedules use it; `details {itemCount, scheduleCount}` |
+| `CATEGORY_IN_USE` | 409 | refusal | Deleting a category, or changing its direction, while live items or schedules use it; `details {itemCount, scheduleCount}`. Phase 2: deleting a system category or changing its direction, always; `details {systemKey}` (P10) |
+| `SHIPPING_COMPANY_TAKEN` | 409 | refusal | Phase 2: `PUT /companies/:id` with a `shippingCompanyId` another live company holds; `details {companyId}` |
+| `PLANNED_DATE_IN_PAST` | 422 | refusal | Phase 2: `plannedDate < today` on `PUT /external-items/:key`; `details {plannedDate, today}` |
+| `SHIPPING_UNAVAILABLE` | 503 | refusal | Phase 2: `POST /external/refresh` when the forced run fails; `details {reason, lastSuccessAt}` — `reason` one of `unconfigured \| timeout \| unreachable \| http_401 \| http_<status> \| bad_response` |
+| `SHIPPING_UNAVAILABLE` | 200 | warning | Phase 2: `/forecast` when the refresh that was due did not succeed; the last snapshot is used; `{reason, lastSuccessAt}` |
+| `SHIP_UNMAPPED` | 200 | warning | Phase 2: `/forecast`: ship rows omitted because no live company maps their `shippingCompanyId` (including `null`, Q2) or the company has no live active account; one per distinct id; `{shippingCompanyId, count}` |
+| `SHIP_PLAN_ORPHANED` | 200 | warning | Phase 2: `/forecast`: an overlay (`planned_*`) sits on a `gone` row; `{key}` |
+| `SHIP_PLAN_STALE` | 200 | warning | Phase 2: `/forecast`: `planned_amount` ignored because `planned_base_amount ≠` the feed `amount` (P6); `{key}` |
 | `FX_RATE_EXISTS` | 409 | refusal | `(currency, effective_from)` already present; `details {fxRateId}` |
 | `ITEM_NOT_EDITABLE` | 409 | refusal | `PUT /items/:id` sending `status`, `amount` or `currency` on a `paid`/`part_paid` item; `details {status}` |
 | `BALANCE_DATE_IN_FUTURE` | 422 | refusal | `balance_date > today` on `PUT …/balances/:date` or `POST /balances/bulk`; `details {balanceDate, today}` |
@@ -891,18 +1120,22 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 | `SCENARIO_STALE` | 409 | refusal | Apply: at least one adjustment is stale under the locks; `details {stale: [{itemKey, reason}]}` with `reason` one of the four below; nothing written |
 | `BASE_CHANGED` | — | reason | The target's current effective date (compared as `YYYY-MM-DD` strings) or amount (compared as parsed minor units) differs from `base_date`/`base_amount` |
 | `DATE_PASSED` | — | reason | An `adjust` whose `new_date < today` at read time (D38); rebase cannot fix it, `dropStale` removes it |
-| `TARGET_SETTLED` | — | reason | The target's status is not `expected` (paid, part_paid, skipped), or the override row carries payment state |
-| `TARGET_SETTLED` | 409 | refusal | Adjustment `PUT` against such a target; `details {key, status}` |
-| `TARGET_MISSING` | — | reason | The target is gone: deleted, not an occurrence, orphaned, or a `ship.` key in phase 1 |
-| `TARGET_MISSING` | 404 | refusal | Adjustment `PUT` against such a target; `details {key}` |
+| `TARGET_SETTLED` | — | reason | The target's status is not `expected` (paid, part_paid, skipped), or the override row carries payment state; a `ship.` row that is `paid` or `planned_skipped` |
+| `TARGET_SETTLED` | 409 | refusal | Adjustment `PUT` against such a target; `details {key, status}`. Phase 2: also `PUT /external-items/:key` on a paid row |
+| `TARGET_MISSING` | — | reason | The target is gone: deleted, not an occurrence, orphaned; a `ship.` row that is absent, `gone`, or undated (no `due_date` and no `planned_date` — nothing to adjust, §8 `loadTarget`) |
+| `TARGET_MISSING` | 404 | refusal | Adjustment `PUT` against such a target; `details {key}`. Phase 2: also `PUT /external-items/:key` on a gone row |
 | `NO_ANCHOR` | 200 | warning | `/forecast`: an in-scope account has no recorded balance and is excluded; `{accountId}` |
 | `ORPHAN_OVERRIDE` | 200 | warning | `/forecast` and `/instances`: an override row whose `natural_date` is not an occurrence; `{scheduleId, naturalDate, overrideId}` |
 | `STALE` | 200 | warning | `/forecast` `scenario.warnings`: an adjustment not applied; `{key, reason}` |
 | `ADJUSTMENT_OUT_OF_SCOPE` | 200 | warning | `/forecast` `scenario.warnings`: the target's account is outside the requested company scope; `{key}` |
 
 `GET /meta/enums.errorCodes` lists every refusal code above; `warningCodes` lists
-`NO_ANCHOR`, `ORPHAN_OVERRIDE`, `STALE`, `ADJUSTMENT_OUT_OF_SCOPE`; `staleReasons` lists
-`BASE_CHANGED`, `TARGET_SETTLED`, `TARGET_MISSING`, `DATE_PASSED`.
+`NO_ANCHOR`, `ORPHAN_OVERRIDE`, `STALE`, `ADJUSTMENT_OUT_OF_SCOPE` and, from Phase 2,
+`SHIPPING_UNAVAILABLE`, `SHIP_UNMAPPED`, `SHIP_PLAN_ORPHANED`, `SHIP_PLAN_STALE`;
+`staleReasons` lists `BASE_CHANGED`, `TARGET_SETTLED`, `TARGET_MISSING`, `DATE_PASSED`
+(Phase 2 adds no stale reason). Phase 2 also adds `feedKinds` (`deposit, balance`),
+`feedStatuses` (`open, paid`), `dateBases` (`firm, estimated, undated`), `amountBases`
+(`stated, derived`) and `shippingReasons` (the `SHIPPING_UNAVAILABLE` reasons).
 
 ---
 
@@ -952,8 +1185,11 @@ It loads, for the in-scope accounts (`account_id IN (…)`, live rows only):
    adjustment, `item.` → that `cash_items` row even if outside every bound above (deleted →
    absent → `TARGET_MISSING`); `sched.` → the schedule row and that natural date's
    instance (plus its override row) even if outside the window, so an instance an
-   adjustment moves into the window is present; `ship.` → nothing (D8). Targets whose
-   account is outside the scope are loaded too (D20).
+   adjustment moves into the window is present; `ship.` (Phase 2) → the `external_items`
+   row with `source = 'ship' AND ext_id = target_id`, **gone or not**, whatever its dates,
+   status or mapping (a gone, undated or absent row reads `TARGET_MISSING` in §9.5; an
+   unmapped one carries `inScope: false`). Targets whose account is outside the scope are
+   loaded too (D20).
 7. **Schedule rows** for every override or instance loaded by rules 2–6 (then rule 3 runs
    again for any schedule that joined here), so the engine can run `isOccurrence` on each
    (orphan detection) and resolve settle modes.
@@ -962,25 +1198,46 @@ It loads, for the in-scope accounts (`account_id IN (…)`, live rows only):
    Missing → the route answers `FX_RATE_MISSING` before the engine runs.
 9. **Anchors**: per account, the `bank_balances` row with the latest `balance_date`.
 10. **Adjustments**: every `scenario_adjustments` row of the scenario, ascending id — **only while the scenario is `draft`**. An `applied` or `archived` scenario is history: `adjustments: []` and no rule-6 targets, so `/forecast?scenarioId=` shows the real data with no `STALE` warnings (its `scenario` block still renders; nothing is `editable`).
+11. **Ship rows (Phase 2, P5/P9).** `external_items` rows with `source = 'ship'` and
+    `gone_at IS NULL` whose resolved account (§3.4, computed in the same SQL: company by
+    `shipping_company_id`, then the currency-matched active account, else the default) is
+    in the account set, where `feed_status = 'open'` (dated **or undated**, any effective
+    date — an open supplier balance is owed until shipping says otherwise, so there is no
+    window bound and no 45-day floor, as rule 5) or `feed_status = 'paid' AND paid_on >=
+    minA`. Rows that resolve to no account are **not loaded**; they are counted per
+    `shipping_company_id` (null included) for `SHIP_UNMAPPED` and `shipping.unmappedCount`.
+    Rows resolving to an account without an anchor are not loaded either (that account is
+    `NO_ANCHOR`, as for items). Each row carries its resolved `accountId` and `companyId`
+    and its overlay columns verbatim; the loader does not compute the effective values
+    (§9.3.1 does). The `system_key = 'ship'` category row joins `categories`.
 
 Output shape (`engineInput`, the JSDoc typedef at the top of `lib/engine.js` is the exact
 form): `{today, from, to, bucket, include, companyId, accounts: [{id, companyId, name,
 currency, anchorDate, anchorBalance}], rates: {CUR: {rateToGbp, effectiveFrom}},
-categories: [{id, name, direction, sortOrder}] (every category of a loaded item or
-schedule — the rows need names and order), items: [rows],
-schedules: [rows], overrides: [rows], payments: [rows], adjustments: [rows], externalItems: [],
-scenario: row | null, warnings: [NO_ANCHOR…]}` — rows in their camelCase JSON shape, money
-still DECIMAL strings. Duplicates from overlapping rules are removed by id / by
-`(scheduleId, naturalDate)` before handing over. Rows of accounts outside the scope reach
-the engine only through rule 6 and carry `inScope: false`.
+categories: [{id, name, direction, sortOrder, systemKey}] (every category of a loaded item,
+schedule or ship row — the rows need names and order), items: [rows],
+schedules: [rows], overrides: [rows], payments: [rows], adjustments: [rows],
+externalItems: [rows] (rule 11 plus rule-6 `ship.` targets, each with `accountId`,
+`companyId`, `inScope`), shipping: {lastSuccessAt, feedToday, unmappedCounts} | null,
+scenario: row | null, warnings: [NO_ANCHOR… | SHIPPING_UNAVAILABLE…]}` — rows in their
+camelCase JSON shape, money still DECIMAL strings. Duplicates from overlapping rules are
+removed by id / by `(scheduleId, naturalDate)` / by `extId` before handing over. Rows of
+accounts outside the scope reach the engine only through rule 6 and carry `inScope: false`.
 
 `loadTarget(conn, parsedKey, today)` is the same module's single-target read used by the
 adjustment write, rebase and apply, called **after the caller has locked the target's rows**
 in the standing order (§10.1): it returns `{kind, id, naturalDate, status, effectiveDate,
 effectiveAmount, currency, accountId, settleMode, hasPaymentState, overrideId}` or `null`,
 computed with the same effective-value rules (§3.4) and nothing else. It returns `null`
-when the `cash_items` or `schedules` row is not live (`deleted_at` set or absent), when
-`isOccurrence(schedule, naturalDate)` is false, or for a `ship.` key (D8).
+when the `cash_items` or `schedules` row is not live (`deleted_at` set or absent), or when
+`isOccurrence(schedule, naturalDate)` is false. **For a `ship.` key (Phase 2)** it reads
+the `external_items` row by `(source, ext_id)` and returns `null` when the row is absent,
+`gone_at` is set, or the row is **undated** (`planned_date` and `due_date` both null —
+there is no line to adjust and `base_date` is `NOT NULL`; the user dates it through the
+overlay first); otherwise `{kind: 'ship', id: extId, naturalDate: null, status: 'paid' |
+'skipped' | 'expected' (§3.4), effectiveDate: planned_date ?? due_date, effectiveAmount
+(P6), currency, accountId (resolved, or null when unmapped), settleMode: 'manual',
+hasPaymentState: feed_status = 'paid', overrideId: null}`.
 
 ---
 
@@ -989,7 +1246,9 @@ when the `cash_items` or `schedules` row is not live (`deleted_at` set or absent
 `run(engineInput) → response body of §6.10` (minus `meta.generatedAt`). No DB, no clock,
 no `Date`; money as `bigint` minor units internally, converted to JSON numbers at the
 edge; dates as strings with epoch-day arithmetic. `lib/classify.js` is imported for step
-6; nothing else classifies. `externalItems` is accepted and, in phase 1, must be `[]`.
+6; nothing else classifies. `externalItems` (ship rows, §8 rule 11) become lines in
+§9.3.1 and then flow through every later step exactly as items and instances do; the
+engine holds no shipping logic beyond that mapping.
 
 The eleven steps, in order:
 
@@ -1006,6 +1265,27 @@ the figure; anything dated `>= A` is not.
 Done by §8 before the engine runs; the engine trusts the set it is given and never asks
 for more.
 
+### 9.3.1 Ship lines (Phase 2, P6/P9) — before §9.4
+Each `externalItems` row becomes **one line**: `kind 'ship'`, `key ship.<extId>`,
+`direction 'out'`, the `systemKey = 'ship'` category, `settleMode 'manual'` (shipping, not
+the calendar, says a supplier was paid, so a late unpaid balance is overdue and never
+assumed settled — rows 5–6 of §9.6 cannot apply), and the resolved `accountId`. The
+mapping, in `lib/lines.js` beside `itemLine` / `instanceLine`:
+
+| Feed row | Line handed to §9.4–9.6 |
+|---|---|
+| `feedStatus 'paid'` | `status 'paid'`, `payments: [{paymentId: null, paidOn, amountMinor: amount}]`, `paidAmountMinor = amountMinor` → §9.6 rows 1–2 (before A excluded, `[A, today)` absorbed, today in today's bucket) |
+| open, `plannedSkipped` | `status 'skipped'` → row 4 |
+| open, dated (`plannedDate ?? dueDate` not null) | `status 'expected'`; `effectiveDate = plannedDate ?? dueDate`; `amountMinor = plannedAmount` while `plannedBaseAmount = amount`, else `amount` plus warning `SHIP_PLAN_STALE {key}` (P6) → rows 7–9 |
+| open, undated | **no line**; counted in `shipping.undatedCount` / `undatedGbp` (at §9.7's rate) |
+| `goneAt` set (reaches the engine only as a rule-6 target) | **no line**; any overlay column set → warning `SHIP_PLAN_ORPHANED {key}`; as an adjustment target it reads `TARGET_MISSING` |
+
+Flags `estimated`, `projected`, `blocked` and `planned` (§6.10) are carried on the line
+and **never change a band**. There is no `part_paid` for a ship line: the feed's open
+`amount` is already the remainder, and a part payment arrives as its own paid row (P3).
+Assumed-paid money (a proof file, or goods that have moved) leaves the feed with no paid
+row, so it reads as settled before the anchor — PHASE2.md risk 7.
+
 ### 9.4 Effective date
 §5.3: override `due_date` verbatim (weekend rule bypassed) else the weekend-adjusted
 natural date. One-off items: `due_date`. Effective amount, status and settle mode per
@@ -1021,8 +1301,8 @@ matching against the in-scope set would make every out-of-scope target read
 
 | Check, in order | Outcome |
 |---|---|
-| no loaded target with that key (deleted, not an occurrence, orphan, `ship.`) | stale `TARGET_MISSING`; not applied |
-| target's effective status ≠ `expected` (paid, part_paid, skipped), or its override carries payment state | stale `TARGET_SETTLED`; not applied |
+| no loaded target with that key (deleted, not an occurrence, orphan; a `ship.` row that is absent, gone or undated — §9.3.1 makes no line for it) | stale `TARGET_MISSING`; not applied |
+| target's effective status ≠ `expected` (paid, part_paid, skipped; a `ship.` row paid or `plannedSkipped`), or its override carries payment state | stale `TARGET_SETTLED`; not applied |
 | `base_date ≠` effective date (string compare) or `base_amount ≠` effective amount (parsed minor units; both pre-adjustment, override-adjusted — D11) | stale `BASE_CHANGED`; not applied |
 | `kind = 'adjust'` and `new_date` set and `new_date < today` | stale `DATE_PASSED` (D38); not applied |
 | target's account outside the requested scope (`inScope: false`) | `ADJUSTMENT_OUT_OF_SCOPE`; not applied; the target stays out of both sets |
@@ -1047,7 +1327,9 @@ OwedLine = { band: 'skipped' | 'assumedSettled' | 'assumed' | 'future' | 'overdu
 ```
 
 Settle mode is **already resolved by the caller** (override's when set, else the
-schedule's; a one-off's own). `paidAmountMinor` is the parent's cache (`Σ payments`).
+schedule's; a one-off's own; `manual` for every ship line, §9.3.1). `paidAmountMinor` is
+the parent's cache (`Σ payments`; for a paid ship line, the feed amount). A ship line
+enters this table like any other line — the classifier has no `ship` branch.
 `A` may be `null` (D12: treated as minus infinity). `A <= today` always holds otherwise, so
 the overdue floor is `today`. `OVERDUE_WINDOW_DAYS = 45`. **Invariant asserted by BUILD_PLAN
 step 4's matrix test**: `payments` has exactly one entry per input payment row, each in
@@ -1157,10 +1439,16 @@ pay, unpay, revert, split, end and scenario apply. That serialises them against 
 guard at any isolation level, including "mark paid" on an instance that has no override
 row yet. Lock order, always:
 
-**scenarios (ascending id) → schedules (ascending id) → cash_items (ascending id) → schedule_overrides → payments**
+**scenarios (ascending id) → schedules (ascending id) → cash_items (ascending id) → external_items (ascending id) → schedule_overrides → payments**
 
-A writer that will need a lock earlier in that order takes it up front, which is why the
-split finds and locks its draft scenarios before locking the schedule. `payments` rows
+`external_items` (Phase 2, P11) has no parent and no children, so it sits with the other
+top-level targets, after `cash_items`; it is locked by `(source, ext_id)` but ordered by
+`id`. **The shipping refresh takes no transaction** (§10.12): it is one autocommit
+single-row statement at a time under `innodb_lock_wait_timeout = 5`, never holds two row
+locks, and so can neither deadlock nor block a writer for more than one statement; a row it
+cannot lock waits for the next run. A writer that will need a lock earlier in that order
+takes it up front, which is why the split finds and locks its draft scenarios before
+locking the schedule. `payments` rows
 are only ever touched under their parent's lock — the `cash_items` row, or (for an
 instance) the `schedules` row and then the override row, per the standing rule — so they
 are last and never locked on their own. Reference rows (companies, accounts, categories,
@@ -1335,11 +1623,15 @@ structural fields together, `row_version + 1`, audit `update`.
 2. Lock the `scenarios` row (live) → 404; `status ≠ 'draft'` → `SCENARIO_NOT_DRAFT`.
 3. **Lock the target in the standing order** (§10.1): `sched.` → the `schedules` row
    (live, `FOR UPDATE`) then its override row for `target_date` if one exists (`FOR
-   UPDATE`); `item.` → the `cash_items` row (live, `FOR UPDATE`); `ship.` → nothing.
-4. `loadTarget(conn, parsed, today)` (§8) under those locks: `null` → 404 `TARGET_MISSING`;
-   `status ≠ 'expected'` or `hasPaymentState` → 409 `TARGET_SETTLED`. **Base values** = the
+   UPDATE`); `item.` → the `cash_items` row (live, `FOR UPDATE`); `ship.` (Phase 2) → the
+   `external_items` row `WHERE source = 'ship' AND ext_id = ? FOR UPDATE` (gone or not; a
+   missing row is simply `null` at step 4). No network I/O: the check is against the
+   snapshot, never live shipping.
+4. `loadTarget(conn, parsed, today)` (§8) under those locks: `null` → 404 `TARGET_MISSING`
+   (for `ship.`: absent, gone or undated); `status ≠ 'expected'` or `hasPaymentState` →
+   409 `TARGET_SETTLED` (for `ship.`: paid or `planned_skipped`). **Base values** = the
    target's current pre-adjustment effective date and amount from the loader
-   (override-adjusted, D11), never client-supplied.
+   (override-adjusted, D11; for `ship.` overlay-adjusted, P6), never client-supplied.
 5. Upsert on `(scenario_id, item_key)` with `target_kind/target_id/target_date` from the
    parse; `row_version + 1` on update; audit `create`/`update`. Delete: lock scenario
    (draft), `DELETE` by `(scenario_id, item_key)` → 404 when none; audit `delete`; 204 (no
@@ -1348,9 +1640,11 @@ structural fields together, `row_version + 1`, audit `update`.
 ### 10.8 Rebase
 1. Lock the scenario (live, draft) → 404 / `SCENARIO_NOT_DRAFT`.
 2. Read the adjustments ascending id; **lock every target in the standing order** exactly
-   as apply does (§10.9 step 2): schedules asc → cash_items asc → overrides.
+   as apply does (§10.9 step 2): schedules asc → cash_items asc → external_items asc →
+   overrides.
 3. For each adjustment ascending id: `loadTarget` under the locks; `null` → stale
-   `TARGET_MISSING`; not `expected` or payment state → `TARGET_SETTLED`; `adjust` with
+   `TARGET_MISSING` (a `ship.` row absent, gone or undated); not `expected` or payment
+   state → `TARGET_SETTLED` (a `ship.` row paid or skipped); `adjust` with
    `new_date < today` → `DATE_PASSED` (D38, reported even when the base also changed);
    else set `base_date`/`base_amount` to the current values (`rebased: true` when they
    changed; audit `update`).
@@ -1363,14 +1657,20 @@ structural fields together, `row_version + 1`, audit `update`.
    `baseVersion`.
 2. Read the adjustments ascending id; collect target ids. Lock, in the standing order:
    `schedules` rows for every `sched.` target, ascending id, `FOR UPDATE` (live); then
-   `cash_items` rows for every `item.` target, ascending id, `FOR UPDATE` (live); then the
-   `schedule_overrides` rows for the `sched.` targets, `FOR UPDATE` (those that exist).
+   `cash_items` rows for every `item.` target, ascending id, `FOR UPDATE` (live); then
+   (Phase 2) `external_items` rows for every `ship.` target, ascending `id`, `FOR UPDATE`
+   (gone or not); then the `schedule_overrides` rows for the `sched.` targets, `FOR UPDATE`
+   (those that exist). Apply does no network I/O and re-checks against the snapshot,
+   never live shipping; a refresh `UPDATE` on a locked ship row waits (or gives up after
+   5 s and leaves the row for the next run) and never touches `planned_*` (§10.12).
 3. **Re-check every adjustment under those locks** with the §9.5 definitions:
-   `TARGET_MISSING` (row absent or deleted, `isOccurrence` false, `ship.`), `TARGET_SETTLED`
-   (item status ≠ `expected`; override row with status other than NULL/`expected` or with
-   payment state), `BASE_CHANGED` (current effective date ≠ `base_date` as strings, or
-   current effective amount ≠ `base_amount` as parsed minor units), `DATE_PASSED` (`adjust`
-   with `new_date < today` — D38).
+   `TARGET_MISSING` (row absent or deleted, `isOccurrence` false; a `ship.` row absent,
+   gone or undated), `TARGET_SETTLED` (item status ≠ `expected`; override row with status
+   other than NULL/`expected` or with payment state; a `ship.` row paid or
+   `planned_skipped`), `BASE_CHANGED` (current effective date ≠ `base_date` as strings, or
+   current effective amount ≠ `base_amount` as parsed minor units — for `ship.` the
+   effective values of §3.4, overlay and P6 included), `DATE_PASSED` (`adjust` with
+   `new_date < today` — D38).
 4. **Any stale → throw `409 SCENARIO_STALE {stale: [{itemKey, reason}]}`** listing each key
    and reason; the transaction rolls back and nothing is written. An apply can never
    quietly skip part of a scenario.
@@ -1380,6 +1680,13 @@ structural fields together, `row_version + 1`, audit `update`.
    `sched.` + `adjust` → upsert the override with `due_date = new_date` (when set) and
    `amount = new_amount` (when set); `sched.` + `exclude` → upsert with `status = 'skipped'`;
    both stamp `source_scenario_id`; audit `schedule_override`/`apply`.
+   **`ship.` (Phase 2, P6/P7)** + `adjust` → `planned_date = new_date ?? planned_date`,
+   `planned_amount = new_amount ?? planned_amount`, and **when `new_amount` is set**
+   `planned_base_amount = amount` (the feed amount under the lock); `ship.` + `exclude` →
+   `planned_skipped = 1`; both stamp `source_scenario_id`, `planned_by` = caller,
+   `planned_at = UTC_TIMESTAMP()`, `row_version + 1`; audit `external_item`/`apply`;
+   `applied[].wrote = 'external_item'`. Feed columns are never written here. Nothing goes
+   back to shipping, so the overlay is the only home of an applied `ship.` adjustment.
 6. `status = 'applied'`, `applied_at = NOW()`, `applied_by` = caller, `row_version + 1`; audit
    `scenario`/`apply`. Adjustments are now immutable (`SCENARIO_NOT_DRAFT` on every write)
    and are the audit trail of what was applied. Return `{scenario, applied}`.
@@ -1390,6 +1697,59 @@ structural fields together, `row_version + 1`, audit `update`.
    audit `scenario`/`duplicate` with `after.copiedFrom`.
 3. Insert every adjustment with the same `item_key`, `target_*`, `kind`, `new_*`, `base_*`,
    `note` (bases as-is); audit `create` each. 201.
+
+### 10.11 External item overlay — `PUT` / `DELETE /external-items/:key` (Phase 2)
+Body checks first (400): `parseKey` (422 `ITEM_KEY_INVALID` when the grammar fails; a
+non-`ship.` kind is 404 at step 1), `plannedDate` a date, `plannedAmount` grammar and `> 0`,
+`skipped` boolean, `note` ≤ 500; `plannedDate < today` → 422 `PLANNED_DATE_IN_PAST`. Then one
+transaction:
+1. `SELECT … FROM external_items WHERE source = 'ship' AND ext_id = ? FOR UPDATE` → 404
+   when absent; `baseVersion` → `STALE_WRITE` (§2.9: the refresh bumps `row_version` too).
+2. `PUT`: `gone_at` set → 404 `TARGET_MISSING {key}`; `feed_status = 'paid'` → 409
+   `TARGET_SETTLED {key, status: 'paid'}`. `DELETE`: neither check (an orphaned overlay on
+   a gone row must be clearable); no overlay column set → 404.
+3. `PUT`: merge the body over the overlay columns (absent = unchanged, `null` = clear).
+   `plannedAmount` set → `planned_base_amount = amount` (the feed amount under the lock,
+   P6); cleared → `planned_base_amount = NULL`. `skipped` → `planned_skipped`. If every
+   overlay column is NULL/0 after the merge → 400 ("nothing to plan; DELETE reverts").
+   `DELETE`: set `planned_date`, `planned_amount`, `planned_base_amount`, `planned_note`,
+   `source_scenario_id`, `planned_by`, `planned_at` to NULL and `planned_skipped = 0`.
+4. `row_version + 1`; `planned_by` = caller, `planned_at = UTC_TIMESTAMP()` (`PUT`); audit
+   `external_item`/`plan` or `unplan` (before/after = the overlay columns plus `key`);
+   return the row JSON (§6.12) or 204. Nothing else is locked; feed columns are never
+   written here. A hand edit after a scenario apply leaves `source_scenario_id` as it is
+   (as a hand edit of an applied `cash_items` row does).
+
+### 10.12 Shipping refresh — `services/shippingRefresh.js` (Phase 2, P4/P8; no transaction)
+Runs from `/forecast` (when `external_sync.last_success_at` is older than 10 minutes or
+`feed_today ≠ today`) **before the route takes its read connection**, and from
+`POST /external/refresh` (TTL ignored). Never inside `withTransaction`; every statement is
+its own autocommit, single-row, with `SET innodb_lock_wait_timeout = 5` on the connection.
+1. **Claim.** `UPDATE external_sync SET last_attempt_at = UTC_TIMESTAMP() WHERE source =
+   'ship' AND (last_attempt_at IS NULL OR last_attempt_at < UTC_TIMESTAMP() - INTERVAL 60
+   SECOND)`. 0 rows → another run holds it; skip (`ran: false`).
+2. **Fetch** with no DB connection held: `services/shipping.js` `fetchPaymentsForecast({today,
+   paidSince})`, `today` = the route's, `paidSince` = the earliest of the live active
+   accounts' latest `balance_date`s, else `today − 60`. `validateFeed` counts and drops bad
+   rows (id grammar per §4, `parseMinor(amount)`, dates, currency `^[A-Z]{3}$`, enums).
+   Unconfigured → no call, failure `unconfigured`.
+3. **Diff** the accepted rows against `SELECT ext_id, feed_hash, gone_at FROM external_items
+   WHERE source = 'ship'`: new `ext_id` → `INSERT` (`created_by = 'shipping-feed'`); changed
+   `feed_hash`, or back after `gone_at` → `UPDATE` the feed columns, `gone_at = NULL`,
+   `row_version + 1`; missing from the feed and `gone_at IS NULL` → `UPDATE … SET gone_at =
+   UTC_TIMESTAMP(), row_version + 1`. Never `DELETE`; **never any `planned_*`,
+   `planned_skipped` or `source_scenario_id`** (a grep of the file finds no `planned_`). A
+   row lock that times out is logged and left for the next run.
+4. **Record.** Success: `last_success_at`, `feed_today`, `item_count`, `rejected_count`,
+   `companies_json`, `last_error = NULL`. Failure: `last_error` only (`last_success_at`
+   untouched, so the snapshot's age is truthful).
+
+No audit rows (P8). Concurrency: step 1 serialises runs; each `UPDATE` in step 3 holds one
+row lock for one statement, so an overlay write or an apply holding that row makes the
+refresh wait at most 5 s, and the refresh can never make a transaction wait on more than
+one statement. Local dev and JFlow test share one schema (`jflow` on explorer-test), so
+both must point at shipping **test** or they overwrite each other's snapshot (PHASE2.md
+risk 5).
 
 ---
 
@@ -1412,6 +1772,23 @@ BUILD_PLAN.md's additions:
 - Re-keying draft adjustments across a currency split.
 - Anchor-age warnings (`anchorAgeDays` is served; no threshold, no warning code).
 
+Phase 2 deferrals (Dev, 2026-09-29):
+
+- **Supplier tags on the server (PHASE2.md Q5) — not now.** Shipping's assembler (step 15)
+  passes suppliers **without tags** (`tags: []`). The ported math still accepts tags, so
+  Golden A (frozen TS vs the JS port on the same input) is unaffected, but **Golden B must
+  compare with tags stripped from the page-built input**, and **tag-driven payment rules
+  do not apply server-side until tags are wired** (a SELECT grant on `jfpro.supplier_tags`
+  / `jfpro.tags`, or a DEFINER view as on 2026-06-30). Until then, a supplier whose terms
+  come only from a tag rule is projected by the fallback rule on the server, and ShipLine
+  shows the server's figure from step 17.
+- A scheduled refresh (P4: on demand only); a per-row audit of the refresh (P8).
+- Following a stage change: an overlay or adjustment on `dep-812` does not follow the PI
+  that replaces it (P2; the user sees `SHIP_PLAN_ORPHANED` / `TARGET_MISSING` and re-plans).
+- A single read `GET /external-items/:key` (the list filters by `q`), and a mobile
+  overlay editor (mobile shows the summary only).
+- Writing anything back to shipping.
+
 Consciously left out of this contract:
 
 - Restore routes for soft-deleted rows (D18).
@@ -1431,6 +1808,12 @@ Consciously left out of this contract:
 | `src/handlers/jflow.js` | Express app, request id, auth + local bypass, `health`, `me`, `meta/enums`, `users`, `audit`, router mounts, 404, error handler, Lambda export |
 | `src/db/index.js` | pool (`dateStrings: ['DATE']`, `timezone: 'Z'`), `withConnection`, `withTransaction` (deadlock retry default 1) |
 | `src/db/migrations/2026-09-29_jflow_core.sql` | §3 DDL (14 tables incl. `payments`) + seed |
+| `src/db/migrations/2026-09-29_jflow_ship.sql` (Phase 2) | §3.5: `external_items`, `external_sync`, guarded `companies.shipping_company_id` and `categories.system_key`, the "Stock payments" seed |
+| `src/services/shipping.js` (Phase 2) | §2.1: the feed client modelled on `workflows/api/src/services/jfpro.js` — `isConfigured`, `fetchPaymentsForecast`, `validateFeed`, `unavailable(reason)`; the only file that knows `SHIPPING_API_BASE` / `SHIPPING_API_KEY` |
+| `src/services/shippingRefresh.js` (Phase 2) | §10.12: claim, fetch, diff, record; feed columns only, no transaction, no audit |
+| `src/routes/external.js` (Phase 2) | §6.12: `GET /external-items`, `PUT`/`DELETE /external-items/:key`, `POST /external/refresh`, `GET /external/status` |
+| `src/lib/lines.js` | item, instance and (Phase 2) ship rows → classifier input (§9.3.1); no band table |
+| `src/lib/stale.js` | maps `loadTarget` onto the engine's `staleReason`, so adjustment write, rebase, apply and `/forecast` share one stale definition |
 | `src/lib/shape.js` | `fail`, `apiError`, `serverError`, `listResponse`, `keysetResponse`, `parseId`, `parseListParams`, `normalizeEmail`, every `*ToJson` |
 | `src/lib/audit.js`, `logger.js`, `sql.js`, `schema.js`, `secrets.js`, `timeout.js`, `roles.js` | copied from workflows per PLAN.md's table (`roles.js` = `USER_TYPES`, `isAdmin`, `requireAdmin`) |
 | `src/lib/dates.js` | §2.5 |
@@ -1439,7 +1822,7 @@ Consciously left out of this contract:
 | `src/lib/recurrence.js` | §5 |
 | `src/lib/classify.js` | §9.6 — the only place the classification table lives; `OVERDUE_WINDOW_DAYS` |
 | `src/lib/engine.js` | §9 |
-| `src/services/forecastLoad.js` | §8 — rows in, engine input out, `loadTarget`; no logic |
-| `src/routes/{companies,accounts,balances,fxRates,categories,items,schedules,forecast,scenarios}.js` | §6; router factories `({schemaReady, fail, serverError}) => router` as workflows; `schedules.js` owns instances, split and end |
+| `src/services/forecastLoad.js` | §8 — rows in, engine input out, `loadTarget` (incl. the `ship.` branch); no logic |
+| `src/routes/{companies,accounts,balances,fxRates,categories,items,schedules,forecast,scenarios}.js` | §6; router factories `({schemaReady, fail, serverError}) => router` as workflows; `schedules.js` owns instances, split and end; `forecast.js` calls the refresh (§10.12) before its read transaction; `companies.js` owns `shippingCompanyId` |
 | `test/unit` | dates, money, keys, recurrence, classify (the matrix), engine, loader shaping |
 | `test/e2e` | per-run `jflow_test_<runid>` schema; the headline flow and every refusal in §7 |

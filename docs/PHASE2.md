@@ -1,8 +1,24 @@
 # JFlow — Phase 2 plan: stock payments
 
+**Adopted 2026-09-29 (step 13, Dev).** P1–P12 adopted as written, with the recommended
+answers to §7's questions: Q1 — source of truth is ShipLine commit **`f9499bc`** (GitHub
+main/test, 2026-09-29), where `paymentsFlowMath.ts` is **2,786 lines**, last changed
+2026-09-28 (`ec1cd76`, "balance number dupe in pop up"), **frozen until step 17** — the line
+numbers in §1–§2 below refer to the older 2,470-line copy read on 2026-09-29 and are not
+re-chased; Q2 — POs with no company stay unmapped, counted in `SHIP_UNMAPPED`; Q3/P5 — the
+account is the company's active account in the row's currency, else its default; Q4 — a
+ship currency with no rate is 422 `FX_RATE_MISSING`, one rule; Q5 — **supplier tags not
+now**: step 15's assembler passes `tags: []` (Golden A unaffected; Golden B compares with
+tags stripped from the page-built input; tag-driven payment rules do not apply server-side
+until tags are wired); Q6 — no per-row refresh audit (P8) and `exclude` → `planned_skipped`
+(P7); Q7 — a new shipping key (P12); Q8 — 45 days stays. Risk 1: shipping stays on
+`nodejs18.x` for now; if AWS blocks an update, Phase 2 pauses there. The decisions are folded
+into `docs/PLAN.md` ("Phase 2") and `api/docs/CONTRACT.md` (§1.1 and the sections it lists);
+from here CONTRACT.md is the text the code follows, and PLAN.md still wins over both.
+
 BUILD_PLAN step 12. **Written, not built.** Companion to `docs/PLAN.md` ("Phase 2"),
-`docs/BUILD_PLAN.md` and `api/docs/CONTRACT.md`. Decisions P1–P12 (§5) need Dev's sign-off at step 13
-and are then folded into PLAN.md and CONTRACT.md; until then PLAN.md wins. Paths outside `jflow/` are
+`docs/BUILD_PLAN.md` and `api/docs/CONTRACT.md`. Decisions P1–P12 (§5) needed Dev's sign-off at step 13
+(given above) and are folded into PLAN.md and CONTRACT.md. Paths outside `jflow/` are
 relative to `C:\Users\OpsLondon\`. All findings come from a read-only pass on 2026-09-29.
 
 ## 1. What the code says
@@ -323,11 +339,17 @@ Steps 14–18 edit `shipping` and ShipLine, each on its own `test` branch and fo
 conventions. Each needs Dev's go-ahead. Every shipping deploy, secret, and ShipLine prod change is a
 **STOP**.
 
-### Step 13 — Adopt the plan — **STOP** (Dev)
+### Step 13 — Adopt the plan — **STOP** (Dev) — **done 2026-09-29**
 Do: fold P1–P12 into PLAN.md and CONTRACT.md (§3, §4, §6.10, §7–§9, §10.1, §10.7–10.9, §12; D8
 retired). Dev signs off, names the ShipLine commit that is the source of truth, freezes
 `paymentsFlowMath.ts` until step 17, answers open question 5, and decides shipping's runtime (risk 1).
 Done when: CONTRACT.md has no "must be `[]`" and no D8 rule for `ship.`.
+Done: see the status line at the top. CONTRACT.md gained §1.1 (P1–P12 and the sign-off
+facts), §3.5 (the `2026-09-29_jflow_ship.sql` DDL), §6.12 (the external routes), §8 rule 11,
+§9.3.1 (the line mapping), §10.11–10.12 and the §11 tags deferral. Two details fixed there
+that §4 left open: an undated open ship row is not an adjustment target (`loadTarget` returns
+`null` → `TARGET_MISSING`; date it through the overlay first, since `base_date` is `NOT NULL`),
+and `POST /external/refresh` honours the 60-second claim (`ran: false`).
 
 ### Step 14 — shipping: port the math, no routes (tests first)
 Do: `src/lib/payments-flow/{dates,terms,suppliers,policy,po,flow,ids}.js` is a type-stripped port of

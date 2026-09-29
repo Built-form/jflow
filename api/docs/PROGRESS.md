@@ -23,6 +23,17 @@ step's "Done when" holds and its commit is made.
 | 10 | Mobileweb | **parked by Dev (2026-09-29): web only for now** |
 | 11 | First deploy — STOP (Dev) | not started |
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
+| 13 | Phase 2: adopt the plan — STOP (Dev) | done (signed off 2026-09-29) |
+| 14 | Phase 2: shipping — port the math (tests first) | in progress (shipping branch `phase2-payments-flow`) |
+| 15 | Phase 2: shipping — input assembler + `/payments-flow` — STOP before deploy | not started |
+| 16 | Phase 2: ShipLine shadow — STOP before each deploy | not started |
+| 17 | Phase 2: ShipLine cut over — STOP | not started |
+| 18 | Phase 2: shipping `/api/internal/payments-forecast` — STOP (secret, deploy) | not started |
+| 19 | Phase 2: JFlow schema, client, refresh | in progress |
+| 20 | Phase 2: JFlow loader, engine, `/forecast` | not started |
+| 21 | Phase 2: JFlow overlay routes + `ship.` scenarios | not started |
+| 22 | Phase 2: web (mobile parked) | not started |
+| 23 | Phase 2: deploy — STOP (Dev) | not started |
 
 ## Step 0 — Adopt the spec (2026-09-29)
 
@@ -585,3 +596,37 @@ touched). The browser was headless Edge driven by `playwright-core` from the scr
 - Scenario dates read "Sept" (from the verbatim-copied `lib/format.ts`) where the rest of
   the app says "Sep".
 - "1 tuned instance(s) dropped" wording.
+
+## Phase 2 — Step 13: adopt the plan (2026-09-29)
+
+**Dev's sign-off**:
+- P1–P12 adopted as written (route 2: the payment math moves to the shipping API).
+- The recommended answers to open questions 2, 3, 4, 6, 7 and 8.
+- **ShipLine source of truth `f9499bc`**, frozen until step 17. Its
+  `paymentsFlowMath.ts` is 2,786 lines; the local ShipLine checkout at `c24ffdd` is stale,
+  and a read-only export of `f9499bc` is used as the oracle.
+- **Shipping stays on `nodejs18.x` for now** (risk 1 accepted).
+- **Supplier tags not now**: the step-15 assembler passes suppliers without tags. Golden A
+  is unaffected; Golden B compares with tags stripped.
+
+**Shipped**:
+- CONTRACT.md: D8 retired; §1.1 P1–P12; §3.5 `2026-09-29_jflow_ship.sql` (17 tables);
+  §6.12 external routes; the new codes; §8 rule 11; §9.3.1 ship line mapping; lock order
+  with `external_items` after `cash_items`; §10.11–10.12; the §11 deferrals.
+- PLAN.md: the Phase 2 section updated to match.
+- PHASE2.md: marked adopted.
+
+**Resolved while folding**:
+- An undated open ship row is not an adjustment target (`TARGET_MISSING`); plan a date
+  on it through the overlay first.
+- `POST /external/refresh` inside the 60-second claim → `200 {ran: false, status}`.
+- `derivedStatus` is `null` for undated, gone or unmapped ship rows.
+- Ship lines carry `fromScenario`.
+- D17 ignores ship lines (their account is resolved at load).
+
+**Validation**: CONTRACT has no "must be `[]`" and no live D8 rule. Phase 1's greps still
+hold.
+
+**Shipping repo**: the work is on local branch `phase2-payments-flow`, cut from
+`shipping/test` at `d896b5a`. It tracks no upstream and is never pushed without Dev.
+Dev's `master` and `test` are untouched.
