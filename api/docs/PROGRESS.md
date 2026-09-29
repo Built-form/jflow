@@ -24,7 +24,7 @@ and each still gets its own commit. Steps 5–7 wait for Dev to set `/effort xhi
 | 9 | Web forecast, items, schedules, scenarios | not started |
 | 10 | Mobileweb | not started |
 | 11 | First deploy — STOP (Dev) | not started |
-| 12 | Phase 2 plan (write, do not build) | in progress (written early; no code) |
+| 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
 
 ## Step 0 — Adopt the spec (2026-09-29)
 
@@ -232,3 +232,73 @@ Built in parallel with step 2, and **committed before step 2** because step 2's 
   on or after today, and fills `owedInstances`.
 
 **Deferred**: none.
+
+## Step 8 — Web shell, settings, cash at bank (built 2026-09-29; NOT committed yet)
+
+Built ahead of order in parallel. Its "Done when" needs step 6's `/forecast` (a balance
+entered for today is the anchor, and today's items stay in today's bucket), so the step is
+committed after that walk.
+
+**Built**
+- `web/` copied from workflows per CLAUDE.md. `sharedSession.ts` is byte-identical (`cmp`
+  clean, no header).
+- Shell nav: Forecast, Cash at bank, Income & outgoings, Schedules, Scenarios, Settings,
+  People, About. The `?company=` filter carries across screens. The four step-9 screens are
+  placeholders.
+- Settings: companies, accounts, categories, FX rates. GBP shows as a fixed base row that
+  cannot be edited.
+- Cash at bank: one date, all active accounts, labelled "Cash at bank at start of day",
+  defaulting to Europe/London today; saves through `POST /balances/bulk`. History is per
+  account in its own currency. The combined line appears only when every account in view
+  is GBP; a day is totalled only when every account recorded it, otherwise "n OF m".
+- Helpers `lib/{money,dates,balances,validation,rows}.ts` use BigInt minor units and no
+  floats. `test/setup.ts` was written fresh and refuses un-stubbed API calls.
+
+**Validation so far**
+- `tsc --noEmit` clean; vitest **72/72** (9 files); `npm run build` succeeds.
+- There is no web lint script (workflows' web has none).
+
+**Notes**
+- JSON copies with no header: `web/package.json` (renamed `jflow-web`, `barcode-detector`
+  dropped), `web/tsconfig.json`, `web/vercel.json`.
+- `env.ts`: the test/prod API bases are null until step 11; without `VITE_API_BASE_URL` the
+  app shows its "not configured" screen.
+- More than a name change was needed in `ui.tsx` (error details for JFlow's shapes),
+  `PageHeader.tsx`, `SignInScreen.tsx` (two workflows role screens removed) and
+  `Shell.tsx`.
+- The client re-reads accounts after a balance write (anchors) and after `isDefault`
+  (sibling cleared), because the write responses don't carry either.
+- A bulk balance save is last-write-wins: bulk entries have no `baseVersion`.
+- `npm audit`: 2 moderate runtime advisories (react-router 6), the same version ranges as
+  workflows.
+
+## Step 12 — Phase 2 plan (2026-09-29, written early, in parallel)
+
+**Shipped**: `docs/PHASE2.md` (plan only, no code). **Route 2: the payment math moves to the
+shipping API**, and ShipLine's Payments page reads the endpoint. The evidence:
+- Every input except suppliers is already a shipping table behind a shipping route.
+- No repo in the estate shares a package (no git dependency or registry in any of the 22
+  `package.json` files).
+- Shipping is plain CJS with no build step.
+- `paymentsFlowMath`'s `dateOfInstant` follows the host time zone, so a shared package would
+  still answer differently in the browser (London) and on Lambda (UTC).
+
+The plan covers:
+- shipping's `GET /api/internal/payments-forecast` (`X-Api-Key`, no JWT);
+- JFlow's `services/shipping.js`, the `external_items` DDL, a refresh that writes feed
+  columns only, `ship.` keys, the loader/engine, the overlay writes and the lock order;
+- build steps 13–23 with STOPs.
+
+**Findings Dev should know**
+- ShipLine's local checkout is behind shipping's 09-28 rule fields.
+- Item ids contain `:`, embed free text, and change as a PI arrives.
+- Paid payments are never output.
+- The math has no tests and uses float money.
+- `delivered-air.js` already duplicates part of the logic.
+- CONTRACT §9 only says `externalItems` must be `[]` in phase 1; Phase 2 needs loader,
+  stale-check, apply and lock-order text there.
+
+**Open questions for Dev**: see `docs/PHASE2.md` §7 — 10 items, including the ShipLine source
+of truth / freeze window, shipping's `nodejs18.x`, POs with no company, the account for a
+stock payment, a ship currency with no rate, supplier-tag access, refresh audit, "exclude" on
+ship lines, the API key, and the 45-day window for supplier money.
