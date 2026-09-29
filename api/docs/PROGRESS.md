@@ -921,3 +921,27 @@ CONTRACT alignment), so the test stack is slightly behind `200bb74`.
   secrets.
 - Map JFA and HW to shipping's companies in Settings. 19 open rows have no company and show
   as `SHIP_UNMAPPED`.
+
+## Phase 2 — `SHIP_UNMAPPED` says why (2026-09-29)
+
+Dev mapped JFA → 1 and Hangerworld → 2, but every stock payment still read "unmapped". The
+mapping was right; neither company had an account to land on: JFA's only account is GBP and
+not the default, and Hangerworld has none. The resolution rule (P5) is unchanged.
+- `SHIP_UNMAPPED` is now `{shippingCompanyId, count, reason, companyId?, currencies?}`, one
+  per (shippingCompanyId, reason): `company` (nothing linked, `null` included) or `account`
+  (the linked `companyId` has no active account in `currencies` and no active default).
+  CONTRACT §6.10, §7 and §8 rule 11 updated.
+- Web: the Forecast note gives each reason in words, linking to Settings → Companies or
+  Settings → Accounts; the Stock payments list tags such rows `NO ACCOUNT`, not `UNMAPPED`.
+
+## Test data set up for Dev (2026-09-29)
+
+At Dev's request, test values were entered through the local API against the shared
+explorer-test `jflow` schema, so every change has an audit row; the test stack sees them too:
+- JFA's HSBC (GBP) set as the default account.
+- New account "Hangerworld Current" (GBP, company HW, default), with a £25,000.00
+  start-of-day balance for 2026-09-29.
+- EUR rate 0.860000 from 2026-09-29.
+
+Result: 106 stock payment lines are placed in the window to 31 Dec (92 on HSBC, 14 on
+Hangerworld Current). Only the 21 rows with no company in shipping stay unmapped.

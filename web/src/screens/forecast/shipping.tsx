@@ -7,7 +7,7 @@ import type { ForecastShipping } from '../../api/forecast';
 import { useQuery } from '../../app/useQuery';
 import { useSubmit } from '../../app/useSubmit';
 import { ErrorNote } from '../../components/ui';
-import { lastSyncText, shippingReasonText, shippingStatusParts, stockPayments } from '../../lib/ship';
+import { lastSyncText, shippingReasonText, shippingStatusParts, unmappedNote } from '../../lib/ship';
 import type { ShipWarnings } from '../../lib/ship';
 
 /**
@@ -127,18 +127,22 @@ export function ShippingUnavailableBanner({ warning }: { warning: ShipWarnings['
 }
 
 /**
- * `SHIP_UNMAPPED`, `SHIP_PLAN_STALE` and `SHIP_PLAN_ORPHANED`, in words. Unmapped rows link
- * to Settings, where a company is mapped to its shipping company. A stale plan is also
+ * `SHIP_UNMAPPED`, `SHIP_PLAN_STALE` and `SHIP_PLAN_ORPHANED`, in words. Unmapped rows say
+ * why — no JFlow company linked (→ Settings, Companies) or no account to land on (→ Settings,
+ * Accounts); POs with no company are fixed in shipping. A stale plan is also
  * marked on its line; an orphaned one has no line (shipping no longer lists the row), so it
  * is listed here with a way to clear it.
  */
 export function ShipNotes({
   warnings,
   lineName,
+  companyName,
   onChanged,
 }: {
   warnings: ShipWarnings;
   lineName: (key: string) => string | null;
+  /** A JFlow company's name, from the companies the screen loaded. */
+  companyName: (id: number) => string;
   /** After an orphaned plan is cleared: re-read the forecast. */
   onChanged: () => void;
 }) {
@@ -160,7 +164,7 @@ export function ShipNotes({
         lineHeight: 1.55,
       }}
     >
-      {unmapped.length > 0 && <UnmappedNote unmapped={unmapped} />}
+      {unmapped.length > 0 && <UnmappedNote unmapped={unmapped} companyName={companyName} />}
       {stale.map((key) => (
         <div key={`stale-${key}`} data-testid={`ship-stale-${key}`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
           <span className="mono" style={{ fontSize: 11, letterSpacing: '.06em', color: 'var(--warn)' }}>
@@ -179,31 +183,37 @@ export function ShipNotes({
   );
 }
 
-function UnmappedNote({ unmapped }: { unmapped: ShipWarnings['unmapped'] }) {
+function UnmappedNote({ unmapped, companyName }: { unmapped: ShipWarnings['unmapped']; companyName: (id: number) => string }) {
   // Names for the shipping companies, read only when something is unmapped. A failed read
   // costs nothing but the name: the id is shown instead.
   const status = useQuery(() => external.status(), []);
-  const nameOf = (id: number) => status.data?.companies.find((c) => c.id === id)?.name ?? `shipping company #${id}`;
+  const shippingName = (id: number) => status.data?.companies.find((c) => c.id === id)?.name ?? `#${id}`;
   return (
     <>
-      {unmapped.map((u) => (
-        <div key={`unmapped-${u.shippingCompanyId ?? 'none'}`} data-testid="ship-unmapped" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
-          <span className="mono" style={{ fontSize: 11, letterSpacing: '.06em', color: 'var(--warn)' }}>
-            SHIP_UNMAPPED
-          </span>
-          {u.shippingCompanyId === null ? (
-            <span>
-              {stockPayments(u.count)} belong to POs with no company in shipping, so they are left out of the
-              forecast. Give the PO a company in shipping.
+      {unmapped.map((u) => {
+        const note = unmappedNote(u, { shippingName, companyName });
+        return (
+          <div
+            key={`unmapped-${u.shippingCompanyId ?? 'none'}-${u.reason}`}
+            data-testid="ship-unmapped"
+            data-reason={u.reason}
+            style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}
+          >
+            <span className="mono" style={{ fontSize: 11, letterSpacing: '.06em', color: 'var(--warn)' }}>
+              SHIP_UNMAPPED
             </span>
-          ) : (
             <span>
-              {stockPayments(u.count)} for {nameOf(u.shippingCompanyId)} are left out: no JFlow company is mapped to it,
-              or that company has no active bank account. <Link to="/settings?tab=companies">Map it in Settings</Link>.
+              {note.text}
+              {note.fix && (
+                <>
+                  {' '}
+                  <Link to={note.fix.to}>{note.fix.label}</Link>.
+                </>
+              )}
             </span>
-          )}
-        </div>
-      ))}
+          </div>
+        );
+      })}
     </>
   );
 }

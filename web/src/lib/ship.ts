@@ -11,7 +11,7 @@
  */
 
 import type { CSSProperties } from 'react';
-import type { ForecastShipping, ForecastWarning, ItemFlag, ShipInfo, ShippingReason } from '../api/forecast';
+import type { ForecastShipping, ForecastWarning, ItemFlag, ShipInfo, ShippingReason, ShipUnmappedReason } from '../api/forecast';
 import type { IsoDateTime } from '../api/types';
 import { parseUtc, plural } from './format';
 import { parseKey } from './keys';
@@ -142,11 +142,24 @@ export function shippingStatusParts(shipping: ForecastShipping | null | undefine
 
 /* ---------- the four ship warnings ---------- */
 
+/** One `SHIP_UNMAPPED`: stock payments left out of the forecast, and why. */
+export interface UnmappedShip {
+  /** Shipping's company; null = POs with no company in shipping. */
+  shippingCompanyId: number | null;
+  count: number;
+  /** `company`: no JFlow company is linked to it. `account`: one is, but has no account to land them on. */
+  reason: ShipUnmappedReason;
+  /** `account` only: the JFlow company. */
+  companyId: number | null;
+  /** `account` only: the currencies with no account (and no default to fall back on). */
+  currencies: string[];
+}
+
 export interface ShipWarnings {
   /** `SHIPPING_UNAVAILABLE` — at most one per answer. */
   unavailable: { reason: ShippingReason; lastSuccessAt: IsoDateTime | null } | null;
-  /** `SHIP_UNMAPPED`, one per shipping company (null = POs with no company). */
-  unmapped: { shippingCompanyId: number | null; count: number }[];
+  /** `SHIP_UNMAPPED`, one per shipping company and reason. */
+  unmapped: UnmappedShip[];
   /** `SHIP_PLAN_STALE` keys: the planned amount is ignored. */
   stale: string[];
   /** `SHIP_PLAN_ORPHANED` keys: a plan on a row shipping no longer lists. */
@@ -171,6 +184,9 @@ export function splitShipWarnings(warnings: readonly ForecastWarning[] | null | 
         out.unmapped.push({
           shippingCompanyId: typeof f.shippingCompanyId === 'number' ? f.shippingCompanyId : null,
           count: typeof f.count === 'number' ? f.count : 0,
+          reason: f.reason === 'account' ? 'account' : 'company',
+          companyId: typeof f.companyId === 'number' ? f.companyId : null,
+          currencies: Array.isArray(f.currencies) ? f.currencies.filter((c): c is string => typeof c === 'string') : [],
         });
         break;
       case 'SHIP_PLAN_STALE':
@@ -196,4 +212,40 @@ export const PLAN_STALE_TAG: { flag: string; label: string; tone: Tone } = {
 /** `12 stock payments` / `1 stock payment`. */
 export function stockPayments(n: number): string {
   return plural(n, 'stock payment');
+}
+
+/** Where a `SHIP_UNMAPPED` note sends the reader to fix it. */
+export interface UnmappedFix {
+  to: string;
+  label: string;
+}
+
+/**
+ * A `SHIP_UNMAPPED` in words, and the Settings tab that fixes it (none for POs with no
+ * company: that is fixed in shipping). `shippingName` names a shipping company,
+ * `companyName` a JFlow company.
+ */
+export function unmappedNote(
+  u: UnmappedShip,
+  names: { shippingName: (id: number) => string; companyName: (id: number) => string },
+): { text: string; fix: UnmappedFix | null } {
+  const payments = stockPayments(u.count);
+  const one = u.count === 1;
+  if (u.reason === 'account' && u.companyId !== null) {
+    const company = names.companyName(u.companyId);
+    const currencies = u.currencies.length ? ` (${u.currencies.join(', ')})` : '';
+    return {
+      text:
+        `${payments}${currencies} for ${company} ${one ? 'has' : 'have'} no account to land on: add an account in that ` +
+        `currency, or mark one of ${company}'s accounts as default.`,
+      fix: { to: '/settings?tab=accounts', label: 'Open Settings → Accounts' },
+    };
+  }
+  if (u.shippingCompanyId === null) {
+    return { text: `${payments} ${one ? 'has' : 'have'} no company in shipping.`, fix: null };
+  }
+  return {
+    text: `${payments} ${one ? 'belongs' : 'belong'} to shipping company ${names.shippingName(u.shippingCompanyId)}, which no JFlow company is linked to.`,
+    fix: { to: '/settings?tab=companies', label: 'Link it in Settings' },
+  };
 }

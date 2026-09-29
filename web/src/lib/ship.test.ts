@@ -14,6 +14,7 @@ import {
   shippingStatusParts,
   splitShipWarnings,
   stockPayments,
+  unmappedNote,
 } from './ship';
 
 describe('ship. keys (CONTRACT §4, parse only)', () => {
@@ -133,16 +134,18 @@ describe('splitShipWarnings', () => {
     const split = splitShipWarnings([
       { code: 'NO_ANCHOR', accountId: 2 },
       { code: 'SHIPPING_UNAVAILABLE', reason: 'timeout', lastSuccessAt: '2026-09-29T08:00:00Z' },
-      { code: 'SHIP_UNMAPPED', shippingCompanyId: 3, count: 4 },
-      { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1 },
+      { code: 'SHIP_UNMAPPED', shippingCompanyId: 3, count: 4, reason: 'company' },
+      { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1, reason: 'company' },
+      { code: 'SHIP_UNMAPPED', shippingCompanyId: 1, count: 6, reason: 'account', companyId: 11, currencies: ['EUR', 'USD'] },
       { code: 'ORPHAN_OVERRIDE', scheduleId: 1, naturalDate: '2026-09-01', overrideId: 2 },
       { code: 'SHIP_PLAN_ORPHANED', key: 'ship.dep-700' },
       { code: 'SHIP_PLAN_STALE', key: 'ship.bal-812-s311' },
     ]);
     expect(split.unavailable).toEqual({ reason: 'timeout', lastSuccessAt: '2026-09-29T08:00:00Z' });
     expect(split.unmapped).toEqual([
-      { shippingCompanyId: 3, count: 4 },
-      { shippingCompanyId: null, count: 1 },
+      { shippingCompanyId: 3, count: 4, reason: 'company', companyId: null, currencies: [] },
+      { shippingCompanyId: null, count: 1, reason: 'company', companyId: null, currencies: [] },
+      { shippingCompanyId: 1, count: 6, reason: 'account', companyId: 11, currencies: ['EUR', 'USD'] },
     ]);
     expect(split.orphaned).toEqual(['ship.dep-700']);
     expect(split.stale).toEqual(['ship.bal-812-s311']);
@@ -155,5 +158,39 @@ describe('splitShipWarnings', () => {
       reason: 'unconfigured',
       lastSuccessAt: null,
     });
+  });
+});
+
+describe('unmappedNote (SHIP_UNMAPPED in words)', () => {
+  const names = {
+    shippingName: (id: number) => ({ 2: 'Hangerworld Ltd' } as Record<number, string>)[id] ?? `#${id}`,
+    companyName: (id: number) => ({ 11: 'JFA' } as Record<number, string>)[id] ?? `company #${id}`,
+  };
+  const note = (u: Partial<Parameters<typeof unmappedNote>[0]>) =>
+    unmappedNote({ shippingCompanyId: null, count: 1, reason: 'company', companyId: null, currencies: [], ...u }, names);
+
+  it('no JFlow company linked: names the shipping company and links to Settings, Companies', () => {
+    expect(note({ shippingCompanyId: 2, count: 3 })).toEqual({
+      text: '3 stock payments belong to shipping company Hangerworld Ltd, which no JFlow company is linked to.',
+      fix: { to: '/settings?tab=companies', label: 'Link it in Settings' },
+    });
+    expect(note({ shippingCompanyId: 9 }).text).toBe('1 stock payment belongs to shipping company #9, which no JFlow company is linked to.');
+  });
+
+  it('no company in shipping: nothing to fix in JFlow', () => {
+    expect(note({ count: 2 })).toEqual({ text: '2 stock payments have no company in shipping.', fix: null });
+    expect(note({}).text).toBe('1 stock payment has no company in shipping.');
+  });
+
+  it('no account to land on: the currencies and the JFlow company, linking to Settings, Accounts', () => {
+    expect(note({ shippingCompanyId: 1, count: 5, reason: 'account', companyId: 11, currencies: ['USD', 'EUR'] })).toEqual({
+      text:
+        '5 stock payments (USD, EUR) for JFA have no account to land on: add an account in that currency, or mark one of ' +
+        "JFA's accounts as default.",
+      fix: { to: '/settings?tab=accounts', label: 'Open Settings → Accounts' },
+    });
+    expect(note({ shippingCompanyId: 1, reason: 'account', companyId: 12, currencies: ['CNY'] }).text).toBe(
+      "1 stock payment (CNY) for company #12 has no account to land on: add an account in that currency, or mark one of company #12's accounts as default.",
+    );
   });
 });

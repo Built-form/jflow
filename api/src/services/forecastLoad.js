@@ -37,7 +37,7 @@ const {
 } = require('../lib/shape');
 const { isOccurrence, effectiveValues } = require('../lib/recurrence');
 const { addDays } = require('../lib/dates');
-const { clampWindow, currenciesInScope, MANUAL_LOOKBACK_DAYS } = require('../lib/engine');
+const { clampWindow, currenciesInScope, MANUAL_LOOKBACK_DAYS, SHIP_UNMAPPED_REASONS } = require('../lib/engine');
 const { SHIP_SETTLE_MODE, shipEffectiveValues } = require('../lib/lines');
 
 // §8 rule 1: `previous` / `next` move a natural date by at most two days (§5.3), so a
@@ -319,11 +319,15 @@ const SHIP_OVERLAY_SQL = `(e.planned_date IS NOT NULL OR e.planned_amount IS NOT
  * (the engine never projects a gone row).
  *
  * Rows of the same filter that resolve to no account are not loaded; they are counted
- * per `shipping_company_id` (null included, Q2) → `unmappedCounts` [{shippingCompanyId,
- * count}], null first then ascending. A row whose company matched but has no live
- * active account counts only in that company's scope (or 'all'); a row whose shipping
- * company no JFlow company maps counts in every scope. Rows resolving to an account
- * outside the scope, or to one with no anchor (NO_ANCHOR), are neither loaded nor counted.
+ * per (`shipping_company_id`, reason) → `unmappedCounts` [{shippingCompanyId, count,
+ * reason, companyId?, currencies?}], null first then ascending, 'company' before
+ * 'account'. `reason` says why: 'company' when no live JFlow company has that
+ * shipping_company_id (null included, Q2); 'account' when one does (`companyId`) but it
+ * has no live active account in the row's currency and no live active default —
+ * `currencies` the distinct currencies that failed, ascending. A row whose company
+ * matched counts only in that company's scope (or 'all'); a row whose shipping company
+ * no JFlow company maps counts in every scope. Rows resolving to an account outside the
+ * scope, or to one with no anchor (NO_ANCHOR), are neither loaded nor counted.
  */
 async function loadShipRows(conn, { accountIds, minA, companyId }) {
     const anchored = new Set(uniqueIds(accountIds));
@@ -340,16 +344,28 @@ async function loadShipRows(conn, { accountIds, minA, companyId }) {
             if (r.gone_at != null) continue;
             const company = r.resolved_company_id == null ? null : Number(r.resolved_company_id);
             if (company !== null && companyId !== 'all' && company !== Number(companyId)) continue;
-            const key = r.shipping_company_id == null ? null : Number(r.shipping_company_id);
-            unmapped.set(key, (unmapped.get(key) || 0) + 1);
+            const shippingCompanyId = r.shipping_company_id == null ? null : Number(r.shipping_company_id);
+            const reason = company === null ? 'company' : 'account';
+            const key = `${shippingCompanyId}|${reason}`;
+            const entry = unmapped.get(key) || { shippingCompanyId, count: 0, reason, companyId: company, currencies: new Set() };
+            entry.count += 1;
+            entry.currencies.add(r.currency);
+            unmapped.set(key, entry);
             continue;
         }
         if (!anchored.has(Number(r.resolved_account_id))) continue;
         loaded.push({ ...externalItemToJson(r), inScope: true });
     }
-    const unmappedCounts = [...unmapped.entries()]
-        .sort(([a], [b]) => (a === null ? -1 : b === null ? 1 : a - b))
-        .map(([shippingCompanyId, count]) => ({ shippingCompanyId, count }));
+    const unmappedCounts = [...unmapped.values()]
+        .sort((a, b) => {
+            if (a.shippingCompanyId !== b.shippingCompanyId) {
+                return a.shippingCompanyId === null ? -1 : b.shippingCompanyId === null ? 1 : a.shippingCompanyId - b.shippingCompanyId;
+            }
+            return SHIP_UNMAPPED_REASONS.indexOf(a.reason) - SHIP_UNMAPPED_REASONS.indexOf(b.reason);
+        })
+        .map(({ shippingCompanyId, count, reason, companyId: company, currencies }) => (reason === 'account'
+            ? { shippingCompanyId, count, reason, companyId: company, currencies: [...currencies].sort() }
+            : { shippingCompanyId, count, reason }));
     return { rows: loaded, unmappedCounts };
 }
 

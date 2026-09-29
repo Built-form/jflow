@@ -93,7 +93,9 @@ export function notInForecastTags(row: ExternalItem): RowTag[] {
   if (row.derivedStatus != null) return [];
   const tags: RowTag[] = [];
   if (row.goneAt) tags.push({ id: 'gone', label: 'GONE FROM SHIPPING', tone: 'idle' });
-  if (row.companyId == null || row.accountId == null) tags.push({ id: 'unmapped', label: 'UNMAPPED', tone: 'warn' });
+  // No JFlow company linked to its shipping company, or a linked company with no account to land it on.
+  if (row.companyId == null) tags.push({ id: 'unmapped', label: 'UNMAPPED', tone: 'warn' });
+  else if (row.accountId == null) tags.push({ id: 'no-account', label: 'NO ACCOUNT', tone: 'warn' });
   if (!row.goneAt && row.effectiveDate == null) tags.push({ id: 'undated', label: 'NO DATE YET', tone: 'warn' });
   return tags;
 }

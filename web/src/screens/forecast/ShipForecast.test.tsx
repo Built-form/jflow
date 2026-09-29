@@ -41,6 +41,8 @@ interface Answers {
   unplan?: () => unknown;
   /** `GET /external-items/:key`; by default the rows behind the fixture's two ship lines. */
   row?: (key: string, n: number) => ExternalItem | ApiError;
+  /** `GET /companies`; empty by default. */
+  companies?: unknown[];
 }
 
 const ROWS: Record<string, ExternalItem> = { 'ship.dep-812': depositRow(), 'ship.bal-812-s311': externalRow() };
@@ -51,7 +53,7 @@ function stubApi(answers: Answers) {
     calls.push({ method, path, body });
     const reply = (v: unknown) => (v instanceof ApiError ? Promise.reject(v) : Promise.resolve(v as T));
     if (method === 'GET' && path.startsWith('/forecast')) return reply(answers.forecast());
-    if (method === 'GET' && path.startsWith('/companies')) return reply(list([]));
+    if (method === 'GET' && path.startsWith('/companies')) return reply(list(answers.companies ?? []));
     if (method === 'GET' && path.startsWith('/accounts')) return reply(list([]));
     if (method === 'GET' && path === '/external/status') return reply(STATUS);
     if (method === 'POST' && path === '/external/refresh') return reply(answers.refresh ? answers.refresh() : { ran: true, status: STATUS });
@@ -136,24 +138,40 @@ describe('ship lines in the grid', () => {
     expect(calls.find((c) => c.method === 'DELETE')).toEqual({ method: 'DELETE', path: '/external-items/ship.dep-700', body: undefined });
   });
 
-  it('says why SHIP_UNMAPPED rows are left out, naming the shipping company and linking to Settings', async () => {
+  it('says why SHIP_UNMAPPED rows are left out: no company linked, no company in shipping, no account to land on', async () => {
+    const stamp = '2026-09-29T12:00:00Z';
     stubApi({
+      companies: [
+        { id: 5, code: 'JFA', name: 'JFA', sortOrder: 1, shippingCompanyId: 11, rowVersion: 1, createdBy: null, createdAt: stamp, updatedAt: stamp, deletedAt: null },
+      ],
       forecast: () =>
         forecastFixture({
           shipping: SHIPPING,
           warnings: [
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: 12, count: 2 },
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1 },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1, reason: 'company' },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 11, count: 3, reason: 'account', companyId: 5, currencies: ['USD', 'EUR'] },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 12, count: 2, reason: 'company' },
             { code: 'NO_ANCHOR', accountId: 2 },
           ],
         }),
     });
     renderForecast();
-    const [mapped, noCompany] = await screen.findAllByTestId('ship-unmapped');
-    await waitFor(() => expect(mapped.textContent).toContain('2 stock payments for Hangerworld Ltd are left out'));
-    expect(within(mapped).getByRole('link', { name: 'Map it in Settings' }).getAttribute('href')).toBe('/settings?tab=companies');
-    expect(noCompany.textContent).toContain('1 stock payment belong to POs with no company');
+    const [noCompany, noAccount, notLinked] = await screen.findAllByTestId('ship-unmapped');
+
+    expect(noCompany.textContent).toBe('SHIP_UNMAPPED1 stock payment has no company in shipping.');
     expect(within(noCompany).queryByRole('link')).toBeNull();
+
+    await waitFor(() =>
+      expect(noAccount.textContent).toContain(
+        "3 stock payments (USD, EUR) for JFA have no account to land on: add an account in that currency, or mark one of JFA's accounts as default.",
+      ),
+    );
+    expect(within(noAccount).getByRole('link', { name: 'Open Settings → Accounts' }).getAttribute('href')).toBe('/settings?tab=accounts');
+
+    await waitFor(() =>
+      expect(notLinked.textContent).toContain('2 stock payments belong to shipping company Hangerworld Ltd, which no JFlow company is linked to.'),
+    );
+    expect(within(notLinked).getByRole('link', { name: 'Link it in Settings' }).getAttribute('href')).toBe('/settings?tab=companies');
     // Other warnings still show in the general list.
     expect(screen.getByTestId('forecast-warnings').textContent).toContain('NO_ANCHOR');
   });

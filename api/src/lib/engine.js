@@ -100,7 +100,10 @@ const { itemLine, shipLine, shipName, shipEffectiveValues, hasShipOverlay } = re
  * @typedef {object} EngineShipping
  * @property {string|null} lastSuccessAt     ISO 8601
  * @property {string|null} feedToday
- * @property {Array<{shippingCompanyId: number|null, count: number}>} unmappedCounts  rows omitted (SHIP_UNMAPPED)
+ * @property {Array<{shippingCompanyId: number|null, count: number, reason: 'company'|'account',
+ *            companyId?: number, currencies?: string[]}>} unmappedCounts  rows omitted (SHIP_UNMAPPED): 'company' =
+ *            no JFlow company has that shipping company; 'account' = `companyId` has no active account
+ *            in `currencies` and no active default
  *
  * @typedef {object} EngineAccount
  * @property {number} id
@@ -355,6 +358,8 @@ function instanceRecord(schedule, naturalDate, override, payments) {
 }
 
 const FEED_STATUSES = ['open', 'paid'];
+// Why a ship row was left out (SHIP_UNMAPPED.reason, §6.10), in the warnings' order.
+const SHIP_UNMAPPED_REASONS = ['company', 'account'];
 
 function requireFeedStatus(row) {
     if (!FEED_STATUSES.includes(row.feedStatus)) {
@@ -820,12 +825,29 @@ function buildRows(set, baseline, ranges, { window, categories, scenario }) {
 // ── The shipping block and the ship warnings (§6.10, Phase 2) ───────────────────────────
 
 /**
+ * One loader count → SHIP_UNMAPPED {shippingCompanyId, count, reason}, plus {companyId,
+ * currencies} for reason 'account' (the JFlow company that matched, and the currencies it
+ * has no active account for, with no active default to fall back on).
+ */
+function unmappedWarning(u) {
+    if (!SHIP_UNMAPPED_REASONS.includes(u.reason)) {
+        throw new TypeError(`engine: unmappedCounts reason must be 'company' or 'account', got ${JSON.stringify(u.reason)}`);
+    }
+    const warning = { code: 'SHIP_UNMAPPED', shippingCompanyId: u.shippingCompanyId ?? null, count: Number(u.count), reason: u.reason };
+    if (u.reason === 'account') {
+        warning.companyId = Number(u.companyId);
+        warning.currencies = [...(u.currencies || [])];
+    }
+    return warning;
+}
+
+/**
  * Over the ship rows of in-scope, anchored accounts (rule 11's rows; out-of-scope and
  * unmapped rule-6 targets count nowhere): the `shipping` block — openCount (open rows,
  * skipped included), undatedCount / undatedGbp (open, not skipped, no effective date;
  * GBP at §9.7's rates, once per row), unmappedCount (Σ of the loader's SHIP_UNMAPPED
  * counts) — or null when the feed has never succeeded (`input.shipping` null); and the
- * warnings SHIP_UNMAPPED (one per shipping company, as the loader counted them),
+ * warnings SHIP_UNMAPPED (one per shipping company and reason, as the loader counted them),
  * SHIP_PLAN_ORPHANED (an overlay on a gone row) and SHIP_PLAN_STALE (P6: a planned
  * amount ignored because the feed amount moved), each sorted by key.
  */
@@ -863,7 +885,7 @@ function shipFeed(input, { anchors, rateOf }) {
         unmappedCount: unmapped.reduce((acc, u) => acc + Number(u.count), 0),
     };
     const warnings = [
-        ...unmapped.map((u) => ({ code: 'SHIP_UNMAPPED', shippingCompanyId: u.shippingCompanyId ?? null, count: Number(u.count) })),
+        ...unmapped.map(unmappedWarning),
         ...[...orphaned].sort().map((key) => ({ code: 'SHIP_PLAN_ORPHANED', key })),
         ...[...stale].sort().map((key) => ({ code: 'SHIP_PLAN_STALE', key })),
     ];
@@ -974,6 +996,7 @@ module.exports = {
     MANUAL_LOOKBACK_DAYS,
     BUCKETS,
     INCLUDES,
+    SHIP_UNMAPPED_REASONS,
     run,
     clampWindow,
     currenciesInScope,

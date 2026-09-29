@@ -1191,10 +1191,17 @@ describe('ship lines (Phase 2, §9.3.1)', () => {
         expect(res.meta.ratesUsed).toEqual({ GBP: { rateToGbp: '1.000000', effectiveFrom: null } });
     });
 
-    test('SHIP_UNMAPPED once per shipping company; SHIPPING_UNAVAILABLE passes through; the warning order', () => {
+    test('SHIP_UNMAPPED once per shipping company and reason; SHIPPING_UNAVAILABLE passes through; the warning order', () => {
         const res = ship({
             accounts: [account(), account({ id: 2, anchorDate: null, anchorBalance: null })],
-            shipping: { ...SYNC, unmappedCounts: [{ shippingCompanyId: null, count: 2 }, { shippingCompanyId: 7, count: 3 }] },
+            shipping: {
+                ...SYNC,
+                unmappedCounts: [
+                    { shippingCompanyId: null, count: 2, reason: 'company' },
+                    { shippingCompanyId: 7, count: 3, reason: 'company' },
+                    { shippingCompanyId: 8, count: 4, reason: 'account', companyId: 21, currencies: ['EUR', 'USD'] },
+                ],
+            },
             warnings: [{ code: 'SHIPPING_UNAVAILABLE', reason: 'timeout', lastSuccessAt: SYNC.lastSuccessAt }],
             schedules: [schedule(5, { endDate: '2026-10-31' })],
             overrides: [override(60, 5, '2026-10-16', { amount: '5.00' })],
@@ -1207,14 +1214,17 @@ describe('ship lines (Phase 2, §9.3.1)', () => {
             { code: 'NO_ANCHOR', accountId: 2 },
             { code: 'SHIPPING_UNAVAILABLE', reason: 'timeout', lastSuccessAt: SYNC.lastSuccessAt },
             { code: 'ORPHAN_OVERRIDE', scheduleId: 5, naturalDate: '2026-10-16', overrideId: 60 },
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 2 },
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: 7, count: 3 },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 2, reason: 'company' },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 7, count: 3, reason: 'company' },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 8, count: 4, reason: 'account', companyId: 21, currencies: ['EUR', 'USD'] },
             { code: 'SHIP_PLAN_ORPHANED', key: 'ship.dep-1' },
             { code: 'SHIP_PLAN_STALE', key: 'ship.bal-2' },
         ]);
         expect(res.shipping).toEqual({
-            lastSuccessAt: SYNC.lastSuccessAt, feedToday: TODAY, openCount: 1, undatedCount: 0, undatedGbp: 0, unmappedCount: 5,
+            lastSuccessAt: SYNC.lastSuccessAt, feedToday: TODAY, openCount: 1, undatedCount: 0, undatedGbp: 0, unmappedCount: 9,
         });
+        // A count with no reason is malformed input.
+        expect(() => ship({ shipping: { ...SYNC, unmappedCounts: [{ shippingCompanyId: 1, count: 1 }] } })).toThrow(TypeError);
     });
 
     test('no successful feed yet: shipping is null; include=summary keeps the block', () => {

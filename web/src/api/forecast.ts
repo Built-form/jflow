@@ -249,13 +249,27 @@ export interface UnresolvedLine {
  */
 export type ShippingReason = 'unconfigured' | 'timeout' | 'unreachable' | 'http_401' | 'bad_response' | (string & {});
 
+/** Why ship rows were left out (§6.10 `SHIP_UNMAPPED.reason`): no company linked, or no account to land on. */
+export type ShipUnmappedReason = 'company' | 'account';
+
 export type ForecastWarning =
   | { code: 'NO_ANCHOR'; accountId: number }
   | { code: 'ORPHAN_OVERRIDE'; scheduleId: number; naturalDate: IsoDate; overrideId: number }
   /** The refresh that was due failed; the answer is built on the last snapshot (or none). */
   | { code: 'SHIPPING_UNAVAILABLE'; reason: ShippingReason; lastSuccessAt: IsoDateTime | null }
-  /** Ship rows left out: no live company maps this shipping company (null = POs with no company). */
-  | { code: 'SHIP_UNMAPPED'; shippingCompanyId: number | null; count: number }
+  /**
+   * Ship rows left out. `reason: 'company'`: no JFlow company is linked to this shipping company
+   * (null = POs with no company). `reason: 'account'`: JFlow company `companyId` is linked, but has
+   * no active account in `currencies` and no active default account.
+   */
+  | {
+      code: 'SHIP_UNMAPPED';
+      shippingCompanyId: number | null;
+      count: number;
+      reason: ShipUnmappedReason;
+      companyId?: number;
+      currencies?: string[];
+    }
   /** A plan (overlay) sits on a row shipping no longer lists. */
   | { code: 'SHIP_PLAN_ORPHANED'; key: string }
   /** The planned amount is ignored: shipping's amount moved since it was set (P6). */

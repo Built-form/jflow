@@ -93,6 +93,11 @@ export function ForecastScreen() {
     return (id: number) => names.get(id) ?? `Account ${id}`;
   }, [accounts.data, data.data]);
 
+  const companyName = useMemo(() => {
+    const names = new Map<number, string>((companies.data?.data ?? []).map((c) => [c.id, c.name]));
+    return (id: number) => names.get(id) ?? `company #${id}`;
+  }, [companies.data]);
+
   const lineName = useMemo(() => {
     const names = new Map<string, string>();
     for (const row of data.data?.rows ?? []) for (const item of row.items) names.set(item.key, item.name);
@@ -162,7 +167,7 @@ export function ForecastScreen() {
           {scenario && <ScenarioPanel scenario={scenario} lineName={lineName} />}
           <ShippingUnavailableBanner warning={shipWarnings.unavailable} />
           <Warnings warnings={shipWarnings.other} accountName={accountName} />
-          <ShipNotes warnings={shipWarnings} lineName={lineName} onChanged={data.reload} />
+          <ShipNotes warnings={shipWarnings} lineName={lineName} companyName={companyName} onChanged={data.reload} />
           <UnresolvedBanner summary={res.summary} unresolved={res.unresolved} accountName={accountName} />
           <SummaryTiles summary={res.summary} baseline={scenario?.baselineSummary ?? null} />
           <ShippingStatus shipping={res.shipping} onRefreshed={data.reload} />

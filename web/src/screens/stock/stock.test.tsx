@@ -40,6 +40,8 @@ describe('grouping stock payments by the server’s derivedStatus', () => {
   it('says why a null row is not in the forecast, from its own fields', () => {
     expect(notInForecastTags(undated).map((t) => t.label)).toEqual(['NO DATE YET']);
     expect(notInForecastTags(unmapped).map((t) => t.label)).toEqual(['UNMAPPED']);
+    // Linked to a JFlow company, but no account in its currency and no default.
+    expect(notInForecastTags({ ...unmapped, companyId: 3 }).map((t) => t.label)).toEqual(['NO ACCOUNT']);
     expect(notInForecastTags(gone).map((t) => t.label)).toEqual(['GONE FROM SHIPPING']);
     expect(notInForecastTags(expected)).toEqual([]);
   });

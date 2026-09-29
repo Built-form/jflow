@@ -1119,7 +1119,7 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   shipping:   { lastSuccessAt, feedToday, openCount, undatedCount, undatedGbp, unmappedCount } | null,   // Phase 2
   warnings:   [ { code: 'NO_ANCHOR', accountId } | { code: 'ORPHAN_OVERRIDE', scheduleId, naturalDate, overrideId }
               | { code: 'SHIPPING_UNAVAILABLE', reason, lastSuccessAt }
-              | { code: 'SHIP_UNMAPPED', shippingCompanyId, count }
+              | { code: 'SHIP_UNMAPPED', shippingCompanyId, count, reason, companyId?, currencies? }
               | { code: 'SHIP_PLAN_ORPHANED', key } | { code: 'SHIP_PLAN_STALE', key } ]
 }
 ```
@@ -1154,8 +1154,12 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   bad_response`** — Dev 2026-09-29, direct `jfa` read; the HTTP reasons `unconfigured`,
   `timeout`, `unreachable`, `http_401`, `http_<status>` are gone with the endpoint); the
   response is built on the last snapshot, or with no ship lines when there has never been one. `SHIP_UNMAPPED
-  {shippingCompanyId, count}` once per distinct `shippingCompanyId` (including `null`, Q2)
-  among omitted rows. `SHIP_PLAN_ORPHANED {key}` for an overlay on a `gone` row.
+  {shippingCompanyId, count, reason, companyId?, currencies?}` once per distinct
+  (`shippingCompanyId`, `reason`) among omitted rows: `reason: 'company'` when no live JFlow
+  company has that `shipping_company_id` (including `null`, Q2); `reason: 'account'` when one
+  does but has no live active account in the row's currency and no live active `is_default`
+  account — then `companyId` (that JFlow company) and `currencies` (the distinct currencies
+  that failed, ascending). Ordered by `shippingCompanyId` (null first), then `company` before `account`. `SHIP_PLAN_ORPHANED {key}` for an overlay on a `gone` row.
   `SHIP_PLAN_STALE {key}` when `planned_amount` is ignored because the feed amount moved
   (P6).
 - `days[]` is one entry per date in `[today, to]`; `days[0].opening` is `Σ accounts.openingGbp`
@@ -1285,7 +1289,7 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 | `PLANNED_DATE_IN_PAST` | 422 | refusal | Phase 2: `plannedDate < today` on `PUT /external-items/:key`; `details {plannedDate, today}` |
 | `SHIPPING_UNAVAILABLE` | 503 | refusal | Phase 2: `POST /external/refresh` when the forced run fails; `details {reason, lastSuccessAt, missing?}` (`missing` = every `table.column` it cannot see, `source_schema` only) — `reason` one of `source_schema \| source_error \| bad_response` (Dev 2026-09-29, direct `jfa` read: the schema check failed, any other error on the read-only source connection, or the assembled rows failed validation; §10.12). *(Superseded reasons: `unconfigured \| timeout \| unreachable \| http_401 \| http_<status>`.)* |
 | `SHIPPING_UNAVAILABLE` | 200 | warning | Phase 2: `/forecast` when the refresh that was due did not succeed; the last snapshot is used; `{reason, lastSuccessAt}` with the same three reasons |
-| `SHIP_UNMAPPED` | 200 | warning | Phase 2: `/forecast`: ship rows omitted because no live company maps their `shippingCompanyId` (including `null`, Q2) or the company has no live active account; one per distinct id; `{shippingCompanyId, count}` |
+| `SHIP_UNMAPPED` | 200 | warning | Phase 2: `/forecast`: ship rows omitted because no live company maps their `shippingCompanyId` (including `null`, Q2) — `reason: 'company'` — or the company has no live active account in the row's currency and no live active default — `reason: 'account'`, with `companyId` and the failed `currencies`; one per distinct (id, reason); `{shippingCompanyId, count, reason, companyId?, currencies?}` |
 | `SHIP_PLAN_ORPHANED` | 200 | warning | Phase 2: `/forecast`: an overlay (`planned_*`) sits on a `gone` row; `{key}` |
 | `SHIP_PLAN_STALE` | 200 | warning | Phase 2: `/forecast`: `planned_amount` ignored because `planned_base_amount ≠` the feed `amount` (P6); `{key}` |
 | `FX_RATE_EXISTS` | 409 | refusal | `(currency, effective_from)` already present; `details {fxRateId}` |
@@ -1392,7 +1396,7 @@ It loads, for the in-scope accounts (`account_id IN (…)`, live rows only):
     date — an open supplier balance is owed until shipping says otherwise, so there is no
     window bound and no 45-day floor, as rule 5) or `feed_status = 'paid' AND paid_on >=
     minA`. Rows that resolve to no account are **not loaded**; they are counted per
-    `shipping_company_id` (null included) for `SHIP_UNMAPPED` and `shipping.unmappedCount`.
+    `shipping_company_id` (null included) and reason for `SHIP_UNMAPPED` and `shipping.unmappedCount`.
     Rows resolving to an account without an anchor are not loaded either (that account is
     `NO_ANCHOR`, as for items). Each row carries its resolved `accountId` and `companyId`
     and its overlay columns verbatim; the loader does not compute the effective values

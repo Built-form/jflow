@@ -10,7 +10,8 @@
 // Pinned here:
 //   · the Stock payments row: ship lines, accounts by currency else the company default
 //     (P5, resolved in SQL at load time), absorbed paid rows, unresolved, undated counts;
-//   · SHIP_UNMAPPED per shipping company, and re-mapping moving rows on the next /forecast;
+//   · SHIP_UNMAPPED per shipping company and reason (no company linked, or a linked company
+//     with no account to land on), and re-mapping moving rows on the next /forecast;
 //   · GET /external-items: its shape, filters and order, and derivedStatus agreeing with
 //     /forecast for every row (null for undated, gone and unmapped rows);
 //   · a failed refresh → 200 + SHIPPING_UNAVAILABLE on the last snapshot (source_error,
@@ -213,8 +214,8 @@ describe('ship lines in /forecast (step 20)', () => {
         expect(new Date(body.shipping.lastSuccessAt).toISOString()).toBe(body.shipping.lastSuccessAt);
         // bal-900-s1 belongs to co2 (matched, but no USD account and no default): not co1's to report.
         expect(shipWarnings(body)).toEqual([
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1 },
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: 3, count: 1 },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1, reason: 'company' },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 3, count: 1, reason: 'company' },
             { code: 'SHIP_PLAN_ORPHANED', key: 'ship.dep-919' },
         ]);
         expect(body.meta.ratesUsed).toMatchObject({ CNY: { rateToGbp: CNY }, USD: { rateToGbp: USD } });
@@ -233,9 +234,10 @@ describe('ship lines in /forecast (step 20)', () => {
     test('SHIP_UNMAPPED per shipping company in all; accounts by currency, else the default; re-mapping moves rows', async () => {
         const all = await ok({ companyId: 'all' });
         expect(shipWarnings(all).filter((w) => w.code === 'SHIP_UNMAPPED')).toEqual([
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1 },
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: 2, count: 1 },
-            { code: 'SHIP_UNMAPPED', shippingCompanyId: 3, count: 1 },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1, reason: 'company' },
+            // co2 is linked, but its only account is GBP and not the default: bal-900-s1 (USD) has nowhere to land.
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 2, count: 1, reason: 'account', companyId: co2.id, currencies: ['USD'] },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 3, count: 1, reason: 'company' },
         ]);
         expect(all.shipping.unmappedCount).toBe(3);
         expect(lineOf(all, 'ship.bal-903-n')).toMatchObject({ accountId: b1.id, currency: 'GBP', amountMinor: 4000 });
@@ -247,6 +249,7 @@ describe('ship lines in /forecast (step 20)', () => {
             const withDefault = await ok({ companyId: 'all' });
             expect(lineOf(withDefault, 'ship.bal-900-s1')).toMatchObject({ accountId: b1.id, amountMinor: 1000, accountMinor: usdGbp(1000) });
             expect(withDefault.shipping.unmappedCount).toBe(2);
+            expect(shipWarnings(withDefault)).not.toContainEqual(expect.objectContaining({ code: 'SHIP_UNMAPPED', shippingCompanyId: 2 }));
 
             // The USD account goes inactive: the next USD account by sort_order; then the default.
             await api().put(`/api/v1/accounts/${a3.id}`).send({ isActive: false }).expect(200);
@@ -259,12 +262,60 @@ describe('ship lines in /forecast (step 20)', () => {
             await api().put(`/api/v1/companies/${co1.id}`).send({ shippingCompanyId: null }).expect(200);
             const unmapped = await ok({ companyId: 'all' });
             expect(lines(unmapped).map((l) => l.key)).not.toContain('ship.bal-812-s311');
-            expect(shipWarnings(unmapped)).toContainEqual({ code: 'SHIP_UNMAPPED', shippingCompanyId: 1, count: 10 });
+            expect(shipWarnings(unmapped)).toContainEqual({ code: 'SHIP_UNMAPPED', shippingCompanyId: 1, count: 10, reason: 'company' });
         } finally {
             await api().put(`/api/v1/companies/${co1.id}`).send({ shippingCompanyId: 1 }).expect(200);
             await api().put(`/api/v1/accounts/${a2.id}`).send({ isActive: true }).expect(200);
             await api().put(`/api/v1/accounts/${a3.id}`).send({ isActive: true }).expect(200);
             await h.sql('UPDATE bank_accounts SET is_default = 0 WHERE id = ?', [b1.id]);
+        }
+        expect(lineOf(await ok({ companyId: co1.id }), 'ship.bal-812-s311').accountId).toBe(a3.id);
+    });
+
+    test('SHIP_UNMAPPED says why: no company linked, or a linked company with no account to land on; a default clears it', async () => {
+        const unmappedOf = (body) => shipWarnings(body).filter((w) => w.code === 'SHIP_UNMAPPED');
+        // No JFlow company is linked to shipping company 3, and bal-901-n has none in shipping: 'company', in every scope.
+        expect(unmappedOf(await ok({ companyId: co1.id }))).toEqual([
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1, reason: 'company' },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 3, count: 1, reason: 'company' },
+        ]);
+
+        // Shipping company 1 moves to a company with no accounts at all: every currency fails.
+        const co4 = (await api().post('/api/v1/companies').send({ code: 'SHD', name: 'SHD' }).expect(201)).body;
+        let usd = null;
+        try {
+            await api().put(`/api/v1/companies/${co1.id}`).send({ shippingCompanyId: null }).expect(200);
+            await api().put(`/api/v1/companies/${co4.id}`).send({ shippingCompanyId: 1 }).expect(200);
+            const noAccounts = await ok({ companyId: 'all' });
+            expect(unmappedOf(noAccounts)).toEqual([
+                { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1, reason: 'company' },
+                { code: 'SHIP_UNMAPPED', shippingCompanyId: 1, count: 10, reason: 'account', companyId: co4.id, currencies: ['CNY', 'USD'] },
+                { code: 'SHIP_UNMAPPED', shippingCompanyId: 2, count: 1, reason: 'account', companyId: co2.id, currencies: ['USD'] },
+                { code: 'SHIP_UNMAPPED', shippingCompanyId: 3, count: 1, reason: 'company' },
+            ]);
+            expect(noAccounts.shipping.unmappedCount).toBe(13);
+            // Matched rows are co4's to report, not co1's.
+            expect(unmappedOf(await ok({ companyId: co1.id })).map((w) => w.shippingCompanyId)).toEqual([null, 3]);
+            expect(unmappedOf(await ok({ companyId: co4.id }))).toContainEqual(
+                expect.objectContaining({ shippingCompanyId: 1, reason: 'account', companyId: co4.id, currencies: ['CNY', 'USD'] }),
+            );
+
+            // A USD account that is not the default: the USD rows land on it, CNY still has nowhere to go.
+            usd = (await api().post('/api/v1/accounts').send({ companyId: co4.id, name: 'D Dollars', currency: 'USD' }).expect(201)).body;
+            expect(unmappedOf(await ok({ companyId: 'all' }))).toContainEqual(
+                { code: 'SHIP_UNMAPPED', shippingCompanyId: 1, count: 1, reason: 'account', companyId: co4.id, currencies: ['CNY'] },
+            );
+
+            // Marking it the default clears the warning: CNY falls back to it.
+            await api().put(`/api/v1/accounts/${usd.id}`).send({ isDefault: true }).expect(200);
+            const withDefault = await ok({ companyId: 'all' });
+            expect(unmappedOf(withDefault).map((w) => w.shippingCompanyId)).toEqual([null, 2, 3]);
+            expect(withDefault.shipping.unmappedCount).toBe(3);
+        } finally {
+            if (usd) await api().delete(`/api/v1/accounts/${usd.id}`).expect(204);
+            await api().put(`/api/v1/companies/${co4.id}`).send({ shippingCompanyId: null }).expect(200);
+            await api().delete(`/api/v1/companies/${co4.id}`).expect(204);
+            await api().put(`/api/v1/companies/${co1.id}`).send({ shippingCompanyId: 1 }).expect(200);
         }
         expect(lineOf(await ok({ companyId: co1.id }), 'ship.bal-812-s311').accountId).toBe(a3.id);
     });
