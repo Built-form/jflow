@@ -4,8 +4,9 @@
 // engine-input shape → the `line` that lib/classify.js takes. Shaping only:
 // money DECIMAL strings are parsed to bigint minor units, the effective values
 // are read off the row, and nothing is decided here. The table itself lives in
-// classify.js alone; every caller (GET /items, the D17 deactivation guard, and
-// the engine from step 6) builds its line here and makes ONE classify call.
+// classify.js alone; every caller (GET /items, GET /schedules/:id/instances, the
+// D17 deactivation guard, and the engine from step 6) builds its line here and
+// makes ONE classify call.
 //
 // Pure: no DB, no clock.
 
@@ -42,4 +43,33 @@ function itemDerivedStatus(item, A, today) {
     return derivedStatus(classify(itemLine(item), A, today));
 }
 
-module.exports = { itemLine, itemDerivedStatus };
+/**
+ * A schedule instance → its classify line. `instance` is the §6.9 instance JSON
+ * (lib/instances.js buildInstance), whose `dueDate`, `amount`, `status` and
+ * `settleMode` are already the effective values (§3.4: the override's when set,
+ * else the schedule's), so the settle mode is resolved before classify sees it.
+ * The paid cache is the override's (`override.paidAmount`); `payments` are the
+ * override's payment rows, defaulting to `instance.payments`.
+ */
+function instanceLine(instance, payments = instance.payments) {
+    const paid = instance.override ? instance.override.paidAmount : null;
+    return {
+        status: instance.status,
+        settleMode: instance.settleMode,
+        effectiveDate: instance.dueDate,
+        amountMinor: parseMinor(instance.amount),
+        paidAmountMinor: paid == null ? 0n : parseMinor(paid),
+        payments: (payments || []).map((p) => ({
+            paymentId: p.id,
+            paidOn: p.paidOn,
+            amountMinor: parseMinor(p.amount),
+        })),
+    };
+}
+
+/** §9.6 / D10: an instance's `derivedStatus`, as itemDerivedStatus. */
+function instanceDerivedStatus(instance, A, today) {
+    return derivedStatus(classify(instanceLine(instance), A, today));
+}
+
+module.exports = { itemLine, itemDerivedStatus, instanceLine, instanceDerivedStatus };

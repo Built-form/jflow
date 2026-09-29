@@ -6,7 +6,7 @@ step's "Done when" holds and its commit is made.
 
 ## Current step
 
-**Steps 0–4 and 12 are done.** Step 8 (web shell) is built, waiting on step 6 for its walk; step 9 (web screens) is being built in parallel against CONTRACT. **Next: steps 5–7, once Dev sets `/effort xhigh`.**
+**Steps 0–7 and 12 are done. Next: the browser walk that closes steps 8 and 9 (web).** Step 10 (mobileweb) is parked by Dev. Step 11 (first deploy) is a STOP for Dev.
 
 | Step | Title | State |
 |---|---|---|
@@ -15,12 +15,12 @@ step's "Done when" holds and its commit is made.
 | 2 | Reference data | done |
 | 3 | Pure libraries (tests first) | done |
 | 4 | Classifier and one-off items | done |
-| 5 | Schedules, overrides, split and end (tests first) | not started |
-| 6 | Engine, loader and `/forecast` (tests first) | not started |
-| 7 | Scenarios | not started |
-| 8 | Web shell, settings, cash at bank | in progress (ahead of order; its "Done when" needs step 6) |
-| 9 | Web forecast, items, schedules, scenarios | in progress (UI against CONTRACT, stubbed; walk after step 7) |
-| 10 | Mobileweb | not started |
+| 5 | Schedules, overrides, split and end (tests first) | done |
+| 6 | Engine, loader and `/forecast` (tests first) | done |
+| 7 | Scenarios | done |
+| 8 | Web shell, settings, cash at bank | built; browser walk next |
+| 9 | Web forecast, items, schedules, scenarios | built; browser walk next |
+| 10 | Mobileweb | **parked by Dev (2026-09-29): web only for now** |
 | 11 | First deploy — STOP (Dev) | not started |
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
 
@@ -363,3 +363,178 @@ ship lines, the API key, and the 45-day window for supplier money.
   `isDefault` path; it is rare, noted but left alone.
 
 **Deferred**: none.
+
+## Step 9 — Web forecast, items, schedules, scenarios (built 2026-09-29; NOT committed yet)
+
+Built by two agents in parallel **against CONTRACT with stubbed responses**, before the
+step 5–7 API existed. The browser walk of the headline flow comes after step 7; the step
+is committed then.
+
+**Built**
+- **Forecast** (`screens/forecast/`):
+  - a hand-rolled SVG chart, baseline vs scenario;
+  - a day/week/month grid with opening/in/out/closing header rows, negative cells flagged,
+    and the overdue/absorbed rendering taken from server flags;
+  - the unresolved banner, and a `FX_RATE_MISSING` panel linking to Settings;
+  - an edit dialog with +7/+14/+30 that writes real data, or adjustments while a scenario
+    is open.
+- **Scenarios** (`screens/scenarios/`):
+  - list and detail; stale markers for all four reasons;
+  - rebase with `dropStale`, apply (`SCENARIO_STALE` lists each key), duplicate, and
+    discard (= archive, D36).
+- `app/ScenarioContext.tsx` + the Shell banner. `lib/keys.ts` parses only.
+- **Income & outgoings** (`screens/items/`):
+  - grouped by `derivedStatus`, with an "Assumed settled" group offering Confirm paid /
+    Didn't happen;
+  - `components/PayDialog.tsx`, shared with instances: the remainder date is pre-filled
+    with today and explained.
+- **Schedules** (`screens/schedules/`):
+  - list and detail, and the instance table (predicted vs tuned);
+  - tune/revert/pay/unpay;
+  - the split and end wizards, which turn the three 409s into confirmations
+    (`dropOverrides`/`dropAdjustments` resends);
+  - a structure-lock message with "Split from…".
+- Home is now Forecast (it was Cash at bank until step 9).
+
+**Validation so far**: `tsc` clean; vitest **209/209** (22 files); `npm run build` succeeds.
+
+**CONTRACT additions made from the UI build** (coordinator, 2026-09-29):
+- `rows[].items[].dueDate`: an overdue line's `date` is today, `dueDate` is when it was
+  due.
+- Instance JSON gains `predictedDueDate` and `remainingAmount`.
+- Every item and instance mutation response carries `derivedStatus` + `payments[]`.
+- The end no-op response body is defined.
+- `SCHEDULE_STRUCTURE_LOCKED.details.fields` uses JSON names.
+
+**For step 7**
+- The adjustment `PUT` is a **full replace**: an omitted `newAmount`/`newDate` clears it.
+  The web client always sends the whole adjustment.
+- Adjustment `current` should carry `name` and `currency`. Without them, the detail screen
+  reads names from `/forecast`.
+- Nice-to-haves that would remove client workarounds: `rowVersion` on forecast lines, and
+  `editable` on `unresolved[]`.
+
+## Steps 5, 6 and 7 — Schedules/split/end, engine/loader/`/forecast`, scenarios (2026-09-29)
+
+Built by four agents in parallel at `/effort xhigh` (Dev's setting for steps 5–7): step 5,
+the pure engine (6a), the loader and route (6b), and step 7. They share files (`shape.js`,
+`lines.js`, `forecastLoad.js`, the handler mount block), so **the three steps are one
+commit**. Each step's own tests were written first.
+
+**Shipped**
+- **Step 5.**
+  - `routes/schedules.js`:
+    - CRUD, with the structure lock (D37) and the §10.1 `FOR SHARE` on account/category;
+    - `GET /instances` with `predictedDueDate`, `remainingAmount`, `derivedStatus`,
+      `payments[]` and `orphans[]`;
+    - tune / revert / pay / unpay;
+    - split and end per §10.5.
+  - `services/{schedules,payments,references}.js`, `lib/{split,instances}.js`.
+  - `lines.instanceLine`; the schedule/override/adjustment mappers; `loadTarget`'s `sched.`
+    branch; `owedOnAccount` finished (D17 complete).
+- **Step 6.**
+  - `lib/engine.js`: pure; `run`, `clampWindow`, `currenciesInScope`. It expands
+    occurrences itself over `[minA−2, to+2]`, and classifies only through `classify.js`.
+  - `services/forecastLoad.js` §8 rules 1–10: `loadEngineInput`, with de-duplication and
+    draft-only adjustments.
+  - `routes/forecast.js`: validation, a read-only transaction, `FX_RATE_MISSING` before
+    the engine, bigint → JSON integers.
+- **Step 7.**
+  - `routes/scenarios.js`: the ten §6.11 routes.
+  - `services/scenarios.js`: scenario lock, draft check, target locks in the standing
+    order, `loadCurrent`.
+  - `lib/stale.js`: maps `loadTarget` onto the engine's exported `staleReason`, so
+    adjustment write, rebase, apply and `/forecast` share **one** stale definition.
+
+**Validation**
+- Lint clean; **unit 791/791** (17 suites); **e2e 144/144** (13 suites); no `jflow_test_*`
+  schema left behind.
+- Step 5, as BUILD_PLAN lists:
+  - e2e refusals `SCHEDULE_HAS_PAYMENTS`, `SCHEDULE_HAS_OVERRIDES`,
+    `SCHEDULE_HAS_ADJUSTMENTS`, `SCHEDULE_STRUCTURE_LOCKED`, `OVERRIDE_HAS_PAYMENT`;
+  - an amount-only split re-keys a draft adjustment, keeping month-end dates via
+    `active_from`, and it reads `BASE_CHANGED`;
+  - a currency-only split with an adjustment refuses;
+  - a frequency split with both drops leaves nothing from *k*, with an audit row each;
+  - end-early mirrors the guard.
+  - Four **two-connection** tests:
+    - a pay during a split waits, then lands or is refused;
+    - a pay during a rolled-back split;
+    - the scenario lock taken before the schedule lock;
+    - an adjustment written mid-split.
+- Step 5 greps:
+  - every instance writer reaches `schedule_overrides` only through `lockInstance`
+    (`lockSchedule` first, `routes/schedules.js:205–212`);
+  - the split locks scenarios (`:288`) before the schedule (`:306`);
+  - apply/rebase/adjustment writes use `lockTargets`: schedules asc → cash_items asc →
+    overrides.
+- Step 6:
+  - every unit test BUILD_PLAN lists (mixed anchors, `A == today`, absorbed, 44/46 days,
+    200-day manual one-off, never-marked manual schedule, part-paid remainders, the
+    per-instance manual override, overrides in/out of the window, `ORPHAN_OVERRIDE`,
+    scenario-only overdue clearing, all four stale reasons, the rounding invariant at
+    1.234567 and 0.005234 incl. cross-currency, clamps, `FX_RATE_MISSING`, month-bucket
+    min from the daily series);
+  - e2e: a balance entered for today is the anchor and today's items stay in today's
+    bucket (step 8's check);
+  - the **agreement test**: all seven `derivedStatus` values from `/items` and
+    `/instances` agree with `/forecast`.
+  - `curl /api/v1/forecast?companyId=all` on the local (empty) `jflow` schema returns the
+    CONTRACT shape.
+- Step 7, the **headline flow** e2e:
+  - 1000 × 12 monthly; June tuned to 983, July to 1024;
+  - July shifted to 20 Aug in a scenario → the July bucket −102400 and August +102400 vs
+    baseline;
+  - apply writes the override with `source_scenario_id`, and the real forecast then
+    equals the scenario;
+  - re-apply and an adjustment edit → `SCENARIO_NOT_DRAFT`.
+- Also covered for step 7:
+  - paying a target, then apply → `SCENARIO_STALE` (`TARGET_SETTLED`), nothing written;
+  - rebase then apply;
+  - `dropStale` (settled/missing/date-passed only), `DATE_PASSED`, duplicate;
+  - an un-encoded key through HTTP;
+  - two tests proving apply's re-check reads after its locks.
+
+**CONTRACT amended during the build** (all recorded in CONTRACT.md):
+- §8 rule 1: the schedule bound widened to ±2 days for the weekend rule; the engine
+  expands occurrences. `categories` added to `engineInput`.
+- §8 rule 3: schedules behind owed or moved-in overrides are loaded even when they ended
+  before the window.
+- §8 rule 10: only a **draft** scenario's adjustments are live. An applied/archived
+  scenario's forecast is the real data with no STALE warnings.
+- §10.5:
+  - the split **race guard** (an adjustment written between step 1 and the schedule lock
+    → deliberate `ER_LOCK_DEADLOCK`, restart once);
+  - `changes.startDate < k` → 400; an empty successor → 400;
+  - a successor from a future *k* is not born locked.
+- §6.11:
+  - adjustment `current` gains `name`, `currency`;
+  - the adjustment PUT is a full replace and returns `stale`/`current`;
+  - `baseVersion` on PUT is checked against an existing adjustment only.
+
+**Decisions where CONTRACT was silent**
+- Step 5:
+  - `OVERRIDE_HAS_PAYMENT` only when `amount`/`status` actually change;
+  - `status: 'expected'` on tune is stored as sent;
+  - orphans cover the whole schedule;
+  - `successorId` = the latest successor;
+  - a malformed `:naturalDate` → 400, a non-instance → 404;
+  - `intervalCount` ≤ 1000.
+- Step 6:
+  - an account with no anchor still puts its currency in scope;
+  - a `from` beyond the cap, or after the default `to`, → 400;
+  - a malformed `scenarioId` → 400, a non-live one → 404;
+  - with no anchors at all, a draft scenario's targets still load.
+- Step 7:
+  - adjustment writes/rebase don't bump the scenario's `row_version`;
+  - rebase always audits `{rebased, dropped, stale, dropStale}`;
+  - PUT with the scenario's current status is a no-op;
+  - `?companyId=` on `/scenarios` is strict equality (all-company scenarios excluded).
+
+**Notes**
+- Unpay keeps an all-NULL override row, so the schedule stays structure-locked, and a
+  later split needs `dropOverrides`.
+- The step-5 agent ran one read-only `git status` (printed nothing, changed nothing),
+  against its brief.
+
+**Deferred**: none beyond CONTRACT §11.

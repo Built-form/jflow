@@ -11,12 +11,33 @@ const shape = require('../../src/lib/shape');
 describe('what the trimmed module exports', () => {
     test('exactly the envelopes, parsers and auditToJson (CLAUDE.md copy table)', () => {
         expect(Object.keys(shape).sort()).toEqual([
-            'accountToJson', 'apiError', 'assertBaseVersion', 'auditToJson', 'balanceToJson',
+            'accountToJson', 'adjustmentToJson', 'apiError', 'assertBaseVersion', 'auditToJson', 'balanceToJson',
             'categoryToJson', 'companyToJson', 'fail', 'fxRateToJson', 'isApiError',
             'isValidEmail', 'itemToJson', 'keysetResponse', 'listResponse', 'normalizeEmail',
-            'parseBaseVersion', 'parseCap', 'parseId', 'parseListParams', 'parseSortOrder',
-            'paymentToJson', 'sendApiError', 'serverError',
+            'overrideToJson', 'parseBaseVersion', 'parseCap', 'parseId', 'parseListParams', 'parseSortOrder',
+            'paymentToJson', 'scenarioToJson', 'scheduleToJson', 'sendApiError', 'serverError',
         ]);
+    });
+});
+
+describe('scenarioToJson (CONTRACT §6.11)', () => {
+    const row = {
+        id: 3, name: 'What if', description: null, company_id: 1, status: 'draft', applied_at: null,
+        applied_by: null, row_version: 2, created_by: 'a@b.c', created_at: null, updated_at: null, deleted_at: null,
+    };
+
+    test('adjustmentCount only when the query selected it (never in an audit snapshot)', () => {
+        const snapshot = shape.scenarioToJson(row);
+        expect(snapshot).not.toHaveProperty('adjustmentCount');
+        expect(snapshot).toMatchObject({ id: 3, companyId: 1, status: 'draft', rowVersion: 2 });
+        const full = shape.scenarioToJson({ ...row, adjustment_count: '4' });
+        expect(Object.keys(full)).toEqual([
+            'id', 'name', 'description', 'companyId', 'status', 'appliedAt', 'appliedBy', 'adjustmentCount',
+            'rowVersion', 'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
+        ]);
+        expect(full.adjustmentCount).toBe(4);
+        expect(shape.scenarioToJson({ ...row, company_id: null }).companyId).toBeNull();
+        expect(shape.scenarioToJson(null)).toBeNull();
     });
 });
 
@@ -58,6 +79,59 @@ describe('itemToJson / paymentToJson (CONTRACT §6.7, D23)', () => {
             'currency', 'dueDate', 'status', 'paidOn', 'paidAmount', 'remainingAmount', 'payments', 'settleMode',
             'notes', 'sourceScenarioId', 'derivedStatus', 'rowVersion', 'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
         ]);
+    });
+});
+
+describe('scheduleToJson / overrideToJson / adjustmentToJson (CONTRACT §6.8, §6.9, §6.11)', () => {
+    const schedule = {
+        id: 5, account_id: 3, company_id: 1, category_id: 2, direction: 'out', name: 'Rent', counterparty: null,
+        amount: '1000.00', currency: 'GBP', frequency: 'monthly', interval_count: 1, start_date: '2026-01-31',
+        active_from: '2026-06-30', occurrence_count: null, end_date: null, weekend_rule: 'none', settle_mode: 'auto',
+        predecessor_id: 4, status: 'active', notes: null, row_version: 0, created_by: 'a@b.c',
+        created_at: null, updated_at: null, deleted_at: null,
+    };
+
+    test('the row in its JSON shape; successorId and structureLocked only through extras (not in audit snapshots)', () => {
+        const out = shape.scheduleToJson(schedule);
+        expect(out).toMatchObject({
+            id: 5, accountId: 3, companyId: 1, categoryId: 2, intervalCount: 1, startDate: '2026-01-31',
+            activeFrom: '2026-06-30', occurrenceCount: null, weekendRule: 'none', settleMode: 'auto', predecessorId: 4,
+        });
+        expect(out).not.toHaveProperty('successorId');
+        expect(out).not.toHaveProperty('structureLocked');
+        const full = shape.scheduleToJson(schedule, { successorId: 9, structureLocked: true });
+        expect(Object.keys(full)).toEqual([
+            'id', 'accountId', 'companyId', 'categoryId', 'direction', 'name', 'counterparty', 'amount', 'currency',
+            'frequency', 'intervalCount', 'startDate', 'activeFrom', 'occurrenceCount', 'endDate', 'weekendRule',
+            'settleMode', 'predecessorId', 'successorId', 'status', 'notes', 'structureLocked', 'rowVersion',
+            'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
+        ]);
+        expect(full).toMatchObject({ successorId: 9, structureLocked: true });
+        expect(shape.scheduleToJson(null)).toBeNull();
+    });
+
+    test('an override row, and an adjustment row', () => {
+        expect(shape.overrideToJson({
+            id: 40, schedule_id: 5, natural_date: '2026-03-31', amount: '983.00', due_date: null, status: null,
+            settle_mode: 'manual', paid_on: null, paid_amount: null, note: 'x', source_scenario_id: null,
+            row_version: 1, created_by: 'a@b.c', created_at: null, updated_at: null,
+        })).toEqual({
+            id: 40, scheduleId: 5, naturalDate: '2026-03-31', amount: '983.00', dueDate: null, status: null,
+            settleMode: 'manual', paidOn: null, paidAmount: null, note: 'x', sourceScenarioId: null,
+            rowVersion: 1, createdBy: 'a@b.c', createdAt: null, updatedAt: null,
+        });
+        expect(shape.adjustmentToJson({
+            id: 8, scenario_id: 2, item_key: 'sched.5.2026-03-31', target_kind: 'sched', target_id: '5',
+            target_date: '2026-03-31', kind: 'adjust', new_date: null, new_amount: '1100.00',
+            base_date: '2026-03-31', base_amount: '1000.00', note: null, row_version: 0, created_by: 'a@b.c',
+            created_at: null, updated_at: null,
+        })).toEqual({
+            id: 8, scenarioId: 2, itemKey: 'sched.5.2026-03-31', targetKind: 'sched', targetId: '5',
+            targetDate: '2026-03-31', kind: 'adjust', newDate: null, newAmount: '1100.00', baseDate: '2026-03-31',
+            baseAmount: '1000.00', note: null, rowVersion: 0, createdBy: 'a@b.c', createdAt: null, updatedAt: null,
+        });
+        expect(shape.overrideToJson(null)).toBeNull();
+        expect(shape.adjustmentToJson(null)).toBeNull();
     });
 });
 

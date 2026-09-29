@@ -136,7 +136,7 @@ describe('forecastLoad — item side', () => {
         expect(since.map((p) => p.paidOn)).toEqual(['2026-03-02', '2026-03-03']);
     });
 
-    test('loadTarget: the item branch, null for deleted and ship. keys; sched. waits for step 5', async () => {
+    test('loadTarget: the item branch, null for deleted, ship. and absent sched. keys', async () => {
         const target = await withConn((c) => load.loadTarget(c, parseKey(items.dated.key), TODAY));
         expect(target).toEqual({
             kind: 'item', id: items.dated.id, naturalDate: null, status: 'expected', effectiveDate: '2026-03-15',
@@ -148,6 +148,7 @@ describe('forecastLoad — item side', () => {
         expect(await withConn((c) => load.loadTarget(c, parseKey(items.deleted.key), TODAY))).toBeNull();
         expect(await withConn((c) => load.loadTarget(c, parseKey('ship.PO-778'), TODAY))).toBeNull();
         expect(await withConn((c) => load.loadTarget(c, null, TODAY))).toBeNull();
-        await expect(withConn((c) => load.loadTarget(c, parseKey('sched.1.2026-03-01'), TODAY))).rejects.toThrow(/step 5/);
+        // No schedule 1 in this schema (the sched. branch itself is pinned in schedules.test.js).
+        expect(await withConn((c) => load.loadTarget(c, parseKey('sched.1.2026-03-01'), TODAY))).toBeNull();
     });
 });

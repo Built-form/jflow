@@ -20,6 +20,7 @@ const { withConnection, withTransaction } = require('../db');
 const { recordAudit } = require('../lib/audit');
 const { ITEM_SELECT } = require('../services/forecastLoad');
 const { decorateItems } = require('../services/items');
+const { SCHEDULE_SELECT, scheduleOwedState } = require('../services/schedules');
 const {
     apiError, isApiError, sendApiError, listResponse, parseId, parseListParams,
     parseBaseVersion, assertBaseVersion, parseSortOrder, accountToJson,
@@ -85,14 +86,27 @@ async function references(conn, id) {
  *                  row: §10.1's order), so they are current even when this
  *                  transaction's snapshot predates the account lock (the
  *                  isDefault path reads first).
- *   liveSchedules  every live schedule (ended ones included) — see below.
- *   owedInstances  none yet.
+ *   liveSchedules  live schedules (active or ended) that still generate an
+ *                  instance on or after `today`, by effective date
+ *                  (lib/instances.js hasOccurrenceOnOrAfter).
+ *   owedInstances  instances whose derivedStatus is `overdue` or `unresolved`
+ *                  — the same classify call GET /schedules/:id/instances makes
+ *                  (services/schedules.js), over the instances that can be owed
+ *                  (manual schedules scanned back 730 days as §8 rule 5, plus
+ *                  every tuned instance), keyed by natural date then schedule.
  *
- * TODO(step 5): keep only the schedules with an occurrence on or after `today`
- *   (lib/recurrence.js, effective dates), and fill owedInstances with the
- *   instances whose derivedStatus is `overdue` or `unresolved`.
+ * The reads follow §10.1's order after the account row: the schedules (FOR
+ * SHARE OF s), then the items (FOR SHARE OF i), then the overrides (FOR SHARE,
+ * in scheduleOwedState).
  */
 async function owedOnAccount(conn, id, today) {
+    const [scheduleRows] = await conn.query(
+        `${SCHEDULE_SELECT}
+          WHERE s.account_id = ? AND s.deleted_at IS NULL
+          ORDER BY s.id ASC
+          FOR SHARE OF s`,
+        [id]
+    );
     const [rows] = await conn.query(
         `${ITEM_SELECT}
           WHERE i.account_id = ? AND i.deleted_at IS NULL AND i.status IN ('expected', 'part_paid')
@@ -102,17 +116,13 @@ async function owedOnAccount(conn, id, today) {
     );
     const owed = (await decorateItems(conn, rows, today))
         .filter((item) => item.status === 'part_paid' || item.derivedStatus !== 'assumedSettled');
-    const [[scheduleCount]] = await conn.query(
-        'SELECT COUNT(*) AS n FROM schedules WHERE account_id = ? AND deleted_at IS NULL', [id]
-    );
-    const [schedules] = await conn.query(
-        'SELECT id FROM schedules WHERE account_id = ? AND deleted_at IS NULL ORDER BY id ASC LIMIT ?',
-        [id, DETAIL_KEY_CAP]
-    );
+    const { liveScheduleIds, instances } = await scheduleOwedState(conn, scheduleRows, today);
+    const owedInstances = instances
+        .filter((inst) => inst.derivedStatus === 'overdue' || inst.derivedStatus === 'unresolved');
     return {
         owedItems: { count: owed.length, keys: owed.slice(0, DETAIL_KEY_CAP).map((item) => item.key) },
-        liveSchedules: { count: Number(scheduleCount.n), ids: schedules.map((r) => Number(r.id)) },
-        owedInstances: { count: 0, keys: [] },
+        liveSchedules: { count: liveScheduleIds.length, ids: liveScheduleIds.slice(0, DETAIL_KEY_CAP) },
+        owedInstances: { count: owedInstances.length, keys: owedInstances.slice(0, DETAIL_KEY_CAP).map((inst) => inst.key) },
     };
 }
 

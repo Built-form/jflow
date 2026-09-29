@@ -40,7 +40,7 @@ workflows convention was preferred; where that was silent too, the smaller, reve
 | D18 | Items, schedules and scenarios are soft-deleted with no in-use guard; a deleted target reads stale `TARGET_MISSING`. There are no restore routes in phase 1 (§11). | Reversible by SQL; restore routes are additive. |
 | D19 | Tune (`PUT …/instances/:naturalDate`) also accepts `status: 'expected' \| 'skipped'`, and `PUT /items/:id` accepts `status` moving between `expected` and `skipped` only. `paid`/`part_paid` are written only by pay/unpay. | Scenario apply writes `status = 'skipped'` on these rows; there must be a hand door to the same state and back. |
 | D20 | A scenario `company_id` is a **view-scope hint** only. `/forecast` never refuses a scope mismatch; an adjustment whose target is outside the requested account set is loaded (so the stale check is truthful), applied to nothing, and reported in `scenario.warnings` as `ADJUSTMENT_OUT_OF_SCOPE`. | Apply, rebase and the stale check are not company-scoped operations. |
-| D21 | Split: `fromNaturalDate` must be an occurrence strictly after the schedule's first **active** occurrence (400 otherwise). **Month-end identity survives a split** through `schedules.active_from`: when `changes` leaves `frequency`, `intervalCount`, `startDate` and `weekendRule` untouched, the successor gets `start_date = old.start_date`, `active_from = k`, and inherits `occurrence_count`/`end_date` verbatim unless `changes` sets one — so a monthly series from 31 Jan split at 30 Jun keeps yielding 31 Jul, 31 Aug. Otherwise `start_date = changes.startDate ?? k`, `active_from = NULL`, and the successor inherits the remaining end (`end_date`, or `occurrence_count` minus the occurrences before *k*) unless `changes` sets one. A successor's `start_date <= today`, so it is born structure-locked (D37). End: `lastNaturalDate` must be an occurrence; *k* is the next occurrence after it. | Occurrence *n* is always computed from `start_date` (§5.1); restarting the series at *k* would move every month-end date. The first instance is edited in place while the schedule is unused, or the schedule is deleted. |
+| D21 | Split: `fromNaturalDate` must be an occurrence strictly after the schedule's first **active** occurrence (400 otherwise). **Month-end identity survives a split** through `schedules.active_from`: when `changes` leaves `frequency`, `intervalCount`, `startDate` and `weekendRule` untouched, the successor gets `start_date = old.start_date`, `active_from = k`, and inherits `occurrence_count`/`end_date` verbatim unless `changes` sets one — so a monthly series from 31 Jan split at 30 Jun keeps yielding 31 Jul, 31 Aug. Otherwise `start_date = changes.startDate ?? k`, `active_from = NULL`, and the successor inherits the remaining end (`end_date`, or `occurrence_count` minus the occurrences before *k*) unless `changes` sets one. A series-keeping successor has `start_date <= today` and is born structure-locked (D37); a grid-changing split from a future *k* starts at `k > today` and is not locked until then or its first override. End: `lastNaturalDate` must be an occurrence; *k* is the next occurrence after it. | Occurrence *n* is always computed from `start_date` (§5.1); restarting the series at *k* would move every month-end date. The first instance is edited in place while the schedule is unused, or the schedule is deleted. |
 | D22 | A schedule may carry `occurrence_count` **or** `end_date`, not both (400). Split and end both go through `endBefore(schedule, k)`, which writes `end_date = k − 1 day` and `occurrence_count = NULL` on the old row. `status = 'ended'` marks a series closed by split or end; ended schedules still project their occurrences up to their end. | Two ends would need a precedence rule; one writer for both actions. |
 | D23 | **Payments are rows.** Every pay inserts one `payments` row (`paid_on`, `amount`) under the parent `cash_items` row or `schedule_overrides` row; `paid_amount = SUM(payments.amount)` and `paid_on = MAX(payments.paid_on)` on the parent are a **denormalised cache** rewritten in the same transaction as every payment write. Status becomes `paid` when the cache reaches `amount`, else `part_paid`. The classifier runs **each payment row** on its own `paid_on`, so a payment made before the anchor is excluded while a later one is included. A remainder date moves the item's `due_date` (one-off) or the override's `due_date` (instance). Unpay hard-deletes every payment row of the parent (one audit row each), resets the cache and the status, and does not restore an earlier `due_date`. | A single cached `paid_on` placed the whole paid amount at the latest date: 1,000 item, 400 paid at A−5, 300 at A+2 → 700 absorbed although 400 was already inside the anchor (Dev, 2026-09-29). |
 | D24 | `?today=` outside local/test is **ignored**, not refused; `meta.today` always reports the date used. | A stray parameter must not break a deployed client; the response says what happened. |
@@ -702,16 +702,19 @@ the client knows before it tries — a split's successor is born locked.
 | `GET /schedules?accountId&companyId&categoryId&status&settleMode&q&includeDeleted&page&limit` | any | `status` comma list of `active, ended` | list sorted `created_at DESC, id DESC` | — |
 | `POST /schedules` | any | `{accountId, categoryId, name, amount, frequency, startDate, intervalCount?, occurrenceCount?, endDate?, weekendRule?, settleMode?, direction?, currency?, counterparty?, notes?}` | 201; 400 as items plus: frequency/weekend enum, `intervalCount < 1`, `occurrenceCount < 1`, both ends set (D22), `endDate < startDate` | `schedule`/`create` |
 | `GET /schedules/:id` | any | — | row; 404 | — |
-| `PUT /schedules/:id` | any | descriptive `{name?, counterparty?, categoryId?, notes?}` always; structural `{amount?, currency?, accountId?, frequency?, intervalCount?, startDate?, occurrenceCount?, endDate?, weekendRule?, settleMode?}` only while unlocked; `baseVersion?` | row; 409 `SCHEDULE_STRUCTURE_LOCKED {fields, reason: 'started' \| 'has_overrides', split: '/schedules/:id/split'}` when a structural field **changes** and the schedule is locked (an unchanged structural value in the body is not a change) | `update` |
+| `PUT /schedules/:id` | any | descriptive `{name?, counterparty?, categoryId?, notes?}` always; structural `{amount?, currency?, accountId?, frequency?, intervalCount?, startDate?, occurrenceCount?, endDate?, weekendRule?, settleMode?}` only while unlocked; `baseVersion?` | row; 409 `SCHEDULE_STRUCTURE_LOCKED {fields, reason: 'started' \| 'has_overrides', split: '/schedules/:id/split'}` (`fields` are JSON names, e.g. `amount`, `startDate`) when a structural field **changes** and the schedule is locked (an unchanged structural value in the body is not a change) | `update` |
 | `DELETE /schedules/:id` | any | `{baseVersion?}` | 204 soft | `delete` |
 | `POST /schedules/:id/split` | any | `{fromNaturalDate, changes: {…structural fields…}, dropOverrides?, dropAdjustments?, baseVersion?}` — `changes` must contain at least one structural field; `activeFrom` is never accepted in `changes` (server-set, D21) | 201 `{ended: <old row>, successor: <new row>, deletedOverrides: [naturalDate…], rekeyedAdjustments: [{scenarioId, from, to}], droppedAdjustments: [{scenarioId, itemKey}]}`. §10.5. 400 `fromNaturalDate` not an occurrence strictly after the first active occurrence (D21); 409 `SCHEDULE_HAS_PAYMENTS {naturalDates}`; 409 `SCHEDULE_HAS_OVERRIDES {naturalDates}`; 409 `SCHEDULE_HAS_ADJUSTMENTS {adjustments: [{scenarioId, scenarioName, itemKey, naturalDate}]}` listing only the adjustments that cannot be re-keyed (§10.5 step 5) | `schedule`/`split` on the old row, `create` on the successor, one `schedule_override`/`delete` per dropped override, one `scenario_adjustment`/`update` per re-key or `delete` per drop |
-| `POST /schedules/:id/end` | any | `{lastNaturalDate, dropOverrides?, dropAdjustments?, baseVersion?}` | 200 `{ended: <row>, deletedOverrides, droppedAdjustments}`; same guards from *k* = `nextOccurrenceAfter(schedule, lastNaturalDate)` (400 when `lastNaturalDate` is not an occurrence; 200 no-op when nothing follows it); the old row is ended through `endBefore(schedule, k)` exactly as a split (D22); an end never re-keys, so `SCHEDULE_HAS_ADJUSTMENTS` always applies unless `dropAdjustments` | `schedule`/`end` + the per-row audits |
+| `POST /schedules/:id/end` | any | `{lastNaturalDate, dropOverrides?, dropAdjustments?, baseVersion?}` | 200 `{ended: <row>, deletedOverrides, droppedAdjustments}`; same guards from *k* = `nextOccurrenceAfter(schedule, lastNaturalDate)` (400 when `lastNaturalDate` is not an occurrence; 200 no-op when nothing follows it, body `{ended: <row unchanged>, deletedOverrides: [], droppedAdjustments: []}`); the old row is ended through `endBefore(schedule, k)` exactly as a split (D22); an end never re-keys, so `SCHEDULE_HAS_ADJUSTMENTS` always applies unless `dropAdjustments` | `schedule`/`end` + the per-row audits |
 
 ### 6.9 Instances (virtual, expanded at read time)
 
-Instance JSON: `{key, scheduleId, naturalDate, dueDate, amount, currency, direction, status,
-settleMode, tuned, override, payments, derivedStatus}` — `dueDate`/`amount`/`status`/`settleMode` are the
-**effective** values (§3.4); `tuned` = an override row exists; `override` = `{id, amount, dueDate,
+Instance JSON: `{key, scheduleId, naturalDate, predictedDueDate, dueDate, amount,
+remainingAmount, currency, direction, status, settleMode, tuned, override, payments,
+derivedStatus}` — `dueDate`/`amount`/`status`/`settleMode` are the **effective** values
+(§3.4); `predictedDueDate` = `weekendAdjust(naturalDate, schedule.weekend_rule)`, the date
+before any tune; `remainingAmount` = effective amount − `COALESCE(override.paid_amount, 0)`
+(DECIMAL string, as items); `tuned` = an override row exists; `override` = `{id, amount, dueDate,
 status, settleMode, paidOn, paidAmount, note, sourceScenarioId, rowVersion, createdBy, createdAt,
 updatedAt}` or `null`; `payments` = `[{id, paidOn, amount, note, createdBy, createdAt}]` of the
 override row (`[]` when none); `key` = `buildSchedKey(scheduleId, naturalDate)`.
@@ -724,7 +727,10 @@ override row (`[]` when none); `key` = `buildSchedKey(scheduleId, naturalDate)`.
 | `POST /schedules/:id/instances/:naturalDate/pay` | any | `{paidOn, paidAmount?, note?, remainderDueDate?, baseVersion?}` | 200 instance; inserts one `payments` row under the override (creating the override row when none), rewrites the cache; same three 422s as items; the remainder date lands in `override.due_date` | `schedule_override`/`pay` + `payment`/`create` |
 | `POST /schedules/:id/instances/:naturalDate/unpay` | any | `{baseVersion?}` | 200 instance; deletes every payment row of the override and clears `status`, `paid_on`, `paid_amount` on it (override row kept) | `schedule_override`/`unpay` + `payment`/`delete` per row |
 
-Every writer above takes the parent `schedules` row lock **first** (§10.1).
+Every writer above takes the parent `schedules` row lock **first** (§10.1). Every instance
+mutation response (tune, pay, unpay) is the full instance JSON including `derivedStatus` and
+`payments[]` — clients replace the row from the response — and so is every item mutation
+response (§6.7).
 
 ### 6.10 Forecast
 
@@ -766,7 +772,7 @@ serialises. All money below is **integer minor units**; GBP unless the name says
                totals: [ perBucketGbp… ], total,
                items: [ { key, kind: 'item' | 'sched', id, scheduleId?, naturalDate?,
                           name, counterparty, accountId, currency,
-                          amountMinor, accountMinor, gbpMinor, date, bucketIndex,
+                          amountMinor, accountMinor, gbpMinor, date, dueDate, bucketIndex,
                           status, settleMode, flags: [...], editable, paymentId?,
                           baseline: { date, amountMinor, gbpMinor, flags } | null } ] } ],
   summary: { opening, inflow, outflow, net, closing, minClosing, minDate,
@@ -798,6 +804,9 @@ serialises. All money below is **integer minor units**; GBP unless the name says
   (an adjustment exists for this key but was not applied), `fromScenario`
   (`sourceScenarioId` set). `assumed` and pre-today payment lines never appear in
   `rows[]` — they are in `accounts[].absorbed[]`.
+- `date` is where the line is **placed** (today for an overdue line, `paidOn` for a
+  payment line); `dueDate` is its effective date before placement (§3.4), so an overdue
+  line shows when it was due. They differ only on overdue lines and payment lines.
 - **One key may appear on several lines**: one per payment row placed in the window
   (flags `paid`, plus `partial` when the parent is `part_paid`; `paymentId` set) plus one
   for the remainder (flag `remainder`). They are distinguished by flags and `paymentId`;
@@ -822,7 +831,7 @@ itemKey, targetKind, targetId, targetDate, kind, newDate, newAmount, baseDate, b
 note, rowVersion, createdBy, createdAt, updatedAt}`; on reads that resolve targets
 (`GET /scenarios/:id`, rebase) each adjustment also carries
 `stale: null | 'BASE_CHANGED' | 'TARGET_SETTLED' | 'TARGET_MISSING' | 'DATE_PASSED'` and
-`current: {date, amount, status} | null`. Both are resolved **only while the scenario is
+`current: {date, amount, status, name, currency} | null`. Both are resolved **only while the scenario is
 `draft`**; on an `applied` or `archived` scenario they are `null` — applied adjustments
 are history, not a live comparison.
 
@@ -834,7 +843,7 @@ are history, not a live comparison.
 | `PUT /scenarios/:id` | any | `{name?, description?, companyId?, status?, baseVersion?}` | row; `status` only to `archived` from `draft`/`applied` (D36), anything else 400; name/description/companyId editable in any status | `update` |
 | `DELETE /scenarios/:id` | any | `{baseVersion?}` | 204 soft, any status; adjustments kept | `delete` |
 | `POST /scenarios/:id/duplicate` | any | `{name?}` (default the source name plus " (copy)") | 201 new `draft` with every adjustment copied as-is (bases untouched — the first read shows what is stale); source may be any status | `scenario`/`duplicate` on the new row (`after.copiedFrom`), `scenario_adjustment`/`create` per copy |
-| `PUT /scenarios/:id/adjustments/:itemKey` | any | `{kind, newDate?, newAmount?, note?, baseVersion?}` — `kind` is `adjust` or `exclude`; `adjust` needs at least one of `newDate`/`newAmount`; `exclude` takes neither | 200 (updated) / 201 (created) adjustment. §10.7. 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT {status}`; 404 `TARGET_MISSING {key}`; 409 `TARGET_SETTLED {key, status}`; 422 `ADJUSTMENT_DATE_IN_PAST {newDate, today}`; 400 amount grammar. `baseDate`/`baseAmount` are set by the server from the loader, never from the body | `scenario_adjustment`/`create` or `update` |
+| `PUT /scenarios/:id/adjustments/:itemKey` | any | `{kind, newDate?, newAmount?, note?, baseVersion?}` — `kind` is `adjust` or `exclude`; `adjust` needs at least one of `newDate`/`newAmount`; `exclude` takes neither | 200 (updated) / 201 (created) adjustment, carrying `stale` and `current` like a read. The PUT is a **full replace**: an omitted `newDate`, `newAmount` or `note` is cleared. `baseVersion` is checked against an existing adjustment and ignored on create. §10.7. 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT {status}`; 404 `TARGET_MISSING {key}`; 409 `TARGET_SETTLED {key, status}`; 422 `ADJUSTMENT_DATE_IN_PAST {newDate, today}`; 400 amount grammar. `baseDate`/`baseAmount` are set by the server from the loader, never from the body | `scenario_adjustment`/`create` or `update` |
 | `DELETE /scenarios/:id/adjustments/:itemKey` | any | `{baseVersion?}` | 204 hard; 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT`; 404 | `delete` |
 | `POST /scenarios/:id/rebase` | any | `{dropStale?}` (boolean) | 200 `{scenario, adjustments: [{...adjustment, rebased, stale, dropped}]}`. §10.8. `dropStale: true` removes `TARGET_SETTLED`, `TARGET_MISSING` and `DATE_PASSED` adjustments (D38); `BASE_CHANGED` ones are rebased. 409 `SCENARIO_NOT_DRAFT` | `scenario`/`rebase`; `scenario_adjustment`/`update` per rebased row, `delete` per dropped |
 | `POST /scenarios/:id/apply` | any | `{baseVersion?}` | 200 `{scenario, applied: [{itemKey, kind, wrote, entityId}]}` where `wrote` is `cash_item` or `schedule_override`. §10.9. 409 `SCENARIO_NOT_DRAFT {status}` (a second apply lands here); 409 `SCENARIO_STALE {stale: [{itemKey, reason}]}` — nothing written | `scenario`/`apply`; `cash_item`/`apply` or `schedule_override`/`apply` per target |
@@ -910,8 +919,11 @@ It loads, for the in-scope accounts (`account_id IN (…)`, live rows only):
 
 1. **Dated `[minA, to]`**: every `cash_items` row with `due_date BETWEEN minA AND to`, any
    status; every `schedules` row (`active` and `ended`) whose occurrences can fall in
-   `[minA, to]` — i.e. `start_date <= to` and (`end_date IS NULL OR end_date >= minA`) — and
-   for each its natural dates in `[minA, to]` via `occurrences`.
+   `[minA, to]` **after the weekend rule** — i.e. `start_date <= to + 2` and (`end_date IS NULL
+   OR end_date >= minA − 2`), because `previous`/`next` move a natural date by up to two days
+   across the window edge. The **engine** expands the occurrences itself (it needs the
+   schedule rows, not instance lists) over `[minA − 2, to + 2]`, then keeps those whose
+   effective date is in bounds.
 2. **Paid late**: `cash_items` with `paid_on >= minA` (the cache), whatever `due_date`;
    `schedule_overrides` with `paid_on >= minA`, and their schedules.
 3. **Every override row of every loaded schedule**, whatever its dates or columns
@@ -922,6 +934,9 @@ It loads, for the in-scope accounts (`account_id IN (…)`, live rows only):
    natural date, so a part-paid remainder behind `minA` is still owed and a manual
    instance older than the window still reaches the classifier. Overrides are few per
    schedule.
+   **Plus the schedules behind owed or moved-in overrides:** a schedule that ended before
+   `minA − 2` is still loaded when one of its overrides is owed (`part_paid`, or manual and
+   `expected`) or has a `due_date` inside the window — otherwise that money would vanish.
 4. **Payments**: every `payments` row of a loaded `cash_items` row or a loaded override
    with `paid_on >= minA` (payments before `minA` are inside the anchor; the remainder uses
    the parent's cached `paid_amount`, so they are not needed).
@@ -946,10 +961,13 @@ It loads, for the in-scope accounts (`account_id IN (…)`, live rows only):
    the latest `effective_from <= today` (one query, `ROW_NUMBER` or a correlated max).
    Missing → the route answers `FX_RATE_MISSING` before the engine runs.
 9. **Anchors**: per account, the `bank_balances` row with the latest `balance_date`.
-10. **Adjustments**: every `scenario_adjustments` row of the scenario, ascending id.
+10. **Adjustments**: every `scenario_adjustments` row of the scenario, ascending id — **only while the scenario is `draft`**. An `applied` or `archived` scenario is history: `adjustments: []` and no rule-6 targets, so `/forecast?scenarioId=` shows the real data with no `STALE` warnings (its `scenario` block still renders; nothing is `editable`).
 
-Output shape (`engineInput`): `{today, from, to, bucket, accounts: [{id, companyId, name,
-currency, anchorDate, anchorBalance}], rates: {CUR: {rateToGbp, effectiveFrom}}, items: [rows],
+Output shape (`engineInput`, the JSDoc typedef at the top of `lib/engine.js` is the exact
+form): `{today, from, to, bucket, include, companyId, accounts: [{id, companyId, name,
+currency, anchorDate, anchorBalance}], rates: {CUR: {rateToGbp, effectiveFrom}},
+categories: [{id, name, direction, sortOrder}] (every category of a loaded item or
+schedule — the rows need names and order), items: [rows],
 schedules: [rows], overrides: [rows], payments: [rows], adjustments: [rows], externalItems: [],
 scenario: row | null, warnings: [NO_ANCHOR…]}` — rows in their camelCase JSON shape, money
 still DECIMAL strings. Duplicates from overlapping rules are removed by id / by
@@ -1252,8 +1270,12 @@ the schedule is read in step 2, so step 1 binds the request's date directly.
    those `scenarios` rows **ascending** with `SELECT … FOR UPDATE`, then **re-read the
    adjustments under the lock** with the same predicate. A scenario that has stopped being
    `draft` in the meantime is left alone: its adjustments are history.
+   **Race guard:** an adjustment written between this read and the schedule lock would be
+   missed, so after step 2 the adjustments are re-read with a locking read; one belonging to
+   a draft scenario step 1 did not lock raises a deliberate `ER_LOCK_DEADLOCK` and
+   `withTransaction` restarts the body once (D27), now seeing it in step 1.
 2. **Lock the `schedules` row** (live) → 404; `baseVersion`. Split: `k = fromNaturalDate`;
-   `isOccurrence(schedule, k)` and `k > firstActiveOccurrence(schedule)` (D21) → else 400.
+   `isOccurrence(schedule, k)` and `k > firstActiveOccurrence(schedule)` (D21) → else 400; `changes.startDate < k` (the successor would overlap the old series) → 400; a successor shape with no occurrence at all → 400.
    End: `isOccurrence(schedule, lastNaturalDate)` → else 400; `k =
    nextOccurrenceAfter(schedule, lastNaturalDate)`; `null` → 200 no-op (nothing follows).
    Compute the **successor shape** now (split only): `keepSeries = changes` leaves

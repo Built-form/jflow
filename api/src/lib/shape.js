@@ -328,6 +328,121 @@ function itemToJson(r, extras = {}) {
     return out;
 }
 
+/**
+ * A schedule (CONTRACT §6.8). `companyId` is derived through the account, so the
+ * query must select `company_id` from bank_accounts. `successorId` and
+ * `structureLocked` are derived (the live schedule split from this one; D37's
+ * `start_date <= today OR an override exists`) and appear only when `extras`
+ * carries them — API responses, never audit snapshots.
+ */
+function scheduleToJson(r, extras = {}) {
+    if (!r) return null;
+    const out = {
+        id: id(r.id),
+        accountId: id(r.account_id),
+        companyId: id(r.company_id),
+        categoryId: id(r.category_id),
+        direction: r.direction,
+        name: r.name,
+        counterparty: r.counterparty,
+        amount: r.amount,
+        currency: r.currency,
+        frequency: r.frequency,
+        intervalCount: r.interval_count == null ? null : Number(r.interval_count),
+        startDate: r.start_date,
+        activeFrom: r.active_from ?? null,
+        occurrenceCount: r.occurrence_count == null ? null : Number(r.occurrence_count),
+        endDate: r.end_date,
+        weekendRule: r.weekend_rule,
+        settleMode: r.settle_mode,
+        predecessorId: id(r.predecessor_id),
+    };
+    if ('successorId' in extras) out.successorId = extras.successorId;
+    out.status = r.status;
+    out.notes = r.notes;
+    if ('structureLocked' in extras) out.structureLocked = extras.structureLocked;
+    out.rowVersion = r.row_version;
+    out.createdBy = r.created_by;
+    out.createdAt = r.created_at;
+    out.updatedAt = r.updated_at;
+    out.deletedAt = r.deleted_at;
+    return out;
+}
+
+/**
+ * A `schedule_overrides` row (CONTRACT §3.2): the audit snapshot, and the source
+ * of the instance's `override` object (lib/instances.js drops the parent ids).
+ * NULL columns mean "the schedule's" (§3.4).
+ */
+function overrideToJson(r) {
+    if (!r) return null;
+    return {
+        id: id(r.id),
+        scheduleId: id(r.schedule_id),
+        naturalDate: r.natural_date,
+        amount: r.amount,
+        dueDate: r.due_date,
+        status: r.status,
+        settleMode: r.settle_mode,
+        paidOn: r.paid_on,
+        paidAmount: r.paid_amount,
+        note: r.note,
+        sourceScenarioId: id(r.source_scenario_id),
+        rowVersion: r.row_version,
+        createdBy: r.created_by,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    };
+}
+
+/** A `scenario_adjustments` row (CONTRACT §6.11). `targetId` stays a string (D32). */
+function adjustmentToJson(r) {
+    if (!r) return null;
+    return {
+        id: id(r.id),
+        scenarioId: id(r.scenario_id),
+        itemKey: r.item_key,
+        targetKind: r.target_kind,
+        targetId: r.target_id == null ? null : String(r.target_id),
+        targetDate: r.target_date,
+        kind: r.kind,
+        newDate: r.new_date,
+        newAmount: r.new_amount,
+        baseDate: r.base_date,
+        baseAmount: r.base_amount,
+        note: r.note,
+        rowVersion: r.row_version,
+        createdBy: r.created_by,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    };
+}
+
+/**
+ * A `scenarios` row (CONTRACT §6.11). `adjustmentCount` is derived: it appears
+ * when the query selected `adjustment_count` (every API read and response),
+ * never in an audit snapshot.
+ */
+function scenarioToJson(r) {
+    if (!r) return null;
+    const out = {
+        id: id(r.id),
+        name: r.name,
+        description: r.description,
+        companyId: id(r.company_id),
+        status: r.status,
+        appliedAt: r.applied_at,
+        appliedBy: r.applied_by,
+    };
+    if ('adjustment_count' in r) out.adjustmentCount = Number(r.adjustment_count);
+    out.rowVersion = r.row_version;
+    out.createdBy = r.created_by;
+    out.createdAt = r.created_at;
+    out.updatedAt = r.updated_at;
+    out.deletedAt = r.deleted_at;
+    return out;
+}
+
 function auditToJson(r) {
     if (!r) return null;
     return {
@@ -359,6 +474,10 @@ module.exports = {
     balanceToJson,
     itemToJson,
     paymentToJson,
+    scheduleToJson,
+    overrideToJson,
+    adjustmentToJson,
+    scenarioToJson,
     parseId,
     parseListParams,
     parseCap,

@@ -564,6 +564,9 @@ app.use('/api/v1', require('../routes/categories')(routerDeps));
 app.use('/api/v1', require('../routes/fxRates')(routerDeps));
 app.use('/api/v1', require('../routes/balances')(routerDeps));
 app.use('/api/v1', require('../routes/items')(routerDeps));
+app.use('/api/v1', require('../routes/schedules')(routerDeps));
+app.use('/api/v1', require('../routes/forecast')(routerDeps));
+app.use('/api/v1', require('../routes/scenarios')(routerDeps));
 
 // ── Fallbacks ───────────────────────────────────────────────────────────────
 
