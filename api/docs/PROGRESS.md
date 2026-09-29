@@ -21,14 +21,14 @@ step's "Done when" holds and its commit is made.
 | 8 | Web shell, settings, cash at bank | done |
 | 9 | Web forecast, items, schedules, scenarios | done |
 | 10 | Mobileweb | **parked by Dev (2026-09-29): web only for now** |
-| 11 | First deploy — STOP (Dev) | **test deployed (2026-09-29)**: `jflow-test-jflowApi`, `https://d3votdaxd9.execute-api.eu-north-1.amazonaws.com/api/v1`. Web points every host at it (`PRODUCTION_HOSTS` empty until prod). Prod not deployed |
+| 11 | First deploy — STOP (Dev) | **test deployed by Dev** (API `d3votdaxd9…/api/v1`); prod not yet |
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
 | 13 | Phase 2: adopt the plan — STOP (Dev) | done (signed off 2026-09-29) |
-| 14 | Phase 2: shipping — port the math (tests first) | done (shipping `phase2-payments-flow` @ `14e6115`) |
-| 15 | Phase 2: shipping — input assembler (no JWT route: ShipLine read-only) | in progress |
+| 14 | Phase 2: port the math (tests first) | done — **moved into JFlow** (`api/src/lib/payments-flow/`) |
+| 15 | Phase 2: input assembler | done — **moved into JFlow** (`services/shippingSource.js`, reads `jfa`) |
 | 16 | Phase 2: ShipLine shadow | **dropped by Dev (ShipLine read-only)** |
 | 17 | Phase 2: ShipLine cut over | **dropped by Dev (ShipLine read-only)** |
-| 18 | Phase 2: shipping `/api/internal/payments-forecast` — STOP (secret, deploy) | code in progress |
+| 18 | Phase 2: shipping feed endpoint | **not built** — JFlow reads `jfa` directly (Dev) |
 | 19 | Phase 2: JFlow schema, client, refresh | done |
 | 20 | Phase 2: JFlow loader, engine, `/forecast` | done |
 | 21 | Phase 2: JFlow overlay routes + `ship.` scenarios | done |
@@ -866,3 +866,58 @@ data).
 
 **Notes**: the Forecast's "Clear the plan" on an orphaned plan sends DELETE without
 `baseVersion`, because nothing reads the row first.
+
+## Phase 2 — Source swap: JFlow reads shipping's `jfa` directly (2026-09-29)
+
+Dev: "pull required shipping code into this repo rather than modify it"; "same DB,
+different schema"; "same test DB as here". **Neither shipping nor ShipLine is modified.**
+The shipping working copy was restored to `master` @ `d896b5a`, and the local feature branch
+was deleted. Its commits and the unfinished drafts are kept in the session scratchpad
+(git bundle + files) for reference.
+
+**Shipped** (committed by Dev as `4d258d0` "work" and `200bb74` "src"):
+- `src/lib/payments-flow/`: the port of ShipLine `f9499bc`'s `buildPaymentsFlow` (14
+  modules, ported-from headers). `forecast.js` has `toForecastRows`, and `ids.js` the feed
+  ids: `pay-<sp>-bal<target>-<po>` when a transfer is split per PO; a container ref maps to
+  `s<id>` only on an exact match, else to a hash of the ref as spelt, so case variants
+  don't collide.
+- `src/lib/shippingCopy/*.js`: mappers copied from shipping's `orders.js`, trimmed to the
+  fields the model reads. `src/services/shippingReads.js` has the schema-qualified SQL
+  loaders and `SOURCE_COLUMNS`.
+- `src/services/shippingSource.js` `readPaymentsForecast` works as follows:
+  - its own connection, `SET SESSION TRANSACTION READ ONLY`, one consistent snapshot;
+  - a schema check first (→ `source_schema`, with `details.missing` on the refresh 503);
+  - reads → model → feed rows.
+- `services/shipping.js` keeps `validateFeed` / `unavailable(reason)`; the reasons are now
+  `source_schema | source_error | bad_response`, and HTTP is gone.
+- `SHIPPING_API_BASE`/`SHIPPING_API_KEY` removed. `SHIPPING_DB_SCHEMA` is optional,
+  default `jfa`.
+- `tools/payments-flow-oracle.mjs`: under PowerShell, `$env:TZ='Europe/London'; npx -y
+  tsx@4.21.0 tools/payments-flow-oracle.mjs [--check] --shipline <ShipLine@f9499bc>`. Git
+  Bash drops `TZ`.
+
+**Validation**
+- Lint clean; unit **1013/1013** under both TZ=UTC and TZ=Europe/London; e2e **222/222**
+  (18 suites).
+- Oracle `--check` exits 0 against f9499bc.
+- `shipping-source.test.js` builds a shadow `jflow_test_<runid>_jfa`: tables replayed
+  from `SHOW CREATE TABLE jfa.*`, because a read-only session refuses DDL. It proves the SQL
+  against the real column shapes, the read-only session refusing an INSERT, and the
+  schema-check failure.
+- **Live read-only smoke on the real explorer-test `jfa`** (today 2026-09-29, ~1 s):
+  - 233 rows (231 open, 104 of them undated; 2 paid), **0 `validateFeed` rejects**;
+  - by company: 175 company 1, 39 company 2, **19 with no company**;
+  - Σ open = `kpis.outstanding` exactly: EUR 20,911.94 · GBP 36,262.52 · USD 2,134,747.75.
+
+**Deploys by Dev during the build**: `bash deploy.sh test` at 13:18 and 15:12. The 15:12
+package came from the working tree before the last edits (the `missing` list in the 503,
+CONTRACT alignment), so the test stack is slightly behind `200bb74`.
+
+**Dev, before prod**
+- Grant JFlow's prod DB user `SELECT` on `jfa.*` (incl. the `suppliers` view) through the
+  RDS Proxy. Without it, prod shows `SHIPPING_UNAVAILABLE {reason: 'source_schema',
+  missing: [...]}`.
+- Remove any `SHIPPING_API_BASE`/`SHIPPING_API_KEY` left in the `jflow/test` / `jflow/prod`
+  secrets.
+- Map JFA and HW to shipping's companies in Settings. 19 open rows have no company and show
+  as `SHIP_UNMAPPED`.
