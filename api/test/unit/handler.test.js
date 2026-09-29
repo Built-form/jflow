@@ -172,8 +172,8 @@ describe('audit', () => {
 describe('fallbacks', () => {
     test('an unknown route is a 404 {error}', async () => {
         asType('admin');
-        const res = await request(app).get('/api/v1/companies').expect(404);
-        expect(res.body).toEqual({ error: 'No route for GET /api/v1/companies.' });
+        const res = await request(app).get('/api/v1/no-such-route').expect(404);
+        expect(res.body).toEqual({ error: 'No route for GET /api/v1/no-such-route.' });
     });
 
     test('malformed JSON is a 400, with a request id', async () => {

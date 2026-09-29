@@ -1146,10 +1146,16 @@ split finds and locks its draft scenarios before locking the schedule. `payments
 are only ever touched under their parent's lock — the `cash_items` row, or (for an
 instance) the `schedules` row and then the override row, per the standing rule — so they
 are last and never locked on their own. Reference rows (companies, accounts, categories,
-fx_rates, bank_balances) sit outside the order: they are locked alone by their own routes
-and never together with the five above; when a reference route locks several rows of one
-table (`POST /balances/bulk`, `isDefault` clearing siblings) it locks them **ascending by
-id**.
+fx_rates, bank_balances) sit outside the order: they are locked alone by their own routes;
+when a reference route locks several rows of one table (`POST /balances/bulk`, `isDefault`
+clearing siblings) it locks them **ascending by id**. **One exception, and it comes
+first:** an item or schedule write that sets or changes `account_id` / `category_id`
+(create, structural edit, split) takes `SELECT … FROM bank_accounts WHERE id = ? FOR
+SHARE` and the same on `categories`, then re-checks that both are live (and the account
+active), **before any lock in the standing order**. Account deactivation / delete and
+category delete take `FOR UPDATE` on their own row before reading the in-use sets, so the
+two serialise and an item can never slip onto an account that is being deactivated.
+Reference rows are never locked after a standing-order row, so no cycle is possible.
 
 `withTransaction(fn)` (`src/db/index.js`) retries the **whole body once** on
 `ER_LOCK_DEADLOCK` (D27). Bodies keep **every read inside the transaction** — validation

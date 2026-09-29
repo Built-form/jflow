@@ -114,6 +114,43 @@ function isValidEmail(value) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ''));
 }
 
+/**
+ * The optional optimistic-lock token (CONTRACT D4, §2.9) from a request body.
+ * Absent or null → undefined (last write wins); a non-negative integer → that
+ * integer; anything else → NaN, which the route answers 400.
+ */
+function parseBaseVersion(body) {
+    const v = body ? body.baseVersion : undefined;
+    if (v === undefined || v === null) return undefined;
+    const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+    return Number.isInteger(n) && n >= 0 ? n : NaN;
+}
+
+/**
+ * The D4 check, made under the row lock: a sent baseVersion that is not the
+ * row's row_version is 409 STALE_WRITE {currentVersion}. Thrown, so the
+ * surrounding withTransaction rolls back. `row` null (the row the caller loaded
+ * is gone) reads as stale with currentVersion null.
+ */
+function assertBaseVersion(row, baseVersion) {
+    if (baseVersion === undefined) return;
+    const currentVersion = row ? Number(row.row_version) : null;
+    if (currentVersion !== baseVersion) {
+        throw apiError(409, 'STALE_WRITE',
+            currentVersion == null
+                ? 'That record no longer exists. Reload and try again.'
+                : 'Someone else changed this since you loaded it. Reload and try again.',
+            { currentVersion });
+    }
+}
+
+/** A display order: absent/'' → the default; an INT-range integer → it; else NaN (400). */
+function parseSortOrder(value, def = 0) {
+    if (value === undefined || value === null || value === '') return def;
+    const n = Number(value);
+    return Number.isInteger(n) && n >= -2147483648 && n <= 2147483647 ? n : NaN;
+}
+
 // ── Row shapers ─────────────────────────────────────────────────────────────
 //
 // snake_case DB row -> camelCase JSON. Every read route goes through these, so a
@@ -125,6 +162,104 @@ function isValidEmail(value) {
 function json(value) {
     if (value == null || typeof value === 'object') return value ?? null;
     try { return JSON.parse(value); } catch { return null; }
+}
+
+// id()    BIGINT UNSIGNED → JSON number (null stays null).
+// bool()  TINYINT(1) → boolean.
+// DATE columns arrive as 'YYYY-MM-DD' strings (pool dateStrings), DECIMAL as
+// strings (D1) and DATETIME as UTC Dates that res.json writes as ISO 8601 —
+// all three pass through untouched.
+
+const id = (v) => (v == null ? null : Number(v));
+const bool = (v) => (v == null ? null : Boolean(Number(v)));
+
+function companyToJson(r) {
+    if (!r) return null;
+    return {
+        id: id(r.id),
+        code: r.code,
+        name: r.name,
+        sortOrder: r.sort_order,
+        rowVersion: r.row_version,
+        createdBy: r.created_by,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        deletedAt: r.deleted_at,
+    };
+}
+
+/**
+ * `anchorDate`/`anchorBalance` (the latest recorded balance) ride on the list
+ * and single read only (CONTRACT §6.3): they appear when the query selected
+ * `anchor_date`/`anchor_balance`, never on a mutation response.
+ */
+function accountToJson(r) {
+    if (!r) return null;
+    const out = {
+        id: id(r.id),
+        companyId: id(r.company_id),
+        name: r.name,
+        currency: r.currency,
+        sortOrder: r.sort_order,
+        isActive: bool(r.is_active),
+        isDefault: bool(r.is_default),
+        rowVersion: r.row_version,
+        createdBy: r.created_by,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        deletedAt: r.deleted_at,
+    };
+    if ('anchor_date' in r) {
+        out.anchorDate = r.anchor_date ?? null;
+        out.anchorBalance = r.anchor_balance ?? null;
+    }
+    return out;
+}
+
+function categoryToJson(r) {
+    if (!r) return null;
+    return {
+        id: id(r.id),
+        name: r.name,
+        direction: r.direction,
+        sortOrder: r.sort_order,
+        rowVersion: r.row_version,
+        createdBy: r.created_by,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+        deletedAt: r.deleted_at,
+    };
+}
+
+function fxRateToJson(r) {
+    if (!r) return null;
+    return {
+        id: id(r.id),
+        currency: r.currency,
+        rateToGbp: r.rate_to_gbp,
+        effectiveFrom: r.effective_from,
+        note: r.note,
+        rowVersion: r.row_version,
+        createdBy: r.created_by,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    };
+}
+
+/** `balance` is cash at bank at the START of `balanceDate` (CONTRACT §6.6). */
+function balanceToJson(r) {
+    if (!r) return null;
+    return {
+        id: id(r.id),
+        accountId: id(r.account_id),
+        balanceDate: r.balance_date,
+        balance: r.balance,
+        note: r.note,
+        enteredBy: r.entered_by,
+        rowVersion: r.row_version,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    };
 }
 
 function auditToJson(r) {
@@ -151,9 +286,17 @@ module.exports = {
     listResponse,
     keysetResponse,
     auditToJson,
+    companyToJson,
+    accountToJson,
+    categoryToJson,
+    fxRateToJson,
+    balanceToJson,
     parseId,
     parseListParams,
     parseCap,
+    parseBaseVersion,
+    assertBaseVersion,
+    parseSortOrder,
     normalizeEmail,
     isValidEmail,
 };

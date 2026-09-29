@@ -6,17 +6,17 @@ step's "Done when" holds and its commit is made.
 
 ## Current step
 
-**Steps 2, 3, 4 (classifier) and 8 are in progress in parallel** — Dev asked for multiple
-agents. The pieces don't depend on each other's code (only on CONTRACT.md), and each step
-still gets its own commit, in order. Steps 5–7 wait for Dev to set `/effort xhigh`.
+**Steps 2 and 3 are done. Step 4 (items) and step 8 (web) are in progress**; step 4's
+classifier is built. Dev asked for multiple agents, so independent steps run in parallel,
+and each still gets its own commit. Steps 5–7 wait for Dev to set `/effort xhigh`.
 
 | Step | Title | State |
 |---|---|---|
 | 0 | Adopt the spec | done |
 | 1 | Scaffold, CI, migration tooling | done |
-| 2 | Reference data | in progress |
-| 3 | Pure libraries (tests first) | in progress |
-| 4 | Classifier and one-off items | classifier in progress; items waits on steps 2–3 |
+| 2 | Reference data | done |
+| 3 | Pure libraries (tests first) | done |
+| 4 | Classifier and one-off items | classifier built (committed with the step); items in progress |
 | 5 | Schedules, overrides, split and end (tests first) | not started |
 | 6 | Engine, loader and `/forecast` (tests first) | not started |
 | 7 | Scenarios | not started |
@@ -24,7 +24,7 @@ still gets its own commit, in order. Steps 5–7 wait for Dev to set `/effort xh
 | 9 | Web forecast, items, schedules, scenarios | not started |
 | 10 | Mobileweb | not started |
 | 11 | First deploy — STOP (Dev) | not started |
-| 12 | Phase 2 plan (write, do not build) | not started |
+| 12 | Phase 2 plan (write, do not build) | in progress (written early; no code) |
 
 ## Step 0 — Adopt the spec (2026-09-29)
 
@@ -122,5 +122,113 @@ still gets its own commit, in order. Steps 5–7 wait for Dev to set `/effort xh
   every jest run, for the About screen.
 - `.env.example` adds a commented `NODE_ENV=development`: the local auth bypass needs it.
 - `npm run test:e2e` exits 1 ("no tests") until step 2 adds suites, as in workflows.
+
+**Deferred**: none.
+
+## Step 3 — Pure libraries, tests first (2026-09-29)
+
+Built in parallel with step 2, and **committed before step 2** because step 2's routes import
+`dates.js` and `money.js`.
+
+**Shipped**
+- `src/lib/dates.js`:
+  - `toEpochDay`/`fromEpochDay`, `addDays`, `diffDays(a, b)`, `addMonthsClamped` (month-end
+    clamp, negative n);
+  - `dayOfWeek` (ISO: Monday 1 … Sunday 7), `isWeekend`, `isValidDate` (strict);
+  - `londonToday(now)` via `Intl.DateTimeFormat`.
+- `src/lib/money.js`:
+  - `parseMinor` (DECIMAL string → bigint, `^-?\d{1,12}(\.\d{1,2})?$`), `formatMinor`;
+  - `parseRate` (→ bigint micro-units, `> 0`);
+  - `roundHalfUp` (half away from zero), `toGbp`/`fromGbp`.
+- `src/lib/keys.js`: `buildItemKey`, `buildSchedKey`, `buildShipKey`, `parseKey` →
+  `{targetKind, targetId, targetDate}` or null, `isValidKey`, `formatKey`, `TARGET_KINDS`.
+- `src/lib/recurrence.js`:
+  - the six §5.4 functions: `occurrences`, `isOccurrence`, `occurrenceIndex`,
+    `firstActiveOccurrence`, `nextOccurrenceAfter`, `endBefore(schedule, k, {keepSeries})`;
+  - `weekendAdjust` (§5.3 puts it here, not in dates);
+  - `normalizeSchedule`, `effectiveDate`, `effectiveValues` (§3.4).
+
+**Validation**
+- Tests were written first: each suite failed on the missing module before its
+  implementation existed.
+- Unit counts: dates 117, money 144, keys 138, recurrence 78.
+- Lint clean. None of the four files imports from `src/db/`; the only internal import is
+  `./dates`.
+- Covered:
+  - dates: 31 Jan → 28 Feb → 31 Mar computed from the start, never chained.
+  - recurrence:
+    - every frequency with `interval_count`, plus `occurrence_count` and `end_date` ends;
+    - weekend `previous | next | none`, and the override date bypassing the weekend rule;
+    - `isOccurrence` rejecting non-occurrences, pre-start / pre-`active_from` dates and
+      post-end dates;
+    - `active_from` (monthly from 31 Jan, amount-only split at 30 Jun → 31 Jul, 31 Aug).
+  - money: the rates 1.234567 and 0.005234 at the half cases.
+  - keys: round-trips, and rejecting `#`, `:`, `/`, spaces, percent-encoding and bad dates.
+
+**Decisions where CONTRACT was silent**
+- The today function is named `londonToday`; the `?today=` override lives in the route layer.
+- `parseMinor` accepts negatives and leading zeros (CONTRACT's grammar); `> 0` is enforced
+  by the routes.
+- `firstActiveOccurrence` / `nextOccurrenceAfter` return null when no occurrence is left.
+  `endBefore` throws `RangeError` when *k* is not an occurrence.
+
+**Deferred**: none.
+
+## Step 2 — Reference data (2026-09-29)
+
+**Shipped**
+- `src/routes/{companies,accounts,categories,fxRates,balances}.js` per CONTRACT §6.2–6.6,
+  plus `GET /fx-rates/current`.
+- `src/handlers/jflow.js`:
+  - the router mounts;
+  - `todayFor(req)`: Europe/London today; `?today=` only locally or under test, with a 400 if
+    it is malformed there;
+  - `STALE_REASONS` gains `DATE_PASSED`.
+- `src/lib/shape.js`: the five `*ToJson` mappers, `parseBaseVersion`, `assertBaseVersion`
+  (`STALE_WRITE`), `parseSortOrder`.
+- `test/e2e/harness.js`:
+  - creates `jflow_test_<runid>` and runs the core migration through `splitStatements`;
+  - its DROP refuses any schema it did not create;
+  - has SQL helpers that seed items and schedules for the in-use guards.
+- Five e2e suites.
+
+**Validation**
+- Lint clean; unit 657/657 (11 suites); **e2e 43/43** (companies 11, accounts 10,
+  categories 6, fx-rates 7, balances 9).
+- `PORT=5000 npm run dev` answered every step-2 route; no `jflow_test_*` schema was left
+  behind.
+- What the e2e suites cover:
+  - `BALANCE_DATE_IN_FUTURE`, one `is_default` per company, `fx_rates`
+    `UNIQUE(currency, effective_from)`, GBP refused;
+  - `*_IN_USE`, `COMPANY_CODE_TAKEN`, `STALE_WRITE`;
+  - hard deletes audit the before-row; soft deletes everywhere else;
+  - a no-op PUT writes nothing (no version bump, no audit row).
+
+**Decisions / deviations**
+- `/balances` sorts `balance_date DESC, account_id` (§6.6), not D28's "date ascending":
+  §6.6 is the specific rule.
+- Accounts `q` searches `name` only. A `baseVersion` on a balance PUT with no row → 409
+  `STALE_WRITE {currentVersion: null}`. An omitted `note` keeps the stored one; `null`
+  clears it.
+- Immutable fields (`companyId` on accounts, `currency` on FX rates): the same value is
+  accepted, a different one is 400.
+- Bulk errors: `details.entries` is parallel to the request (`null` = entry ok).
+- Step 1's `shape.test.js` (pins the export list) and `handler.test.js` (its 404 test used
+  `/companies`) were updated.
+- **CONTRACT §10.1 amended** (coordinator, found by the step-2 agent): an item or schedule
+  write that sets or changes `account_id` / `category_id` takes `FOR SHARE` on the
+  account and category **before any standing-order lock**. Deactivation / delete take
+  `FOR UPDATE` on their own row first, so an item can't slip onto an account being
+  deactivated. Reference rows are never locked after a standing-order row, so no cycle is
+  possible.
+
+**Left for later steps**
+- `accounts.js` `owedOnAccount` is `TODO(step 4/5)`. Until then the D17 deactivation guard
+  refuses more than intended:
+  - every live `expected`/`part_paid` one-off counts;
+  - every live schedule counts;
+  - `owedInstances` is empty.
+  Step 4 drops `assumedSettled` one-offs; step 5 counts only schedules with an occurrence
+  on or after today, and fills `owedInstances`.
 
 **Deferred**: none.

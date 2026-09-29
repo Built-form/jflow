@@ -535,8 +535,35 @@ app.get('/api/v1/audit', async (req, res) => {
 //
 //   app.use('/api/v1', require('../routes/companies')({ schemaReady, fail, serverError }));
 //
+// Two more deps ride along:
+//   todayFor(req)  CONTRACT §2.5 / D24 — the Europe/London date, which a route
+//                  calls ONCE per request and passes down. `?today=YYYY-MM-DD`
+//                  overrides it only locally or under test (a malformed one is a
+//                  400 there); anywhere else it is ignored. Kept here because
+//                  IS_LOCAL is decided here.
+//   enums          the vocabularies above, so validators and /meta/enums share
+//                  one list per vocabulary.
+//
 // Step 2: companies, accounts, categories, fxRates, balances.
 // Steps 4-7: items, schedules (instances, split, end), forecast, scenarios.
+const { isValidDate, londonToday } = require('../lib/dates');
+const { apiError } = require('../lib/shape');
+
+function todayFor(req) {
+    const override = req.query ? req.query.today : undefined;
+    if (override !== undefined && (IS_LOCAL || process.env.NODE_ENV === 'test')) {
+        if (!isValidDate(override)) throw apiError(400, undefined, 'today must be a real date, YYYY-MM-DD.');
+        return override;
+    }
+    return londonToday();
+}
+
+const routerDeps = { schemaReady, fail, serverError, todayFor, enums: ENUMS };
+app.use('/api/v1', require('../routes/companies')(routerDeps));
+app.use('/api/v1', require('../routes/accounts')(routerDeps));
+app.use('/api/v1', require('../routes/categories')(routerDeps));
+app.use('/api/v1', require('../routes/fxRates')(routerDeps));
+app.use('/api/v1', require('../routes/balances')(routerDeps));
 
 // ── Fallbacks ───────────────────────────────────────────────────────────────
 

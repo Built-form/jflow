@@ -11,8 +11,10 @@ const shape = require('../../src/lib/shape');
 describe('what the trimmed module exports', () => {
     test('exactly the envelopes, parsers and auditToJson (CLAUDE.md copy table)', () => {
         expect(Object.keys(shape).sort()).toEqual([
-            'apiError', 'auditToJson', 'fail', 'isApiError', 'isValidEmail', 'keysetResponse',
-            'listResponse', 'normalizeEmail', 'parseCap', 'parseId', 'parseListParams',
+            'accountToJson', 'apiError', 'assertBaseVersion', 'auditToJson', 'balanceToJson',
+            'categoryToJson', 'companyToJson', 'fail', 'fxRateToJson', 'isApiError',
+            'isValidEmail', 'keysetResponse', 'listResponse', 'normalizeEmail',
+            'parseBaseVersion', 'parseCap', 'parseId', 'parseListParams', 'parseSortOrder',
             'sendApiError', 'serverError',
         ]);
     });
