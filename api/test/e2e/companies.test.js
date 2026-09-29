@@ -14,7 +14,10 @@ afterAll(async () => { if (h) await h.stop(); });
 
 const api = () => h.api();
 
-const ROW_KEYS = ['code', 'createdAt', 'createdBy', 'deletedAt', 'id', 'name', 'rowVersion', 'sortOrder', 'updatedAt'];
+// shippingCompanyId: Phase 2 (docs/PHASE2.md §4.9).
+const ROW_KEYS = [
+    'code', 'createdAt', 'createdBy', 'deletedAt', 'id', 'name', 'rowVersion', 'shippingCompanyId', 'sortOrder', 'updatedAt',
+];
 
 describe('companies', () => {
     let jfa;
@@ -149,5 +152,85 @@ describe('companies', () => {
     test("a deleted company's code can be reused", async () => {
         const res = await api().post('/api/v1/companies').send({ code: 'ACME', name: 'Acme again' }).expect(201);
         expect(res.body.id).not.toBe(acme.id);
+    });
+});
+
+// Phase 2 (docs/PHASE2.md §4.9): the shipping company a JFlow company maps to. Nullable,
+// unique among live companies (409 SHIPPING_COMPANY_TAKEN {companyId}), audited.
+describe('companies: shippingCompanyId', () => {
+    let jfa;
+    let hw;
+
+    beforeAll(async () => {
+        const list = (await api().get('/api/v1/companies').expect(200)).body.data;
+        jfa = list.find((c) => c.code === 'JFA');
+        hw = list.find((c) => c.code === 'HW');
+    });
+
+    test('unmapped until set: null on every read', async () => {
+        expect(jfa.shippingCompanyId).toBeNull();
+        expect((await api().get(`/api/v1/companies/${hw.id}`).expect(200)).body.shippingCompanyId).toBeNull();
+    });
+
+    test('validation: a positive integer or null', async () => {
+        const nothing = await api().put(`/api/v1/companies/${jfa.id}`).send({}).expect(400);
+        expect(nothing.body.error).toMatch(/shippingCompanyId/);
+        for (const bad of ['abc', 0, -2, 1.5, true, { id: 1 }, [1]]) {
+            const res = await api().put(`/api/v1/companies/${jfa.id}`).send({ shippingCompanyId: bad }).expect(400);
+            expect(res.body.error).toMatch(/shippingCompanyId/);
+        }
+    });
+
+    test('set: the row carries it, the version bumps, one audit row', async () => {
+        const before = (await api().get(`/api/v1/companies/${jfa.id}`).expect(200)).body;
+        const res = await api().put(`/api/v1/companies/${jfa.id}`)
+            .send({ shippingCompanyId: 1, baseVersion: before.rowVersion }).expect(200);
+        expect(res.body).toMatchObject({ shippingCompanyId: 1, rowVersion: before.rowVersion + 1, code: 'JFA' });
+        const [row] = await h.audit('company', jfa.id);
+        expect(row).toMatchObject({ action: 'update', before: { shippingCompanyId: null }, after: { shippingCompanyId: 1 } });
+        const listed = (await api().get('/api/v1/companies').expect(200)).body.data.find((c) => c.id === jfa.id);
+        expect(listed.shippingCompanyId).toBe(1);
+
+        // The same value again is a no-op: no bump, no audit row.
+        const trail = (await h.audit('company', jfa.id)).length;
+        const same = await api().put(`/api/v1/companies/${jfa.id}`).send({ shippingCompanyId: 1 }).expect(200);
+        expect(same.body.rowVersion).toBe(res.body.rowVersion);
+        expect(await h.audit('company', jfa.id)).toHaveLength(trail);
+    });
+
+    test('a shipping company another live company holds → 409 SHIPPING_COMPANY_TAKEN naming the holder', async () => {
+        const before = (await api().get(`/api/v1/companies/${hw.id}`).expect(200)).body;
+        const res = await api().put(`/api/v1/companies/${hw.id}`).send({ shippingCompanyId: 1 }).expect(409);
+        expect(res.body).toMatchObject({ code: 'SHIPPING_COMPANY_TAKEN', details: { companyId: jfa.id } });
+        expect(typeof res.body.error).toBe('string');
+        expect((await api().get(`/api/v1/companies/${hw.id}`).expect(200)).body).toEqual(before);
+
+        // A numeric string reads as the id, as the other body ids do.
+        await api().put(`/api/v1/companies/${hw.id}`).send({ shippingCompanyId: '1' }).expect(409);
+        const ok = await api().put(`/api/v1/companies/${hw.id}`).send({ shippingCompanyId: '2' }).expect(200);
+        expect(ok.body.shippingCompanyId).toBe(2);
+    });
+
+    test('a stale baseVersion is refused before the mapping is checked', async () => {
+        const res = await api().put(`/api/v1/companies/${hw.id}`).send({ shippingCompanyId: 1, baseVersion: 99 }).expect(409);
+        expect(res.body.code).toBe('STALE_WRITE');
+    });
+
+    test('null clears it, and the id is then free for another company', async () => {
+        const cleared = await api().put(`/api/v1/companies/${jfa.id}`).send({ shippingCompanyId: null }).expect(200);
+        expect(cleared.body.shippingCompanyId).toBeNull();
+        const [row] = await h.audit('company', jfa.id);
+        expect(row).toMatchObject({ action: 'update', before: { shippingCompanyId: 1 }, after: { shippingCompanyId: null } });
+        const taken = await api().put(`/api/v1/companies/${hw.id}`).send({ shippingCompanyId: 1, name: 'Hangerworld Ltd' }).expect(200);
+        expect(taken.body).toMatchObject({ shippingCompanyId: 1, name: 'Hangerworld Ltd' });
+    });
+
+    test("a deleted company's mapping does not block a live one", async () => {
+        const tmp = (await api().post('/api/v1/companies').send({ code: 'TMP', name: 'Temp' }).expect(201)).body;
+        await api().put(`/api/v1/companies/${tmp.id}`).send({ shippingCompanyId: 7 }).expect(200);
+        await api().put(`/api/v1/companies/${jfa.id}`).send({ shippingCompanyId: 7 }).expect(409);
+        await api().delete(`/api/v1/companies/${tmp.id}`).expect(204);
+        const res = await api().put(`/api/v1/companies/${jfa.id}`).send({ shippingCompanyId: 7 }).expect(200);
+        expect(res.body.shippingCompanyId).toBe(7);
     });
 });

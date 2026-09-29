@@ -93,7 +93,7 @@ function input(over = {}) {
         today: TODAY, from: TODAY, to: TO, bucket: 'day', include: 'grid', companyId: 1,
         accounts: [account()], rates: {}, categories: CATEGORIES,
         items: [], schedules: [], overrides: [], payments: [], adjustments: [], externalItems: [],
-        scenario: null, warnings: [],
+        shipping: null, scenario: null, warnings: [],
         ...over,
     };
 }
@@ -839,10 +839,10 @@ describe('window (§9.10, §9.11, D7, D25) and buckets (D6, §9.12)', () => {
     test('include=summary omits rows and keeps everything else', () => {
         const res = forecast({ include: 'summary', items: [item(1, { dueDate: '2026-10-01' })] });
         expect('rows' in res).toBe(false);
-        expect(Object.keys(res)).toEqual(['meta', 'accounts', 'days', 'buckets', 'summary', 'scenario', 'unresolved', 'warnings']);
+        expect(Object.keys(res)).toEqual(['meta', 'accounts', 'days', 'buckets', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings']);
         expect(res.summary.outflow).toBe(10000);
         expect(INCLUDES).toEqual(['summary', 'grid']);
-        expect(Object.keys(forecast({}))).toEqual(['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'unresolved', 'warnings']);
+        expect(Object.keys(forecast({}))).toEqual(['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings']);
     });
 });
 
@@ -900,6 +900,352 @@ describe('rows[], flags and editable (§6.10)', () => {
     });
 });
 
+// ── Phase 2: ship lines (§9.3.1, §6.10, P5–P9) ──────────────────────────────────────────
+
+describe('ship lines (Phase 2, §9.3.1)', () => {
+    const STOCK = { id: 90, name: 'Stock payments', direction: 'out', sortOrder: 900, systemKey: 'ship' };
+    const SYNC = { lastSuccessAt: '2026-09-29T08:00:00.000Z', feedToday: TODAY, unmappedCounts: [] };
+    const GONE = '2026-09-28T10:00:00.000Z';
+    const NAME = 'Acme Textiles · PO-812 · balance';
+
+    /** An external_items row as §8 rule 11 hands it over: open, dated, mapped to account 1. */
+    const shipRow = (extId, over = {}) => ({
+        id: 500, source: 'ship', extId, feedKind: 'balance', feedStatus: 'open', supplier: 'Acme Textiles',
+        shippingCompanyId: 11, poId: 812, poNumber: 'PO-812', shipmentId: 311, containerRef: 'MSKU1234567',
+        currency: 'GBP', amount: '100.00', dueDate: '2026-10-05', paidOn: null, settles: null,
+        dateBasis: 'firm', amountBasis: 'stated', blocked: null, flags: [], goneAt: null,
+        plannedDate: null, plannedAmount: null, plannedSkipped: false, plannedBaseAmount: null, plannedNote: null,
+        sourceScenarioId: null, accountId: 1, companyId: 1, inScope: true, ...over,
+    });
+    const paidRow = (extId, paidOn, over = {}) => shipRow(extId, { feedStatus: 'paid', dueDate: null, paidOn, ...over });
+    const ship = (over = {}) => forecast({ categories: [...CATEGORIES, STOCK], shipping: SYNC, ...over });
+    const shipWarnings = (res) => res.warnings.filter((w) => w.code.startsWith('SHIP'));
+
+    test('open lines: future, overdue at −44/−45, unresolved at −46, never assumed; undated counted', () => {
+        const res = ship({
+            externalItems: [
+                shipRow('bal-1'),
+                shipRow('bal-44', { dueDate: addDays(TODAY, -44) }),
+                shipRow('bal-45', { dueDate: addDays(TODAY, -45) }),
+                shipRow('bal-46', { dueDate: addDays(TODAY, -46) }),
+                shipRow('dep-2', { feedKind: 'deposit', dueDate: addDays(A, -1) }),    // before A: owed, not assumed settled
+                shipRow('dep-3', { feedKind: 'deposit', dueDate: addDays(TODAY, -3) }), // [A, today): owed, not absorbed
+                shipRow('pi-9', { dueDate: null, dateBasis: 'undated', amount: '250.00' }),
+            ],
+        });
+        expect(lineOf(res, 'ship.bal-1')).toEqual({
+            key: 'ship.bal-1', kind: 'ship', id: 'bal-1', name: NAME, counterparty: 'Acme Textiles',
+            accountId: 1, currency: 'GBP', amountMinor: 10000, accountMinor: 10000, gbpMinor: 10000,
+            date: '2026-10-05', dueDate: '2026-10-05', bucketIndex: 6, status: 'expected', settleMode: 'manual',
+            flags: [], editable: true,
+            ship: {
+                kind: 'balance', poNumber: 'PO-812', containerRef: 'MSKU1234567', dateBasis: 'firm',
+                amountBasis: 'stated', blocked: null, feedDate: '2026-10-05', feedAmountMinor: 10000,
+            },
+        });
+        for (const key of ['ship.bal-44', 'ship.bal-45', 'ship.dep-2', 'ship.dep-3']) {
+            expect(lineOf(res, key)).toMatchObject({ date: TODAY, bucketIndex: 0, flags: ['overdue'], settleMode: 'manual' });
+        }
+        expect(lineOf(res, 'ship.bal-45').dueDate).toBe('2026-08-15');
+        expect(lineOf(res, 'ship.dep-2')).toMatchObject({ name: 'Acme Textiles · PO-812 · deposit', dueDate: '2026-09-19' });
+        expect(linesOf(res, 'ship.bal-46')).toEqual([]);
+        expect(res.unresolved).toEqual([{
+            key: 'ship.bal-46', kind: 'ship', name: NAME, categoryId: 90, accountId: 1, currency: 'GBP',
+            amountMinor: 10000, gbpMinor: 10000, direction: 'out', date: '2026-08-14', ageDays: 46, settleMode: 'manual',
+        }]);
+        expect(linesOf(res, 'ship.pi-9')).toEqual([]);
+        expect(accountOf(res, 1).absorbed).toEqual([]);
+        expect(res.days[0].outflow).toBe(40000);
+        expect(res.rows).toEqual([expect.objectContaining({
+            categoryId: 90, categoryName: 'Stock payments', direction: 'out', sortOrder: 900,
+        })]);
+        expect(res.shipping).toEqual({
+            lastSuccessAt: SYNC.lastSuccessAt, feedToday: TODAY, openCount: 7, undatedCount: 1, undatedGbp: 25000, unmappedCount: 0,
+        });
+        expect(res.warnings).toEqual([]);
+    });
+
+    test('paid rows: at A−1 excluded, at A absorbed (flags [paid], no paymentId), today in today\'s bucket', () => {
+        const res = ship({
+            externalItems: [
+                paidRow('pay-1-bal812', addDays(A, -1), { amount: '11.00' }),
+                paidRow('pay-2-bal812', A, { amount: '22.00' }),
+                paidRow('pay-3-bal812', TODAY, { amount: '33.00' }),
+            ],
+        });
+        expect(accountOf(res, 1).absorbed).toEqual([{
+            key: 'ship.pay-2-bal812', name: NAME, categoryId: 90, date: A, currency: 'GBP',
+            amountMinor: 2200, accountMinor: 2200, gbpMinor: 2200, direction: 'out', flags: ['paid'],
+        }]);
+        expect(accountOf(res, 1).openingGbp).toBe(97800);
+        expect(linesOf(res, 'ship.pay-1-bal812')).toEqual([]);
+        const today = lineOf(res, 'ship.pay-3-bal812');
+        expect(today).toMatchObject({
+            date: TODAY, dueDate: TODAY, bucketIndex: 0, status: 'paid', settleMode: 'manual', flags: ['paid'], editable: false,
+            ship: expect.objectContaining({ feedDate: null, feedAmountMinor: 3300 }),
+        });
+        expect('paymentId' in today).toBe(false);
+        expect(res.days[0]).toMatchObject({ opening: 97800, outflow: 3300, closing: 94500 });
+        expect(res.shipping).toMatchObject({ openCount: 0, undatedCount: 0, undatedGbp: 0 });
+    });
+
+    test('overlays: planned_date moves the line, planned_amount applies while its base holds, skipped drops it', () => {
+        const res = ship({
+            externalItems: [
+                shipRow('bal-p', { plannedDate: '2026-10-12' }),
+                shipRow('bal-a', { dueDate: '2026-10-06', plannedAmount: '80.00', plannedBaseAmount: '100.00' }),
+                shipRow('bal-s', { dueDate: '2026-10-07', amount: '120.00', plannedAmount: '80.00', plannedBaseAmount: '100.00' }),
+                shipRow('bal-k', { dueDate: '2026-10-08', plannedSkipped: true }),
+                shipRow('pi-u', { dueDate: null, dateBasis: 'undated', plannedAmount: '40.00', plannedBaseAmount: '100.00' }),
+            ],
+        });
+        expect(lineOf(res, 'ship.bal-p')).toMatchObject({
+            date: '2026-10-12', dueDate: '2026-10-12', amountMinor: 10000, flags: ['planned'],
+            ship: expect.objectContaining({ feedDate: '2026-10-05', feedAmountMinor: 10000 }),
+        });
+        expect(lineOf(res, 'ship.bal-a')).toMatchObject({
+            date: '2026-10-06', amountMinor: 8000, gbpMinor: 8000, flags: ['planned'],
+            ship: expect.objectContaining({ feedAmountMinor: 10000 }),
+        });
+        // the feed amount moved from 100 to 120: the plan is ignored and warned about (P6)
+        expect(lineOf(res, 'ship.bal-s')).toMatchObject({
+            amountMinor: 12000, flags: ['planned'], ship: expect.objectContaining({ feedAmountMinor: 12000 }),
+        });
+        expect(linesOf(res, 'ship.bal-k')).toEqual([]);
+        expect(shipWarnings(res)).toEqual([{ code: 'SHIP_PLAN_STALE', key: 'ship.bal-s' }]);
+        expect(res.shipping).toMatchObject({ openCount: 5, undatedCount: 1, undatedGbp: 4000 });
+        expect(res.days.find((d) => d.date === '2026-10-08').outflow).toBe(0);
+    });
+
+    test('SHIP_PLAN_ORPHANED: an overlay on a gone row warns; the row is never projected', () => {
+        const res = ship({
+            externalItems: [
+                shipRow('dep-812', { goneAt: GONE, plannedDate: '2026-10-10' }),
+                shipRow('dep-813', { goneAt: GONE }),                                        // gone, no overlay
+                shipRow('dep-814', { goneAt: GONE, plannedSkipped: true }),
+                shipRow('dep-815', { goneAt: GONE, plannedNote: 'held', accountId: 2, inScope: false }), // another scope
+            ],
+        });
+        expect(res.rows).toEqual([]);
+        expect(res.unresolved).toEqual([]);
+        expect(shipWarnings(res)).toEqual([
+            { code: 'SHIP_PLAN_ORPHANED', key: 'ship.dep-812' },
+            { code: 'SHIP_PLAN_ORPHANED', key: 'ship.dep-814' },
+        ]);
+        expect(res.shipping).toMatchObject({ openCount: 0, undatedCount: 0 });
+    });
+
+    test('flags estimated / projected / blocked / planned / fromScenario never change a band', () => {
+        const res = ship({
+            externalItems: [
+                shipRow('bal-e', { dueDate: addDays(TODAY, -10), dateBasis: 'estimated', flags: ['estimated'] }),
+                shipRow('bal-d', { amountBasis: 'derived', blocked: 'shipment', flags: ['projected'] }),
+                shipRow('bal-f', { dueDate: '2026-10-06', plannedDate: '2026-10-06', sourceScenarioId: 7 }),
+                shipRow('bal-o', { dueDate: addDays(TODAY, -60), dateBasis: 'estimated', blocked: 'pi' }),
+            ],
+        });
+        expect(lineOf(res, 'ship.bal-e')).toMatchObject({ date: TODAY, flags: ['estimated', 'overdue'] });
+        expect(lineOf(res, 'ship.bal-d')).toMatchObject({
+            date: '2026-10-05', flags: ['projected', 'blocked'],
+            ship: expect.objectContaining({ amountBasis: 'derived', blocked: 'shipment' }),
+        });
+        expect(lineOf(res, 'ship.bal-f').flags).toEqual(['planned', 'fromScenario']);
+        expect(res.unresolved.map((u) => [u.key, u.ageDays])).toEqual([['ship.bal-o', 60]]);
+    });
+
+    describe('the rounding invariant with USD and CNY lines (§9.8)', () => {
+        const RATES = {
+            USD: { rateToGbp: '0.786543', effectiveFrom: '2026-09-01' },
+            CNY: { rateToGbp: '0.108765', effectiveFrom: '2026-09-15' },
+        };
+        const rateOf = (cur) => (cur === 'GBP' ? 1000000n : parseRate(RATES[cur].rateToGbp));
+        const over = {
+            rates: RATES,
+            accounts: [account({ id: 1 }), account({ id: 2, name: 'Dollars', currency: 'USD', anchorBalance: '5000.00' })],
+            externalItems: [
+                shipRow('bal-u1', { accountId: 2, currency: 'USD', amount: '12345.67', dueDate: '2026-10-02' }),
+                shipRow('bal-u2', { accountId: 2, currency: 'USD', amount: '0.01', dueDate: '2026-10-02' }),
+                shipRow('bal-u3', { accountId: 2, currency: 'USD', amount: '0.01', dueDate: '2026-10-02' }),
+                shipRow('bal-c1', { currency: 'CNY', amount: '98765.43', dueDate: '2026-10-03' }),          // CNY on the GBP default
+                shipRow('bal-c2', { accountId: 2, currency: 'CNY', amount: '0.05', dueDate: '2026-10-03' }), // CNY → GBP → USD
+                shipRow('bal-c3', { currency: 'CNY', amount: '4.44', dueDate: addDays(TODAY, -5) }),         // overdue
+                paidRow('pay-u', '2026-09-25', { accountId: 2, currency: 'USD', amount: '333.33' }),          // absorbed
+                paidRow('pay-c', '2026-09-22', { currency: 'CNY', amount: '777.77' }),                       // absorbed
+                paidRow('pay-t', TODAY, { accountId: 2, currency: 'CNY', amount: '19.99' }),                  // today
+                shipRow('pi-u', { accountId: 2, currency: 'USD', amount: '1000.01', dueDate: null }),         // undated
+            ],
+        };
+
+        test.each(BUCKETS)('%s buckets: per-line GBP once, account currency through GBP, integer sums', (bucket) => {
+            const res = ship({ ...over, bucket });
+            const accountCurrency = { 1: 'GBP', 2: 'USD' };
+            const lines = [...allLines(res), ...res.accounts.flatMap((a) => a.absorbed.map((e) => ({ ...e, accountId: a.accountId })))];
+            expect(lines).toHaveLength(9);
+            for (const l of lines) {
+                const gbp = toGbp(BigInt(l.amountMinor), rateOf(l.currency));
+                expect(BigInt(l.gbpMinor)).toBe(gbp);
+                const acctCur = accountCurrency[l.accountId];
+                expect(BigInt(l.accountMinor)).toBe(l.currency === acctCur ? BigInt(l.amountMinor) : fromGbp(gbp, rateOf(acctCur)));
+            }
+            const flows = sum(allLines(res).map((l) => -l.gbpMinor));
+            expect(res.summary.closing).toBe(sum(res.accounts.map((a) => a.openingGbp)) + flows);
+            expect(res.shipping.undatedGbp).toBe(Number(toGbp(100001n, rateOf('USD'))));
+        });
+
+        test('pinned values', () => {
+            const res = ship(over);
+            expect(lineOf(res, 'ship.bal-u1')).toMatchObject({ amountMinor: 1234567, gbpMinor: 971040, accountMinor: 1234567 });
+            expect(lineOf(res, 'ship.bal-c1')).toMatchObject({ amountMinor: 9876543, gbpMinor: 1074222, accountMinor: 1074222 });
+            expect(lineOf(res, 'ship.bal-c2')).toMatchObject({ amountMinor: 5, gbpMinor: 1, accountMinor: 1 });
+            expect(lineOf(res, 'ship.bal-c3')).toMatchObject({ amountMinor: 444, gbpMinor: 48, date: TODAY, flags: ['overdue'] });
+            expect(lineOf(res, 'ship.pay-t')).toMatchObject({ amountMinor: 1999, gbpMinor: 217, accountMinor: 276, flags: ['paid'] });
+            // two 0.01 USD lines are rounded once each (1p + 1p), never as one 0.02 USD sum
+            expect(lineOf(res, 'ship.bal-u2')).toMatchObject({ gbpMinor: 1, accountMinor: 1 });
+            expect(dayOf(res, '2026-10-02').outflow).toBe(971040 + 1 + 1);
+            const usd = accountOf(res, 2);
+            expect(usd.absorbed.map((e) => [e.key, e.amountMinor, e.gbpMinor, e.accountMinor])).toEqual([
+                ['ship.pay-u', 33333, 26218, 33333],
+            ]);
+            expect(accountOf(res, 1).absorbed.map((e) => [e.key, e.amountMinor, e.gbpMinor, e.accountMinor])).toEqual([
+                ['ship.pay-c', 77777, 8459, 8459],
+            ]);
+            expect(res.meta.ratesUsed).toEqual({
+                CNY: RATES.CNY, GBP: { rateToGbp: '1.000000', effectiveFrom: null }, USD: RATES.USD,
+            });
+        });
+    });
+
+    test('ship. adjustments: applied, exclude, and each stale reason through the same check (§9.5)', () => {
+        const res = ship({
+            externalItems: [
+                shipRow('bal-1'),
+                shipRow('bal-2', { dueDate: '2026-10-09', dateBasis: 'estimated' }),              // the ETA drifted from 10-06
+                shipRow('bal-3', { dueDate: '2026-10-06', plannedDate: '2026-10-20', plannedAmount: '90.00', plannedBaseAmount: '100.00' }),
+                shipRow('bal-4', { dueDate: '2026-10-07' }),
+                paidRow('pay-5', TODAY),
+                shipRow('bal-6', { dueDate: '2026-10-08', plannedSkipped: true }),
+                shipRow('dep-7', { goneAt: GONE }),
+                shipRow('pi-8', { dueDate: null }),
+                shipRow('bal-9', { accountId: null, companyId: null, inScope: false }),             // unmapped target
+                shipRow('bal-10', { dueDate: '2026-10-07', amount: '120.00', plannedAmount: '80.00', plannedBaseAmount: '100.00' }),
+                shipRow('bal-11', { dueDate: '2026-10-09' }),
+            ],
+            scenario: DRAFT,
+            adjustments: [
+                adjustment(1, 'ship.bal-1', { newDate: '2026-10-12', newAmount: '150.00', baseDate: '2026-10-05' }),
+                adjustment(2, 'ship.bal-2', { newDate: '2026-10-15', baseDate: '2026-10-06' }),
+                adjustment(3, 'ship.bal-3', { newDate: '2026-10-21', baseDate: '2026-10-20', baseAmount: '90.00' }),
+                adjustment(4, 'ship.bal-4', { kind: 'exclude', baseDate: '2026-10-07' }),
+                adjustment(5, 'ship.pay-5', { kind: 'exclude', baseDate: TODAY }),
+                adjustment(6, 'ship.bal-6', { kind: 'exclude', baseDate: '2026-10-08' }),
+                adjustment(7, 'ship.dep-7', { kind: 'exclude' }),
+                adjustment(8, 'ship.pi-8', { kind: 'exclude' }),
+                adjustment(9, 'ship.bal-9', { kind: 'exclude', baseDate: '2026-10-05' }),
+                adjustment(10, 'ship.bal-10', { newDate: '2026-10-09', baseDate: '2026-10-07', baseAmount: '80.00' }),
+                adjustment(11, 'ship.bal-11', { newDate: '2026-09-28', baseDate: '2026-10-09' }),
+            ],
+        });
+        expect(res.scenario.warnings).toEqual([
+            { code: 'STALE', key: 'ship.bal-2', reason: 'BASE_CHANGED' },
+            { code: 'STALE', key: 'ship.pay-5', reason: 'TARGET_SETTLED' },
+            { code: 'STALE', key: 'ship.bal-6', reason: 'TARGET_SETTLED' },
+            { code: 'STALE', key: 'ship.dep-7', reason: 'TARGET_MISSING' },
+            { code: 'STALE', key: 'ship.pi-8', reason: 'TARGET_MISSING' },
+            { code: 'ADJUSTMENT_OUT_OF_SCOPE', key: 'ship.bal-9' },
+            { code: 'STALE', key: 'ship.bal-10', reason: 'BASE_CHANGED' },
+            { code: 'STALE', key: 'ship.bal-11', reason: 'DATE_PASSED' },
+        ]);
+        expect(lineOf(res, 'ship.bal-1')).toMatchObject({
+            date: '2026-10-12', dueDate: '2026-10-12', amountMinor: 15000, flags: ['adjusted'], editable: true,
+            baseline: { date: '2026-10-05', amountMinor: 10000, gbpMinor: 10000, flags: [] },
+            ship: expect.objectContaining({ feedDate: '2026-10-05', feedAmountMinor: 10000 }),
+        });
+        expect(lineOf(res, 'ship.bal-2')).toMatchObject({ date: '2026-10-09', flags: ['estimated', 'stale'] });
+        // the base is the overlay-adjusted value (as D11), so the adjustment applies
+        expect(lineOf(res, 'ship.bal-3')).toMatchObject({ date: '2026-10-21', amountMinor: 9000, flags: ['planned', 'adjusted'] });
+        expect(lineOf(res, 'ship.bal-4')).toMatchObject({ flags: ['excluded'] });
+        expect(lineOf(res, 'ship.pay-5')).toMatchObject({ flags: ['paid', 'stale'], editable: false });
+        expect(lineOf(res, 'ship.bal-10')).toMatchObject({ date: '2026-10-07', amountMinor: 12000, flags: ['planned', 'stale'] });
+        expect(lineOf(res, 'ship.bal-11')).toMatchObject({ date: '2026-10-09', flags: ['stale'] });
+        expect(linesOf(res, 'ship.bal-9')).toEqual([]);
+        expect(res.scenario.deltaByBucket.find((d) => d.start === '2026-10-05')).toMatchObject({ outflow: -10000 });
+        expect(res.scenario.deltaByBucket.find((d) => d.start === '2026-10-12')).toMatchObject({ outflow: 15000 });
+        expect(shipWarnings(res)).toEqual([{ code: 'SHIP_PLAN_STALE', key: 'ship.bal-10' }]);
+    });
+
+    test('FX_RATE_MISSING for a ship currency, undated rows included; gone rows need no rate', () => {
+        const err = thrown(() => run(input({
+            categories: [...CATEGORIES, STOCK],
+            externalItems: [shipRow('bal-1', { currency: 'USD' }), shipRow('pi-2', { currency: 'CNY', dueDate: null })],
+        })));
+        expect(err).toMatchObject({ code: 'FX_RATE_MISSING', status: 422, details: { currencies: ['CNY', 'USD'] } });
+        expect(currenciesInScope(input({
+            externalItems: [
+                shipRow('bal-1', { currency: 'USD' }),
+                shipRow('pi-2', { currency: 'CNY', dueDate: null }),
+                shipRow('dep-3', { currency: 'HKD', goneAt: GONE }),
+                shipRow('dep-4', { currency: 'EUR', inScope: false, accountId: null }),
+            ],
+        }))).toEqual(['CNY', 'EUR', 'GBP', 'USD']);
+        const res = ship({ externalItems: [shipRow('dep-3', { currency: 'HKD', goneAt: GONE, plannedDate: '2026-10-10' })] });
+        expect(res.meta.ratesUsed).toEqual({ GBP: { rateToGbp: '1.000000', effectiveFrom: null } });
+    });
+
+    test('SHIP_UNMAPPED once per shipping company; SHIPPING_UNAVAILABLE passes through; the warning order', () => {
+        const res = ship({
+            accounts: [account(), account({ id: 2, anchorDate: null, anchorBalance: null })],
+            shipping: { ...SYNC, unmappedCounts: [{ shippingCompanyId: null, count: 2 }, { shippingCompanyId: 7, count: 3 }] },
+            warnings: [{ code: 'SHIPPING_UNAVAILABLE', reason: 'timeout', lastSuccessAt: SYNC.lastSuccessAt }],
+            schedules: [schedule(5, { endDate: '2026-10-31' })],
+            overrides: [override(60, 5, '2026-10-16', { amount: '5.00' })],
+            externalItems: [
+                shipRow('dep-1', { goneAt: GONE, plannedNote: 'x' }),
+                shipRow('bal-2', { amount: '1.00', plannedAmount: '2.00', plannedBaseAmount: '3.00' }),
+            ],
+        });
+        expect(res.warnings).toEqual([
+            { code: 'NO_ANCHOR', accountId: 2 },
+            { code: 'SHIPPING_UNAVAILABLE', reason: 'timeout', lastSuccessAt: SYNC.lastSuccessAt },
+            { code: 'ORPHAN_OVERRIDE', scheduleId: 5, naturalDate: '2026-10-16', overrideId: 60 },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 2 },
+            { code: 'SHIP_UNMAPPED', shippingCompanyId: 7, count: 3 },
+            { code: 'SHIP_PLAN_ORPHANED', key: 'ship.dep-1' },
+            { code: 'SHIP_PLAN_STALE', key: 'ship.bal-2' },
+        ]);
+        expect(res.shipping).toEqual({
+            lastSuccessAt: SYNC.lastSuccessAt, feedToday: TODAY, openCount: 1, undatedCount: 0, undatedGbp: 0, unmappedCount: 5,
+        });
+    });
+
+    test('no successful feed yet: shipping is null; include=summary keeps the block', () => {
+        expect(forecast({}).shipping).toBeNull();
+        const res = ship({ include: 'summary', externalItems: [shipRow('bal-1'), shipRow('pi-2', { dueDate: null })] });
+        expect('rows' in res).toBe(false);
+        expect(res.shipping).toMatchObject({ openCount: 2, undatedCount: 1, undatedGbp: 10000 });
+        expect(res.summary.outflow).toBe(10000);
+    });
+
+    test('rows out of scope or on an account with no anchor are neither projected nor counted', () => {
+        const res = ship({
+            accounts: [account(), account({ id: 2, anchorDate: null, anchorBalance: null })],
+            externalItems: [
+                shipRow('bal-1', { accountId: 3, companyId: 2, inScope: false }),
+                shipRow('bal-2', { accountId: 2 }),
+                shipRow('pi-3', { accountId: 2, dueDate: null }),
+                shipRow('bal-4', { accountId: 1 }),
+            ],
+        });
+        expect(allLines(res).map((l) => l.key)).toEqual(['ship.bal-4']);
+        expect(res.shipping).toMatchObject({ openCount: 1, undatedCount: 0 });
+    });
+
+    test('ship rows with no systemKey ship category, or a bad feed status, are refused', () => {
+        expect(() => run(input({ externalItems: [shipRow('bal-1')] }))).toThrow(TypeError);
+        expect(() => run(input({ categories: [...CATEGORIES, STOCK], externalItems: [shipRow('bal-1', { feedStatus: 'late' })] })))
+            .toThrow(TypeError);
+    });
+});
+
 // ── Purity ───────────────────────────────────────────────────────────────────────────────
 
 describe('purity', () => {
@@ -911,8 +1257,7 @@ describe('purity', () => {
         expect(src).not.toMatch(/OVERDUE_WINDOW_DAYS|\b45\b/);
     });
 
-    test('externalItems must be [] in phase 1; malformed options throw', () => {
-        expect(() => run(input({ externalItems: [{ id: 'x' }] }))).toThrow(TypeError);
+    test('malformed options throw', () => {
         expect(() => run(input({ bucket: 'year' }))).toThrow(TypeError);
         expect(() => run(input({ include: 'all' }))).toThrow(TypeError);
         expect(BUCKETS).toEqual(['day', 'week', 'month']);

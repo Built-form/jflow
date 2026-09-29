@@ -23,11 +23,22 @@
 //   loadOverridePayments  rule 4 for instances
 //   loadCategories, loadRates (rule 8), loadScenario, loadAdjustments (rule 10)
 //   loadEngineInput       the assembly: minA, NO_ANCHOR, de-duplication, `engineInput`
+//
+// Phase 2 (step 20) adds the ship rows:
+//   shipResolvedSelect    P5 / §3.4: external_items with company and account resolved in SQL
+//   loadShipRows          rule 11 — open rows (dated or not) and paid rows since minA of
+//                         the in-scope anchored accounts; SHIP_UNMAPPED counts
+//   loadShipTargets       rule 6 (ship. keys) — rows by ext_id, gone or not, any scope
+//   loadShipCategory, loadShipSync   the systemKey 'ship' category; external_sync
+//   loadTarget's `ship.` branch
 
-const { itemToJson, paymentToJson, scheduleToJson, overrideToJson, adjustmentToJson } = require('../lib/shape');
+const {
+    itemToJson, paymentToJson, scheduleToJson, overrideToJson, adjustmentToJson, externalItemToJson,
+} = require('../lib/shape');
 const { isOccurrence, effectiveValues } = require('../lib/recurrence');
 const { addDays } = require('../lib/dates');
 const { clampWindow, currenciesInScope, MANUAL_LOOKBACK_DAYS } = require('../lib/engine');
+const { SHIP_SETTLE_MODE, shipEffectiveValues } = require('../lib/lines');
 
 // §8 rule 1: `previous` / `next` move a natural date by at most two days (§5.3), so a
 // schedule whose natural dates stop two days short of the window can still land in it.
@@ -249,16 +260,136 @@ async function loadOverridePayments(conn, overrideIds, { since } = {}) {
     return rows.map(paymentToJson);
 }
 
-/** The live categories with these ids → [{id, name, direction, sortOrder}], ascending by id. */
+const engineCategory = (r) => ({
+    id: Number(r.id), name: r.name, direction: r.direction, sortOrder: r.sort_order, systemKey: r.system_key ?? null,
+});
+
+/** The live categories with these ids → [{id, name, direction, sortOrder, systemKey}], ascending by id. */
 async function loadCategories(conn, categoryIds) {
     const ids = uniqueIds(categoryIds);
     if (!ids.length) return [];
     const [rows] = await conn.query(
-        `SELECT id, name, direction, sort_order FROM categories
+        `SELECT id, name, direction, sort_order, system_key FROM categories
           WHERE id IN (${marks(ids)}) AND deleted_at IS NULL ORDER BY id ASC`,
         ids
     );
-    return rows.map((r) => ({ id: Number(r.id), name: r.name, direction: r.direction, sortOrder: r.sort_order }));
+    return rows.map(engineCategory);
+}
+
+// ── Phase 2: ship rows (§8 rules 6 and 11, §3.4, P5) ──────────────────────────
+
+/**
+ * P5 / §3.4, in SQL at load time and never stored: `external_items` rows (source 'ship',
+ * filtered by `where` over `e`) with
+ *   resolved_company_id  the live company whose shipping_company_id matches the row's
+ *                        (the lowest id, should two ever match), else NULL;
+ *   resolved_account_id  that company's live, active account in the row's currency
+ *                        (lowest sort_order, then id), else its live, active is_default
+ *                        account, else NULL (unmapped).
+ * Callers append ORDER BY over `r`.
+ */
+function shipResolvedSelect(where) {
+    return `SELECT r.*,
+                   COALESCE(
+                     (SELECT a.id FROM bank_accounts a
+                       WHERE a.company_id = r.resolved_company_id AND a.deleted_at IS NULL AND a.is_active = 1
+                         AND a.currency = r.currency
+                       ORDER BY a.sort_order ASC, a.id ASC LIMIT 1),
+                     (SELECT a.id FROM bank_accounts a
+                       WHERE a.company_id = r.resolved_company_id AND a.deleted_at IS NULL AND a.is_active = 1
+                         AND a.is_default = 1
+                       ORDER BY a.id ASC LIMIT 1)) AS resolved_account_id
+              FROM (SELECT e.*,
+                           (SELECT MIN(c.id) FROM companies c
+                             WHERE c.deleted_at IS NULL AND c.shipping_company_id = e.shipping_company_id) AS resolved_company_id
+                      FROM external_items e
+                     WHERE e.source = 'ship' AND (${where})) r`;
+}
+
+// An overlay column set: the `planned` flag and SHIP_PLAN_ORPHANED (lib/lines.js hasShipOverlay).
+const SHIP_OVERLAY_SQL = `(e.planned_date IS NOT NULL OR e.planned_amount IS NOT NULL OR e.planned_skipped = 1
+                           OR e.planned_note IS NOT NULL)`;
+
+/**
+ * Rule 11: the ship rows of the in-scope anchored accounts — `gone_at IS NULL` and
+ * `feed_status = 'open'` (dated or undated, no window bound, no 45-day floor) or
+ * `feed_status = 'paid' AND paid_on >= minA` — each with its resolved `accountId` /
+ * `companyId`, its overlay verbatim and `inScope: true`, ascending by ext_id. Also every
+ * gone row that still carries an overlay on those accounts, for SHIP_PLAN_ORPHANED only
+ * (the engine never projects a gone row).
+ *
+ * Rows of the same filter that resolve to no account are not loaded; they are counted
+ * per `shipping_company_id` (null included, Q2) → `unmappedCounts` [{shippingCompanyId,
+ * count}], null first then ascending. A row whose company matched but has no live
+ * active account counts only in that company's scope (or 'all'); a row whose shipping
+ * company no JFlow company maps counts in every scope. Rows resolving to an account
+ * outside the scope, or to one with no anchor (NO_ANCHOR), are neither loaded nor counted.
+ */
+async function loadShipRows(conn, { accountIds, minA, companyId }) {
+    const anchored = new Set(uniqueIds(accountIds));
+    const [rows] = await conn.query(
+        `${shipResolvedSelect(`(e.gone_at IS NULL AND (e.feed_status = 'open' OR (e.feed_status = 'paid' AND e.paid_on >= ?)))
+                               OR (e.gone_at IS NOT NULL AND ${SHIP_OVERLAY_SQL})`)}
+          ORDER BY r.ext_id ASC, r.id ASC`,
+        [minA]
+    );
+    const loaded = [];
+    const unmapped = new Map();
+    for (const r of rows) {
+        if (r.resolved_account_id == null) {
+            if (r.gone_at != null) continue;
+            const company = r.resolved_company_id == null ? null : Number(r.resolved_company_id);
+            if (company !== null && companyId !== 'all' && company !== Number(companyId)) continue;
+            const key = r.shipping_company_id == null ? null : Number(r.shipping_company_id);
+            unmapped.set(key, (unmapped.get(key) || 0) + 1);
+            continue;
+        }
+        if (!anchored.has(Number(r.resolved_account_id))) continue;
+        loaded.push({ ...externalItemToJson(r), inScope: true });
+    }
+    const unmappedCounts = [...unmapped.entries()]
+        .sort(([a], [b]) => (a === null ? -1 : b === null ? 1 : a - b))
+        .map(([shippingCompanyId, count]) => ({ shippingCompanyId, count }));
+    return { rows: loaded, unmappedCounts };
+}
+
+/**
+ * Rule 6 for `ship.` keys: the rows with these ext_ids, gone or not, whatever their dates,
+ * status or mapping; `inScope` says whether the resolved account is in `accountIds`
+ * (false when unmapped). An absent id is not returned (→ TARGET_MISSING downstream).
+ */
+async function loadShipTargets(conn, extIds, accountIds) {
+    const ids = [...new Set((extIds || []).map(String))].sort();
+    if (!ids.length) return [];
+    const scope = new Set(uniqueIds(accountIds));
+    const [rows] = await conn.query(
+        `${shipResolvedSelect(`e.ext_id IN (${marks(ids)})`)} ORDER BY r.ext_id ASC, r.id ASC`,
+        ids
+    );
+    return rows.map((r) => {
+        const row = externalItemToJson(r);
+        return { ...row, inScope: row.accountId !== null && scope.has(row.accountId) };
+    });
+}
+
+/** The live systemKey 'ship' category ("Stock payments", P10) → [category] or []. */
+async function loadShipCategory(conn) {
+    const [rows] = await conn.query(
+        `SELECT id, name, direction, sort_order, system_key FROM categories
+          WHERE system_key = 'ship' AND deleted_at IS NULL ORDER BY id ASC LIMIT 1`
+    );
+    return rows.map(engineCategory);
+}
+
+const isoOrNull = (v) => (v == null ? null : v instanceof Date ? v.toISOString() : String(v));
+
+/** external_sync's ship row → {lastSuccessAt (ISO), feedToday} or null when it has never succeeded. */
+async function loadShipSync(conn) {
+    const [rows] = await conn.query(
+        "SELECT last_success_at, feed_today FROM external_sync WHERE source = 'ship'"
+    );
+    if (!rows.length || rows[0].last_success_at == null) return null;
+    return { lastSuccessAt: isoOrNull(rows[0].last_success_at), feedToday: rows[0].feed_today };
 }
 
 /**
@@ -361,12 +492,23 @@ async function loadEngineInput(conn, { today, from, to, bucket, include, company
         ...await loadItemPayments(conn, items.map((i) => i.id), { since: minA }),
         ...await loadOverridePayments(conn, overrides.map((o) => o.id), { since: minA }),
     ];
-    const categories = await loadCategories(conn, [...items, ...schedules].map((r) => r.categoryId));
+    const ship = await loadShipRows(conn, { accountIds: anchored.map((a) => a.id), minA, companyId }); // rule 11
+    const externalItems = uniqueBy([                                                    // rules 11, 6
+        ...ship.rows,
+        ...await loadShipTargets(conn, targetIds('ship'), scopeIds),
+    ], (e) => e.extId);
+    const sync = await loadShipSync(conn);
+    const categories = uniqueBy([
+        ...await loadCategories(conn, [...items, ...schedules].map((r) => r.categoryId)),
+        ...(externalItems.length ? await loadShipCategory(conn) : []),
+    ], (c) => c.id);
 
     const input = {
         today, from, to, bucket, include, companyId,
         accounts, rates: {}, categories, items, schedules, overrides, payments, adjustments,
-        externalItems: [], scenario, warnings,
+        externalItems,
+        shipping: sync === null ? null : { ...sync, unmappedCounts: ship.unmappedCounts },
+        scenario, warnings,
     };
     input.rates = await loadRates(conn, currenciesInScope(input), today);               // rule 8
     return input;
@@ -378,15 +520,40 @@ async function loadEngineInput(conn, { today, from, to, bucket, include, company
  * `parsedKey` is lib/keys.js parseKey's result. Returns
  * {kind, id, naturalDate, status, effectiveDate, effectiveAmount, currency,
  *  accountId, settleMode, hasPaymentState, overrideId} or null when the row is
- * not live, when a `sched.` date is not an occurrence of its schedule (wrong
- * date, past the end, or before active_from), or for a `ship.` key (D8). A
- * one-off's effective values are its own; an instance's are recurrence.js
- * effectiveValues over the schedule and its override row (§3.4, D11). "Payment
- * state" is §3.4's predicate on the cache columns.
+ * not live, or when a `sched.` date is not an occurrence of its schedule (wrong
+ * date, past the end, or before active_from). A one-off's effective values are
+ * its own; an instance's are recurrence.js effectiveValues over the schedule and
+ * its override row (§3.4, D11). "Payment state" is §3.4's predicate on the cache
+ * columns.
+ *
+ * `ship.` (Phase 2): the external_items row by (source, ext_id) with its account
+ * resolved (P5; null when unmapped); null when absent (the ext_id must match
+ * exactly), gone, or undated (an open row with no planned_date and no due_date —
+ * there is no line to adjust). Otherwise §3.4's effective values through
+ * lib/lines.js (overlay and P6 included): status paid | skipped | expected, the
+ * effective date (a paid row's is its paid_on) and amount, settle mode 'manual',
+ * and payment state = the row is paid.
  */
 async function loadTarget(conn, parsedKey, _today) {
     if (!parsedKey) return null;
-    if (parsedKey.targetKind === 'ship') return null;
+    if (parsedKey.targetKind === 'ship') {
+        const [rows] = await conn.query(`${shipResolvedSelect('e.ext_id = ?')} ORDER BY r.id ASC`, [parsedKey.targetId]);
+        const row = rows.length ? externalItemToJson(rows[0]) : null;
+        if (!row || row.extId !== parsedKey.targetId || row.goneAt != null || row.effectiveDate == null) return null;
+        return {
+            kind: 'ship',
+            id: row.extId,
+            naturalDate: null,
+            status: shipEffectiveValues(row).status,
+            effectiveDate: row.effectiveDate,
+            effectiveAmount: row.effectiveAmount,
+            currency: row.currency,
+            accountId: row.accountId,
+            settleMode: SHIP_SETTLE_MODE,
+            hasPaymentState: row.feedStatus === 'paid',
+            overrideId: null,
+        };
+    }
     if (parsedKey.targetKind === 'item') {
         const [rows] = await conn.query(
             `SELECT i.*, a.company_id,
@@ -465,6 +632,11 @@ module.exports = {
     loadRates,
     loadScenario,
     loadAdjustments,
+    shipResolvedSelect,
+    loadShipRows,
+    loadShipTargets,
+    loadShipCategory,
+    loadShipSync,
     loadEngineInput,
     loadTarget,
 };

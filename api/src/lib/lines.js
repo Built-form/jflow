@@ -1,7 +1,7 @@
 'use strict';
 
-// Classifier input lines (CONTRACT §9.6): an item or instance in its JSON /
-// engine-input shape → the `line` that lib/classify.js takes. Shaping only:
+// Classifier input lines (CONTRACT §9.6): an item, instance or (Phase 2, §9.3.1) ship
+// row in its JSON / engine-input shape → the `line` that lib/classify.js takes. Shaping only:
 // money DECIMAL strings are parsed to bigint minor units, the effective values
 // are read off the row, and nothing is decided here. The table itself lives in
 // classify.js alone; every caller (GET /items, GET /schedules/:id/instances, the
@@ -72,4 +72,89 @@ function instanceDerivedStatus(instance, A, today) {
     return derivedStatus(classify(instanceLine(instance), A, today));
 }
 
-module.exports = { itemLine, itemDerivedStatus, instanceLine, instanceDerivedStatus };
+// ── Phase 2: ship rows (CONTRACT §3.4, §9.3.1, P6, P9) ──────────────────────────────────
+// `row` is an external_items row in its camelCase shape (feedStatus, dueDate, paidOn,
+// amount, the planned* overlay, goneAt, accountId). Settle mode is always `manual`:
+// shipping, not the calendar, says a supplier was paid.
+
+const SHIP_SETTLE_MODE = 'manual';
+
+/** Any overlay column set (the `planned` flag, SHIP_PLAN_ORPHANED). */
+function hasShipOverlay(row) {
+    return row.plannedDate != null || row.plannedAmount != null || Boolean(Number(row.plannedSkipped || 0))
+        || row.plannedNote != null;
+}
+
+/**
+ * §3.4's effective values of a ship row → {status, effectiveDate, effectiveAmount,
+ * planStale}. status: `paid` when the feed says so, `skipped` when planned_skipped,
+ * else `expected`. effectiveDate: `plannedDate ?? dueDate` for an open row (null =
+ * undated); a paid row is dated on its `paidOn` (the feed row is the payment, and a
+ * paid row is never undated). effectiveAmount (DECIMAL string): `plannedAmount` while
+ * `plannedBaseAmount` equals the feed `amount` (P6, compared as minor units), else the
+ * feed amount; a paid row always carries the feed amount. planStale: planned_amount is
+ * set but its base no longer matches the feed amount (P6).
+ */
+function shipEffectiveValues(row) {
+    const paid = row.feedStatus === 'paid';
+    const amountMinor = parseMinor(row.amount);
+    const planStale = row.plannedAmount != null
+        && (row.plannedBaseAmount == null || parseMinor(row.plannedBaseAmount) !== amountMinor);
+    const usePlan = !paid && row.plannedAmount != null && !planStale;
+    let status = 'expected';
+    if (paid) status = 'paid';
+    else if (Number(row.plannedSkipped || 0)) status = 'skipped';
+    return {
+        status,
+        effectiveDate: paid ? row.paidOn : (row.plannedDate ?? row.dueDate ?? null),
+        effectiveAmount: usePlan ? row.plannedAmount : row.amount,
+        planStale,
+    };
+}
+
+/**
+ * §9.3.1: a ship row → its classify line, or null when it makes no line (a gone row;
+ * an open row with no effective date, skipped or not). Paid → one payment
+ * {paymentId: null, paidOn, amount} with the cache equal to the amount; open → the
+ * effective date and amount, no payments.
+ */
+function shipLine(row) {
+    if (row.goneAt != null) return null;
+    const ev = shipEffectiveValues(row);
+    if (ev.effectiveDate == null) return null;
+    const amountMinor = parseMinor(ev.effectiveAmount);
+    if (ev.status === 'paid') {
+        return {
+            status: 'paid',
+            settleMode: SHIP_SETTLE_MODE,
+            effectiveDate: ev.effectiveDate,
+            amountMinor,
+            paidAmountMinor: amountMinor,
+            payments: [{ paymentId: null, paidOn: row.paidOn, amountMinor }],
+        };
+    }
+    return {
+        status: ev.status,
+        settleMode: SHIP_SETTLE_MODE,
+        effectiveDate: ev.effectiveDate,
+        amountMinor,
+        paidAmountMinor: 0n,
+        payments: [],
+    };
+}
+
+/**
+ * §6.12: a ship row's `derivedStatus` against its resolved account's anchor `A` and
+ * `today` — one classify call on shipLine — or null for a row that is classified
+ * nowhere: undated and open, gone, or unmapped (`accountId` null).
+ */
+function shipDerivedStatus(row, A, today) {
+    if (row.accountId == null) return null;
+    const line = shipLine(row);
+    return line === null ? null : derivedStatus(classify(line, A, today));
+}
+
+module.exports = {
+    itemLine, itemDerivedStatus, instanceLine, instanceDerivedStatus,
+    SHIP_SETTLE_MODE, hasShipOverlay, shipEffectiveValues, shipLine, shipDerivedStatus,
+};

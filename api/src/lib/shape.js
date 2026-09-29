@@ -10,8 +10,9 @@
 // so a route answers with res.json / res.status(…).json directly.
 
 const log = require('./logger');
-const { buildItemKey } = require('./keys');
+const { buildItemKey, buildShipKey } = require('./keys');
 const { parseMinor, formatMinor } = require('./money');
+const { shipEffectiveValues } = require('./lines');
 
 // ── Error + success envelopes ───────────────────────────────────────────────
 
@@ -175,6 +176,7 @@ function json(value) {
 const id = (v) => (v == null ? null : Number(v));
 const bool = (v) => (v == null ? null : Boolean(Number(v)));
 
+/** `shippingCompanyId` (Phase 2, CONTRACT §6.2): the shipping company it maps to, null until mapped. */
 function companyToJson(r) {
     if (!r) return null;
     return {
@@ -182,6 +184,7 @@ function companyToJson(r) {
         code: r.code,
         name: r.name,
         sortOrder: r.sort_order,
+        shippingCompanyId: id(r.shipping_company_id),
         rowVersion: r.row_version,
         createdBy: r.created_by,
         createdAt: r.created_at,
@@ -218,6 +221,7 @@ function accountToJson(r) {
     return out;
 }
 
+/** `systemKey` (Phase 2, CONTRACT §6.4, P10): 'ship' on the seeded Stock payments category, else null. */
 function categoryToJson(r) {
     if (!r) return null;
     return {
@@ -225,6 +229,7 @@ function categoryToJson(r) {
         name: r.name,
         direction: r.direction,
         sortOrder: r.sort_order,
+        systemKey: r.system_key ?? null,
         rowVersion: r.row_version,
         createdBy: r.created_by,
         createdAt: r.created_at,
@@ -443,6 +448,87 @@ function scenarioToJson(r) {
     return out;
 }
 
+/**
+ * The `external_sync` row (Phase 2, CONTRACT §6.12 GET /external/status). `companies` is
+ * `companies_json` parsed — the feed's companies for the Settings picker — or [] before
+ * the first successful refresh. `extras.configured` (shipping.isConfigured()) is added by
+ * the route; the row does not hold it.
+ */
+function externalSyncToJson(r, extras = {}) {
+    if (!r) return null;
+    const companies = json(r.companies_json);
+    const out = {
+        source: r.source,
+        lastAttemptAt: r.last_attempt_at,
+        lastSuccessAt: r.last_success_at,
+        feedToday: r.feed_today,
+        lastError: r.last_error,
+        itemCount: Number(r.item_count),
+        rejectedCount: Number(r.rejected_count),
+        companies: Array.isArray(companies) ? companies : [],
+    };
+    if ('configured' in extras) out.configured = extras.configured;
+    out.updatedAt = r.updated_at;
+    return out;
+}
+
+/**
+ * An `external_items` row (Phase 2, CONTRACT §6.12). `companyId` / `accountId` are the
+ * resolution of §3.4 / P5, read from the `resolved_company_id` / `resolved_account_id`
+ * columns the loader's query adds (services/forecastLoad.js shipResolvedSelect) — null
+ * when unmapped or not selected. `effectiveDate`, `effectiveAmount` and `planStale` are
+ * lib/lines.js shipEffectiveValues (§3.4, P6). `extras.derivedStatus` appears on API
+ * responses only (as itemToJson): the loader's engine rows leave it out.
+ */
+function externalItemToJson(r, extras = {}) {
+    if (!r) return null;
+    const flags = json(r.flags_json);
+    const out = {
+        key: buildShipKey(r.ext_id),
+        id: id(r.id),
+        source: r.source,
+        extId: r.ext_id,
+        feedKind: r.feed_kind,
+        feedStatus: r.feed_status,
+        supplier: r.supplier,
+        shippingCompanyId: id(r.shipping_company_id),
+        companyId: id(r.resolved_company_id),
+        accountId: id(r.resolved_account_id),
+        poId: id(r.po_id),
+        poNumber: r.po_number,
+        shipmentId: id(r.shipment_id),
+        containerRef: r.container_ref,
+        currency: r.currency,
+        amount: r.amount,
+        dueDate: r.due_date,
+        paidOn: r.paid_on,
+        settles: r.settles,
+        dateBasis: r.date_basis,
+        amountBasis: r.amount_basis,
+        blocked: r.blocked,
+        flags: Array.isArray(flags) ? flags : [],
+        goneAt: r.gone_at,
+        plannedDate: r.planned_date,
+        plannedAmount: r.planned_amount,
+        plannedSkipped: Boolean(Number(r.planned_skipped || 0)),
+        plannedBaseAmount: r.planned_base_amount,
+        plannedNote: r.planned_note,
+        sourceScenarioId: id(r.source_scenario_id),
+        plannedBy: r.planned_by,
+        plannedAt: r.planned_at,
+    };
+    const ev = shipEffectiveValues(out);
+    out.effectiveDate = ev.effectiveDate;
+    out.effectiveAmount = ev.effectiveAmount;
+    out.planStale = ev.planStale;
+    if ('derivedStatus' in extras) out.derivedStatus = extras.derivedStatus;
+    out.rowVersion = r.row_version;
+    out.createdBy = r.created_by;
+    out.createdAt = r.created_at;
+    out.updatedAt = r.updated_at;
+    return out;
+}
+
 function auditToJson(r) {
     if (!r) return null;
     return {
@@ -478,6 +564,8 @@ module.exports = {
     overrideToJson,
     adjustmentToJson,
     scenarioToJson,
+    externalSyncToJson,
+    externalItemToJson,
     parseId,
     parseListParams,
     parseCap,

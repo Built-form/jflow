@@ -11,6 +11,12 @@
 // Uniqueness without gap locks (§10.1): a write that sets a code first locks
 // every live company row ascending by id. A concurrent writer blocks on those
 // row locks and, once through, its locking read sees the first writer's commit.
+//
+// Phase 2 (§6.2, §3.5; docs/PHASE2.md §4.9): `shippingCompanyId` maps the company
+// to a shipping company (picked in Settings from GET /external/status). It is a
+// positive integer or null, set on PUT only, not checked against the feed (which
+// may be down), and unique among LIVE companies the same way the code is — the
+// same all-live-rows lock — else 409 SHIPPING_COMPANY_TAKEN {companyId}.
 
 const express = require('express');
 
@@ -56,6 +62,19 @@ function codeTaken(code, holderId) {
     return apiError(409, 'COMPANY_CODE_TAKEN',
         `Company code ${code} is already used by another company.`, { companyId: Number(holderId) });
 }
+
+/** A body id: a positive integer, or its decimal string (as the other body ids), else null. */
+function bodyId(value) {
+    return typeof value === 'number' || typeof value === 'string' ? parseId(value) : null;
+}
+
+function shippingCompanyTaken(shippingCompanyId, holderId) {
+    return apiError(409, 'SHIPPING_COMPANY_TAKEN',
+        `Shipping company ${shippingCompanyId} is already mapped to another company.`,
+        { companyId: Number(holderId) });
+}
+
+const sameId = (a, b) => (a == null ? null : Number(a)) === (b == null ? null : Number(b));
 
 module.exports = ({ schemaReady, fail, serverError }) => {
     const router = express.Router();
@@ -145,8 +164,9 @@ module.exports = ({ schemaReady, fail, serverError }) => {
             const hasCode = body.code !== undefined;
             const hasName = body.name !== undefined;
             const hasSortOrder = body.sortOrder !== undefined;
-            if (!hasCode && !hasName && !hasSortOrder) {
-                return fail(res, 400, 'Nothing to update: send code, name and/or sortOrder.');
+            const hasShipping = body.shippingCompanyId !== undefined;
+            if (!hasCode && !hasName && !hasSortOrder && !hasShipping) {
+                return fail(res, 400, 'Nothing to update: send code, name, sortOrder and/or shippingCompanyId.');
             }
             const code = hasCode ? parseCode(body.code) : null;
             if (hasCode && !code) return fail(res, 400, 'code must be 1-16 characters, A-Z, 0-9 or _.');
@@ -154,15 +174,19 @@ module.exports = ({ schemaReady, fail, serverError }) => {
             if (hasName && !name) return fail(res, 400, 'name cannot be blank (at most 255 characters).');
             const sortOrder = hasSortOrder ? parseSortOrder(body.sortOrder) : null;
             if (hasSortOrder && Number.isNaN(sortOrder)) return fail(res, 400, 'sortOrder must be an integer.');
+            const shippingCompanyId = hasShipping && body.shippingCompanyId !== null ? bodyId(body.shippingCompanyId) : null;
+            if (hasShipping && body.shippingCompanyId !== null && !shippingCompanyId) {
+                return fail(res, 400, 'shippingCompanyId must be a positive integer, or null to unmap.');
+            }
             const baseVersion = parseBaseVersion(body);
             if (Number.isNaN(baseVersion)) return fail(res, 400, 'baseVersion must be a non-negative integer.');
 
             const updated = await withTransaction(async (conn) => {
-                // A code write locks every live company (ascending, the target
-                // among them); any other write locks the target alone.
+                // A code or mapping write locks every live company (ascending, the
+                // target among them); any other write locks the target alone.
                 let row;
                 let live = null;
-                if (hasCode) {
+                if (hasCode || hasShipping) {
                     live = await lockLiveCompanies(conn);
                     row = live.find((c) => Number(c.id) === id) || null;
                 } else {
@@ -178,19 +202,27 @@ module.exports = ({ schemaReady, fail, serverError }) => {
                     code: hasCode ? code : row.code,
                     name: hasName ? name : row.name,
                     sortOrder: hasSortOrder ? sortOrder : row.sort_order,
+                    shippingCompanyId: hasShipping ? shippingCompanyId : row.shipping_company_id,
                 };
                 if (next.code !== row.code) {
                     const holder = live.find((c) => c.code === next.code && Number(c.id) !== id);
                     if (holder) throw codeTaken(next.code, holder.id);
                 }
+                const shippingChanged = !sameId(next.shippingCompanyId, row.shipping_company_id);
+                if (shippingChanged && next.shippingCompanyId !== null) {
+                    const holder = live.find((c) => sameId(c.shipping_company_id, next.shippingCompanyId) && Number(c.id) !== id);
+                    if (holder) throw shippingCompanyTaken(next.shippingCompanyId, holder.id);
+                }
                 const before = companyToJson(row);
-                if (next.code === row.code && next.name === row.name && next.sortOrder === row.sort_order) {
+                if (next.code === row.code && next.name === row.name && next.sortOrder === row.sort_order
+                    && !shippingChanged) {
                     return before; // nothing changed: no write, no version bump, no audit
                 }
                 await conn.query(
-                    `UPDATE companies SET code = ?, name = ?, sort_order = ?, row_version = row_version + 1
+                    `UPDATE companies SET code = ?, name = ?, sort_order = ?, shipping_company_id = ?,
+                            row_version = row_version + 1
                       WHERE id = ?`,
-                    [next.code, next.name, next.sortOrder, id]
+                    [next.code, next.name, next.sortOrder, next.shippingCompanyId, id]
                 );
                 const after = companyToJson(await readCompany(conn, id));
                 await recordAudit(conn, {

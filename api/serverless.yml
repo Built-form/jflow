@@ -102,6 +102,13 @@ provider:
     # from the secret, the deployed API 401s every caller with no way in short
     # of a hand-written INSERT. It must be set in BOTH jflow/prod and jflow/test.
     BOOTSTRAP_ADMIN_EMAILS: ${self:custom.secrets.BOOTSTRAP_ADMIN_EMAILS, ''}
+    # Phase 2 — shipping's payments feed (src/services/shipping.js, CONTRACT §2.1, P12):
+    # GET /api/internal/payments-forecast with the key in X-Api-Key, no user token.
+    # SHIPPING_API_KEY is JFlow's own shared key with shipping (shipping holds it as
+    # SHIPPING_INTERNAL_API_KEY), not JFPRO's. Both ABSENT from the secret is a valid
+    # state: the feed is off and /forecast carries a SHIPPING_UNAVAILABLE warning.
+    SHIPPING_API_BASE: ${self:custom.secrets.SHIPPING_API_BASE, ''}
+    SHIPPING_API_KEY: ${self:custom.secrets.SHIPPING_API_KEY, ''}
 
   iam:
     role:

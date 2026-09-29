@@ -149,6 +149,10 @@ const { DERIVED_STATUSES } = require('../lib/classify');
 const BUCKETS = ['day', 'week', 'month'];
 const INCLUDE_MODES = ['summary', 'grid'];
 const { TARGET_KINDS } = require('../lib/keys');
+// Phase 2 (CONTRACT §7): the shipping feed's vocabularies, from the module that enforces them.
+const {
+    FEED_KINDS, FEED_STATUSES, DATE_BASES, AMOUNT_BASES, SHIPPING_REASONS,
+} = require('../services/shipping');
 
 // Every refusal code in CONTRACT §7, in the catalogue's order. Message-only
 // refusals (400/401/404/413 and the allowlist 409s) carry no code.
@@ -166,9 +170,16 @@ const ERROR_CODES = [
     'SCHEDULE_HAS_OVERRIDES', 'SCHEDULE_HAS_ADJUSTMENTS',
     // Scenarios.
     'SCENARIO_NOT_DRAFT', 'SCENARIO_STALE', 'TARGET_SETTLED', 'TARGET_MISSING',
+    // Phase 2: the shipping feed (§6.2, §6.12).
+    'SHIPPING_COMPANY_TAKEN', 'PLANNED_DATE_IN_PAST', 'SHIPPING_UNAVAILABLE',
 ];
-// 200-body warnings (warnings[], scenario.warnings[], orphans[]) — never a refusal.
-const WARNING_CODES = ['NO_ANCHOR', 'ORPHAN_OVERRIDE', 'STALE', 'ADJUSTMENT_OUT_OF_SCOPE'];
+// 200-body warnings (warnings[], scenario.warnings[], orphans[]) — never a refusal,
+// except SHIPPING_UNAVAILABLE, which is both (503 on POST /external/refresh, a warning
+// on /forecast; CONTRACT §7).
+const WARNING_CODES = [
+    'NO_ANCHOR', 'ORPHAN_OVERRIDE', 'STALE', 'ADJUSTMENT_OUT_OF_SCOPE',
+    'SHIPPING_UNAVAILABLE', 'SHIP_UNMAPPED', 'SHIP_PLAN_ORPHANED', 'SHIP_PLAN_STALE',
+];
 
 const ENUMS = {
     directions: DIRECTIONS,
@@ -188,6 +199,11 @@ const ENUMS = {
     userTypes: USER_TYPES,
     errorCodes: ERROR_CODES,
     warningCodes: WARNING_CODES,
+    feedKinds: FEED_KINDS,
+    feedStatuses: FEED_STATUSES,
+    dateBases: DATE_BASES,
+    amountBases: AMOUNT_BASES,
+    shippingReasons: SHIPPING_REASONS,
 };
 
 // ── Auth ────────────────────────────────────────────────────────────────────
@@ -545,6 +561,7 @@ app.get('/api/v1/audit', async (req, res) => {
 //
 // Step 2: companies, accounts, categories, fxRates, balances.
 // Steps 4-7: items, schedules (instances, split, end), forecast, scenarios.
+// Step 19 (Phase 2): external — the shipping feed's refresh and status.
 const { isValidDate, londonToday } = require('../lib/dates');
 const { apiError } = require('../lib/shape');
 
@@ -567,6 +584,7 @@ app.use('/api/v1', require('../routes/items')(routerDeps));
 app.use('/api/v1', require('../routes/schedules')(routerDeps));
 app.use('/api/v1', require('../routes/forecast')(routerDeps));
 app.use('/api/v1', require('../routes/scenarios')(routerDeps));
+app.use('/api/v1', require('../routes/external')(routerDeps));
 
 // ── Fallbacks ───────────────────────────────────────────────────────────────
 

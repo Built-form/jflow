@@ -7,6 +7,11 @@
 // is editable only while no live item or schedule uses the category, and a
 // category in use cannot be deleted (409 CATEGORY_IN_USE {itemCount,
 // scheduleCount}, D15). Soft delete.
+//
+// Phase 2 (§3.5, P10): a SYSTEM category (`system_key` set — the seeded "Stock
+// payments", `ship`) is never deleted and never changes direction, used or not:
+// 409 CATEGORY_IN_USE {systemKey}. Its name and order edit freely. `system_key` is
+// written by the migration only; a `systemKey` in a body is ignored (D29).
 
 const express = require('express');
 
@@ -39,6 +44,12 @@ async function usage(conn, id) {
         'SELECT COUNT(*) AS n FROM schedules WHERE category_id = ? AND deleted_at IS NULL', [id]
     );
     return { itemCount: Number(items.n), scheduleCount: Number(schedules.n) };
+}
+
+/** P10: the refusal for a system category's delete or direction change. */
+function systemCategory(row, what) {
+    return apiError(409, 'CATEGORY_IN_USE',
+        `"${row.name}" is a system category, so it cannot ${what}.`, { systemKey: row.system_key });
 }
 
 module.exports = ({ schemaReady, fail, serverError, enums }) => {
@@ -161,6 +172,7 @@ module.exports = ({ schemaReady, fail, serverError, enums }) => {
                     sortOrder: hasSortOrder ? sortOrder : row.sort_order,
                 };
                 if (next.direction !== row.direction) {
+                    if (row.system_key) throw systemCategory(row, 'change direction');
                     const used = await usage(conn, id);
                     if (used.itemCount || used.scheduleCount) {
                         throw apiError(409, 'CATEGORY_IN_USE',
@@ -203,6 +215,7 @@ module.exports = ({ schemaReady, fail, serverError, enums }) => {
                 );
                 if (!rows.length) throw apiError(404, undefined, 'Category not found.');
                 assertBaseVersion(rows[0], baseVersion);
+                if (rows[0].system_key) throw systemCategory(rows[0], 'be deleted');
                 const used = await usage(conn, id);
                 if (used.itemCount || used.scheduleCount) {
                     throw apiError(409, 'CATEGORY_IN_USE',

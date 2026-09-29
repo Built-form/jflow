@@ -24,13 +24,13 @@ step's "Done when" holds and its commit is made.
 | 11 | First deploy — STOP (Dev) | not started |
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
 | 13 | Phase 2: adopt the plan — STOP (Dev) | done (signed off 2026-09-29) |
-| 14 | Phase 2: shipping — port the math (tests first) | in progress (shipping branch `phase2-payments-flow`) |
+| 14 | Phase 2: shipping — port the math (tests first) | done (shipping `phase2-payments-flow` @ `14e6115`) |
 | 15 | Phase 2: shipping — input assembler + `/payments-flow` — STOP before deploy | not started |
 | 16 | Phase 2: ShipLine shadow — STOP before each deploy | not started |
 | 17 | Phase 2: ShipLine cut over — STOP | not started |
 | 18 | Phase 2: shipping `/api/internal/payments-forecast` — STOP (secret, deploy) | not started |
-| 19 | Phase 2: JFlow schema, client, refresh | in progress |
-| 20 | Phase 2: JFlow loader, engine, `/forecast` | not started |
+| 19 | Phase 2: JFlow schema, client, refresh | done |
+| 20 | Phase 2: JFlow loader, engine, `/forecast` | done |
 | 21 | Phase 2: JFlow overlay routes + `ship.` scenarios | not started |
 | 22 | Phase 2: web (mobile parked) | not started |
 | 23 | Phase 2: deploy — STOP (Dev) | not started |
@@ -630,3 +630,149 @@ hold.
 **Shipping repo**: the work is on local branch `phase2-payments-flow`, cut from
 `shipping/test` at `d896b5a`. It tracks no upstream and is never pushed without Dev.
 Dev's `master` and `test` are untouched.
+
+## Phase 2 — Step 20: loader, engine, `/forecast` for ship lines (2026-09-29)
+
+Built alongside step 19 (its migration, `shipping.js` and `shippingRefresh.js` were in place
+and its e2e green before the loader work started). Tests first: the engine and lines suites
+failed on the missing ship code before it existed.
+
+**Shipped**
+- `lib/lines.js`: `shipEffectiveValues` (§3.4, P6), `shipLine` (§9.3.1), `shipDerivedStatus`,
+  `hasShipOverlay`, `SHIP_SETTLE_MODE`. Still no band table; `classify.js` is untouched.
+- `lib/engine.js`: ship records (kind `ship`, the systemKey `ship` category, `out`, `manual`),
+  the `ship` block and feed flags on `rows[].items[]` (never a band), no `paymentId` on ship
+  payment lines, ship currencies in scope, the `shipping` block, and the warnings
+  `SHIP_UNMAPPED` / `SHIP_PLAN_ORPHANED` / `SHIP_PLAN_STALE` (order: NO_ANCHOR, route
+  warnings, ORPHAN_OVERRIDE, SHIP_*). `ship.` adjustments use the one `staleReason`.
+- `services/forecastLoad.js`: `shipResolvedSelect` (P5 in SQL), rule 11 (`loadShipRows`,
+  with `unmappedCounts`), rule 6 (`loadShipTargets`), `loadShipCategory`, `loadShipSync`,
+  `loadTarget`'s `ship.` branch; categories carry `systemKey`; `engineInput` gains `shipping`.
+- `routes/forecast.js`: `refreshIfStale({today})` before the read connection; a failure →
+  `SHIPPING_UNAVAILABLE {reason, lastSuccessAt}` on a 200 built on the last snapshot.
+- `services/externalItems.js` + `GET /external-items` in step 19's `routes/external.js`;
+  `lib/shape.js` `externalItemToJson`.
+- Tests: `engine.test.js` (+13 ship tests), `lines.test.js` (+ship helpers), `shape.test.js`,
+  new `test/e2e/forecast-ship.test.js` (8). Phase-1 pins updated for the contract's new
+  shape: the `shipping` key, `engineInput.shipping`, category `systemKey`; `forecast.test.js`
+  serves an empty stub feed so its exact `warnings[]` stay phase 1's. The e2e harness now
+  drops `SHIPPING_API_BASE`/`SHIPPING_API_KEY`, so no suite can reach a real shipping API.
+
+**Validation**: lint clean; unit 879/879 (19 suites); e2e 185/185 (16 suites, step 19's
+included); no `jflow_test_*` schema left. The e2e `/forecast` shows the Stock payments row.
+
+**Decisions where CONTRACT was silent or ambiguous** (CONTRACT.md not edited)
+- A paid row's effective date is its `paid_on`, so a paid row is never "undated": `loadTarget`
+  reads it `TARGET_SETTLED`, not `TARGET_MISSING`, and `/external-items` sorts/filters it by it.
+- Undated open rows make no line even when skipped (the classifier needs a date): they are
+  `TARGET_MISSING` as targets and `derivedStatus: null`; skipped ones are not in `undatedCount`.
+- `SHIP_PLAN_ORPHANED` needs gone rows, which rule 11 excludes: the loader also loads gone rows
+  that carry an overlay (in-scope, anchored accounts), for the warning only.
+- `SHIP_UNMAPPED` scope: a row whose shipping company maps to no JFlow company counts in every
+  scope; one whose company matched but has no usable account counts only in that company's
+  scope and `all`. The default account must be live and active too, else unmapped.
+- Gone ship rows are not currencies in scope (they make no line). `SHIP_PLAN_STALE` only for
+  open, not-skipped rows. The ship name skips missing parts; flags order: feed flags first.
+- A `skipped` refresh (claim held) warns `SHIPPING_UNAVAILABLE` when `last_error` is set, so the
+  warning does not flicker inside the 60-second claim; a throw inside the refresh is logged and
+  reported as `unreachable`. `lastSuccessAt` is the loaded snapshot's.
+- `GET /external-items?companyId=` not live → 400 (as `/forecast`); `from`/`to` drop undated rows.
+
+**Left for step 21**: `PUT`/`DELETE /external-items/:key` (reuse `readExternalItem` /
+`decorateExternalItems`), the `ship.` branch of the adjustment write, rebase and apply locks
+(`external_items` after `cash_items`), apply's overlay write, and their e2e.
+
+**Deferred**: none beyond CONTRACT §11.
+
+## Phase 2 — Step 14: shipping ports the payment math (2026-09-29)
+
+In the **shipping** repo, on branch `phase2-payments-flow` (from `shipping/test` @ `d896b5a`),
+commit `14e6115`. Not pushed.
+
+**Shipped**
+- `src/lib/payments-flow/`:
+  - modules `dates`, `containers`, `lines`, `money`, `terms`, `suppliers`, `policy`,
+    `due`, `po`, `flow`, `ids`, `types`, `index`;
+  - a type-stripped CommonJS port of `buildPaymentsFlow` from ShipLine `f9499bc`.
+    75/78 top-level statements are byte-identical to the stripped TS; the other 3 are the
+    two deliberate changes (`today` required, `dateOfInstant` pinned to Europe/London).
+- `tools/payments-flow-oracle.mjs` runs the frozen TS and refuses anything that isn't
+  f9499bc or isn't London time.
+- 13 fixtures with expected outputs; the terms, golden and ids tests are added to
+  `test:unit`.
+
+**Validation**
+- Every fixture deep-equals the oracle.
+- shipping `test:unit` is **197/197** under TZ=UTC and TZ=Europe/London, on Node 18.20.8
+  and Node 24.
+- The lib requires only local files and `crypto`, and reads no clock.
+- Coverage: 99.9% lines, 90.8% branches.
+
+**Findings that change the plan**
+- At f9499bc the model no longer emits `shipment:` items: the 09-28 rule removed them.
+  So PHASE2 finding 3's duplicate id is gone, and "recording an invoice mints a new id" no
+  longer happens. `inv-…-a|s` survives only as a claim-level id.
+- For step 18:
+  - `pay-<sp>-bal<target>` needs a `-<po>` suffix when one transfer is split per PO;
+  - the model doesn't yet output the per-PO claim shares that paid rows need;
+  - `<g>` upper-cases refs, but the TS groups refs case-sensitively.
+
+**Likely bugs in ShipLine's TS, found by the oracle** (reported to Dev, not fixed;
+identity first):
+1. A PO bundle with no `id` crashes the model.
+2. The "PI uploaded" rule ignores an uploaded PI with no extracted payment row.
+3. With several open balance records on one box, the last claim wins `shipmentPaymentId`
+   and status.
+4. Transfers are applied across currencies one-for-one (a EUR transfer reduced a USD PI).
+5. Mixed day boundaries: shipment stages use the London date, while ShipsGo times and PI
+   uploads use the UTC date.
+6. Flags from a replaced date source linger (`bl_issued`, `derived_date`).
+7. Under TZ=UTC the TS itself moves 5 items in the midnight fixture, which confirms the
+   London pin.
+
+## Phase 2 — Step 19: JFlow schema, client, refresh (2026-09-29)
+
+**Shipped**
+- `src/db/migrations/2026-09-29_jflow_ship.sql` (CONTRACT §3.5): `external_items`,
+  `external_sync`, `companies.shipping_company_id`, `categories.system_key`, and the
+  "Stock payments" system category. 17 tables.
+- `services/shipping.js`:
+  - a 5s `AbortController` timeout, `X-Api-Key`, env read per call;
+  - `validateFeed` also rejects `amount <= 0`, inconsistent open/paid rows and
+    case-insensitive duplicate ids.
+- `services/shippingRefresh.js`:
+  - no transaction; its own connection with a 5s lock wait; claim → fetch → diff;
+  - never DELETEs, never writes `planned_*`;
+  - a busy row is skipped until the next run;
+  - `refreshIfStale`.
+- `routes/external.js`: `POST /external/refresh` (`{ran, status}`, the claim
+  honoured, 503 `SHIPPING_UNAVAILABLE`) and `GET /external/status`.
+- `PUT /companies/:id {shippingCompanyId}` with 409 `SHIPPING_COMPANY_TAKEN`. A system
+  category refuses delete and direction change (P10).
+- put-secret, `serverless.yml` and `.env.example` gain `SHIPPING_API_BASE` /
+  `SHIPPING_API_KEY`. `SCHEMA_VERSION` is now `2026-09-29.2`.
+
+**Validation**
+- Tests first.
+- `migrate.test.js` runs `tools/migrate.js` twice on a per-run schema: 2 applied, then 0;
+  every statement replays cleanly.
+- The refresh e2e covers:
+  - insert, change, gone and back;
+  - an overlay surviving a refresh that changes every feed column;
+  - the claim blocking a concurrent run;
+  - a failed fetch writing only `last_error`;
+  - the 5s lock wait.
+- `grep planned_ src/services/shippingRefresh.js` → nothing.
+
+**Notes**
+- `arranged` (a feed field) has no column in §3.5, so it isn't stored.
+- `serverless.yml` bakes `SHIPPING_API_KEY` into the template as PHASE2 says;
+  `lib/secrets.js` could fetch it at cold start instead (Dev to decide).
+- CONTRACT §6.1's `/meta/enums` row still lists only phase 1's keys, while §7 lists more.
+  The handler serves §7's.
+
+**Deploy seen during the build**: a `bash deploy.sh test` ran at 13:18, not started by
+the coordinator or an agent. It applied `2026-09-29_jflow_ship.sql` to the shared
+explorer-test `jflow` schema at 11:18 UTC; the applied checksum matches the committed file.
+It packaged the working tree as it was then, with steps 19–20 half-built. **The test stage
+should be redeployed from a committed state.**

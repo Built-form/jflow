@@ -186,10 +186,11 @@ describe('loadEngineInput (§8 → the engineInput typedef)', () => {
         const input = await loadIn();
         expect(Object.keys(input).sort()).toEqual([
             'accounts', 'adjustments', 'bucket', 'categories', 'companyId', 'externalItems', 'from', 'include',
-            'items', 'overrides', 'payments', 'rates', 'scenario', 'schedules', 'to', 'today', 'warnings',
+            'items', 'overrides', 'payments', 'rates', 'scenario', 'schedules', 'shipping', 'to', 'today', 'warnings',
         ]);
         expect(input).toMatchObject({
             today: TODAY, from: FROM, to: TO, bucket: 'week', include: 'grid', companyId: inCo.id, externalItems: [],
+            shipping: null,
             scenario: { id: scenarioId, name: 'Loader what-if', status: 'draft' },
         });
         // Live + active accounts of the company, in the /accounts order; dormant is out.
@@ -268,8 +269,8 @@ describe('loadEngineInput (§8 → the engineInput typedef)', () => {
     test('categories of what was loaded; rates for the currencies in scope only (rule 8)', async () => {
         const input = await loadIn();
         expect([...input.categories].sort(byId)).toEqual([
-            { id: costs.id, name: 'Costs', direction: 'out', sortOrder: 0 },
-            { id: sales.id, name: 'Sales', direction: 'in', sortOrder: 0 },
+            { id: costs.id, name: 'Costs', direction: 'out', sortOrder: 0, systemKey: null },
+            { id: sales.id, name: 'Sales', direction: 'in', sortOrder: 0, systemKey: null },
         ].sort(byId));
         expect(input.categories.map((c) => c.id)).not.toContain(unused.id);
         expect(engine.currenciesInScope(input)).toEqual(['EUR', 'GBP', 'USD']);

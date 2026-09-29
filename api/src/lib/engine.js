@@ -31,13 +31,19 @@
 // manual schedule also back to max(start_date, today − 730) (§8 rule 5); plus, for every
 // schedule, the natural date of each of its overrides (rule 3) and of each adjustment
 // target (rule 6).
+//
+// Ship lines (Phase 2, §9.3.1). Each `externalItems` row that makes a line (lib/lines.js
+// shipLine: not gone, and paid or dated) becomes one line of the systemKey 'ship'
+// category, direction 'out', settle mode 'manual', and then flows through steps 5–12
+// exactly as items and instances do. Undated open rows are only counted (the `shipping`
+// block); a gone row with an overlay only warns (SHIP_PLAN_ORPHANED).
 
 const { addDays, addMonthsClamped, dayOfWeek, diffDays, isValidDate } = require('./dates');
 const { parseMinor, parseRate, toGbp, fromGbp } = require('./money');
-const { buildItemKey, buildSchedKey } = require('./keys');
+const { buildItemKey, buildSchedKey, buildShipKey } = require('./keys');
 const { occurrences, isOccurrence, effectiveValues } = require('./recurrence');
 const { classify } = require('./classify');
-const { itemLine } = require('./lines');
+const { itemLine, shipLine, shipEffectiveValues, hasShipOverlay } = require('./lines');
 
 /**
  * CONTRACT §8's `engineInput`, field for field. Rows are the camelCase JSON of lib/shape.js
@@ -60,9 +66,41 @@ const { itemLine } = require('./lines');
  * @property {EngineOverride[]} overrides    every override row of every loaded schedule (D31)
  * @property {EnginePayment[]} payments      rows of loaded items / overrides with paidOn >= minA (rule 4)
  * @property {EngineAdjustment[]} adjustments the scenario's adjustments (any order; applied by ascending id)
- * @property {Array} externalItems           [] in phase 1
+ * @property {EngineExternalItem[]} externalItems  §8 rule 11 plus rule-6 `ship.` targets (Phase 2)
+ * @property {EngineShipping|null} [shipping]  external_sync; null until the feed has succeeded once
  * @property {EngineScenario|null} scenario
- * @property {Array<{code: 'NO_ANCHOR', accountId: number}>} warnings  the loader's; merged, not duplicated
+ * @property {Array<{code: 'NO_ANCHOR', accountId: number}|{code: 'SHIPPING_UNAVAILABLE', reason: string,
+ *           lastSuccessAt: string|null}>} warnings  the loader's and the route's; merged, not duplicated
+ *
+ * @typedef {object} EngineExternalItem  an external_items row (§3.5) in camelCase plus its resolution
+ * @property {string} extId                  key = ship.<extId> (§4)
+ * @property {'deposit'|'balance'} feedKind
+ * @property {'open'|'paid'} feedStatus
+ * @property {string|null} supplier
+ * @property {string|null} poNumber
+ * @property {string|null} containerRef
+ * @property {string} currency
+ * @property {string} amount                 open: still owed; paid: this payment
+ * @property {string|null} dueDate           open rows (null = undated)
+ * @property {string|null} paidOn            paid rows
+ * @property {'firm'|'estimated'|'undated'} dateBasis
+ * @property {'stated'|'derived'} amountBasis
+ * @property {string|null} blocked
+ * @property {string|null} goneAt            set → never projected (a rule-6 target, or an orphaned overlay)
+ * @property {string|null} plannedDate       overlay (§3.5)
+ * @property {string|null} plannedAmount
+ * @property {boolean|number} plannedSkipped
+ * @property {string|null} plannedBaseAmount
+ * @property {string|null} plannedNote
+ * @property {number|null} sourceScenarioId
+ * @property {number|null} accountId         resolved at load (§3.4, P5); null = unmapped
+ * @property {number|null} companyId
+ * @property {boolean} [inScope]             false for an out-of-scope or unmapped rule-6 target
+ *
+ * @typedef {object} EngineShipping
+ * @property {string|null} lastSuccessAt     ISO 8601
+ * @property {string|null} feedToday
+ * @property {Array<{shippingCompanyId: number|null, count: number}>} unmappedCounts  rows omitted (SHIP_UNMAPPED)
  *
  * @typedef {object} EngineAccount
  * @property {number} id
@@ -77,6 +115,7 @@ const { itemLine } = require('./lines');
  * @property {string} name
  * @property {'in'|'out'} direction
  * @property {number} sortOrder
+ * @property {string|null} [systemKey]       'ship' on "Stock payments" (P10), the category of every ship line
  *
  * @typedef {object} EngineItem  itemToJson (§6.7) plus inScope
  * @property {number} id
@@ -226,13 +265,16 @@ function clampWindow(today, from, to) {
 
 /**
  * §3.4's currencies in scope: the in-scope accounts' currencies ∪ the currencies of every
- * loaded item and schedule, adjustment targets included. Sorted.
+ * loaded item, schedule and ship row (undated rows included), adjustment targets
+ * included. A gone ship row makes no line and is converted nowhere, so it needs no rate.
+ * Sorted.
  */
 function currenciesInScope(input) {
     const set = new Set();
     for (const a of input.accounts || []) set.add(a.currency);
     for (const i of input.items || []) set.add(i.currency);
     for (const s of input.schedules || []) set.add(s.currency);
+    for (const e of input.externalItems || []) if (e.goneAt == null) set.add(e.currency);
     return [...set].sort();
 }
 
@@ -312,12 +354,67 @@ function instanceRecord(schedule, naturalDate, override, payments) {
     };
 }
 
+const FEED_STATUSES = ['open', 'paid'];
+
+function requireFeedStatus(row) {
+    if (!FEED_STATUSES.includes(row.feedStatus)) {
+        throw new TypeError(`engine: ship row ${JSON.stringify(row.extId)} feedStatus must be 'open' or 'paid', got ${JSON.stringify(row.feedStatus)}`);
+    }
+    return row.feedStatus;
+}
+
+/** §6.10: `<supplier> · <poNumber> · deposit|balance`, leaving out what the feed does not know. */
+const shipName = (row) => [row.supplier, row.poNumber, row.feedKind].filter((p) => p != null && p !== '').join(' · ');
+
+/** §6.10's ship flags, carried on the line; none of them changes a band. */
+function shipFlags(row) {
+    const flags = [];
+    if (row.dateBasis === 'estimated') flags.push('estimated');
+    if (row.amountBasis === 'derived') flags.push('projected');
+    if (row.blocked != null) flags.push('blocked');
+    if (hasShipOverlay(row)) flags.push('planned');
+    return flags;
+}
+
+/**
+ * §9.3.1: a ship row that makes a line (lib/lines.js shipLine) → its record: kind 'ship',
+ * the systemKey 'ship' category, direction 'out', settle mode 'manual', the resolved
+ * account. `hasPaymentState` is true for a paid row (the feed row is the payment).
+ */
+function shipRecord(row, line, category) {
+    return {
+        key: buildShipKey(row.extId), kind: 'ship', id: row.extId, scheduleId: null, naturalDate: null,
+        name: shipName(row),
+        counterparty: row.supplier ?? null,
+        categoryId: category.id,
+        direction: 'out',
+        accountId: row.accountId,
+        currency: row.currency,
+        inScope: row.inScope !== false && row.accountId != null,
+        status: line.status, settleMode: line.settleMode, date: line.effectiveDate,
+        amountMinor: line.amountMinor, paidAmountMinor: line.paidAmountMinor, payments: line.payments,
+        tuned: false, sourceScenarioId: row.sourceScenarioId ?? null, hasPaymentState: line.status === 'paid',
+        shipFlags: shipFlags(row),
+        ship: {
+            kind: row.feedKind, poNumber: row.poNumber ?? null, containerRef: row.containerRef ?? null,
+            dateBasis: row.dateBasis, amountBasis: row.amountBasis, blocked: row.blocked ?? null,
+            feedDate: row.dueDate ?? null, feedAmountMinor: parseMinor(row.amount),
+        },
+    };
+}
+
+/** The systemKey 'ship' category (P10); every ship line sits in it. */
+function shipCategoryOf(categories) {
+    for (const c of categories.values()) if (c.systemKey === 'ship') return c;
+    throw new TypeError("engine: ship lines need the systemKey 'ship' category in input.categories");
+}
+
 /**
  * Every loaded line, keyed by its item key: the in-scope lines of the forecast and the
  * out-of-scope adjustment targets (kept for their stale check only). Emits ORPHAN_OVERRIDE
  * for an in-scope schedule's override whose natural date is not an occurrence (§5.5).
  */
-function buildRecords(input, { today, window, anchors, minA }) {
+function buildRecords(input, { today, window, anchors, minA, categories }) {
     const records = new Map();
     const orphans = [];
     const paymentsOfItem = groupBy(input.payments, 'cashItemId');
@@ -360,6 +457,16 @@ function buildRecords(input, { today, window, anchors, minA }) {
             const rec = instanceRecord(schedule, naturalDate, o, o ? paymentsOfOverride.get(o.id) || [] : []);
             records.set(rec.key, rec);
         }
+    }
+
+    // §9.3.1: a gone row, or an open row with no effective date, makes no line (and so,
+    // as an adjustment target, reads TARGET_MISSING).
+    for (const row of input.externalItems || []) {
+        requireFeedStatus(row);
+        const line = shipLine(row);
+        if (line === null) continue;
+        const rec = shipRecord(row, line, shipCategoryOf(categories));
+        records.set(rec.key, rec);
     }
 
     orphans.sort((a, b) => a.scheduleId - b.scheduleId || (a.naturalDate < b.naturalDate ? -1 : 1));
@@ -434,9 +541,9 @@ function sectionOf(piece, today) {
     return section;
 }
 
-/** §6.10's item flags, in a fixed order. */
+/** §6.10's item flags, in a fixed order (a ship line's feed flags first). */
 function rowFlags(line, piece) {
-    const flags = [];
+    const flags = line.shipFlags ? [...line.shipFlags] : [];
     if (line.tuned) flags.push('tuned');
     if (line.sourceScenarioId != null) flags.push('fromScenario');
     if (piece.isPayment) {
@@ -624,9 +731,14 @@ function absorbedJson(p) {
         amountMinor: num(p.amountMinor), accountMinor: num(p.accountMinor), gbpMinor: num(p.gbpMinor),
         direction: l.direction,
     };
-    if (p.isPayment) out.paymentId = p.paymentId;
+    if (p.isPayment && p.paymentId != null) out.paymentId = p.paymentId;   // a ship payment has no payments row
     out.flags = p.isPayment ? (p.partial ? ['paid', 'partial'] : ['paid']) : ['assumed'];
     return out;
+}
+
+/** §6.10 rows[].items[].ship: the feed's view of a ship line. */
+function shipJson(ship) {
+    return { ...ship, feedAmountMinor: num(ship.feedAmountMinor) };
 }
 
 function accountJson(a, today, used) {
@@ -688,7 +800,8 @@ function buildRows(set, baseline, ranges, { window, categories, scenario }) {
             flags: p.flags,
             editable: l.status === 'expected' && !p.remainder && editableSet,
         });
-        if (p.isPayment) out.paymentId = p.paymentId;
+        if (p.isPayment && p.paymentId != null) out.paymentId = p.paymentId;
+        if (l.kind === 'ship') out.ship = shipJson(l.ship);
         if (scenario !== null) {
             const b = baseline.byIdentity.get(p.identity);
             out.baseline = b ? { date: b.date, amountMinor: num(b.amountMinor), gbpMinor: num(b.gbpMinor), flags: b.flags } : null;
@@ -707,6 +820,59 @@ function buildRows(set, baseline, ranges, { window, categories, scenario }) {
         }));
 }
 
+// ── The shipping block and the ship warnings (§6.10, Phase 2) ───────────────────────────
+
+/**
+ * Over the ship rows of in-scope, anchored accounts (rule 11's rows; out-of-scope and
+ * unmapped rule-6 targets count nowhere): the `shipping` block — openCount (open rows,
+ * skipped included), undatedCount / undatedGbp (open, not skipped, no effective date;
+ * GBP at §9.7's rates, once per row), unmappedCount (Σ of the loader's SHIP_UNMAPPED
+ * counts) — or null when the feed has never succeeded (`input.shipping` null); and the
+ * warnings SHIP_UNMAPPED (one per shipping company, as the loader counted them),
+ * SHIP_PLAN_ORPHANED (an overlay on a gone row) and SHIP_PLAN_STALE (P6: a planned
+ * amount ignored because the feed amount moved), each sorted by key.
+ */
+function shipFeed(input, { anchors, rateOf }) {
+    let openCount = 0n;
+    let undatedCount = 0n;
+    let undatedGbp = 0n;
+    const orphaned = new Set();
+    const stale = new Set();
+    for (const row of input.externalItems || []) {
+        if (row.inScope === false || row.accountId == null || !anchors.has(row.accountId)) continue;
+        const key = buildShipKey(row.extId);
+        if (row.goneAt != null) {
+            if (hasShipOverlay(row)) orphaned.add(key);
+            continue;
+        }
+        if (requireFeedStatus(row) !== 'open') continue;
+        openCount += 1n;
+        const ev = shipEffectiveValues(row);
+        if (ev.status === 'skipped') continue;
+        if (ev.planStale) stale.add(key);
+        if (ev.effectiveDate == null) {
+            undatedCount += 1n;
+            undatedGbp += toGbp(parseMinor(ev.effectiveAmount), rateOf(row.currency));
+        }
+    }
+    const sync = input.shipping ?? null;
+    const unmapped = sync ? sync.unmappedCounts || [] : [];
+    const block = sync === null ? null : {
+        lastSuccessAt: sync.lastSuccessAt ?? null,
+        feedToday: sync.feedToday ?? null,
+        openCount: num(openCount),
+        undatedCount: num(undatedCount),
+        undatedGbp: num(undatedGbp),
+        unmappedCount: unmapped.reduce((acc, u) => acc + Number(u.count), 0),
+    };
+    const warnings = [
+        ...unmapped.map((u) => ({ code: 'SHIP_UNMAPPED', shippingCompanyId: u.shippingCompanyId ?? null, count: Number(u.count) })),
+        ...[...orphaned].sort().map((key) => ({ code: 'SHIP_PLAN_ORPHANED', key })),
+        ...[...stale].sort().map((key) => ({ code: 'SHIP_PLAN_STALE', key })),
+    ];
+    return { block, warnings };
+}
+
 // ── run ──────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -721,7 +887,6 @@ function run(input) {
     const include = input.include ?? 'grid';
     if (!BUCKETS.includes(bucket)) throw new TypeError(`engine: bucket must be one of ${BUCKETS.join(', ')}, got ${JSON.stringify(bucket)}`);
     if (!INCLUDES.includes(include)) throw new TypeError(`engine: include must be one of ${INCLUDES.join(', ')}, got ${JSON.stringify(include)}`);
-    if ((input.externalItems || []).length) throw new TypeError('engine: externalItems must be [] in phase 1');
     const scenario = input.scenario ?? null;
 
     const { rateOf, used } = buildRates(input);
@@ -795,10 +960,13 @@ function run(input) {
         body.scenario = null;
     }
     body.unresolved = main.unresolved.map((p) => unresolvedJson(p, today));
+    const feed = shipFeed(input, ctx);
+    body.shipping = feed.block;
     body.warnings = [
         ...[...noAnchor].sort((a, b) => a - b).map((accountId) => ({ code: 'NO_ANCHOR', accountId })),
         ...(input.warnings || []).filter((w) => w.code !== 'NO_ANCHOR'),
         ...orphans,
+        ...feed.warnings,
     ];
     return body;
 }

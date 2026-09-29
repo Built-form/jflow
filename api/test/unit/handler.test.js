@@ -89,11 +89,22 @@ describe('meta/enums', () => {
         const res = await request(app).get('/api/v1/meta/enums').expect(200);
         expect(res.body).toEqual(ENUMS);
         expect(Object.keys(res.body).sort()).toEqual([
-            'adjustmentKinds', 'buckets', 'derivedStatuses', 'directions', 'errorCodes', 'frequencies',
-            'includeModes', 'itemStatuses', 'overrideStatuses', 'scenarioStatuses', 'scheduleStatuses',
-            'settleModes', 'staleReasons', 'targetKinds', 'userTypes', 'warningCodes', 'weekendRules',
+            'adjustmentKinds', 'amountBases', 'buckets', 'dateBases', 'derivedStatuses', 'directions', 'errorCodes',
+            'feedKinds', 'feedStatuses', 'frequencies', 'includeModes', 'itemStatuses', 'overrideStatuses',
+            'scenarioStatuses', 'scheduleStatuses', 'settleModes', 'shippingReasons', 'staleReasons', 'targetKinds',
+            'userTypes', 'warningCodes', 'weekendRules',
         ]);
         expect(res.body.userTypes).toEqual(['standard', 'admin']);
+    });
+
+    test('Phase 2 vocabularies (CONTRACT §7) come from services/shipping.js, which enforces them', () => {
+        expect(ENUMS.feedKinds).toEqual(['deposit', 'balance']);
+        expect(ENUMS.feedStatuses).toEqual(['open', 'paid']);
+        expect(ENUMS.dateBases).toEqual(['firm', 'estimated', 'undated']);
+        expect(ENUMS.amountBases).toEqual(['stated', 'derived']);
+        expect(ENUMS.shippingReasons).toEqual(['unconfigured', 'timeout', 'unreachable', 'http_401', 'http_<status>', 'bad_response']);
+        expect(ENUMS.errorCodes).toEqual(expect.arrayContaining(['SHIPPING_COMPANY_TAKEN', 'PLANNED_DATE_IN_PAST', 'SHIPPING_UNAVAILABLE']));
+        expect(ENUMS.warningCodes).toEqual(expect.arrayContaining(['SHIPPING_UNAVAILABLE', 'SHIP_UNMAPPED', 'SHIP_PLAN_ORPHANED', 'SHIP_PLAN_STALE']));
     });
 
     test('every list is non-empty and duplicate-free', () => {
@@ -104,7 +115,11 @@ describe('meta/enums', () => {
     });
 
     test('warnings and stale reasons are not refusal codes (TARGET_* are both a refusal and a reason)', () => {
-        for (const w of ENUMS.warningCodes) expect(ENUMS.errorCodes).not.toContain(w);
+        // SHIPPING_UNAVAILABLE alone is both (CONTRACT §7): a 503 on POST /external/refresh,
+        // a 200 warning on /forecast.
+        for (const w of ENUMS.warningCodes.filter((c) => c !== 'SHIPPING_UNAVAILABLE')) {
+            expect(ENUMS.errorCodes).not.toContain(w);
+        }
         expect(ENUMS.errorCodes).not.toContain('BASE_CHANGED');
         expect(ENUMS.errorCodes).toEqual(expect.arrayContaining(['ADMIN_REQUIRED', 'STALE_WRITE', 'TARGET_SETTLED', 'TARGET_MISSING']));
     });

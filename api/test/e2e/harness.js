@@ -74,6 +74,11 @@ async function startHarness() {
     process.env.BOOTSTRAP_ADMIN_EMAILS = 'local@dev';
     delete process.env.AWS_LAMBDA_FUNCTION_NAME;
     delete process.env.STAGE;
+    // Phase 2: no suite may reach a real shipping API through api/.env. A suite that needs
+    // the feed points SHIPPING_API_BASE / SHIPPING_API_KEY at test/helpers/shippingStub.js
+    // after this call; every other /forecast sees an unconfigured feed (SHIPPING_UNAVAILABLE).
+    delete process.env.SHIPPING_API_BASE;
+    delete process.env.SHIPPING_API_KEY;
 
     const { app } = require('../../src/handlers/jflow');
     const db = require('../../src/db');

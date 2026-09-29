@@ -13,14 +13,21 @@
 //      with no rate `effective_from <= today` — before the engine runs;
 //   4  lib/engine.js run → the §6.10 body, plus `meta.generatedAt`, serialised with
 //      money as JSON integers (minor units).
+//
+// Phase 2 (P4, §10.12): between 1 and 2 the shipping snapshot is refreshed when it is due
+// (services/shippingRefresh.js refreshIfStale), BEFORE the read connection is taken. A
+// refresh that fails never fails the forecast: the response is built on the last
+// snapshot and carries SHIPPING_UNAVAILABLE {reason, lastSuccessAt}.
 
 const express = require('express');
 
 const { withConnection } = require('../db');
+const log = require('../lib/logger');
 const { isValidDate, addDays } = require('../lib/dates');
 const { apiError, isApiError, sendApiError, parseId } = require('../lib/shape');
 const { run, clampWindow, currenciesInScope, DEFAULT_WINDOW_DAYS, MAX_WINDOW_DAYS } = require('../lib/engine');
 const { loadEngineInput, loadScenario } = require('../services/forecastLoad');
+const { refreshIfStale } = require('../services/shippingRefresh');
 
 const GBP = 'GBP';          // D3: rate 1.000000, never an fx_rates row
 
@@ -83,6 +90,44 @@ function readSnapshot(fn) {
     });
 }
 
+const isoOrNull = (v) => (v == null ? null : v instanceof Date ? v.toISOString() : String(v));
+
+// The reasons SHIPPING_UNAVAILABLE carries (§6.10): unconfigured | timeout | unreachable |
+// http_401 | http_<status> | bad_response.
+const SHIPPING_REASON_RE = /^(unconfigured|timeout|unreachable|http_\d{3}|bad_response)$/;
+
+const unavailableWarning = (reason, sync) => ({
+    code: 'SHIPPING_UNAVAILABLE', reason, lastSuccessAt: isoOrNull(sync ? sync.last_success_at : null),
+});
+
+/**
+ * P4 / §10.12: refresh the shipping snapshot when it is due, holding no connection of the
+ * route's. → null, or the SHIPPING_UNAVAILABLE warning when the refresh that was due did
+ * not succeed:
+ *   'fresh' / 'ok'  nothing to say;
+ *   'failed'        the run's reason;
+ *   'skipped'       another run holds the 60-second claim — the snapshot is due, so when
+ *                   the last attempt failed (external_sync.last_error, `<reason>: …`) that
+ *                   failure is reported; a claim held by a run still in flight is not;
+ *   a throw         (a database or programming error inside the refresh) is logged and
+ *                   reported as `unreachable`: the feed could not be reached this time.
+ */
+async function refreshShipping(today) {
+    let result;
+    try {
+        result = await refreshIfStale({ today });
+    } catch (err) {
+        log.error('[forecast] shipping refresh failed:', err && err.message ? err.message : err);
+        return unavailableWarning(err && SHIPPING_REASON_RE.test(err.reason) ? err.reason : 'unreachable', null);
+    }
+    if (result.status === 'failed') return unavailableWarning(result.reason, result.sync);
+    if (result.status === 'skipped' && result.sync && result.sync.last_error) {
+        const reason = String(result.sync.last_error).split(':')[0];
+        if (SHIPPING_REASON_RE.test(reason)) return unavailableWarning(reason, result.sync);
+    }
+    return null;
+}
+
 /** JSON.stringify replacer: a bigint that reaches the edge becomes an exact JSON integer. */
 function jsonNumbers(_key, value) {
     if (typeof value !== 'bigint') return value;
@@ -99,6 +144,7 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
             await schemaReady;
             const today = todayFor(req);
             const q = parseQuery(req.query, today, enums);
+            const shippingWarning = await refreshShipping(today);          // P4: before the read connection
 
             const input = await readSnapshot(async (conn) => {
                 if (q.companyId !== 'all') {
@@ -117,6 +163,13 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
                     companyId: q.companyId, scenario,
                 });
             });
+            if (shippingWarning) {
+                // The snapshot this response is built on names its own last success.
+                input.warnings.push({
+                    ...shippingWarning,
+                    lastSuccessAt: input.shipping ? input.shipping.lastSuccessAt : shippingWarning.lastSuccessAt,
+                });
+            }
 
             const missing = currenciesInScope(input).filter((c) => c !== GBP && !input.rates[c]);
             if (missing.length) {

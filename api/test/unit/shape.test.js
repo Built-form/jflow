@@ -12,11 +12,71 @@ describe('what the trimmed module exports', () => {
     test('exactly the envelopes, parsers and auditToJson (CLAUDE.md copy table)', () => {
         expect(Object.keys(shape).sort()).toEqual([
             'accountToJson', 'adjustmentToJson', 'apiError', 'assertBaseVersion', 'auditToJson', 'balanceToJson',
-            'categoryToJson', 'companyToJson', 'fail', 'fxRateToJson', 'isApiError',
+            'categoryToJson', 'companyToJson', 'externalItemToJson', 'externalSyncToJson', 'fail', 'fxRateToJson', 'isApiError',
             'isValidEmail', 'itemToJson', 'keysetResponse', 'listResponse', 'normalizeEmail',
             'overrideToJson', 'parseBaseVersion', 'parseCap', 'parseId', 'parseListParams', 'parseSortOrder',
             'paymentToJson', 'scenarioToJson', 'scheduleToJson', 'sendApiError', 'serverError',
         ]);
+    });
+});
+
+describe('companyToJson / categoryToJson (CONTRACT §6.2, §6.4; Phase 2 §3.5)', () => {
+    const company = {
+        id: 1, code: 'JFA', name: 'JFA', sort_order: 1, shipping_company_id: '7', row_version: 3,
+        created_by: null, created_at: null, updated_at: null, deleted_at: null,
+    };
+
+    test('a company carries shippingCompanyId after sortOrder, as a number or null', () => {
+        const out = shape.companyToJson(company);
+        expect(Object.keys(out)).toEqual([
+            'id', 'code', 'name', 'sortOrder', 'shippingCompanyId', 'rowVersion', 'createdBy', 'createdAt', 'updatedAt',
+            'deletedAt',
+        ]);
+        expect(out.shippingCompanyId).toBe(7);
+        expect(shape.companyToJson({ ...company, shipping_company_id: null }).shippingCompanyId).toBeNull();
+        expect(shape.companyToJson(null)).toBeNull();
+    });
+
+    test('a category carries systemKey after sortOrder: the key or null', () => {
+        const category = {
+            id: 4, name: 'Stock payments', direction: 'out', sort_order: 900, system_key: 'ship', row_version: 0,
+            created_by: null, created_at: null, updated_at: null, deleted_at: null,
+        };
+        const out = shape.categoryToJson(category);
+        expect(Object.keys(out)).toEqual([
+            'id', 'name', 'direction', 'sortOrder', 'systemKey', 'rowVersion', 'createdBy', 'createdAt', 'updatedAt',
+            'deletedAt',
+        ]);
+        expect(out.systemKey).toBe('ship');
+        expect(shape.categoryToJson({ ...category, system_key: null }).systemKey).toBeNull();
+        expect(shape.categoryToJson({ ...category, system_key: undefined }).systemKey).toBeNull();
+    });
+});
+
+describe('externalSyncToJson (CONTRACT §6.12 GET /external/status)', () => {
+    const row = {
+        source: 'ship', last_attempt_at: 'A', last_success_at: 'S', feed_today: '2026-09-29', last_error: null,
+        item_count: 12, rejected_count: '1', companies_json: [{ id: 1, name: 'JFA Medical Ltd' }], updated_at: 'U',
+    };
+
+    test('the row in its JSON shape; configured only through extras', () => {
+        expect(shape.externalSyncToJson(row)).toEqual({
+            source: 'ship', lastAttemptAt: 'A', lastSuccessAt: 'S', feedToday: '2026-09-29', lastError: null,
+            itemCount: 12, rejectedCount: 1, companies: [{ id: 1, name: 'JFA Medical Ltd' }], updatedAt: 'U',
+        });
+        expect(Object.keys(shape.externalSyncToJson(row, { configured: false }))).toEqual([
+            'source', 'lastAttemptAt', 'lastSuccessAt', 'feedToday', 'lastError', 'itemCount', 'rejectedCount',
+            'companies', 'configured', 'updatedAt',
+        ]);
+        expect(shape.externalSyncToJson(null)).toBeNull();
+    });
+
+    test('companies: parsed from text, and [] when never fetched or unreadable', () => {
+        expect(shape.externalSyncToJson({ ...row, companies_json: '[{"id":2,"name":"Hangerworld Ltd"}]' }).companies)
+            .toEqual([{ id: 2, name: 'Hangerworld Ltd' }]);
+        expect(shape.externalSyncToJson({ ...row, companies_json: null }).companies).toEqual([]);
+        expect(shape.externalSyncToJson({ ...row, companies_json: 'nope' }).companies).toEqual([]);
+        expect(shape.externalSyncToJson({ ...row, companies_json: { id: 1 } }).companies).toEqual([]);
     });
 });
 
@@ -309,5 +369,43 @@ describe('emails', () => {
         expect(shape.isValidEmail('a b@c.test')).toBe(false);
         expect(shape.isValidEmail('')).toBe(false);
         expect(shape.isValidEmail(null)).toBe(false);
+    });
+});
+
+describe('externalItemToJson (Phase 2, CONTRACT §6.12)', () => {
+    const row = {
+        id: 5, source: 'ship', ext_id: 'bal-812-s311', feed_kind: 'balance', feed_status: 'open', supplier: 'Acme',
+        shipping_company_id: '11', resolved_company_id: '2', resolved_account_id: '9', po_id: '812', po_number: 'PO-812',
+        shipment_id: '311', container_ref: 'MSKU1', currency: 'USD', amount: '1000.00', due_date: '2026-03-20',
+        paid_on: null, settles: null, date_basis: 'estimated', amount_basis: 'stated', blocked: null,
+        flags_json: '["estimated"]', gone_at: null, planned_date: '2026-04-01', planned_amount: '900.00',
+        planned_skipped: 0, planned_base_amount: '1100.00', planned_note: null, source_scenario_id: null,
+        planned_by: 'a@b.c', planned_at: null, feed_hash: 'x', row_version: 2, created_by: 'shipping-feed',
+        created_at: null, updated_at: null,
+    };
+
+    test('the §6.12 keys in order; ids as numbers; the resolution; effective values per §3.4 / P6', () => {
+        const out = shape.externalItemToJson(row, { derivedStatus: 'expected' });
+        expect(Object.keys(out)).toEqual([
+            'key', 'id', 'source', 'extId', 'feedKind', 'feedStatus', 'supplier', 'shippingCompanyId', 'companyId',
+            'accountId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'currency', 'amount', 'dueDate', 'paidOn',
+            'settles', 'dateBasis', 'amountBasis', 'blocked', 'flags', 'goneAt', 'plannedDate', 'plannedAmount',
+            'plannedSkipped', 'plannedBaseAmount', 'plannedNote', 'sourceScenarioId', 'plannedBy', 'plannedAt',
+            'effectiveDate', 'effectiveAmount', 'planStale', 'derivedStatus', 'rowVersion', 'createdBy', 'createdAt',
+            'updatedAt',
+        ]);
+        expect(out).toMatchObject({
+            key: 'ship.bal-812-s311', shippingCompanyId: 11, companyId: 2, accountId: 9, poId: 812, shipmentId: 311,
+            flags: ['estimated'], plannedSkipped: false, effectiveDate: '2026-04-01', effectiveAmount: '1000.00',
+            planStale: true, derivedStatus: 'expected',
+        });
+    });
+
+    test('no resolution selected → companyId / accountId null; derivedStatus only when given', () => {
+        const { resolved_company_id: _c, resolved_account_id: _a, ...bare } = row;
+        const out = shape.externalItemToJson(bare);
+        expect(out).toMatchObject({ companyId: null, accountId: null });
+        expect('derivedStatus' in out).toBe(false);
+        expect(shape.externalItemToJson(null)).toBeNull();
     });
 });

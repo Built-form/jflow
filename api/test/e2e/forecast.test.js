@@ -19,12 +19,27 @@ const {
     insertSchedule, insertOverride, insertOverridePayment, insertScenario, insertAdjustment,
 } = require('./forecastHelpers');
 const { londonToday } = require('../../src/lib/dates');
+const { startShippingStub } = require('../helpers/shippingStub');
 
 jest.setTimeout(240000);
 
+// Phase 2: /forecast refreshes the shipping snapshot first (P4). This suite serves it an
+// empty, healthy feed from the stub, so its exact warnings[] are the phase-1 ones and no
+// SHIPPING_UNAVAILABLE appears; ship lines are pinned in forecast-ship.test.js.
 let h;
-beforeAll(async () => { h = await startHarness(); });
-afterAll(async () => { if (h) await h.stop(); });
+let stub;
+beforeAll(async () => {
+    h = await startHarness();
+    stub = await startShippingStub();
+    process.env.SHIPPING_API_BASE = stub.url;
+    process.env.SHIPPING_API_KEY = 'e2e-forecast-key';
+});
+afterAll(async () => {
+    delete process.env.SHIPPING_API_BASE;
+    delete process.env.SHIPPING_API_KEY;
+    if (stub) await stub.close();
+    if (h) await h.stop();
+});
 
 const TODAY = '2026-03-10';       // a Tuesday; today + 90 = 2026-06-08, today + 730 = 2028-03-09
 
@@ -85,7 +100,7 @@ describe('GET /forecast', () => {
 
         const body = await ok({ companyId: co.id });
         expect(Object.keys(body)).toEqual(
-            ['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'unresolved', 'warnings'],
+            ['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings'],
         );
         expect(body.meta).toEqual({
             today: TODAY, from: TODAY, to: '2026-06-08', bucket: 'week', fromClamped: false, toClamped: false,
@@ -134,7 +149,7 @@ describe('GET /forecast', () => {
         const summary = await ok({ companyId: co.id, include: 'summary' });
         expect('rows' in summary).toBe(false);
         expect(Object.keys(summary)).toEqual(
-            ['meta', 'accounts', 'days', 'buckets', 'summary', 'scenario', 'unresolved', 'warnings'],
+            ['meta', 'accounts', 'days', 'buckets', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings'],
         );
         expect(summary.meta.include).toBe('summary');
         expect(summary.summary).toEqual(body.summary);

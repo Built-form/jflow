@@ -6,7 +6,10 @@
 
 const fs = require('fs');
 
-const { itemLine, itemDerivedStatus, instanceLine, instanceDerivedStatus } = require('../../src/lib/lines');
+const {
+    itemLine, itemDerivedStatus, instanceLine, instanceDerivedStatus,
+    shipEffectiveValues, shipLine, shipDerivedStatus, hasShipOverlay,
+} = require('../../src/lib/lines');
 
 const TODAY = '2026-03-10';
 const A = '2026-03-01';
@@ -119,6 +122,96 @@ describe('instanceDerivedStatus', () => {
             instance({ status: 'part_paid', dueDate: '2026-03-05', override: { paidAmount: '1.00' } }), A],
     ])('%s → %s', (_label, expected, input, anchor) => {
         expect(instanceDerivedStatus(input, anchor, TODAY)).toBe(expected);
+    });
+});
+
+// ── Phase 2: ship rows (CONTRACT §3.4, §9.3.1, §6.12) ────────────────────────────────────
+// An external_items row in its camelCase shape, open and dated unless `over` says otherwise.
+const ship = (over = {}) => ({
+    extId: 'bal-812-s311', feedKind: 'balance', feedStatus: 'open', supplier: 'Acme Textiles', poNumber: 'PO-812',
+    currency: 'USD', amount: '1000.00', dueDate: '2026-03-20', paidOn: null, dateBasis: 'firm', amountBasis: 'stated',
+    blocked: null, flags: [], goneAt: null, plannedDate: null, plannedAmount: null, plannedSkipped: false,
+    plannedBaseAmount: null, plannedNote: null, sourceScenarioId: null, accountId: 3, ...over,
+});
+
+describe('shipEffectiveValues (§3.4, P6)', () => {
+    test('open: the feed values; the overlay date wins; skipped → skipped', () => {
+        expect(shipEffectiveValues(ship())).toEqual({
+            status: 'expected', effectiveDate: '2026-03-20', effectiveAmount: '1000.00', planStale: false,
+        });
+        expect(shipEffectiveValues(ship({ plannedDate: '2026-04-02' })).effectiveDate).toBe('2026-04-02');
+        expect(shipEffectiveValues(ship({ plannedSkipped: true })).status).toBe('skipped');
+        expect(shipEffectiveValues(ship({ plannedSkipped: 1 })).status).toBe('skipped');
+        expect(shipEffectiveValues(ship({ dueDate: null })).effectiveDate).toBeNull();
+    });
+
+    test('planned_amount applies only while planned_base_amount equals the feed amount', () => {
+        expect(shipEffectiveValues(ship({ plannedAmount: '900.00', plannedBaseAmount: '1000.00' })))
+            .toMatchObject({ effectiveAmount: '900.00', planStale: false });
+        // the same money spelled differently is not a change
+        expect(shipEffectiveValues(ship({ amount: '1000', plannedAmount: '900.00', plannedBaseAmount: '1000.00' })))
+            .toMatchObject({ effectiveAmount: '900.00', planStale: false });
+        expect(shipEffectiveValues(ship({ amount: '1100.00', plannedAmount: '900.00', plannedBaseAmount: '1000.00' })))
+            .toMatchObject({ effectiveAmount: '1100.00', planStale: true });
+        expect(shipEffectiveValues(ship({ plannedAmount: '900.00', plannedBaseAmount: null })))
+            .toMatchObject({ effectiveAmount: '1000.00', planStale: true });
+    });
+
+    test('paid: status paid, dated on paidOn, the feed amount (the row is the payment)', () => {
+        expect(shipEffectiveValues(ship({ feedStatus: 'paid', dueDate: null, paidOn: '2026-03-02', plannedSkipped: true })))
+            .toEqual({ status: 'paid', effectiveDate: '2026-03-02', effectiveAmount: '1000.00', planStale: false });
+    });
+});
+
+describe('shipLine (§9.3.1)', () => {
+    test('open, dated: expected, always manual, overlay values', () => {
+        expect(shipLine(ship({ plannedDate: '2026-04-02', plannedAmount: '250.50', plannedBaseAmount: '1000.00' }))).toEqual({
+            status: 'expected', settleMode: 'manual', effectiveDate: '2026-04-02',
+            amountMinor: 25050n, paidAmountMinor: 0n, payments: [],
+        });
+    });
+
+    test('paid: one payment {paidOn, amount} with no payment id; paidAmount = amount', () => {
+        expect(shipLine(ship({ feedStatus: 'paid', dueDate: null, paidOn: '2026-03-02', amount: '12.34' }))).toEqual({
+            status: 'paid', settleMode: 'manual', effectiveDate: '2026-03-02', amountMinor: 1234n, paidAmountMinor: 1234n,
+            payments: [{ paymentId: null, paidOn: '2026-03-02', amountMinor: 1234n }],
+        });
+    });
+
+    test('skipped keeps its date; undated open rows and gone rows make no line', () => {
+        expect(shipLine(ship({ plannedSkipped: true }))).toMatchObject({ status: 'skipped', effectiveDate: '2026-03-20' });
+        expect(shipLine(ship({ dueDate: null }))).toBeNull();
+        expect(shipLine(ship({ dueDate: null, plannedSkipped: true }))).toBeNull();
+        expect(shipLine(ship({ goneAt: '2026-03-01T10:00:00.000Z' }))).toBeNull();
+        expect(shipLine(ship({ dueDate: null, plannedDate: '2026-04-01' }))).toMatchObject({ effectiveDate: '2026-04-01' });
+    });
+});
+
+describe('shipDerivedStatus (§6.12)', () => {
+    test.each([
+        ['open, future', 'expected', ship({ dueDate: '2026-03-20' })],
+        ['open, today − 45 (manual, never assumed)', 'overdue', ship({ dueDate: '2026-01-24' })],
+        ['open, today − 46', 'unresolved', ship({ dueDate: '2026-01-23' })],
+        ['open, before the anchor: still owed', 'overdue', ship({ dueDate: '2026-02-20' })],
+        ['skipped', 'skipped', ship({ plannedSkipped: true })],
+        ['paid before the anchor', 'paid', ship({ feedStatus: 'paid', dueDate: null, paidOn: '2026-02-20' })],
+        ['paid today', 'paid', ship({ feedStatus: 'paid', dueDate: null, paidOn: TODAY })],
+        ['undated open', null, ship({ dueDate: null })],
+        ['gone', null, ship({ goneAt: '2026-03-01T10:00:00.000Z' })],
+        ['unmapped', null, ship({ accountId: null })],
+    ])('%s → %s', (_label, expected, row) => {
+        expect(shipDerivedStatus(row, A, TODAY)).toBe(expected);
+    });
+});
+
+describe('hasShipOverlay', () => {
+    test('any planned_* column set, or skipped', () => {
+        expect(hasShipOverlay(ship())).toBe(false);
+        expect(hasShipOverlay(ship({ plannedSkipped: 0 }))).toBe(false);
+        for (const over of [{ plannedDate: '2026-04-01' }, { plannedAmount: '1.00' }, { plannedSkipped: true },
+            { plannedSkipped: 1 }, { plannedNote: 'held' }]) {
+            expect(hasShipOverlay(ship(over))).toBe(true);
+        }
     });
 });
 

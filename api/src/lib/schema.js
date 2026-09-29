@@ -1,4 +1,4 @@
-// Copied from workflows/api/src/lib/schema.js — changes: meta table `jflow_schema_meta` (was `workflows_schema_meta`); SCHEMA_VERSION restarted at '2026-09-29.1'; seedAdminEmails inserts (email, type) only — JFlow's allowed_emails has no is_reviewer column; comments say ensureSchema is local-dev only and cite CONTRACT §3.1 for the ALTER guard; names
+// Copied from workflows/api/src/lib/schema.js — changes: meta table `jflow_schema_meta` (was `workflows_schema_meta`); SCHEMA_VERSION restarted at '2026-09-29.1' (bumped per DDL change since); seedAdminEmails inserts (email, type) only — JFlow's allowed_emails has no is_reviewer column; comments say ensureSchema is local-dev only and cite CONTRACT §3.1 for the ALTER guard; names
 'use strict';
 
 // Single lazy-migration entry point for JFlow's LOCAL development. The handler
@@ -33,7 +33,9 @@ const { splitStatements } = require('./sql');
 
 // Bump whenever the DDL changes OR the admin seed must re-run (see
 // seedAdminEmails). The value is opaque — date + counter is just convention.
-const SCHEMA_VERSION = '2026-09-29.1';
+// .2: Phase 2's 2026-09-29_jflow_ship.sql (a converged local schema at .1 would
+// otherwise never replay it).
+const SCHEMA_VERSION = '2026-09-29.2';
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'db', 'migrations');
 
