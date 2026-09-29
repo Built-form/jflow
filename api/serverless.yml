@@ -1,0 +1,190 @@
+# Copied from workflows/api/serverless.yml — changes: service `jflow`, function `jflowApi` (handler src/handlers/jflow.handler), `runtime: nodejs22.x` (was nodejs18.x), secret `jflow/<stage>`; removed the uploads bucket (custom.uploadsBucket, UploadsBucket + UploadsBucketPolicy resources), the S3 IAM statements, `events:PutEvents`, the UPLOADS_* and JFPRO_* environment keys and the sharp package patterns; comments reworded to match
+service: jflow
+
+frameworkVersion: '3'
+
+# ── Environments ──────────────────────────────────────────────────────────────
+# THREE named environments, and the stage name IS the environment name:
+#   dev    local only (npm run dev, reads api/.env). NEVER deployed.
+#   test   bash deploy.sh test   → secret jflow/test
+#   prod   bash deploy.sh prod   → secret jflow/prod
+#
+# There is deliberately NO default stage: a bare `bash deploy.sh` must not be
+# able to reach production, so deploy.sh refuses to run without an explicit
+# test|prod. NEVER plain `serverless deploy` either — that is the Windows EMFILE
+# path deploy.sh exists to avoid (npm prune + graceful-fs preload).
+#
+# Serverless v3's config schema may warn that `nodejs22.x` is not a runtime it
+# knows. That warning is acceptable (BUILD_PLAN step 1); the first test deploy is
+# the real check.
+custom:
+  # Kept as a name so the ${self:custom.envName} references below stay put, but
+  # it is the identity of the stage rather than a translation of it.
+  envName: ${sls:stage}
+  # All deploy-time config/credentials live in AWS Secrets Manager, one flat JSON
+  # secret per DEPLOYED environment: jflow/test and jflow/prod (eu-north-1).
+  # Resolved once at DEPLOY time via the SSM reference path and baked into the
+  # Lambda environment — no runtime fetch, no added latency. Rotating a value
+  # means updating the secret AND redeploying. Local runs (npm run dev) read
+  # api/.env directly via dotenv and never touch this. Whoever deploys needs
+  # secretsmanager:GetSecretValue.
+  #
+  # GOTCHA: for the fallback chain below (DB_PROXY_HOST → DB_HOST), a key that
+  # should "not be set" must be ABSENT from the secret JSON entirely — an empty
+  # string is a present value and wins over the fallback.
+  secrets: ${ssm:/aws/reference/secretsmanager/jflow/${self:custom.envName}}
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  # No fallback: an omitted --stage must FAIL rather than silently pick one.
+  # deploy.sh always passes it explicitly; see the note at the top of this file.
+  stage: ${opt:stage}
+  region: eu-north-1
+  memorySize: 1024
+  # 29 (not 30) so the Lambda expires just BEFORE API Gateway's hard 30s HTTP API
+  # cap — a clean Lambda timeout instead of a generic gateway 504.
+  timeout: 29
+  httpApi:
+    # Copied verbatim from DispatchLine. Load-bearing twice over: it decorates
+    # the AUTHORIZER-generated 401s with CORS headers (without it a browser sees
+    # an opaque CORS failure instead of a 401 it can act on), and
+    # exposedResponseHeaders is what lets the client read X-User-Type at all.
+    cors:
+      allowedOrigins:
+        - '*'
+      allowedHeaders:
+        - '*'
+      allowedMethods:
+        - '*'
+      exposedResponseHeaders:
+        - X-User-Type
+        # The gateway REPLACES integration CORS headers when it manages CORS,
+        # so the Express-side exposedHeaders never reaches the browser — this
+        # list is the one that counts. Without X-Request-Id here the frontend's
+        # "quote the id in bug reports" flow reads null on every deployed call.
+        - X-Request-Id
+    authorizers:
+      # Google-issued JWT — same OAuth client audience as ShipLine / DispatchLine /
+      # Workflows, so the front end's existing token works unchanged.
+      googleJwtAuthorizer:
+        type: jwt
+        identitySource: $request.header.Authorization
+        issuerUrl: https://accounts.google.com
+        audience:
+          - '1085148951708-8qfkho7ilq084vvpo52jvc6fgg9ecdjt.apps.googleusercontent.com'
+  environment:
+    # Every value below comes from the per-environment Secrets Manager secret
+    # (custom.secrets), resolved at deploy time. Local runs read api/.env via
+    # dotenv and never see this block.
+    #
+    # Deployed Lambdas connect through the RDS Proxy (private VPC endpoint) via
+    # DB_PROXY_HOST; falls back to the direct instance (DB_HOST) if that key is
+    # ABSENT from the secret (test: the explorer-test replica is reached
+    # directly and has no proxy).
+    DB_HOST: ${self:custom.secrets.DB_PROXY_HOST, self:custom.secrets.DB_HOST}
+    DB_USER: ${self:custom.secrets.DB_USER}
+    # DB_PASSWORD is deliberately NOT here. Deploy-time resolution would bake its
+    # plaintext into the CloudFormation template (readable via GetTemplate, the
+    # deployment bucket, and every workstation's .serverless/). The function
+    # fetches it at cold start instead (src/lib/secrets.js) via SECRET_ID below
+    # — the VPC's NAT egress carries the call, and the IAM role holds
+    # GetSecretValue on exactly this one secret. Rotation is
+    # update-the-secret; no redeploy needed.
+    SECRET_ID: jflow/${self:custom.envName}
+    DB_NAME: ${self:custom.secrets.DB_NAME}
+    DB_PORT: ${self:custom.secrets.DB_PORT}
+    # The environment name, which IS the stage — see the note at the top.
+    STAGE: ${self:custom.envName}
+    # ⚠ BOOTSTRAP DEADLOCK: JFlow owns its own schema, so allowed_emails starts
+    # EMPTY. seedAdminEmails (src/lib/schema.js, run by tools/migrate.js) is the
+    # only thing that puts a row in it on first boot. If this key is missing
+    # from the secret, the deployed API 401s every caller with no way in short
+    # of a hand-written INSERT. It must be set in BOTH jflow/prod and jflow/test.
+    BOOTSTRAP_ADMIN_EMAILS: ${self:custom.secrets.BOOTSTRAP_ADMIN_EMAILS, ''}
+
+  iam:
+    role:
+      statements:
+        # src/lib/secrets.js fetches DB_PASSWORD at cold start — this stage's
+        # secret ONLY (the -* suffix matches the random chars Secrets Manager
+        # appends to the ARN, not other secrets).
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource:
+            - 'arn:aws:secretsmanager:${self:provider.region}:*:secret:jflow/${self:custom.envName}-*'
+
+  # ── RDS Proxy access (VPC + NAT) ─────────────────────────────────────────
+  # JFlow shares the SAME database estate as ShipLine / DispatchLine / Workflows.
+  # Joining the same VPC / private subnets / security group lets the deployed
+  # function reach the shared RDS Proxy's private endpoint (DB_PROXY_HOST) and
+  # get NAT egress for the Secrets Manager call. Copied verbatim from
+  # DispatchLine — keep in sync with that file if the shared networking changes.
+  vpc:
+    securityGroupIds:
+      - sg-015a76ba77bb50587
+    subnetIds:
+      - subnet-0182666b07673d609   # 172.31.100.0/24  eu-north-1a
+      - subnet-023d894c20f906c27   # 172.31.101.0/24  eu-north-1b
+      - subnet-0f684d9b9cb010dfe   # 172.31.102.0/24  eu-north-1c
+
+# Copied verbatim from DispatchLine — the other half of the Windows EMFILE fix
+# (deploy.sh is the first half). `!.env` also keeps DB credentials out of the zip.
+package:
+  individually: true
+  patterns:
+    - '!.env'
+    - '!.git/**'
+    - '!node_modules/.cache/**'
+    # npm's atomic-install staging dirs (`.<pkg>-<hash>`) left behind by an
+    # interrupted `npm install`. Each is a full package copy, so the walker
+    # crawls node_modules twice and trips EMFILE on Windows. Never runtime.
+    - '!node_modules/.*-*/**'
+    # Strip non-runtime files across all of node_modules — TS types, docs, tests
+    # and bin shims add up to thousands of file handles during packaging and
+    # trip EMFILE "too many open files" on Windows.
+    - '!node_modules/**/*.d.ts'
+    - '!node_modules/**/*.md'
+    - '!node_modules/**/*.ts'
+    - '!node_modules/**/*.map'
+    # ESM mirror builds (@aws-sdk/@smithy ship dist-cjs AND dist-es). The Lambda
+    # runtime require()s the CJS build, so dist-es is ~1,300 dead files that only
+    # inflate the node_modules walk and trip EMFILE on Windows. Never runtime.
+    - '!node_modules/**/dist-es/**'
+    - '!node_modules/**/system-test/**'
+    - '!node_modules/**/test/**'
+    - '!node_modules/**/tests/**'
+    - '!node_modules/**/__tests__/**'
+    - '!node_modules/**/LICENSE*'
+    - '!node_modules/**/CHANGELOG*'
+    - '!node_modules/**/README*'
+    - '!node_modules/**/.github/**'
+    - '!node_modules/**/.bin/**'
+
+functions:
+  # ── The whole authed API (CONTRACT §2) ──
+  # One Express app, internal routing. A single catch-all authed proxy carries
+  # every method/path; API Gateway enforces the Google JWT once, here, and the
+  # handler does the rest.
+  jflowApi:
+    handler: src/handlers/jflow.handler
+    reservedConcurrency: 20
+    events:
+      # `ANY` (the `*` wildcard) matches every method + path including
+      # /api/v1/health, so Express does all internal routing.
+      - httpApi:
+          path: /api/v1/{proxy+}
+          method: ANY
+          authorizer:
+            name: googleJwtAuthorizer
+      # ── CORS preflight shim (NO authorizer) — load-bearing ──
+      # `ANY` above ALSO matches the browser's OPTIONS preflight, which sends no
+      # Authorization header and would 401 through googleJwtAuthorizer (surfacing
+      # to the app as a CORS error, not a 401). This explicit OPTIONS route is a
+      # MORE-SPECIFIC match than the wildcard, so preflight routes here instead —
+      # no authorizer, never 401s. It hits the same Lambda, where the cors()
+      # middleware answers 204 before any auth runs. Do NOT add an authorizer.
+      - httpApi:
+          path: /api/v1/{proxy+}
+          method: OPTIONS

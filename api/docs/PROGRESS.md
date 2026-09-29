@@ -6,20 +6,21 @@ step's "Done when" holds and its commit is made.
 
 ## Current step
 
-**Step 1 — Scaffold, CI, migration tooling: in progress.** Step 0's STOP gate was released
-by Dev on 2026-09-29 after review.
+**Steps 2, 3, 4 (classifier) and 8 are in progress in parallel** — Dev asked for multiple
+agents. The pieces don't depend on each other's code (only on CONTRACT.md), and each step
+still gets its own commit, in order. Steps 5–7 wait for Dev to set `/effort xhigh`.
 
 | Step | Title | State |
 |---|---|---|
 | 0 | Adopt the spec | done |
-| 1 | Scaffold, CI, migration tooling | in progress |
-| 2 | Reference data | not started |
-| 3 | Pure libraries (tests first) | not started |
-| 4 | Classifier and one-off items | not started |
+| 1 | Scaffold, CI, migration tooling | done |
+| 2 | Reference data | in progress |
+| 3 | Pure libraries (tests first) | in progress |
+| 4 | Classifier and one-off items | classifier in progress; items waits on steps 2–3 |
 | 5 | Schedules, overrides, split and end (tests first) | not started |
 | 6 | Engine, loader and `/forecast` (tests first) | not started |
 | 7 | Scenarios | not started |
-| 8 | Web shell, settings, cash at bank | not started |
+| 8 | Web shell, settings, cash at bank | in progress (ahead of order; its "Done when" needs step 6) |
 | 9 | Web forecast, items, schedules, scenarios | not started |
 | 10 | Mobileweb | not started |
 | 11 | First deploy — STOP (Dev) | not started |
@@ -76,3 +77,50 @@ by Dev on 2026-09-29 after review.
 
 **Deferred**
 - Nothing beyond PLAN.md's list and CONTRACT.md §11.
+
+## Step 1 — Scaffold, CI, migration tooling (2026-09-29)
+
+**Shipped**
+- Root: `.gitignore`, `.editorconfig`, `.gitattributes`, `.github/workflows/ci.yml` (lint + unit
+  on Node 22, working-directory `api`, no `spec:diff`), `README.md`.
+- `api/`: `package.json` (engines 22.x), `serverless.yml` (`nodejs22.x`; VPC, JWT authorizer,
+  CORS, `ANY` + `OPTIONS`, `SECRET_ID` kept; S3, EventBridge, JFPRO, UPLOADS, sharp removed),
+  `deploy.sh` (no sharp step), `jest.config.js`, `eslint.config.js`, `.env.example`,
+  `tools/{migrate,put-secret,test-report}.js` (secret `jflow/<stage>`).
+- `src/db/index.js` (`withTransaction` retries once on `ER_LOCK_DEADLOCK` by default, D27),
+  `src/lib/{logger,sql,audit,schema,secrets,timeout,shape,roles}.js`, `src/handlers/jflow.js`
+  (request id, auth + local bypass, health, me, meta/enums, users, audit, 404, error
+  handler, Lambda export).
+- `src/db/migrations/2026-09-29_jflow_core.sql`: CONTRACT §3, 14 tables + seed (JFA, HW).
+- Unit tests: `audit`, `secrets`, `shape`, `roles`, `db` (deadlock retry: once, second
+  deadlock propagates, other errors not retried), `handler` (routes via the local bypass).
+
+**Validation**
+- `npm run migrate` against local `.env`: first run created database `jflow` on
+  explorer-test and applied 1 file; **second run: 0 applied, 1 already recorded.**
+- 15 tables in `jflow` (14 + `schema_migrations`); companies JFA (1), HW / Hangerworld (2).
+- `node src/handlers/jflow.js` on :5055 → `GET /api/v1/health` 200 `{status: ok, database:
+  up, schema: ready}`; `/me` → `local@dev` admin; unknown route → 404 envelope;
+  `/meta/enums` serves the CONTRACT enums.
+- `npm run lint` clean; unit **93/93** (6 suites).
+- CI: the workflow file is in place, but the repo has no remote yet, so it has not run on
+  GitHub; the local equivalent (lint + unit on the step-1 files) is green.
+
+**Deviations / notes**
+- Copied JSON with no header: `api/package.json` (name `jflow`, `main`/`dev` →
+  `jflow.js`, engines 22.x, eventbridge/s3/presigner/pdfkit/sharp/uuid/js-yaml and
+  `spec:diff` dropped).
+- `shape.js` keeps more than PLAN.md's list, because the handler and `apiError` need them:
+  `isApiError`, `sendApiError`, `keysetResponse`, `parseCap`, `normalizeEmail`,
+  `isValidEmail`, `auditToJson`.
+- `withTimeout` was in workflows' `services/events.js`, not a lib file; it was extracted to
+  `lib/timeout.js`.
+- `schema.js`'s admin seed inserted workflows' `is_reviewer` column; changed to
+  `(email, type)`. Workflows' reviewer route under `/users` was dropped.
+- Copied files were converted from workflows' CRLF working copies to LF (`.editorconfig`).
+- `tools/test-report.js` (copied as-is) writes `web/public/test-results/api.json` on
+  every jest run, for the About screen.
+- `.env.example` adds a commented `NODE_ENV=development`: the local auth bypass needs it.
+- `npm run test:e2e` exits 1 ("no tests") until step 2 adds suites, as in workflows.
+
+**Deferred**: none.

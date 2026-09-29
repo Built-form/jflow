@@ -1,0 +1,30 @@
+# Copied from workflows/.github/workflows/ci.yml — changes: Node 22 (was 18); dropped the `spec:diff` step (openapi is deferred); header comment updated to match
+# Lint + unit tests on every push/PR. Deliberately NO e2e here:
+# that suite needs live DB credentials (the shared explorer-test host) and
+# CREATE DATABASE rights — wire the secrets in before adding it. No deploy step
+# ever: deploys are deliberate, local `bash deploy.sh <stage>` runs.
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the Lambda runtime (nodejs22.x) and package.json engines
+          # (22.x). Bump all three together, never one alone.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:unit

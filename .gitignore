@@ -1,0 +1,30 @@
+# Copied from workflows/.gitignore — changes: `.env` + `.env.*` collapsed to `.env*` (still `!.env.example`); dropped the `api/sample-serverless.yml` and `.events-stub.jsonl` lines and their comments
+node_modules/
+.claude/settings.local.json
+.env*
+!.env.example
+.serverless/
+.deploy-tools/
+coverage/
+dist/
+*.tsbuildinfo
+*.log
+.DS_Store
+Thumbs.db
+
+# Stray root lockfile: there is no package.json at the repo root — the app is
+# in api/, and npm run from the root creates an empty one.
+/package-lock.json
+
+# Live machine state from the Claude Code scheduler — never versioned.
+.claude/scheduled_tasks.lock
+
+# Vite dependency pre-bundle cache — machine artifact, regenerated on every
+# dev/test startup. Was committed once by accident and dirtied status forever.
+.vite/
+
+# Compiled shadows of the TS sources — web/src is 100% TypeScript, so any .js
+# there is tsc output (an old typecheck script emitted them; see web/package.json).
+# Vite never reads them, and a stale App.js next to App.tsx misleads everyone.
+web/src/**/*.js
+web/src/**/*.js.map

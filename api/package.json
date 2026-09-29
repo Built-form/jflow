@@ -1,0 +1,39 @@
+{
+  "name": "jflow",
+  "version": "1.0.0",
+  "description": "JFlow — cashflow forecasting API: balances, one-off and recurring items, scenarios (sibling of Workflows)",
+  "main": "src/handlers/jflow.js",
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1112.0",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "mysql2": "^3.16.1",
+    "serverless-http": "^3.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "jest": "^29.7.0",
+    "serverless": "^3.38.0",
+    "serverless-offline": "^13.9.0",
+    "supertest": "^6.3.4"
+  },
+  "scripts": {
+    "dev": "node src/handlers/jflow.js",
+    "test": "jest --runInBand",
+    "test:unit": "jest test/unit --passWithNoTests",
+    "test:e2e": "jest test/e2e --runInBand",
+    "test:coverage": "jest test/unit --coverage",
+    "lint": "eslint src/ tools/ test/ jest.config.js eslint.config.js",
+    "migrate": "node tools/migrate.js",
+    "migrate:test": "node tools/migrate.js --stage test",
+    "migrate:prod": "node tools/migrate.js --stage prod",
+    "deploy:test": "bash deploy.sh test",
+    "deploy:prod": "bash deploy.sh prod",
+    "offline": "serverless offline"
+  }
+}

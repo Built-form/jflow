@@ -1,0 +1,5 @@
+# Copied from workflows/.gitattributes — changes: none
+# Test-run records the About page shows. Every full run rewrites them, so two clones
+# always disagree on the same lines. Keep our side on merge and re-run the suite after;
+# needs once per clone:  git config merge.ours.driver true
+web/public/test-results/*.json merge=ours
