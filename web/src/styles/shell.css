@@ -1,0 +1,166 @@
+/* Copied from workflows/web/src/styles/shell.css — changes: none */
+/* App shell: fixed 236px sidebar, independently scrolling content area.
+   This is a desk app with a phone view for the floor — screens carry a min-width and
+   the content area scrolls horizontally below it rather than reflowing. */
+
+.shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* The sidebar is a surface, not a strip of the page: one step up from the background, so
+   the content area reads as the floor and the navigation as the wall beside it. */
+.sidebar {
+  width: 236px;
+  flex: none;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  gap: 18px;
+  overflow: auto;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+}
+.sidebar-brand .mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  /* A faint light-from-above on the mark — the one place a little depth earns its keep.
+     The flat fill stays as the fallback for a browser without color-mix(). */
+  background: var(--acc);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--acc) 88%, white) 0%, var(--acc) 100%);
+  color: var(--accInk);
+  font-size: 14.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  box-shadow: var(--shadow);
+}
+.sidebar-brand .name {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.sidebar-brand .who {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-group > .kicker {
+  /* Flush with the nav labels, which now sit 13px in to leave room for the active bar. */
+  padding: 0 13px 6px;
+  letter-spacing: 0.14em;
+}
+
+.nav-item {
+  position: relative;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 9px 10px 9px 13px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  color: var(--text);
+  text-decoration: none;
+}
+.nav-item:hover {
+  background: var(--panel2);
+  text-decoration: none;
+}
+.nav-item .label {
+  font-size: 14.5px;
+  font-weight: 400;
+}
+.nav-item .count {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--dim);
+  /* Tabular digits: a count that ticks from 9 to 10 must not shove the label. */
+  font-variant-numeric: tabular-nums;
+}
+.nav-item.active {
+  background: var(--accBg);
+}
+/* A short accent bar marks the current section — where am I, at a glance, even before
+   the tinted row registers. */
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--acc);
+  transform: translateY(-50%);
+}
+.nav-item.active .label {
+  color: var(--acc);
+  font-weight: 600;
+}
+.nav-item.active .count {
+  color: var(--acc);
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-foot .caption {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.7;
+  padding: 0 4px;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+/* Numbers line up in every table and stat tile — codes, counts, dates, percentages. */
+.mono,
+.table-row,
+.table-head,
+.kv {
+  font-variant-numeric: tabular-nums;
+}
+
+/* TEST environment strip (components/EnvBanner.tsx). EnvBanner puts `env-test` on <html>
+   only in a deployed test build (never on localhost); these rules make room for the fixed
+   strip instead of letting it cover the sidebar brand. The track holds two identical
+   copies, so sliding it left by half its width lands exactly on the start of the second —
+   a seamless loop. Stopped for reduced motion. */
+html.env-test { --env-banner-h: 32px; }
+html.env-test body { padding-top: var(--env-banner-h); box-sizing: border-box; }
+html.env-test .shell { height: calc(100vh - var(--env-banner-h)); }
+@keyframes env-ticker { to { transform: translateX(-50%); } }
+.env-ticker-track { animation: env-ticker 90s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .env-ticker-track { animation: none; } }

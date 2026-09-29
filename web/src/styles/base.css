@@ -1,0 +1,893 @@
+/* Copied from workflows/web/src/styles/base.css — changes: none */
+/* Base element styles and the small set of primitives every screen reuses.
+   Mono is load-bearing: every number, code, timestamp, pill and small uppercase
+   caption is IBM Plex Mono; prose is Space Grotesk. */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Thin, theme-coloured scrollbars — long lists scroll all day and a fat grey bar is the
+   one element that ignores the palette. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line2) transparent;
+}
+
+a {
+  color: var(--acc);
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+
+/* Text fields show focus on their own border plus a soft ring — the offset outline read
+   as a second box around an already-rounded one. Still 3px of accent, still visible. */
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--acc);
+  box-shadow: 0 0 0 3px var(--accBg);
+}
+
+::selection {
+  background: var(--accBg);
+}
+
+#root {
+  height: 100%;
+}
+
+/* ---------- primitives ---------- */
+
+.mono {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+/* Small uppercase mono caption — kickers, table headers, panel labels. */
+.kicker {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  color: var(--dim);
+}
+.kicker-lg {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.page {
+  padding: 22px 26px 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* The one page header. Every screen had its own — a Link here, a btn there, one
+   at the bottom of the page — so the way out moved as you moved. One slot, one
+   order: the way out, then ancestry, then the title. */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.page-header-trail {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 17px;
+}
+
+/* Quiet until wanted: the way out is always in the same place, so it does not
+   need to compete with the title for attention. */
+.back-link {
+  font-size: 13.5px;
+  color: var(--mut);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.back-link:hover {
+  color: var(--acc);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.page-header-actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* The title is the page's heading; h1 must not carry the browser's own size. */
+h1.page-title {
+  margin: 0;
+}
+
+.explainer {
+  font-size: 14.5px;
+  color: var(--mut);
+  line-height: 1.6;
+  max-width: 640px;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-table {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.table-head {
+  display: grid;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--panel2);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
+
+.table-row {
+  display: grid;
+  gap: 14px;
+  padding: 13px 16px;
+  border-top: 1px solid var(--line);
+  align-items: center;
+}
+
+.table-row.clickable {
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+.table-row.clickable:hover {
+  background: var(--panel2);
+}
+
+/* Buttons. Green is never a primary button — it means "passed" and nothing else. */
+.btn {
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 9px 13px;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--acc);
+  background: var(--panel2);
+}
+/* A disabled button keeps its border: without one it reads as blank space, not as a
+   control that will wake up. */
+.btn:disabled {
+  cursor: not-allowed;
+  color: var(--dim);
+  background: var(--panel2);
+  border-color: var(--line2);
+}
+
+.btn-primary {
+  border: 0;
+  border-radius: 9px;
+  background: var(--acc);
+  color: var(--accInk);
+  padding: 10px 15px;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+.btn-primary:disabled {
+  background: var(--panel2);
+  color: var(--dim);
+  /* Inset, so the outline adds no size to a borderless button. */
+  box-shadow: inset 0 0 0 1px var(--line2);
+  cursor: not-allowed;
+}
+
+.btn-dashed {
+  border: 1px dashed var(--line2);
+  border-radius: 10px;
+  background: transparent;
+  padding: 13px;
+  font-size: 14px;
+  color: var(--mut);
+  cursor: pointer;
+  text-align: left;
+}
+.btn-dashed:hover {
+  color: var(--text);
+  border-color: var(--acc);
+}
+
+.btn-quiet {
+  border: 0;
+  background: transparent;
+  font-size: 13.5px;
+  color: var(--mut);
+  cursor: pointer;
+  padding: 0;
+}
+
+/* In-text cross-link: a button that reads as a link, so records can point at the things
+   they mention (a process, a product, a workflow) without pretending to be navigation. */
+.link-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: inherit;
+  color: var(--acc);
+  cursor: pointer;
+  text-decoration: none;
+}
+.link-btn:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Two facts edited as one (Lot records' arrival date + container): one bordered box round
+   both, each under a small label. For an admin the box is the button, "Edit" inside it, and
+   the border lights up on hover — so the edit plainly covers the pair, not either line. */
+.fact-pair {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fact-pair:hover,
+.fact-pair:focus-visible {
+  border-color: var(--acc);
+}
+.fact-pair:hover .fact-pair-edit {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fact-pair-static {
+  cursor: default;
+  border-style: dashed;
+}
+.fact-pair-static:hover {
+  border-color: var(--line2);
+}
+.fact-pair-editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  cursor: default;
+  border-color: var(--acc);
+}
+.fact-pair-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.fact-pair-label {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
+.fact-pair-edit {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: var(--acc);
+}
+.fact-pair-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Mono status pill. */
+.pill {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--line2);
+  border-radius: 5px;
+  padding: 4px 7px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* Smaller mono tag chip that sits inline with a title. */
+.tag {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--mut);
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* Segmented control: 3px padding, 1px line border, 9px radius. The track sits a shade
+   below the page so the selected segment reads as raised, not just recoloured. */
+.segmented {
+  display: flex;
+  /* Seven answer types have to fit a side panel — rows, not overflow. */
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel2);
+}
+.segmented button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mut);
+  padding: 7px 13px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--acc);
+  color: var(--accInk);
+  box-shadow: var(--shadow);
+}
+.segmented.compact button {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 12.5px;
+}
+
+.filter-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mut);
+  padding: 7px 13px;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filter-pill:hover:not([aria-pressed='true']) {
+  border-color: var(--line2);
+  color: var(--text);
+}
+.filter-pill[aria-pressed='true'] {
+  border-color: var(--acc);
+  background: var(--accBg);
+  color: var(--acc);
+}
+
+.input {
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 8px 12px;
+  font-size: 14px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.input.mono {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 13.5px;
+}
+
+.textarea {
+  border: 1px solid var(--line2);
+  border-radius: 9px;
+  background: var(--panel2);
+  padding: 11px 13px;
+  font-size: 15.5px;
+  line-height: 1.6;
+  resize: vertical;
+  width: 100%;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+/* Progress bar: one segment per required question. Segment counts differ by design. */
+.pips {
+  display: flex;
+  gap: 2px;
+}
+.pips span {
+  flex: 1;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--line2);
+}
+.pips.sm span {
+  height: 5px;
+}
+.pips.xs span {
+  height: 4px;
+}
+.pips span[data-fill='acc'] {
+  background: var(--acc);
+}
+.pips span[data-fill='pass'] {
+  background: var(--pass);
+}
+.pips span[data-fill='fail'] {
+  background: var(--fail);
+}
+.pips span[data-fill='warn'] {
+  background: var(--warn);
+}
+.pips span[data-fill='blocked'] {
+  background: var(--failBd);
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  position: sticky;
+  top: 0;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13.5px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+.kv span:first-child {
+  color: var(--mut);
+}
+.kv span:last-child {
+  text-align: right;
+}
+/* The label keeps its line; the value takes what is left and wraps inside it. */
+.kv > span:first-child {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.kv > :last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* A product name in a key/value row wraps under its code rather than being cut off. */
+.kv .product-name {
+  white-space: normal;
+  overflow: visible;
+}
+
+.note-panel {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel2);
+  padding: 14px;
+  font-size: 13px;
+  color: var(--mut);
+  line-height: 1.65;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.loading,
+.empty {
+  padding: 40px 4px;
+  font-size: 14px;
+  color: var(--mut);
+}
+
+/* A small, quick ring ahead of the loading line. Fast on purpose — a brisk spinner makes
+   the same wait feel shorter. Reduced motion gets a still ring. */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.loading::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid var(--line2);
+  border-top-color: var(--acc);
+  flex: none;
+  animation: spin 700ms linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-banner {
+  border: 1px solid var(--failBd);
+  border-radius: 11px;
+  background: var(--failBg);
+  padding: 13px 15px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- motion ----------
+   Only transform and opacity move (compositor-friendly); colour shifts glide with plain
+   `ease`. Press feedback is instant and subtle — the interface confirms the click the
+   moment it lands, and nothing bounces: this is a record-keeping app, not a toy.
+   Enter animations use @starting-style: browsers without it simply skip the animation,
+   which is the correct fallback. */
+
+:root {
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Press feedback on every real button. `.pressable` opts inline-styled buttons in. */
+.btn {
+  transition: transform 140ms var(--ease-out-strong), border-color 150ms ease,
+    background-color 150ms ease;
+}
+.btn-primary {
+  transition: transform 140ms var(--ease-out-strong), background-color 150ms ease,
+    color 150ms ease, filter 150ms ease;
+}
+.btn-dashed {
+  transition: transform 140ms var(--ease-out-strong), border-color 150ms ease, color 150ms ease;
+}
+.filter-pill {
+  transition: transform 140ms var(--ease-out-strong), border-color 150ms ease,
+    background-color 150ms ease, color 150ms ease;
+}
+.segmented button {
+  transition: transform 140ms var(--ease-out-strong), background-color 150ms ease, color 150ms ease;
+}
+.pressable {
+  transition: transform 140ms var(--ease-out-strong);
+}
+.btn:active:not(:disabled),
+.btn-primary:active:not(:disabled),
+.btn-dashed:active:not(:disabled),
+.filter-pill:active:not(:disabled),
+.segmented button:active:not(:disabled),
+.pressable:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Hover and progress shifts glide instead of snapping. */
+.nav-item,
+.table-row.clickable {
+  transition: background-color 120ms ease;
+}
+.pips span {
+  transition: background-color 250ms ease;
+}
+
+/* Modal enter: the scrim fades, the panel lands. A modal is not anchored to a trigger,
+   so it keeps its centered origin — and it never animates out: closing is instant. */
+.dialog-overlay {
+  opacity: 1;
+  transition: opacity 180ms ease-out;
+}
+.dialog-panel {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: opacity 200ms var(--ease-out-strong), transform 200ms var(--ease-out-strong);
+}
+
+/* Evidence lightbox: same shape, slightly slower — it fills the screen. */
+.lightbox-overlay {
+  opacity: 1;
+  transition: opacity 200ms ease-out;
+}
+.lightbox-content {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 220ms var(--ease-out-strong), transform 220ms var(--ease-out-strong);
+}
+
+/* Accordion body: opened dozens of times a day, so barely-there — a short fade and a
+   3px rise, never a height animation. */
+.reveal {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 150ms ease-out, transform 150ms var(--ease-out-strong);
+}
+
+/* The accordion chevron turns instead of teleporting. */
+.disclosure {
+  display: inline-block;
+  transition: transform 200ms var(--ease-out-strong);
+}
+.disclosure[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+@starting-style {
+  .dialog-overlay,
+  .lightbox-overlay {
+    opacity: 0;
+  }
+  .dialog-panel {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  .lightbox-content {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  .reveal {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+/* Reduced motion: movement goes, the opacity and colour cues that aid comprehension stay. */
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled),
+  .btn-primary:active:not(:disabled),
+  .btn-dashed:active:not(:disabled),
+  .filter-pill:active:not(:disabled),
+  .segmented button:active:not(:disabled),
+  .pressable:active:not(:disabled) {
+    transform: none;
+  }
+  .dialog-panel,
+  .lightbox-content,
+  .reveal {
+    transform: none !important;
+    transition: opacity 150ms ease;
+  }
+  .disclosure {
+    transition: none;
+  }
+  .loading::before {
+    animation: none;
+    border-top-color: var(--line2);
+  }
+}
+
+/* ---------- the About page's test record ---------- */
+
+.report-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* The run's facts in a row: when, how long, which code, which command. */
+.report-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 28px;
+  font-size: 13.5px;
+}
+.report-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.report-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* One file: a head line that folds the tests below it. The left edge carries the verdict
+   so a red file is findable at a scroll's glance. */
+.report-file {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line2);
+  border-radius: 9px;
+  background: var(--panel2);
+  overflow: hidden;
+}
+.report-file[data-status='failed'] {
+  border-left-color: var(--fail);
+}
+.report-file[data-status='passed'] {
+  border-left-color: var(--pass);
+}
+.report-file-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.report-file-head:hover {
+  background: var(--raise);
+}
+.report-path {
+  font-size: 12.5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.report-counts {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.report-tests {
+  border-top: 1px solid var(--line);
+  padding: 6px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.report-test-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.report-test-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.report-test[data-status='failed'] .report-test-name {
+  color: var(--fail);
+}
+.report-test[data-status='skipped'] .report-test-name,
+.report-test[data-status='todo'] .report-test-name {
+  color: var(--mut);
+}
+.report-ancestors {
+  color: var(--dim);
+}
+
+/* A failure message as the runner wrote it, scrolling inside its box — never the page. */
+.report-message {
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--failBd);
+  border-radius: 7px;
+  background: var(--failBg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  max-height: 420px;
+}
+
+/* A product's name from JFpro, wherever its code is shown (components/ProductName.tsx):
+   the room it has and no more, the whole of it on hover. Sans and unspaced on purpose:
+   it sits inside mono, letter-spaced kickers and trails, and a name is prose, not an
+   identifier. */
+.product-name {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--mut);
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A lot card on the Board view is compact: its name, pill and tag shrink with it. */
+.board-card .product-name {
+  font-size: 11px;
+}
+.board-card .pill {
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.board-card .tag {
+  font-size: 9.5px;
+  padding: 1px 4px;
+}
+/* In a run of text, after the identity it names. */
+.product-name.inline {
+  display: inline-block;
+  vertical-align: bottom;
+  /* Never wider than what holds it — in a narrow rail 320px ran past the edge. */
+  max-width: min(320px, 100%);
+  margin-left: 8px;
+}

@@ -1,0 +1,75 @@
+/* Copied from workflows/web/src/styles/tokens.css — changes: none */
+/* Design tokens. Both themes carry the same names; the whole set switches at once on
+   `<html data-theme>`. Values are final — see docs README "Design tokens".
+
+   ORDER IS LOAD-BEARING. `:root` and `[data-theme='light']` have the same specificity and
+   both match the html element once a theme is chosen, so the later block wins. Dark is
+   the bare-`:root` default (no light flash on first paint) and therefore comes FIRST;
+   the light block follows so a chosen light theme can override it. */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f1216;
+  --panel: #131820;
+  --panel2: #171d26;
+  --raise: #1b222c;
+  --line: #212832;
+  --line2: #2e3742;
+  --text: #e9edf2;
+  --mut: #93a1b0;
+  --dim: #5d6b7a;
+  --acc: #4dd0f2;
+  --accBg: #0e2a33;
+  --accBd: #1d4d5c;
+  --accInk: #08181d;
+  --pass: #7ee08f;
+  --passBg: #16241a;
+  --passBd: #2c4a34;
+  --fail: #ff7d73;
+  --failBg: #1d1418;
+  --failBd: #4a2429;
+  --warn: #e8b23d;
+  --warnBg: #1b1a14;
+  --warnBd: #4a3f1c;
+  /* A workflow a reviewer waived: blue, so it reads as neither passed nor abandoned. */
+  --waived: #7fa6ff;
+  --waivedBg: #141a2b;
+  --waivedBd: #2a3a5e;
+  --shadow: none;
+  --onSolid: #0f1216;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f7fa;
+  --panel: #ffffff;
+  --panel2: #f8fafc;
+  --raise: #ffffff;
+  --line: #e4e9ef;
+  --line2: #cfd8e1;
+  --text: #141a21;
+  --mut: #55636f;
+  /* Darkened 2026-09-17 for WCAG AA: every token below that is used as text reaches 4.5:1
+     on --panel and its own tint (--dim was 2.8:1 on --bg, --warn 3.7:1 on --warnBg). */
+  --dim: #66737f;
+  --acc: #0b7590;
+  --accBg: #e3f6fb;
+  --accBd: #b9e6f2;
+  --accInk: #ffffff;
+  --pass: #127552;
+  --passBg: #e4f5ec;
+  --passBd: #bce3d1;
+  --fail: #c0362d;
+  --failBg: #fdeceb;
+  --failBd: #f6cdc9;
+  --warn: #8f6000;
+  --warnBg: #fdf3e0;
+  --warnBd: #f0dcb4;
+  --waived: #2f5fd0;
+  --waivedBg: #e8eefc;
+  --waivedBd: #c3d2f4;
+  --shadow: 0 1px 2px rgba(20, 26, 33, 0.06);
+  /* Ink that sits on a solid pass/fail fill (the status box tick, checklist marks). */
+  --onSolid: #ffffff;
+}

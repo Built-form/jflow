@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- Copied from workflows/web/index.html — changes: title Workflows → JFlow -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The plain name, for the instant before the bundle runs; main.tsx overwrites it
+         with the environment-aware title from src/config/env.ts. -->
+    <title>JFlow</title>
+    <!-- Self-host both families before production; Google Fonts is a dev convenience only. -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

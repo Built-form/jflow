@@ -1,0 +1,513 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { api } from '../../api';
+import type { ApiError } from '../../api/client';
+import type {
+  ForecastAccount,
+  ForecastItem,
+  ForecastRow,
+  ForecastScenario,
+  ForecastSummary,
+  ForecastWarning,
+  UnresolvedLine,
+} from '../../api/forecast';
+import { forecast } from '../../api/forecast';
+import type { Account } from '../../api/types';
+import { useScenario } from '../../app/ScenarioContext';
+import { CompanyPicker, sortCompanies, useCompanyFilter } from '../../app/companyFilter';
+import { useQuery } from '../../app/useQuery';
+import { PageHeader } from '../../components/PageHeader';
+import { Empty, ErrorNote, InfoText, Loading, Pill, Segmented, Tag } from '../../components/ui';
+import { addDays, formatDay, londonToday } from '../../lib/dates';
+import { plural } from '../../lib/format';
+import {
+  BUCKET_OPTIONS,
+  WINDOW_OPTIONS,
+  balanceFlag,
+  flagTags,
+  parseBucket,
+  parseWindowDays,
+  signedMoney,
+} from '../../lib/grid';
+import { formatMoney, toMinor } from '../../lib/money';
+import { toneOfScenarioStatus } from '../../lib/tone';
+import { SCENARIO_STATUS_LABEL, staleReason } from '../scenarios/stale';
+import { BalanceChart } from './BalanceChart';
+import { EditLineDialog } from './EditLineDialog';
+import { ForecastGrid } from './ForecastGrid';
+
+export const BUCKET_PARAM = 'bucket';
+export const WINDOW_PARAM = 'days';
+
+/**
+ * The forecast: the combined GBP balance from today, as a chart and as a day / week /
+ * month grid of categories and their lines. Click a line the server marked `editable` to
+ * change its amount or date — the real item, or, while a scenario is open, an adjustment
+ * to that scenario.
+ *
+ * Overdue, paid, remainder, adjusted, stale… are the server's flags, shown as they come.
+ * The client computes no band and no total (CLAUDE.md "Never").
+ */
+export function ForecastScreen() {
+  const [today] = useState(() => londonToday());
+  const [params, setParams] = useSearchParams();
+  const [companyId, setCompanyId] = useCompanyFilter();
+  const bucket = parseBucket(params.get(BUCKET_PARAM));
+  const windowDays = parseWindowDays(params.get(WINDOW_PARAM));
+  const to = addDays(today, windowDays);
+  const { active, open, close } = useScenario();
+  const scenarioId = active?.id ?? null;
+
+  const setParam = (key: string, value: string | null) =>
+    setParams(
+      (prev) => {
+        const out = new URLSearchParams(prev);
+        if (value === null) out.delete(key);
+        else out.set(key, value);
+        return out;
+      },
+      { replace: true },
+    );
+
+  const companies = useQuery(() => api.companies.list(), []);
+  const accounts = useQuery(() => api.accounts.list({ companyId }), [companyId]);
+  const data = useQuery(
+    () => forecast.get({ companyId, to, bucket, scenarioId, include: 'grid' }),
+    [companyId, to, bucket, scenarioId],
+  );
+
+  const [editing, setEditing] = useState<{ item: ForecastItem; row: ForecastRow } | null>(null);
+
+  const accountName = useMemo(() => {
+    const names = new Map<number, string>((accounts.data?.data ?? []).map((a: Account) => [a.id, a.name]));
+    for (const a of data.data?.accounts ?? []) names.set(a.accountId, a.name);
+    return (id: number) => names.get(id) ?? `Account ${id}`;
+  }, [accounts.data, data.data]);
+
+  const lineName = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const row of data.data?.rows ?? []) for (const item of row.items) names.set(item.key, item.name);
+    return (key: string) => names.get(key) ?? null;
+  }, [data.data]);
+
+  const res = data.data;
+  const scenario = res?.scenario ?? null;
+
+  // The banner's name is remembered from when the scenario was opened; the server's is current.
+  useEffect(() => {
+    if (active && scenario && scenario.id === active.id && scenario.name !== active.name) open({ id: scenario.id, name: scenario.name });
+  }, [active, scenario, open]);
+
+  return (
+    <div className="page">
+      <PageHeader
+        title="Forecast"
+        actions={<CompanyPicker companies={sortCompanies(companies.data?.data ?? [])} value={companyId} onChange={setCompanyId} />}
+      >
+        <InfoText className="explainer">
+          Cash at bank from today, every account in GBP: the balance line, then the money in
+          and out by category. Click an amount to move it or change it.
+        </InfoText>
+      </PageHeader>
+
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Segmented
+          ariaLabel="Bucket"
+          options={BUCKET_OPTIONS}
+          value={bucket}
+          onChange={(next) => setParam(BUCKET_PARAM, next === 'week' ? null : next)}
+        />
+        <Segmented
+          ariaLabel="Window"
+          compact
+          options={WINDOW_OPTIONS.map((d) => ({ id: String(d), label: `${d} days` }))}
+          value={String(windowDays)}
+          onChange={(next) => setParam(WINDOW_PARAM, next === '90' ? null : next)}
+        />
+        {res && (
+          <span className="mono" style={{ fontSize: 12, color: 'var(--dim)' }}>
+            {formatDay(res.meta.from)} – {formatDay(res.meta.to)}
+            {res.meta.toClamped ? ' (capped)' : ''}
+          </span>
+        )}
+      </div>
+
+      {companies.error && <ErrorNote error={companies.error} onRetry={companies.reload} />}
+
+      {data.error ? (
+        <ForecastError
+          error={data.error}
+          scenarioName={active?.name ?? null}
+          onCloseScenario={close}
+          onRetry={data.reload}
+        />
+      ) : !res ? (
+        <Loading what="Forecast" />
+      ) : (
+        <>
+          {scenario && <ScenarioPanel scenario={scenario} lineName={lineName} />}
+          <Warnings warnings={res.warnings} accountName={accountName} />
+          <UnresolvedBanner summary={res.summary} unresolved={res.unresolved} accountName={accountName} />
+          <SummaryTiles summary={res.summary} baseline={scenario?.baselineSummary ?? null} />
+
+          <section className="panel" aria-label="Balance chart">
+            <div className="kicker">CLOSING BALANCE · GBP</div>
+            {res.days.length === 0 ? (
+              <Empty>No days in the window.</Empty>
+            ) : (
+              <BalanceChart days={res.days} withBaseline={scenario !== null} minDate={res.summary.minDate} />
+            )}
+          </section>
+
+          <section aria-label="Timeline" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {res.rows === undefined ? (
+              <Empty>The grid was not included in this answer.</Empty>
+            ) : (
+              <>
+                <ForecastGrid
+                  kind={res.meta.bucket ?? bucket}
+                  buckets={res.buckets}
+                  rows={res.rows}
+                  summary={res.summary}
+                  delta={scenario?.deltaByBucket ?? null}
+                  onEdit={(item, row) => setEditing({ item, row })}
+                />
+                {res.rows.length === 0 && <Empty>No money in or out in this window.</Empty>}
+              </>
+            )}
+          </section>
+
+          <StartingPoint accounts={res.accounts} />
+        </>
+      )}
+
+      {editing && res && (
+        <EditLineDialog
+          item={editing.item}
+          categoryName={editing.row.categoryName}
+          scenario={scenario ? { id: scenario.id, name: scenario.name } : null}
+          today={res.meta.today}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            // The forecast is derived from every row at once; the write answered with one
+            // row, so the honest replacement is the forecast as the server now computes it.
+            data.reload();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** A refusal of the whole read. A missing FX rate and a vanished scenario say how to fix them. */
+function ForecastError({
+  error,
+  scenarioName,
+  onCloseScenario,
+  onRetry,
+}: {
+  error: ApiError;
+  scenarioName: string | null;
+  onCloseScenario: () => void;
+  onRetry: () => void;
+}) {
+  if (error.code === 'FX_RATE_MISSING') {
+    const currencies = Array.isArray(error.details?.currencies) ? (error.details?.currencies as string[]) : [];
+    return (
+      <div className="error-banner" role="alert" data-testid="fx-missing">
+        <span>
+          No exchange rate for {currencies.length ? currencies.join(', ') : 'a currency in view'}, so nothing can be
+          added up in GBP. <Link to="/settings?tab=fx">Add the rate in Settings</Link>.
+          <span className="mono" style={{ color: 'var(--dim)', marginLeft: 8, fontSize: 12 }}>
+            FX_RATE_MISSING
+          </span>
+        </span>
+      </div>
+    );
+  }
+  if (error.status === 404 && scenarioName) {
+    return (
+      <div className="error-banner" role="alert">
+        <span>The open scenario, "{scenarioName}", no longer exists.</span>
+        <button type="button" className="btn" onClick={onCloseScenario}>
+          Close it and show the real plan
+        </button>
+      </div>
+    );
+  }
+  return <ErrorNote error={error} onRetry={onRetry} />;
+}
+
+function ScenarioPanel({ scenario, lineName }: { scenario: ForecastScenario; lineName: (key: string) => string | null }) {
+  const draft = scenario.status === 'draft';
+  return (
+    <section
+      className="panel"
+      aria-label="Scenario"
+      style={{ borderColor: 'var(--waivedBd)', gap: 8 }}
+      data-testid="forecast-scenario"
+    >
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span className="kicker">SCENARIO</span>
+        <span style={{ fontWeight: 600 }}>{scenario.name}</span>
+        <Pill tone={toneOfScenarioStatus(scenario.status)}>{SCENARIO_STATUS_LABEL[scenario.status] ?? scenario.status}</Pill>
+        <Link to={`/scenarios/${scenario.id}`} style={{ fontSize: 13.5 }}>
+          Adjustments, rebase and apply
+        </Link>
+      </div>
+      <div style={{ fontSize: 13.5, color: 'var(--mut)', lineHeight: 1.55 }}>
+        {draft
+          ? 'The solid line and the grid are this scenario; the dashed line is the real plan. Edits here write adjustments to it.'
+          : `This scenario is ${scenario.status}, so it is shown for reading only — nothing here can be edited.`}
+      </div>
+      {scenario.warnings.length > 0 && (
+        <ul data-testid="scenario-warnings" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {scenario.warnings.map((w, i) => {
+            const reason = w.code === 'STALE' ? staleReason(w.reason) : null;
+            return (
+              <li key={`${w.code}-${w.key}-${i}`} style={{ fontSize: 13.5, display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <Tag tone={w.code === 'STALE' ? 'fail' : 'warn'}>{reason ? `STALE · ${reason.label}` : w.code.replace(/_/g, ' ')}</Tag>
+                <span>{lineName(w.key) ?? w.key}</span>
+                <span style={{ color: 'var(--mut)' }}>
+                  {reason
+                    ? `${reason.text} Not applied.`
+                    : w.code === 'ADJUSTMENT_OUT_OF_SCOPE'
+                      ? 'Its account is outside the company in view, so it is not shown here.'
+                      : ''}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** `warnings[]` — what the forecast left out or could not place, and why. */
+export function Warnings({ warnings, accountName }: { warnings: ForecastWarning[]; accountName: (id: number) => string }) {
+  if (warnings.length === 0) return null;
+  return (
+    <section
+      aria-label="Warnings"
+      data-testid="forecast-warnings"
+      style={{
+        border: '1px solid var(--warnBd)',
+        background: 'var(--warnBg)',
+        borderRadius: 11,
+        padding: '12px 15px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+      }}
+    >
+      {warnings.map((w, i) => (
+        <div key={i} style={{ fontSize: 13.5, lineHeight: 1.55, display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+          <span className="mono" style={{ fontSize: 11, letterSpacing: '.06em', color: 'var(--warn)' }}>
+            {String(w.code)}
+          </span>
+          <span>{warningText(w, accountName)}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+export function warningText(w: ForecastWarning, accountName: (id: number) => string): string {
+  const f = w as Record<string, unknown>;
+  switch (w.code) {
+    case 'NO_ANCHOR':
+      return `${accountName(Number(f.accountId))} has no recorded balance, so it is left out of the forecast. Record one on Cash at bank.`;
+    case 'ORPHAN_OVERRIDE':
+      return `Schedule #${String(f.scheduleId)} has a tuned instance for ${formatDay(String(f.naturalDate))}, which is no longer one of its dates. It is not in the forecast.`;
+    case 'FX_RATE_MISSING':
+      return `No exchange rate for ${Array.isArray(f.currencies) ? (f.currencies as string[]).join(', ') : 'a currency'}.`;
+    default:
+      return Object.entries(f)
+        .filter(([k]) => k !== 'code')
+        .map(([k, v]) => `${k} ${String(v)}`)
+        .join(' · ');
+  }
+}
+
+/**
+ * Manual lines long past due: not in the balance line at all until someone pays, moves or
+ * skips them. The count and total are the server's (`summary.unresolved*`).
+ */
+export function UnresolvedBanner({
+  summary,
+  unresolved,
+  accountName,
+}: {
+  summary: ForecastSummary;
+  unresolved: UnresolvedLine[];
+  accountName: (id: number) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  if (summary.unresolvedCount === 0) return null;
+  return (
+    <section
+      role="alert"
+      aria-label="Unresolved"
+      data-testid="unresolved-banner"
+      style={{
+        border: '1px solid var(--failBd)',
+        background: 'var(--failBg)',
+        borderRadius: 11,
+        padding: '12px 15px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}
+    >
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 14, lineHeight: 1.55 }}>
+          <strong>{plural(summary.unresolvedCount, 'line')}</strong> long overdue and unresolved, worth{' '}
+          <span className="mono">{formatMoney(toMinor(summary.unresolvedTotal), 'GBP')}</span>, and not in the
+          forecast. Pay, re-date or skip them.
+        </span>
+        <button type="button" className="btn" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          {open ? 'Hide them' : 'Show them'}
+        </button>
+      </div>
+      {open && (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {unresolved.map((u) => (
+            <li key={u.key} style={{ fontSize: 13.5, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 600 }}>{u.name}</span>
+              <span className="mono">
+                {u.direction === 'in' ? 'in ' : 'out '}
+                {formatMoney(toMinor(u.amountMinor), u.currency)}
+              </span>
+              <span style={{ color: 'var(--mut)' }}>
+                due {formatDay(u.date)} · {plural(u.ageDays, 'day')} ago · {accountName(u.accountId)}
+              </span>
+              <Link to={u.kind === 'sched' ? '/schedules' : '/items'} style={{ fontSize: 13 }}>
+                {u.kind === 'sched' ? 'Schedules' : 'Income & outgoings'}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function Tile({
+  label,
+  value,
+  sub,
+  baseline,
+  flagged,
+}: {
+  label: string;
+  value: bigint;
+  sub?: string;
+  baseline?: bigint | null;
+  flagged?: boolean;
+}) {
+  return (
+    <div className="panel" style={{ gap: 4, flex: '1 1 170px', borderColor: flagged ? 'var(--failBd)' : undefined }}>
+      <div className="kicker">{label}</div>
+      <div className="mono" style={{ fontSize: 19, color: flagged ? 'var(--fail)' : undefined }} data-flag={flagged ? 'negative' : undefined}>
+        {flagged && <span aria-label="below zero">▼ </span>}
+        {formatMoney(value, 'GBP')}
+      </div>
+      {sub && <div style={{ fontSize: 12.5, color: 'var(--mut)' }}>{sub}</div>}
+      {baseline != null && (
+        <div className="mono" style={{ fontSize: 12, color: 'var(--dim)' }}>
+          real plan {formatMoney(baseline, 'GBP')} · {signedMoney(value - baseline)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryTiles({ summary, baseline }: { summary: ForecastSummary; baseline: ForecastSummary | null }) {
+  const m = (v: number) => toMinor(v);
+  return (
+    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }} data-testid="summary">
+      <Tile label="TODAY, START OF DAY" value={m(summary.opening)} baseline={baseline ? m(baseline.opening) : null} flagged={balanceFlag(summary.opening) === 'negative'} />
+      <Tile
+        label="LOWEST POINT"
+        value={m(summary.minClosing)}
+        sub={formatDay(summary.minDate)}
+        baseline={baseline ? m(baseline.minClosing) : null}
+        flagged={balanceFlag(summary.minClosing) === 'negative'}
+      />
+      <Tile label="END OF WINDOW" value={m(summary.closing)} baseline={baseline ? m(baseline.closing) : null} flagged={balanceFlag(summary.closing) === 'negative'} />
+      <Tile label="MONEY IN" value={m(summary.inflow)} baseline={baseline ? m(baseline.inflow) : null} />
+      <Tile label="MONEY OUT" value={m(summary.outflow)} baseline={baseline ? m(baseline.outflow) : null} />
+    </div>
+  );
+}
+
+/**
+ * Where today's opening comes from: each account's recorded balance, plus what the server
+ * counted between that day and today (payments recorded, and auto lines it assumed went
+ * through). "Assumed" is visible here, never silent.
+ */
+function StartingPoint({ accounts }: { accounts: ForecastAccount[] }) {
+  const [open, setOpen] = useState(false);
+  if (accounts.length === 0) return null;
+  const absorbed = accounts.reduce((n, a) => n + a.absorbed.length, 0);
+  return (
+    <section className="panel" aria-label="Starting point" style={{ gap: 10 }}>
+      <div className="head-row" style={{ alignItems: 'center' }}>
+        <div className="kicker">STARTING POINT · {plural(accounts.length, 'ACCOUNT', 'ACCOUNTS')}</div>
+        {absorbed > 0 && (
+          <button type="button" className="btn-quiet" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={{ color: 'var(--acc)' }}>
+            {open ? 'Hide' : 'Show'} {plural(absorbed, 'line')} counted since each balance was recorded
+          </button>
+        )}
+      </div>
+      <div className="card-table">
+        {accounts.map((a) => (
+          <div key={a.accountId} className="table-row" style={{ gridTemplateColumns: 'minmax(0,1.4fr) repeat(3, minmax(0,1fr))' }}>
+            <div>
+              <div style={{ fontSize: 14 }}>{a.name}</div>
+              <div className="mono" style={{ fontSize: 11.5, color: 'var(--dim)' }}>
+                {a.currency} · recorded {formatDay(a.anchorDate)}
+                {a.anchorAgeDays > 0 ? ` · ${plural(a.anchorAgeDays, 'day')} ago` : ' · today'}
+              </div>
+            </div>
+            <div className="mono" style={{ fontSize: 13, textAlign: 'right' }}>
+              {formatMoney(toMinor(a.anchorNative), a.currency)}
+            </div>
+            <div className="mono" style={{ fontSize: 12.5, textAlign: 'right', color: 'var(--mut)' }}>
+              {a.absorbed.length ? `+ ${plural(a.absorbed.length, 'line')}` : ''}
+            </div>
+            <div
+              className="mono"
+              style={{ fontSize: 13, textAlign: 'right', color: toMinor(a.openingNative) < 0n ? 'var(--fail)' : undefined }}
+              title="Today, start of day"
+            >
+              {formatMoney(toMinor(a.openingNative), a.currency)}
+            </div>
+            {open &&
+              a.absorbed.map((line, i) => (
+                <div
+                  key={`${line.key}-${line.paymentId ?? 'a'}-${i}`}
+                  style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, fontSize: 12.5, color: 'var(--mut)', paddingLeft: 14, flexWrap: 'wrap' }}
+                >
+                  <span className="mono">{formatDay(line.date)}</span>
+                  <span>{line.name}</span>
+                  <span className="mono">
+                    {line.direction === 'in' ? '+' : '−'}
+                    {formatMoney(toMinor(line.accountMinor), a.currency)}
+                  </span>
+                  {flagTags(line.flags).map((t) => (
+                    <Tag key={t.flag} tone={t.tone}>
+                      {t.label}
+                    </Tag>
+                  ))}
+                </div>
+              ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+

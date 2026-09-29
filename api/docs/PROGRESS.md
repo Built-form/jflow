@@ -6,7 +6,7 @@ step's "Done when" holds and its commit is made.
 
 ## Current step
 
-**Steps 0–7 and 12 are done. Next: the browser walk that closes steps 8 and 9 (web).** Step 10 (mobileweb) is parked by Dev. Step 11 (first deploy) is a STOP for Dev.
+**Steps 0–9 and 12 are done: the API and the web app are built, walked in a browser and committed.** Step 10 (mobileweb) is parked by Dev. Step 11 (first deploy) is a STOP for Dev.
 
 | Step | Title | State |
 |---|---|---|
@@ -18,8 +18,8 @@ step's "Done when" holds and its commit is made.
 | 5 | Schedules, overrides, split and end (tests first) | done |
 | 6 | Engine, loader and `/forecast` (tests first) | done |
 | 7 | Scenarios | done |
-| 8 | Web shell, settings, cash at bank | built; browser walk next |
-| 9 | Web forecast, items, schedules, scenarios | built; browser walk next |
+| 8 | Web shell, settings, cash at bank | done |
+| 9 | Web forecast, items, schedules, scenarios | done |
 | 10 | Mobileweb | **parked by Dev (2026-09-29): web only for now** |
 | 11 | First deploy — STOP (Dev) | not started |
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
@@ -231,7 +231,7 @@ Built in parallel with step 2, and **committed before step 2** because step 2's 
 
 **Deferred**: none.
 
-## Step 8 — Web shell, settings, cash at bank (built 2026-09-29; NOT committed yet)
+## Step 8 — Web shell, settings, cash at bank (2026-09-29; committed with step 9)
 
 Built ahead of order in parallel. Its "Done when" needs step 6's `/forecast` (a balance
 entered for today is the anchor, and today's items stay in today's bucket), so the step is
@@ -364,7 +364,7 @@ ship lines, the API key, and the 45-day window for supplier money.
 
 **Deferred**: none.
 
-## Step 9 — Web forecast, items, schedules, scenarios (built 2026-09-29; NOT committed yet)
+## Step 9 — Web forecast, items, schedules, scenarios (2026-09-29; committed with step 8)
 
 Built by two agents in parallel **against CONTRACT with stubbed responses**, before the
 step 5–7 API existed. The browser walk of the headline flow comes after step 7; the step
@@ -538,3 +538,50 @@ commit**. Each step's own tests were written first.
   against its brief.
 
 **Deferred**: none beyond CONTRACT §11.
+
+## Steps 8–9 — browser walk (2026-09-29)
+
+The walk ran against the real local API and a throwaway schema
+`jflow_test_walk_20260929120416` (dropped afterwards; the shared `jflow` schema was never
+touched). The browser was headless Edge driven by `playwright-core` from the scratchpad
+(nothing added to any package.json). Sign-in used the web app's own local path
+(`API_IS_LOCAL` when `VITE_API_BASE_URL` is localhost). Every step went through the UI.
+
+**Step 8 "Done when": passes.**
+- Settings: accounts (GBP, EUR), categories, and an EUR rate of 0.850000.
+- Cash at bank: £20,000 entered for today, labelled "Cash at bank at start of day".
+- A one-off +£500 dated today.
+- The Forecast shows opening £20,000.00, +£500 in today's column, closing £20,500.00.
+  The API agrees (anchor today, `item.1` in bucket 0).
+
+**Step 9 "Done when": the browser walk matches the e2e numbers exactly.**
+- Rent 1000 × 12, June tuned to 983, July to 1024.
+- In a scenario, July moved to 20 Aug with the edit dialog.
+- Scenario delta: July outflow −102400 / net +102400; August outflow +102400 / net
+  −102400; every other bucket 0. This is identical to the step 7 e2e.
+- Apply writes the overrides (the instance table shows TUNED, FROM SCENARIO), and the real
+  forecast then equals the scenario. A re-apply from a stale tab gets `SCENARIO_NOT_DRAFT`
+  with a clear message.
+- Also checked:
+  - "Didn't happen" → overdue at today;
+  - part-pay with the remainder date pre-filled and explained;
+  - the split wizard turning `SCHEDULE_HAS_OVERRIDES` into a confirmation.
+- All 13 bucket closings in the UI equal the API's; the all-companies opening £24,250.00
+  = 2425000. The only rounding is the chart's axis labels.
+
+**Fixed during the walk** (each with a failing test first):
+- Scenario adjustments outside the 90-day panel showed "Schedule instance" and a raw
+  amount. They now use `current.name`/`current.currency`.
+- "2 ACCOUNTs" → "2 ACCOUNTS".
+
+**Validation**: web `tsc` clean, vitest **211/211** (22 files), build succeeds;
+`sharedSession.ts` byte-identical (`cmp`).
+
+**Known UI gaps (not fixed, for Dev)**
+- The Scenario screen's comparison panel is fixed at 90 days; a change further out shows
+  only on Forecast.
+- The grid gives each schedule instance its own row (12 "Office rent" rows); PLAN's
+  "categories → items" is ambiguous.
+- Scenario dates read "Sept" (from the verbatim-copied `lib/format.ts`) where the rest of
+  the app says "Sep".
+- "1 tuned instance(s) dropped" wording.
