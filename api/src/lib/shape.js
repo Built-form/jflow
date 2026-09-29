@@ -10,6 +10,8 @@
 // so a route answers with res.json / res.status(…).json directly.
 
 const log = require('./logger');
+const { buildItemKey } = require('./keys');
+const { parseMinor, formatMinor } = require('./money');
 
 // ── Error + success envelopes ───────────────────────────────────────────────
 
@@ -262,6 +264,70 @@ function balanceToJson(r) {
     };
 }
 
+/**
+ * One `payments` row (CONTRACT D23). Its parent is exactly one of `cashItemId`
+ * (a one-off) or `overrideId` (an instance). Append-only: no rowVersion.
+ */
+function paymentToJson(r) {
+    if (!r) return null;
+    return {
+        id: id(r.id),
+        cashItemId: id(r.cash_item_id),
+        overrideId: id(r.override_id),
+        paidOn: r.paid_on,
+        amount: r.amount,
+        note: r.note,
+        createdBy: r.created_by,
+        createdAt: r.created_at,
+    };
+}
+
+/**
+ * A one-off item (CONTRACT §6.7). `companyId` is derived through the account,
+ * so the query must select `company_id` from bank_accounts; `key` is
+ * buildItemKey(id); `remainingAmount` = amount − COALESCE(paid_amount, 0) (§3.4).
+ *
+ * `extras.payments` (payment JSON rows, ascending by paidOn, id) and
+ * `extras.derivedStatus` appear on API responses only: they are left out when
+ * `extras` does not carry them — audit snapshots and the loader's engine rows.
+ */
+function itemToJson(r, extras = {}) {
+    if (!r) return null;
+    const paid = r.paid_amount == null ? 0n : parseMinor(r.paid_amount);
+    const out = {
+        id: id(r.id),
+        key: buildItemKey(Number(r.id)),
+        accountId: id(r.account_id),
+        companyId: id(r.company_id),
+        categoryId: id(r.category_id),
+        direction: r.direction,
+        name: r.name,
+        counterparty: r.counterparty,
+        amount: r.amount,
+        currency: r.currency,
+        dueDate: r.due_date,
+        status: r.status,
+        paidOn: r.paid_on,
+        paidAmount: r.paid_amount,
+        remainingAmount: formatMinor(parseMinor(r.amount) - paid),
+    };
+    if (extras.payments) {
+        out.payments = extras.payments.map((p) => ({
+            id: p.id, paidOn: p.paidOn, amount: p.amount, note: p.note, createdBy: p.createdBy, createdAt: p.createdAt,
+        }));
+    }
+    out.settleMode = r.settle_mode;
+    out.notes = r.notes;
+    out.sourceScenarioId = id(r.source_scenario_id);
+    if ('derivedStatus' in extras) out.derivedStatus = extras.derivedStatus;
+    out.rowVersion = r.row_version;
+    out.createdBy = r.created_by;
+    out.createdAt = r.created_at;
+    out.updatedAt = r.updated_at;
+    out.deletedAt = r.deleted_at;
+    return out;
+}
+
 function auditToJson(r) {
     if (!r) return null;
     return {
@@ -291,6 +357,8 @@ module.exports = {
     categoryToJson,
     fxRateToJson,
     balanceToJson,
+    itemToJson,
+    paymentToJson,
     parseId,
     parseListParams,
     parseCap,

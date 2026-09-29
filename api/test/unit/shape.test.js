@@ -13,9 +13,50 @@ describe('what the trimmed module exports', () => {
         expect(Object.keys(shape).sort()).toEqual([
             'accountToJson', 'apiError', 'assertBaseVersion', 'auditToJson', 'balanceToJson',
             'categoryToJson', 'companyToJson', 'fail', 'fxRateToJson', 'isApiError',
-            'isValidEmail', 'keysetResponse', 'listResponse', 'normalizeEmail',
+            'isValidEmail', 'itemToJson', 'keysetResponse', 'listResponse', 'normalizeEmail',
             'parseBaseVersion', 'parseCap', 'parseId', 'parseListParams', 'parseSortOrder',
-            'sendApiError', 'serverError',
+            'paymentToJson', 'sendApiError', 'serverError',
+        ]);
+    });
+});
+
+describe('itemToJson / paymentToJson (CONTRACT §6.7, D23)', () => {
+    const row = {
+        id: 7, account_id: 3, company_id: 1, category_id: 2, direction: 'out', name: 'Rent',
+        counterparty: null, amount: '1000.00', currency: 'GBP', due_date: '2026-03-05',
+        status: 'part_paid', paid_on: '2026-03-02', paid_amount: '400.50', settle_mode: 'auto',
+        notes: null, source_scenario_id: null, row_version: 2, created_by: 'a@b.c',
+        created_at: null, updated_at: null, deleted_at: null,
+    };
+    const payment = {
+        id: 9, cash_item_id: 7, override_id: null, paid_on: '2026-03-02', amount: '400.50',
+        note: 'first', created_by: 'a@b.c', created_at: null,
+    };
+
+    test('key, companyId and remainingAmount are derived; no payments or derivedStatus without extras', () => {
+        const out = shape.itemToJson(row);
+        expect(out).toMatchObject({
+            id: 7, key: 'item.7', companyId: 1, amount: '1000.00', paidAmount: '400.50', remainingAmount: '599.50',
+        });
+        expect(out).not.toHaveProperty('payments');
+        expect(out).not.toHaveProperty('derivedStatus');
+        expect(shape.itemToJson({ ...row, paid_amount: null, paid_on: null }).remainingAmount).toBe('1000.00');
+        expect(shape.itemToJson(null)).toBeNull();
+    });
+
+    test('extras add payments (without the parent ids) and derivedStatus', () => {
+        const p = shape.paymentToJson(payment);
+        expect(p).toEqual({
+            id: 9, cashItemId: 7, overrideId: null, paidOn: '2026-03-02', amount: '400.50',
+            note: 'first', createdBy: 'a@b.c', createdAt: null,
+        });
+        const out = shape.itemToJson(row, { payments: [p], derivedStatus: 'overdue' });
+        expect(out.payments).toEqual([{ id: 9, paidOn: '2026-03-02', amount: '400.50', note: 'first', createdBy: 'a@b.c', createdAt: null }]);
+        expect(out.derivedStatus).toBe('overdue');
+        expect(Object.keys(out)).toEqual([
+            'id', 'key', 'accountId', 'companyId', 'categoryId', 'direction', 'name', 'counterparty', 'amount',
+            'currency', 'dueDate', 'status', 'paidOn', 'paidAmount', 'remainingAmount', 'payments', 'settleMode',
+            'notes', 'sourceScenarioId', 'derivedStatus', 'rowVersion', 'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
         ]);
     });
 });

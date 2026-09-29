@@ -18,7 +18,8 @@ const express = require('express');
 
 const { withConnection, withTransaction } = require('../db');
 const { recordAudit } = require('../lib/audit');
-const { buildItemKey } = require('../lib/keys');
+const { ITEM_SELECT } = require('../services/forecastLoad');
+const { decorateItems } = require('../services/items');
 const {
     apiError, isApiError, sendApiError, listResponse, parseId, parseListParams,
     parseBaseVersion, assertBaseVersion, parseSortOrder, accountToJson,
@@ -76,32 +77,31 @@ async function references(conn, id) {
  * account lock. Refusing deactivation on any of it keeps owed money from
  * silently dropping out of the forecast.
  *
- * Step 2 checks what it can without the classifier and the recurrence engine,
- * and errs on the side of refusing:
- *   owedItems      every live one-off with status `expected` or `part_paid`.
- *   liveSchedules  every live schedule (ended ones included).
+ *   owedItems      live one-offs with status `part_paid`, or `expected` with a
+ *                  derivedStatus other than `assumedSettled` — the same
+ *                  classify call GET /items makes (services/items.js), against
+ *                  the account's anchor and `today` (§10.2). The candidates are
+ *                  a locking read (FOR SHARE OF the items, after the account
+ *                  row: §10.1's order), so they are current even when this
+ *                  transaction's snapshot predates the account lock (the
+ *                  isDefault path reads first).
+ *   liveSchedules  every live schedule (ended ones included) — see below.
  *   owedInstances  none yet.
  *
- * TODO(step 4): drop the `expected` one-offs whose derivedStatus is
- *   `assumedSettled` — the same lib/classify.js call GET /items makes, against
- *   the account's anchor and `today` (§10.2: "the same classify call the lists
- *   use").
  * TODO(step 5): keep only the schedules with an occurrence on or after `today`
  *   (lib/recurrence.js, effective dates), and fill owedInstances with the
  *   instances whose derivedStatus is `overdue` or `unresolved`.
  */
-async function owedOnAccount(conn, id, _today) {
-    const [[itemCount]] = await conn.query(
-        `SELECT COUNT(*) AS n FROM cash_items
-          WHERE account_id = ? AND deleted_at IS NULL AND status IN ('expected', 'part_paid')`,
+async function owedOnAccount(conn, id, today) {
+    const [rows] = await conn.query(
+        `${ITEM_SELECT}
+          WHERE i.account_id = ? AND i.deleted_at IS NULL AND i.status IN ('expected', 'part_paid')
+          ORDER BY i.due_date ASC, i.id ASC
+          FOR SHARE OF i`,
         [id]
     );
-    const [items] = await conn.query(
-        `SELECT id FROM cash_items
-          WHERE account_id = ? AND deleted_at IS NULL AND status IN ('expected', 'part_paid')
-          ORDER BY due_date ASC, id ASC LIMIT ?`,
-        [id, DETAIL_KEY_CAP]
-    );
+    const owed = (await decorateItems(conn, rows, today))
+        .filter((item) => item.status === 'part_paid' || item.derivedStatus !== 'assumedSettled');
     const [[scheduleCount]] = await conn.query(
         'SELECT COUNT(*) AS n FROM schedules WHERE account_id = ? AND deleted_at IS NULL', [id]
     );
@@ -110,7 +110,7 @@ async function owedOnAccount(conn, id, _today) {
         [id, DETAIL_KEY_CAP]
     );
     return {
-        owedItems: { count: Number(itemCount.n), keys: items.map((r) => buildItemKey(Number(r.id))) },
+        owedItems: { count: owed.length, keys: owed.slice(0, DETAIL_KEY_CAP).map((item) => item.key) },
         liveSchedules: { count: Number(scheduleCount.n), ids: schedules.map((r) => Number(r.id)) },
         owedInstances: { count: 0, keys: [] },
     };

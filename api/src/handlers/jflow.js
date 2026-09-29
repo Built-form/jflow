@@ -140,16 +140,15 @@ const ITEM_STATUSES = ['expected', 'part_paid', 'paid', 'skipped'];
 // NULL on the row means 'expected' (CONTRACT §3.2, §3.4).
 const OVERRIDE_STATUSES = ['expected', 'part_paid', 'paid', 'skipped'];
 const SETTLE_MODES = ['auto', 'manual'];
-const FREQUENCIES = ['weekly', 'fortnightly', 'four_weekly', 'monthly', 'quarterly', 'annually'];
-const WEEKEND_RULES = ['none', 'previous', 'next'];
+const { FREQUENCIES, WEEKEND_RULES } = require('../lib/recurrence');
 const SCHEDULE_STATUSES = ['active', 'ended'];
 const SCENARIO_STATUSES = ['draft', 'applied', 'archived'];
 const ADJUSTMENT_KINDS = ['adjust', 'exclude'];
 const STALE_REASONS = ['BASE_CHANGED', 'TARGET_SETTLED', 'TARGET_MISSING', 'DATE_PASSED'];
-const DERIVED_STATUSES = ['expected', 'overdue', 'unresolved', 'assumed', 'assumedSettled', 'paid', 'skipped'];
+const { DERIVED_STATUSES } = require('../lib/classify');
 const BUCKETS = ['day', 'week', 'month'];
 const INCLUDE_MODES = ['summary', 'grid'];
-const TARGET_KINDS = ['item', 'sched', 'ship'];
+const { TARGET_KINDS } = require('../lib/keys');
 
 // Every refusal code in CONTRACT §7, in the catalogue's order. Message-only
 // refusals (400/401/404/413 and the allowlist 409s) carry no code.
@@ -564,6 +563,7 @@ app.use('/api/v1', require('../routes/accounts')(routerDeps));
 app.use('/api/v1', require('../routes/categories')(routerDeps));
 app.use('/api/v1', require('../routes/fxRates')(routerDeps));
 app.use('/api/v1', require('../routes/balances')(routerDeps));
+app.use('/api/v1', require('../routes/items')(routerDeps));
 
 // ── Fallbacks ───────────────────────────────────────────────────────────────
 

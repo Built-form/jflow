@@ -6,9 +6,7 @@ step's "Done when" holds and its commit is made.
 
 ## Current step
 
-**Steps 2 and 3 are done. Step 4 (items) and step 8 (web) are in progress**; step 4's
-classifier is built. Dev asked for multiple agents, so independent steps run in parallel,
-and each still gets its own commit. Steps 5–7 wait for Dev to set `/effort xhigh`.
+**Steps 0–4 and 12 are done.** Step 8 (web shell) is built, waiting on step 6 for its walk; step 9 (web screens) is being built in parallel against CONTRACT. **Next: steps 5–7, once Dev sets `/effort xhigh`.**
 
 | Step | Title | State |
 |---|---|---|
@@ -16,12 +14,12 @@ and each still gets its own commit. Steps 5–7 wait for Dev to set `/effort xhi
 | 1 | Scaffold, CI, migration tooling | done |
 | 2 | Reference data | done |
 | 3 | Pure libraries (tests first) | done |
-| 4 | Classifier and one-off items | classifier built (committed with the step); items in progress |
+| 4 | Classifier and one-off items | done |
 | 5 | Schedules, overrides, split and end (tests first) | not started |
 | 6 | Engine, loader and `/forecast` (tests first) | not started |
 | 7 | Scenarios | not started |
 | 8 | Web shell, settings, cash at bank | in progress (ahead of order; its "Done when" needs step 6) |
-| 9 | Web forecast, items, schedules, scenarios | not started |
+| 9 | Web forecast, items, schedules, scenarios | in progress (UI against CONTRACT, stubbed; walk after step 7) |
 | 10 | Mobileweb | not started |
 | 11 | First deploy — STOP (Dev) | not started |
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
@@ -302,3 +300,66 @@ The plan covers:
 of truth / freeze window, shipping's `nodejs18.x`, POs with no company, the account for a
 stock payment, a ship currency with no rate, supplier-tag access, refresh audit, "exclude" on
 ship lines, the API key, and the 45-day window for supplier money.
+
+## Step 4 — Classifier and one-off items (2026-09-29)
+
+**Shipped**
+- `src/lib/classify.js`:
+  - `classify(line, A, today) → {payments: PaidLine[], owed: OwedLine|null}` per §9.6;
+  - also `derivedStatus(result)`, `OVERDUE_WINDOW_DAYS = 45`, `DERIVED_STATUSES`;
+  - the only place the table lives.
+- `src/lib/lines.js`: item row → classifier input. Pure, with no band table.
+- `src/routes/items.js`, per §6.7 and §10.3:
+  - GET/POST `/items`, GET/PUT/DELETE `/items/:id`;
+  - `POST /items/:id/pay`: one `payments` row per pay, cache rewritten from the rows under
+    the item lock;
+  - `POST /items/:id/unpay`: deletes every payment row, one audit row each;
+  - the `FOR SHARE` on the account and category comes first (§10.1 amendment).
+- `src/services/items.js`: item JSON with `payments[]` and `derivedStatus`, computed against
+  each account's anchor.
+- `src/services/forecastLoad.js`: the item and payment side of §8 (rows in, no logic).
+- `src/routes/accounts.js` `owedOnAccount`: the one-off part of D17 is real now
+  (`assumedSettled` no longer blocks); it reads with `FOR SHARE OF i`.
+- `src/handlers/jflow.js` imports `FREQUENCIES`, `WEEKEND_RULES`, `DERIVED_STATUSES` and
+  `TARGET_KINDS` from the modules that enforce them, instead of keeping copies.
+
+**Validation**
+- Tests first for `classify` (the suite failed on the missing module first).
+- Lint clean; unit **672/672** (12 suites); e2e **64/64** (7 suites: step 2's 43, items
+  16, loader 5).
+- The matrix `{auto, manual} × {< A, A..today−1, == today, > today} × {A < today, A ==
+  today}`, plus paid, part_paid straddling A, skipped and `A = null`, asserts every case
+  lands in exactly one row.
+- The 45-day boundary: −44 and −45 overdue, −46 unresolved.
+- e2e covers:
+  - the pay/unpay state machine, including two partial payments straddling an anchor
+    (each classified on its own date) and paying to full;
+  - `PAID_ON_IN_FUTURE`, `PAID_AMOUNT_INVALID` (both kinds), `REMAINDER_DATE_REQUIRED`;
+  - an audit row per mutation and per payment row;
+  - every `derivedStatus` value;
+  - "Didn't happen" → overdue/unresolved, and the D17 guard ignoring assumedSettled.
+- A grep finds no band name outside `classify.js`, other than D17's filter on the
+  `derivedStatus` it returns.
+
+**Decisions where CONTRACT was silent**
+- The anchor is the latest balance **on or before today**. This only matters under a
+  pinned `?today=` (local/test), where a later balance would otherwise make
+  `classify` throw.
+- `ITEM_NOT_EDITABLE` refuses only when the sent status/amount/currency differs from the
+  stored value.
+- `direction` ≠ category → 400 (not silently ignored).
+- `q` searches name + counterparty.
+- A `remainderDueDate` sent on a full payment still moves `due_date`.
+- Text caps: `notes` 16,000; payment `note` 500.
+- Audit snapshots leave out the derived `payments` / `derivedStatus`.
+
+**Left for steps 5–6**
+- `forecastLoad.js` TODOs: schedules and overrides (rules 1–3, 5, 7), rates, adjustments,
+  de-duplication and the assembled `engineInput`.
+- `loadTarget`'s `sched.` branch.
+- `owedOnAccount`'s schedule/instance parts.
+- An instance equivalent of `itemLine` in `lib/lines.js`.
+- The same plain-read-before-lock pattern exists in step 2's `references()` on the
+  `isDefault` path; it is rare, noted but left alone.
+
+**Deferred**: none.
