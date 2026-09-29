@@ -14,8 +14,9 @@ import {
   shortDay,
   signedMoney,
 } from '../../lib/grid';
-import type { BalanceFlag } from '../../lib/grid';
+import type { BalanceFlag, FlagTag } from '../../lib/grid';
 import { formatMoney, toMinor } from '../../lib/money';
+import { shipFlagNotes, shipLineStyle } from '../../lib/ship';
 import { toneStyle } from '../../lib/tone';
 
 /**
@@ -23,7 +24,13 @@ import { toneStyle } from '../../lib/tone';
  * closing), then each category and the lines under it. Every figure is the server's —
  * the header rows are `buckets[]`, a category's cells are its `totals[]`, a line's cell
  * is its own `gbpMinor`. Nothing here adds money up.
+ *
+ * A ship line (Phase 2) looks the way its server flags say: `estimated` hatched and in
+ * italics, `blocked` / `planned` / `projected` as marks; `lineMarks` adds the marks that
+ * come from `warnings[]` rather than the line (a `SHIP_PLAN_STALE` key).
  */
+export type LineMarks = ReadonlyMap<string, FlagTag[]>;
+const NO_MARKS: LineMarks = new Map();
 
 const LABEL_W = 250;
 const CELL_W = 118;
@@ -95,6 +102,7 @@ export function ForecastGrid({
   rows,
   summary,
   delta,
+  lineMarks = NO_MARKS,
   onEdit,
 }: {
   kind: BucketKind;
@@ -103,6 +111,8 @@ export function ForecastGrid({
   summary: ForecastSummary;
   /** `scenario.deltaByBucket`, when a scenario is open. */
   delta: BucketDelta[] | null;
+  /** Extra marks per key, from `warnings[]`. */
+  lineMarks?: LineMarks;
   onEdit: (item: ForecastItem, row: ForecastRow) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
@@ -213,6 +223,7 @@ export function ForecastGrid({
                 onToggle={() => toggle(row.categoryId)}
                 groups={groups}
                 bucketCount={buckets.length}
+                lineMarks={lineMarks}
                 onEdit={(item) => onEdit(item, row)}
               />
             );
@@ -229,6 +240,7 @@ function CategoryBlock({
   onToggle,
   groups,
   bucketCount,
+  lineMarks,
   onEdit,
 }: {
   row: ForecastRow;
@@ -236,6 +248,7 @@ function CategoryBlock({
   onToggle: () => void;
   groups: ReturnType<typeof groupLines>;
   bucketCount: number;
+  lineMarks: LineMarks;
   onEdit: (item: ForecastItem) => void;
 }) {
   return (
@@ -266,39 +279,62 @@ function CategoryBlock({
         <td style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}>{cellMoney(row.total)}</td>
       </tr>
       {open &&
-        groups.map((group) => (
+        groups.map((group) => {
+          // A ship line's name already carries the supplier (§6.10); its container says more.
+          const sub = group.kind === 'ship' ? group.lines[0]?.ship?.containerRef ?? null : group.counterparty;
+          return (
           <tr key={group.key} data-testid={`line-${group.key}`}>
             <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: 30 }}>
               <div style={{ fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.name}>
                 {group.name}
               </div>
-              {group.counterparty && (
+              {sub && (
                 <div style={{ fontSize: 12, color: 'var(--dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {group.counterparty}
+                  {sub}
                 </div>
               )}
             </th>
             {group.cells.map((lines, i) => (
               <td key={i} style={cell}>
                 {lines.map((line, j) => (
-                  <LineCell key={lineId(line, j)} line={line} onEdit={onEdit} />
+                  <LineCell key={lineId(line, j)} line={line} marks={lineMarks.get(line.key)} onEdit={onEdit} />
                 ))}
               </td>
             ))}
             <td style={cell} />
           </tr>
-        ))}
+          );
+        })}
     </>
   );
 }
 
 /** One line in one cell: its GBP figure and its flags; a button when the server allows an edit. */
-function LineCell({ line, onEdit }: { line: ForecastItem; onEdit: (item: ForecastItem) => void }) {
-  const tags = flagTags(line.flags);
+function LineCell({
+  line,
+  marks,
+  onEdit,
+}: {
+  line: ForecastItem;
+  marks?: FlagTag[];
+  onEdit: (item: ForecastItem) => void;
+}) {
+  const tags = [...flagTags(line.flags), ...(marks ?? [])];
   const excluded = line.flags.includes('excluded');
   const stale = line.flags.includes('stale');
+  const ship = line.kind === 'ship';
+  const estimated = ship && line.flags.includes('estimated');
   const figure = (
-    <span style={{ textDecoration: excluded ? 'line-through' : undefined, color: excluded ? 'var(--dim)' : undefined }}>
+    <span
+      data-estimated={estimated ? 'true' : undefined}
+      style={{
+        ...(ship ? shipLineStyle(line.flags) : {}),
+        textDecoration: excluded ? 'line-through' : undefined,
+        color: excluded ? 'var(--dim)' : undefined,
+        padding: estimated ? '0 3px' : undefined,
+        borderRadius: estimated ? 3 : undefined,
+      }}
+    >
       {cellMoney(line.gbpMinor)}
     </span>
   );
@@ -334,8 +370,11 @@ function LineCell({ line, onEdit }: { line: ForecastItem; onEdit: (item: Forecas
   const describe = `${line.name}, ${formatMoney(toMinor(line.amountMinor), line.currency)} on ${formatDay(line.date)}${
     tags.length ? `, ${tags.map((t) => t.label.toLowerCase()).join(', ')}` : ''
   }`;
-  const title =
-    line.currency !== 'GBP' ? `${formatMoney(toMinor(line.amountMinor), line.currency)} · ${formatDay(line.date)}` : formatDay(line.date);
+  const notes = ship ? shipFlagNotes(line.flags, line.ship) : [];
+  const title = [
+    line.currency !== 'GBP' ? `${formatMoney(toMinor(line.amountMinor), line.currency)} · ${formatDay(line.date)}` : formatDay(line.date),
+    ...notes,
+  ].join(' ');
   const box: CSSProperties = {
     display: 'flex',
     flexDirection: 'column',

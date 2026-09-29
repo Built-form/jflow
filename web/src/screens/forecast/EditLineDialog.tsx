@@ -9,6 +9,7 @@ import { Tag, Toggle } from '../../components/ui';
 import { formatDay, isValidDate } from '../../lib/dates';
 import { flagTags, shortDay } from '../../lib/grid';
 import { formatMoney, toMinor } from '../../lib/money';
+import { shipFlagNotes } from '../../lib/ship';
 import { RefusalNote } from '../scenarios/RefusalNote';
 import type { EditAction, EditForm } from './edit';
 import { QUICK_SHIFTS, checkEdit, initialForm, shiftedDate } from './edit';
@@ -67,7 +68,8 @@ export function EditLineDialog({
     });
   };
 
-  const what = item.kind === 'sched' ? 'instance' : 'item';
+  const what = item.kind === 'sched' ? 'instance' : item.kind === 'ship' ? 'stock payment' : 'item';
+  const ship = item.kind === 'ship' ? item.ship ?? null : null;
   const confirmLabel = scenario
     ? form.exclude
       ? 'Leave it out'
@@ -107,7 +109,17 @@ export function EditLineDialog({
               </span>
             )}
           </div>
-          {item.counterparty && <div>{item.counterparty}</div>}
+          {item.counterparty && !ship && <div>{item.counterparty}</div>}
+          {ship && (
+            <div data-testid="edit-ship-feed">
+              Shipping says{' '}
+              <span className="mono" style={{ color: 'var(--text)' }}>
+                {formatMoney(toMinor(ship.feedAmountMinor), item.currency)}
+              </span>{' '}
+              on {ship.feedDate ? formatDay(ship.feedDate) : 'no date yet'}.
+            </div>
+          )}
+          {ship && shipFlagNotes(item.flags, ship).map((n) => <div key={n} style={{ fontSize: 13 }}>{n}</div>)}
           {scenario && item.baseline && adjusted && (
             <div data-testid="edit-baseline">
               Real plan: {formatMoney(toMinor(item.baseline.amountMinor), item.currency)} on {formatDay(item.baseline.date)}

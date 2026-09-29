@@ -41,6 +41,7 @@ describe('the shell', () => {
       'Cash at bank',
       'Income & outgoings',
       'Schedules',
+      'Stock payments',
       'Scenarios',
       'Settings',
       'People',

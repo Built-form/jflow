@@ -11,7 +11,7 @@ afterEach(cleanup);
 
 const stamp = '2026-09-29T08:00:00Z';
 const company: Company = {
-  id: 1, code: 'JFA', name: 'JFA', sortOrder: 1, rowVersion: 0, createdBy: null, createdAt: stamp, updatedAt: stamp, deletedAt: null,
+  id: 1, code: 'JFA', name: 'JFA', sortOrder: 1, shippingCompanyId: null, rowVersion: 0, createdBy: null, createdAt: stamp, updatedAt: stamp, deletedAt: null,
 };
 
 function account(id: number, name: string, currency: string): Account {

@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/App.tsx — changes: JFlow's routes (Forecast, Cash at bank, Income & outgoings, Schedules, Scenarios, Settings, People, About; Forecast, Income & outgoings, Schedules and Scenarios built in step 9); home is Forecast; dropped the InstancesProvider/CatalogueProvider frame and every role guard (standard is trust-the-team, CONTRACT D5); the not-found screen's way home is Forecast
+// Copied from workflows/web/src/App.tsx — changes: JFlow's routes (Forecast, Cash at bank, Income & outgoings, Schedules, Scenarios, Settings, People, About; Forecast, Income & outgoings, Schedules and Scenarios built in step 9; Stock payments added in Phase 2 step 22); home is Forecast; dropped the InstancesProvider/CatalogueProvider frame and every role guard (standard is trust-the-team, CONTRACT D5); the not-found screen's way home is Forecast
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Shell } from './components/Shell';
 import { api } from './api';
@@ -18,6 +18,7 @@ import { AboutScreen } from './screens/AboutScreen';
 import { ForecastScreen } from './screens/forecast/ForecastScreen';
 import { ScenariosScreen } from './screens/scenarios/ScenariosScreen';
 import { ScenarioScreen } from './screens/scenarios/ScenarioScreen';
+import { StockPaymentsScreen } from './screens/stock/StockPaymentsScreen';
 
 /** Where `/` lands. */
 export const HOME = '/forecast';
@@ -76,6 +77,7 @@ export function App() {
         <Route path="/items" element={<ItemsScreen />} />
         <Route path="/schedules" element={<SchedulesScreen />} />
         <Route path="/schedules/:id" element={<ScheduleScreen />} />
+        <Route path="/stock-payments" element={<StockPaymentsScreen />} />
         <Route path="/scenarios" element={<ScenariosScreen />} />
         <Route path="/scenarios/:id" element={<ScenarioScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />

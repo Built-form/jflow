@@ -23,6 +23,7 @@ import type {
   CategoryUpdate,
   Company,
   CompanyInput,
+  CompanyUpdate,
   CursorEnvelope,
   FxCurrent,
   FxRate,
@@ -99,7 +100,7 @@ export const companies = {
     }),
   get: (id: number) => request<Company>(`/companies/${id}`),
   create: (body: CompanyInput) => request<Company>('/companies', { method: 'POST', body }),
-  update: (id: number, body: Partial<CompanyInput>, baseVersion?: number) =>
+  update: (id: number, body: CompanyUpdate, baseVersion?: number) =>
     request<Company>(`/companies/${id}`, { method: 'PUT', body: versioned(body, baseVersion) }),
   remove: (id: number, baseVersion?: number) =>
     request<void>(`/companies/${id}`, { method: 'DELETE', body: deleteBody(baseVersion) }),
@@ -226,3 +227,4 @@ export * from './forecast';
 export * from './scenarios';
 export * from './items';
 export * from './schedules';
+export * from './external';

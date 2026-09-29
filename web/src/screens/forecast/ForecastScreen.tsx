@@ -30,11 +30,15 @@ import {
   signedMoney,
 } from '../../lib/grid';
 import { formatMoney, toMinor } from '../../lib/money';
+import { PLAN_STALE_TAG, splitShipWarnings } from '../../lib/ship';
 import { toneOfScenarioStatus } from '../../lib/tone';
 import { SCENARIO_STATUS_LABEL, staleReason } from '../scenarios/stale';
 import { BalanceChart } from './BalanceChart';
 import { EditLineDialog } from './EditLineDialog';
 import { ForecastGrid } from './ForecastGrid';
+import type { LineMarks } from './ForecastGrid';
+import { ShipPlanDialog } from './ShipPlanDialog';
+import { ShipNotes, ShippingStatus, ShippingUnavailableBanner } from './shipping';
 
 export const BUCKET_PARAM = 'bucket';
 export const WINDOW_PARAM = 'days';
@@ -47,6 +51,11 @@ export const WINDOW_PARAM = 'days';
  *
  * Overdue, paid, remainder, adjusted, stale… are the server's flags, shown as they come.
  * The client computes no band and no total (CLAUDE.md "Never").
+ *
+ * Stock payments (Phase 2) arrive as ship lines in their own row. With no scenario open, an
+ * edit of one writes JFlow's plan over shipping's figures (the overlay); inside a scenario
+ * it is an adjustment like any other line. The shipping feed's state is one status line
+ * with "Refresh now"; its warnings are shown in words.
  */
 export function ForecastScreen() {
   const [today] = useState(() => londonToday());
@@ -92,6 +101,11 @@ export function ForecastScreen() {
 
   const res = data.data;
   const scenario = res?.scenario ?? null;
+  const shipWarnings = useMemo(() => splitShipWarnings(res?.warnings), [res]);
+  const lineMarks: LineMarks = useMemo(
+    () => new Map(shipWarnings.stale.map((key) => [key, [PLAN_STALE_TAG]])),
+    [shipWarnings],
+  );
 
   // The banner's name is remembered from when the scenario was opened; the server's is current.
   useEffect(() => {
@@ -146,9 +160,12 @@ export function ForecastScreen() {
       ) : (
         <>
           {scenario && <ScenarioPanel scenario={scenario} lineName={lineName} />}
-          <Warnings warnings={res.warnings} accountName={accountName} />
+          <ShippingUnavailableBanner warning={shipWarnings.unavailable} />
+          <Warnings warnings={shipWarnings.other} accountName={accountName} />
+          <ShipNotes warnings={shipWarnings} lineName={lineName} onChanged={data.reload} />
           <UnresolvedBanner summary={res.summary} unresolved={res.unresolved} accountName={accountName} />
           <SummaryTiles summary={res.summary} baseline={scenario?.baselineSummary ?? null} />
+          <ShippingStatus shipping={res.shipping} onRefreshed={data.reload} />
 
           <section className="panel" aria-label="Balance chart">
             <div className="kicker">CLOSING BALANCE · GBP</div>
@@ -170,6 +187,7 @@ export function ForecastScreen() {
                   rows={res.rows}
                   summary={res.summary}
                   delta={scenario?.deltaByBucket ?? null}
+                  lineMarks={lineMarks}
                   onEdit={(item, row) => setEditing({ item, row })}
                 />
                 {res.rows.length === 0 && <Empty>No money in or out in this window.</Empty>}
@@ -181,7 +199,21 @@ export function ForecastScreen() {
         </>
       )}
 
-      {editing && res && (
+      {editing && res && editing.item.kind === 'ship' && !scenario && (
+        <ShipPlanDialog
+          itemKey={editing.item.key}
+          title={editing.item.name}
+          today={res.meta.today}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            // The plan moves the line, its bucket and every balance after it: re-read.
+            data.reload();
+          }}
+        />
+      )}
+
+      {editing && res && !(editing.item.kind === 'ship' && !scenario) && (
         <EditLineDialog
           item={editing.item}
           categoryName={editing.row.categoryName}
@@ -331,6 +363,13 @@ export function warningText(w: ForecastWarning, accountName: (id: number) => str
   }
 }
 
+/** Where each kind of unresolved line is resolved. */
+const UNRESOLVED_HOME: Record<string, { to: string; label: string }> = {
+  item: { to: '/items', label: 'Income & outgoings' },
+  sched: { to: '/schedules', label: 'Schedules' },
+  ship: { to: '/stock-payments', label: 'Stock payments' },
+};
+
 /**
  * Manual lines long past due: not in the balance line at all until someone pays, moves or
  * skips them. The count and total are the server's (`summary.unresolved*`).
@@ -383,8 +422,8 @@ export function UnresolvedBanner({
               <span style={{ color: 'var(--mut)' }}>
                 due {formatDay(u.date)} · {plural(u.ageDays, 'day')} ago · {accountName(u.accountId)}
               </span>
-              <Link to={u.kind === 'sched' ? '/schedules' : '/items'} style={{ fontSize: 13 }}>
-                {u.kind === 'sched' ? 'Schedules' : 'Income & outgoings'}
+              <Link to={UNRESOLVED_HOME[u.kind]?.to ?? '/items'} style={{ fontSize: 13 }}>
+                {UNRESOLVED_HOME[u.kind]?.label ?? 'Income & outgoings'}
               </Link>
             </li>
           ))}

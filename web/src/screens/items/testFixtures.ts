@@ -10,7 +10,7 @@ import type { Account, Category, Company } from '../../api/types';
 export const TODAY_STAMP = '2026-09-29T08:00:00Z';
 
 export const company: Company = {
-  id: 1, code: 'JFA', name: 'JFA', sortOrder: 1, rowVersion: 0, createdBy: null,
+  id: 1, code: 'JFA', name: 'JFA', sortOrder: 1, shippingCompanyId: null, rowVersion: 0, createdBy: null,
   createdAt: TODAY_STAMP, updatedAt: TODAY_STAMP, deletedAt: null,
 };
 
@@ -24,7 +24,7 @@ export function account(id: number, name: string, currency = 'GBP'): Account {
 
 export function category(id: number, name: string, direction: 'in' | 'out'): Category {
   return {
-    id, name, direction, sortOrder: id, rowVersion: 0, createdBy: null,
+    id, name, direction, sortOrder: id, systemKey: null, rowVersion: 0, createdBy: null,
     createdAt: TODAY_STAMP, updatedAt: TODAY_STAMP, deletedAt: null,
   };
 }

@@ -6,7 +6,8 @@
  * w/c 12 Oct. Bucket 0 closes below zero; bucket 1 closes above zero but dips below it.
  */
 
-import type { ForecastDay, ForecastItem, ForecastResponse, ForecastRow } from '../../api/forecast';
+import type { ExternalItem } from '../../api/external';
+import type { ForecastDay, ForecastItem, ForecastResponse, ForecastRow, ForecastShipping } from '../../api/forecast';
 import { addDays } from '../../lib/dates';
 
 export const TODAY = '2026-09-29';
@@ -123,6 +124,86 @@ export function rows(): ForecastRow[] {
   ];
 }
 
+/**
+ * The Stock payments row (Phase 2, §6.10): a USD deposit whose date is shipping's estimate
+ * and which JFlow has planned (a date moved from 2 Oct to 6 Oct), and a USD balance blocked
+ * on artwork whose amount is projected. Both editable.
+ */
+export function shipRow(): ForecastRow {
+  return {
+    categoryId: 90,
+    categoryName: 'Stock payments',
+    direction: 'out',
+    sortOrder: 900,
+    totals: [0, 370000, 111000],
+    total: 481000,
+    items: [
+      line({
+        key: 'ship.dep-812',
+        kind: 'ship',
+        id: 'dep-812',
+        name: 'Acme Textiles · PO-812 · deposit',
+        counterparty: 'Acme Textiles',
+        currency: 'USD',
+        amountMinor: 500000,
+        accountMinor: 500000,
+        gbpMinor: 370000,
+        date: '2026-10-06',
+        dueDate: '2026-10-06',
+        bucketIndex: 1,
+        settleMode: 'manual',
+        flags: ['estimated', 'planned'],
+        ship: {
+          kind: 'deposit',
+          poNumber: 'PO-812',
+          containerRef: null,
+          dateBasis: 'estimated',
+          amountBasis: 'stated',
+          blocked: null,
+          feedDate: '2026-10-02',
+          feedAmountMinor: 500000,
+        },
+      }),
+      line({
+        key: 'ship.bal-812-s311',
+        kind: 'ship',
+        id: 'bal-812-s311',
+        name: 'Acme Textiles · PO-812 · balance',
+        counterparty: 'Acme Textiles',
+        currency: 'USD',
+        amountMinor: 150000,
+        accountMinor: 150000,
+        gbpMinor: 111000,
+        date: '2026-10-13',
+        dueDate: '2026-10-13',
+        bucketIndex: 2,
+        settleMode: 'manual',
+        flags: ['projected', 'blocked'],
+        ship: {
+          kind: 'balance',
+          poNumber: 'PO-812',
+          containerRef: 'MSCU1234567',
+          dateBasis: 'firm',
+          amountBasis: 'derived',
+          blocked: 'artwork',
+          feedDate: '2026-10-13',
+          feedAmountMinor: 150000,
+        },
+      }),
+    ],
+  };
+}
+
+/** A `shipping` block (§6.10): synced this morning, three undated rows worth £4,500.00. */
+export const SHIPPING: ForecastShipping = {
+  lastSuccessAt: '2026-09-29T12:00:00Z',
+  feedToday: TODAY,
+  openCount: 12,
+  undatedCount: 3,
+  undatedGbp: 450000,
+  unmappedCount: 2,
+};
+
 function days(withBaseline: boolean): ForecastDay[] {
   const out: ForecastDay[] = [];
   let opening = 100000;
@@ -149,7 +230,16 @@ export function forecastFixture({
   scenario = false,
   unresolved = false,
   warnings = [],
-}: { scenario?: boolean; unresolved?: boolean; warnings?: ForecastResponse['warnings'] } = {}): ForecastResponse {
+  ship = false,
+  shipping = null,
+}: {
+  scenario?: boolean;
+  unresolved?: boolean;
+  warnings?: ForecastResponse['warnings'];
+  /** Add the Stock payments row. */
+  ship?: boolean;
+  shipping?: ForecastShipping | null;
+} = {}): ForecastResponse {
   const summary = {
     opening: 100000,
     inflow: 100000,
@@ -162,7 +252,7 @@ export function forecastFixture({
     unresolvedTotal: unresolved ? 83000 : 0,
     absorbedCount: 1,
   };
-  const r = rows();
+  const r = ship ? [...rows(), shipRow()] : rows();
   if (scenario) {
     for (const row of r) for (const item of row.items) item.baseline = { date: item.date, amountMinor: item.amountMinor, gbpMinor: item.gbpMinor, flags: [] };
     // The rent has been moved a week later in the scenario.
@@ -230,6 +320,36 @@ export function forecastFixture({
           { key: 'sched.7.2026-08-01', kind: 'sched', name: 'Storage', categoryId: 3, accountId: 2, currency: 'GBP', amountMinor: 33000, gbpMinor: 33000, direction: 'out', date: '2026-08-01', ageDays: 59, settleMode: 'manual' },
         ]
       : [],
+    shipping,
     warnings,
   };
+}
+
+/** An `/external-items` row (§6.12): the USD balance above, open, unplanned, row version 4. */
+export function externalRow(overrides: Partial<ExternalItem> = {}): ExternalItem {
+  return {
+    key: 'ship.bal-812-s311', id: 31, source: 'ship', extId: 'bal-812-s311', feedKind: 'balance', feedStatus: 'open',
+    supplier: 'Acme Textiles', shippingCompanyId: 11, companyId: 1, accountId: 1, poId: 812, poNumber: 'PO-812',
+    shipmentId: 311, containerRef: 'MSCU1234567', currency: 'USD', amount: '1500.00', dueDate: '2026-10-13',
+    paidOn: null, settles: null, dateBasis: 'firm', amountBasis: 'derived', blocked: 'artwork', flags: [],
+    goneAt: null, plannedDate: null, plannedAmount: null, plannedSkipped: false, plannedBaseAmount: null,
+    plannedNote: null, sourceScenarioId: null, plannedBy: null, plannedAt: null, effectiveDate: '2026-10-13',
+    effectiveAmount: '1500.00', planStale: false, derivedStatus: 'expected', rowVersion: 4, createdBy: 'shipping-feed',
+    createdAt: '2026-09-29T08:00:00Z', updatedAt: '2026-09-29T08:00:00Z',
+    ...overrides,
+  };
+}
+
+/**
+ * `GET /external-items/ship.dep-812`: the row behind the deposit line in `shipRow()` —
+ * shipping says $5,000.00 on 2 Oct (estimated); JFlow has pinned 6 Oct, with a note.
+ */
+export function depositRow(overrides: Partial<ExternalItem> = {}): ExternalItem {
+  return externalRow({
+    key: 'ship.dep-812', id: 30, extId: 'dep-812', feedKind: 'deposit', shipmentId: null, containerRef: null,
+    amount: '5000.00', dueDate: '2026-10-02', dateBasis: 'estimated', amountBasis: 'stated', blocked: null,
+    plannedDate: '2026-10-06', plannedNote: 'Factory holiday', plannedBy: 'dev@built-form.co.uk',
+    plannedAt: '2026-09-28T09:00:00Z', effectiveDate: '2026-10-06', effectiveAmount: '5000.00', rowVersion: 7,
+    ...overrides,
+  });
 }

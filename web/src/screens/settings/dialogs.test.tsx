@@ -56,7 +56,7 @@ describe('the company dialog', () => {
       return Promise.resolve({} as T);
     });
     const company = {
-      id: 7, code: 'HW', name: 'Hangerworld', sortOrder: 2, rowVersion: 4, createdBy: null,
+      id: 7, code: 'HW', name: 'Hangerworld', sortOrder: 2, shippingCompanyId: null, rowVersion: 4, createdBy: null,
       createdAt: '', updatedAt: '', deletedAt: null,
     };
     const onSaved = vi.fn();

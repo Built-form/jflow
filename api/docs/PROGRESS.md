@@ -31,8 +31,8 @@ step's "Done when" holds and its commit is made.
 | 18 | Phase 2: shipping `/api/internal/payments-forecast` — STOP (secret, deploy) | code in progress |
 | 19 | Phase 2: JFlow schema, client, refresh | done |
 | 20 | Phase 2: JFlow loader, engine, `/forecast` | done |
-| 21 | Phase 2: JFlow overlay routes + `ship.` scenarios | not started |
-| 22 | Phase 2: web (mobile parked) | not started |
+| 21 | Phase 2: JFlow overlay routes + `ship.` scenarios | done |
+| 22 | Phase 2: web (mobile parked) | done |
 | 23 | Phase 2: deploy — STOP (Dev) | not started |
 
 ## Step 0 — Adopt the spec (2026-09-29)
@@ -784,3 +784,85 @@ JWT `/api/v1/payments-flow` is not built. Shipping serves JFlow's feed from a po
 math. ShipLine keeps its own copy, so there are two implementations. They are kept equal by
 re-syncing the port with `tools/payments-flow-oracle.mjs` whenever ShipLine's math
 changes. Recorded in PLAN.md (Phase 2), PHASE2.md (top and steps 16–17) and CONTRACT §1.1 P1.
+
+## Phase 2 — Step 21: overlay routes and `ship.` scenarios (2026-09-29)
+
+Tests first: `test/e2e/ship-overlay.test.js` (21 tests) failed on the missing routes before
+any code existed.
+
+**Shipped**
+- `routes/external.js`: `PUT /external-items/:key` (the §10.11 merge; `planned_base_amount` =
+  the feed amount under the lock whenever `plannedAmount` is set, P6; audit `plan`) and
+  `DELETE /external-items/:key` (revert, `unplan`; gone and paid rows too). Both lock only
+  the row and answer the §6.12 row JSON with `derivedStatus`.
+- **Added at the web's request (coordinator), not in CONTRACT §6.12:** `GET
+  /external-items/:key` (one row, gone or not, for the plan dialog's `baseVersion` and note),
+  and `DELETE` answers **200 + the row JSON** instead of 204. CONTRACT should be updated to
+  match.
+- `services/externalItems.js`: `externalItemJson`, `lockExternalItem` (exact ext_id match
+  under the case-insensitive key), `hasOverlay`, `overlaySnapshot`, `auditOverlay`.
+- `services/scenarios.js` `lockTargets`: `external_items` rows after `cash_items`, before
+  `schedule_overrides`, ascending id (P11). `loadCurrent` names a ship target with the
+  forecast's name (`shipName`, moved from `engine.js` to `lib/lines.js`).
+- `routes/scenarios.js` `applyToShip` (§10.9 step 5): `planned_date = new_date ??
+  planned_date`, `planned_amount = new_amount ?? planned_amount` (+ its base when set),
+  `exclude` → `planned_skipped = 1` (P7), stamps, `row_version + 1`, audit
+  `external_item`/`apply`, `wrote: 'external_item'`. The re-check is lib/stale.js as before.
+- `lib/shape.js` `externalSyncToJson` and the refresh 503 emit timestamps as ISO 8601 UTC
+  text explicitly (they already serialised so; now independent of `Date.toJSON`).
+
+**Validation**: lint clean; unit 879/879 (19 suites); e2e 206/206 (17 suites). Two
+mutations were checked by hand: dropping the row_version check fails the two restart tests;
+locking ship rows before `cash_items` fails the lock-order test.
+
+**Decisions where CONTRACT was silent or ambiguous** (CONTRACT.md not edited)
+- **Ship locks "ordered by id" vs the snapshot.** The ids must be found before the locks,
+  and that plain read fixes the REPEATABLE READ snapshot before them, so a change committed
+  while apply waits on a ship row would be invisible to the re-check. Each row's
+  `row_version` is re-read under its lock; a mismatch throws a synthetic
+  `ER_LOCK_DEADLOCK` and `withTransaction` restarts once (as the split race guard). A second
+  mismatch in the retry is a 500, as for the split.
+- Audit `key` rides on `after` only: audit.js drops keys equal on both sides.
+- PUT with none of the four fields → 400 "nothing to update"; a merge equal to the current
+  overlay writes nothing (no stamp, no bump, no audit); re-sending the same `plannedAmount`
+  re-bases it when the feed amount moved (how a stale plan is accepted). "Nothing to plan"
+  (400) = date, amount, skipped and note all empty after the merge; DELETE's "no overlay"
+  (404) counts the stamps too. `skipped` must be a boolean (`null` is 400).
+- An unmapped or undated open row can be planned; an apply `adjust` with only `new_date`
+  keeps an existing `planned_amount` and its base (a stale plan stays stale).
+
+**Left for step 22 (web)**: the plan dialog (GET → PUT with `baseVersion`, DELETE to revert),
+the refusal codes, dating an undated line before adjusting it (`TARGET_MISSING` otherwise),
+and `SCENARIO_STALE` → rebase on drifted ship lines.
+
+**Deferred**: none beyond CONTRACT §11.
+
+## Phase 2 — Step 22: web for stock payments (2026-09-29)
+
+**Shipped** (`web/`):
+- `api/external.ts`: status, refresh, list, and GET/PUT/DELETE of the overlay.
+- `lib/ship.ts`: `ship.` keys, flag styles, blocked reasons, refresh-failure wording,
+  warning split.
+- **Forecast**:
+  - ship lines drawn from server flags (estimated hatched/italic, blocked, planned);
+  - a shipping status line with **Refresh now**;
+  - the `SHIPPING_UNAVAILABLE` banner;
+  - `SHIP_UNMAPPED` (links to Settings), and `SHIP_PLAN_STALE` /
+    `SHIP_PLAN_ORPHANED` notes.
+- `ShipPlanDialog`:
+  - loads the row (`GET /external-items/:key`) on open and shows shipping's date and
+    amount beside the plan;
+  - pin or follow the date, note, skip, "Revert to feed";
+  - sends `baseVersion`, with a `STALE_WRITE` recovery;
+  - inside a scenario it writes an adjustment.
+- **Settings**: a per-company shipping-company picker (409 `SHIPPING_COMPANY_TAKEN`); the
+  "Stock payments" system category can't be removed or have its direction changed.
+- **Stock payments** screen (`/stock-payments`, nav entry): grouped by `derivedStatus`
+  (null = "Not in the forecast"). It is the only place to un-skip a stock payment.
+
+**Validation**: `tsc` clean; vitest **321/321** (27 files); build succeeds;
+`sharedSession.ts` byte-identical. The browser walk waits for the source swap (real `jfa`
+data).
+
+**Notes**: the Forecast's "Clear the plan" on an orphaned plan sends DELETE without
+`baseVersion`, because nothing reads the row first.

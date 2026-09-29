@@ -171,6 +171,12 @@ export const FLAG_LABEL: Record<string, { label: string; tone: Tone }> = {
   excluded: { label: 'LEFT OUT', tone: 'idle' },
   stale: { label: 'STALE', tone: 'fail' },
   fromScenario: { label: 'FROM SCENARIO', tone: 'idle' },
+  // Phase 2 ship lines' feed flags (§6.10). None of them changes a band; they say how firm
+  // shipping's figures are, and whether JFlow has planned over them (lib/ship.ts explains each).
+  estimated: { label: 'ESTIMATED', tone: 'idle' },
+  projected: { label: 'PROJECTED', tone: 'idle' },
+  blocked: { label: 'BLOCKED', tone: 'warn' },
+  planned: { label: 'PLANNED', tone: 'live' },
 };
 
 /**

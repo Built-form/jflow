@@ -10,6 +10,9 @@
  *
  * Every flag, `editable`, band and status here is the server's (CLAUDE.md "Never": no
  * engine rule in a client). The screen renders them; it does not decide them.
+ *
+ * Phase 2 adds ship lines (`kind: 'ship'`, a `ship` block, the feed flags), the `shipping`
+ * block and four warnings. A ship line's real-data edit is the overlay in `./external`.
  */
 
 import { request } from './client';
@@ -22,6 +25,13 @@ export type BucketKind = 'day' | 'week' | 'month';
 export type IncludeMode = 'summary' | 'grid';
 export type LineDirection = 'in' | 'out';
 export type StaleReason = 'BASE_CHANGED' | 'TARGET_SETTLED' | 'TARGET_MISSING' | 'DATE_PASSED';
+
+/**
+ * §6.10's feed flags on a ship line (Phase 2): `estimated` (shipping's date is an estimate),
+ * `projected` (its amount is derived, not stated), `blocked` (the feed's `blocked` is set),
+ * `planned` (an overlay column is set). None of them changes a band.
+ */
+export type ShipFlag = 'estimated' | 'projected' | 'blocked' | 'planned';
 
 /**
  * §6.10 item flags. A string union for the ones CONTRACT names, open to anything newer so
@@ -37,7 +47,28 @@ export type ItemFlag =
   | 'excluded'
   | 'stale'
   | 'fromScenario'
+  | ShipFlag
   | (string & {});
+
+/** What a blocked ship line waits on (the feed's `blocked`, CONTRACT §3.5). */
+export type ShipBlocker = 'shipment' | 'artwork' | 'pi' | 'pi_signed';
+
+/**
+ * `rows[].items[].ship` (§6.10, Phase 2): the feed's own view of a ship line, so the client
+ * can show what shipping says next to what is planned. `feedDate` is the feed `due_date`
+ * (null when shipping has no date), `feedAmountMinor` the feed `amount` in the line's own
+ * currency.
+ */
+export interface ShipInfo {
+  kind: 'deposit' | 'balance' | (string & {});
+  poNumber: string | null;
+  containerRef: string | null;
+  dateBasis: 'firm' | 'estimated' | 'undated' | (string & {});
+  amountBasis: 'stated' | 'derived' | (string & {});
+  blocked: ShipBlocker | (string & {}) | null;
+  feedDate: IsoDate | null;
+  feedAmountMinor: Minor;
+}
 
 export interface ForecastMeta {
   today: IsoDate;
@@ -119,10 +150,13 @@ export interface BaselineLine {
  */
 export interface ForecastItem {
   key: string;
-  kind: 'item' | 'sched';
-  id: number;
+  /** `ship` from Phase 2: a stock payment from the shipping feed (§6.10). */
+  kind: 'item' | 'sched' | 'ship';
+  /** The row id; for a ship line the feed's `ext_id` (a string, CONTRACT D32). */
+  id: number | string;
   scheduleId?: number;
   naturalDate?: IsoDate;
+  /** For a ship line, `<supplier> · <poNumber> · deposit|balance` — shown as sent. */
   name: string;
   counterparty: string | null;
   accountId: number;
@@ -130,13 +164,18 @@ export interface ForecastItem {
   amountMinor: Minor;
   accountMinor: Minor;
   gbpMinor: Minor;
+  /** Where the line is PLACED (today for an overdue line, `paidOn` for a payment line). */
   date: IsoDate;
+  /** Its effective date before placement (§6.10); differs from `date` only on overdue and payment lines. */
+  dueDate?: IsoDate;
   bucketIndex: number;
   status: string;
   settleMode: string;
   flags: ItemFlag[];
   editable: boolean;
   paymentId?: number;
+  /** `kind: 'ship'` only. */
+  ship?: ShipInfo;
   /** Present only with a scenario: the line's values in the baseline set. */
   baseline?: BaselineLine | null;
 }
@@ -191,7 +230,7 @@ export interface ForecastScenario {
 
 export interface UnresolvedLine {
   key: string;
-  kind: 'item' | 'sched';
+  kind: 'item' | 'sched' | 'ship';
   name: string;
   categoryId: number;
   accountId: number;
@@ -204,10 +243,37 @@ export interface UnresolvedLine {
   settleMode: string;
 }
 
+/**
+ * Why a shipping refresh failed (§6.10 `SHIPPING_UNAVAILABLE`, §7): `unconfigured | timeout |
+ * unreachable | http_401 | http_<status> | bad_response`.
+ */
+export type ShippingReason = 'unconfigured' | 'timeout' | 'unreachable' | 'http_401' | 'bad_response' | (string & {});
+
 export type ForecastWarning =
   | { code: 'NO_ANCHOR'; accountId: number }
   | { code: 'ORPHAN_OVERRIDE'; scheduleId: number; naturalDate: IsoDate; overrideId: number }
+  /** The refresh that was due failed; the answer is built on the last snapshot (or none). */
+  | { code: 'SHIPPING_UNAVAILABLE'; reason: ShippingReason; lastSuccessAt: IsoDateTime | null }
+  /** Ship rows left out: no live company maps this shipping company (null = POs with no company). */
+  | { code: 'SHIP_UNMAPPED'; shippingCompanyId: number | null; count: number }
+  /** A plan (overlay) sits on a row shipping no longer lists. */
+  | { code: 'SHIP_PLAN_ORPHANED'; key: string }
+  /** The planned amount is ignored: shipping's amount moved since it was set (P6). */
+  | { code: 'SHIP_PLAN_STALE'; key: string }
   | { code: string; [field: string]: unknown };
+
+/**
+ * `shipping` (§6.10, Phase 2): the feed snapshot's state over this scope; null until the
+ * feed has succeeded once. `undatedGbp` is GBP minor units.
+ */
+export interface ForecastShipping {
+  lastSuccessAt: IsoDateTime | null;
+  feedToday: IsoDate | null;
+  openCount: number;
+  undatedCount: number;
+  undatedGbp: Minor;
+  unmappedCount: number;
+}
 
 export interface ForecastResponse {
   meta: ForecastMeta;
@@ -219,6 +285,8 @@ export interface ForecastResponse {
   summary: ForecastSummary;
   scenario: ForecastScenario | null;
   unresolved: UnresolvedLine[];
+  /** Phase 2; null until the shipping feed has succeeded once. */
+  shipping: ForecastShipping | null;
   warnings: ForecastWarning[];
 }
 

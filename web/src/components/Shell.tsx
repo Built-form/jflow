@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/components/Shell.tsx — changes: nav rebuilt for JFlow's screens (PLAN: Forecast, Cash at bank, Income & outgoings, Schedules, Scenarios / Settings, People / About); one nav for both account types; nav links carry the URL's company filter from screen to screen; brand mark and caption JFlow's; dropped the instances/myTasks/families/processes/stages reads, the lot and verdict counts and the warehouse/standard/reviewer groups
+// Copied from workflows/web/src/components/Shell.tsx — changes: nav rebuilt for JFlow's screens (PLAN: Forecast, Cash at bank, Income & outgoings, Schedules, Stock payments (Phase 2), Scenarios / Settings, People / About); one nav for both account types; nav links carry the URL's company filter from screen to screen; brand mark and caption JFlow's; dropped the instances/myTasks/families/processes/stages reads, the lot and verdict counts and the warehouse/standard/reviewer groups
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useSession } from '../app/session';
@@ -34,6 +34,7 @@ export function Shell() {
         { to: '/cash', label: 'Cash at bank' },
         { to: '/items', label: 'Income & outgoings' },
         { to: '/schedules', label: 'Schedules' },
+        { to: '/stock-payments', label: 'Stock payments' },
         { to: '/scenarios', label: 'Scenarios' },
       ],
     },

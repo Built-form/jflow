@@ -95,6 +95,12 @@ export interface Company extends RowMeta {
   code: string;
   name: string;
   sortOrder: number;
+  /**
+   * Phase 2 (§6.2): the shipping company this JFlow company maps to, picked in Settings from
+   * `GET /external/status` → `companies`; null until mapped. Unique among live companies
+   * (409 `SHIPPING_COMPANY_TAKEN`).
+   */
+  shippingCompanyId: number | null;
   createdBy: string | null;
   deletedAt: IsoDateTime | null;
 }
@@ -118,6 +124,12 @@ export interface Category extends RowMeta {
   name: string;
   direction: Direction;
   sortOrder: number;
+  /**
+   * Phase 2 (§6.4, P10): `'ship'` on the seeded "Stock payments" category, else null. A system
+   * category is never deletable and its direction never changes (409 `CATEGORY_IN_USE
+   * {systemKey}`); its name and order edit freely. Never sent in a body.
+   */
+  systemKey: string | null;
   createdBy: string | null;
   deletedAt: IsoDateTime | null;
 }
@@ -156,6 +168,12 @@ export interface CompanyInput {
   name: string;
   sortOrder?: number;
 }
+
+/**
+ * `PUT /companies/:id` (§6.2). `shippingCompanyId` is a positive id, or null to unmap; it is
+ * not checked against the feed (the feed may be down), only for uniqueness.
+ */
+export type CompanyUpdate = Partial<CompanyInput> & { shippingCompanyId?: number | null };
 
 export interface AccountCreate {
   companyId: number;
@@ -228,6 +246,9 @@ export type ErrorCode =
   | 'COMPANY_IN_USE'
   | 'ACCOUNT_IN_USE'
   | 'CATEGORY_IN_USE'
+  | 'SHIPPING_COMPANY_TAKEN'
+  | 'PLANNED_DATE_IN_PAST'
+  | 'SHIPPING_UNAVAILABLE'
   | 'FX_RATE_EXISTS'
   | 'ITEM_NOT_EDITABLE'
   | 'BALANCE_DATE_IN_FUTURE'
