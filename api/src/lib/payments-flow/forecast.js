@@ -1,9 +1,10 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; new, not in the TS: JFlow feed rows (toForecastRows)
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; new, not in the TS: JFlow feed rows (toForecastRows), taken from the shipping step-18 draft with its route-only filterForecastRows dropped
 'use strict';
 
-// The JFlow feed — rows of GET /api/internal/payments-forecast (JFlow
-// docs/PHASE2.md §3; CONTRACT §1.1 P2/P3). Not part of the ShipLine TS: this
-// projects the model's output for JFlow, and adds the payments made.
+// The JFlow feed — the `items` of the body services/shippingSource.js returns
+// (docs/PHASE2.md §3; CONTRACT §1.1 P2/P3), each accepted by services/shipping.js
+// validateFeed. Not part of the ShipLine TS: this projects the model's output for
+// JFlow, and adds the payments made.
 //
 //   open rows  the model's PaymentItems (flow.currencies[].items), one row each.
 //   paid rows  what left the account since `paidSince`:
@@ -32,7 +33,7 @@ const { feedId, groupToken, itemFeedId } = require('./ids');
 /** @typedef {{ poNumber: string, supplier: string|null, companyId: number|null }} PoEntry */
 /** @typedef {{ pos?: Map<number, PoEntry>, shipmentIdByRef?: Map<string, number>|null }} FeedContext */
 
-// JFlow's external_items widths (jflow/api/src/services/shipping.js TEXT_LIMITS,
+// JFlow's external_items widths (services/shipping.js TEXT_LIMITS,
 // in characters): JFlow rejects a longer value, and with it the whole row, so
 // display text is clipped to fit. No id depends on these fields.
 const TEXT_LIMITS = { supplier: 255, poNumber: 64, containerRef: 100 };
@@ -307,23 +308,6 @@ function toForecastRows(flow, paidRows, ctx = {}) {
     return rows.concat(paid);
 }
 
-/**
- * The route's filters: `statuses` (Set of open/paid, null = both);
- * `companyIds` (Set of ids, null = any) and `noCompany` (rows with no company).
- * With neither companyIds nor noCompany, every company.
- * @param {FeedRow[]} rows
- * @param {{ statuses?: Set<string>|null, companyIds?: Set<number>|null, noCompany?: boolean }} [filter]
- * @returns {FeedRow[]}
- */
-function filterForecastRows(rows, { statuses = null, companyIds = null, noCompany = false } = {}) {
-    const byCompany = companyIds != null || noCompany;
-    return rows.filter(r => {
-        if (statuses && !statuses.has(r.status)) return false;
-        if (!byCompany) return true;
-        return r.companyId == null ? noCompany : Boolean(companyIds && companyIds.has(r.companyId));
-    });
-}
-
 module.exports = {
-    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows, filterForecastRows,
+    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows,
 };

@@ -112,8 +112,10 @@ async function checkSchema(q, schema) {
     }
     if (missing.length) {
         const shown = missing.slice(0, MISSING_SHOWN).join(', ') + (missing.length > MISSING_SHOWN ? ', …' : '');
-        throw shipping.unavailable('source_schema',
+        const err = shipping.unavailable('source_schema',
             `Shipping's schema ${schema} lacks ${missing.length} column(s) JFlow reads, or JFlow cannot read them: ${shown}.`);
+        err.missing = missing;           // every `table.column`, for a caller that wants the list
+        throw err;
     }
 }
 

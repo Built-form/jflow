@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copied from workflows/api/tools/put-secret.js — changes: secret `jflow/<stage>` (and the temp-file prefix and secret description); OPTIONAL_DEPLOY_KEYS is `DB_PROXY_HOST` plus Phase 2's `SHIPPING_API_BASE` / `SHIPPING_API_KEY` (in place of JFPRO_API_BASE / JFPRO_API_KEY and their 503 hint); dropped the UPLOADS_* omission note and log line; header comment trimmed to JFlow's keys; CONTRACT section reference §4 → §2.10
+// Copied from workflows/api/tools/put-secret.js — changes: secret `jflow/<stage>` (and the temp-file prefix and secret description); OPTIONAL_DEPLOY_KEYS is `DB_PROXY_HOST` plus Phase 2's `SHIPPING_DB_SCHEMA` (in place of JFPRO_API_BASE / JFPRO_API_KEY and their 503 hint); dropped the UPLOADS_* omission note and log line; header comment trimmed to JFlow's keys; CONTRACT section reference §4 → §2.10
 'use strict';
 
 // Creates or updates the Secrets Manager secret for a DEPLOYED stage, from the
@@ -46,12 +46,11 @@ const DEPLOY_KEYS = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 
 // be OMITTED, not '', when unset — same fallback-chain gotcha as above.
 // migrate.js always uses the direct DB_HOST regardless, so both keys are needed.
 //
-// SHIPPING_API_BASE / SHIPPING_API_KEY (Phase 2, CONTRACT §2.1, P12) point
-// src/services/shipping.js at shipping's GET /api/internal/payments-forecast. The key
-// is its own random value, not JFPRO's (shipping holds it as SHIPPING_INTERNAL_API_KEY).
-// Both absent is a valid state: the feed is off, /forecast keeps its last snapshot
-// with a SHIPPING_UNAVAILABLE warning and POST /external/refresh answers 503.
-const OPTIONAL_DEPLOY_KEYS = ['DB_PROXY_HOST', 'SHIPPING_API_BASE', 'SHIPPING_API_KEY'];
+// SHIPPING_DB_SCHEMA (Phase 2, CONTRACT §2.1) names shipping's schema on the same DB
+// instance, which src/services/shippingSource.js reads READ ONLY with this stage's own
+// DB user. Absent means `jfa`, which is right for test and prod; set it only to point
+// elsewhere. The DB user needs SELECT on that schema — nothing else.
+const OPTIONAL_DEPLOY_KEYS = ['DB_PROXY_HOST', 'SHIPPING_DB_SCHEMA'];
 
 const argv = process.argv.slice(2);
 const stage = argv[0];

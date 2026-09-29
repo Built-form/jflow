@@ -1,38 +1,38 @@
 'use strict';
 
-// services/shipping.js (docs/PHASE2.md §3, §4.1) against a stub HTTP server — never
-// the real shipping API. Pinned here:
-//   · configuration is read per call, and an unconfigured client makes NO request;
-//   · the key travels only in X-Api-Key (never the URL, never an error message);
+// services/shipping.js and the parts of services/shippingSource.js that need no database
+// (docs/PLAN.md "Phase 2"; CONTRACT §2.1, §10.12). The source against real table shapes
+// runs in test/e2e/shipping-source.test.js. Pinned here:
 //   · every failure is one `unavailable(reason)` with reason in
-//     unconfigured | timeout | unreachable | http_401 | http_<status> | bad_response;
-//   · the whole exchange (headers AND body) is bounded by the timeout;
+//     source_schema | source_error | bad_response;
+//   · SHIPPING_DB_SCHEMA is read per call (unset or blank → jfa; ^[a-z0-9_]{1,64}$), and an
+//     invalid name fails as source_schema before any connection is made;
+//   · fetchPaymentsForecast is the source's body (no HTTP), passed {today, paidSince};
+//   · the schema check names what is missing, case-blind, and a connection failure is
+//     source_error without the password;
 //   · validateFeed counts and rejects bad rows and normalises the good ones.
 
-const http = require('http');
+const mysql = require('mysql2/promise');
 const shipping = require('../../src/services/shipping');
-const { startShippingStub, feedItem, feedBody } = require('../helpers/shippingStub');
+const source = require('../../src/services/shippingSource');
+const { SOURCE_COLUMNS } = require('../../src/services/shippingReads');
+const { stubShippingSource, feedItem, feedBody } = require('../helpers/shippingSourceStub');
 
-const KEY = 'unit-test-key-0123456789abcdef';
+const TODAY = '2026-09-29';
+const PAID_SINCE = '2026-07-31';
 
-let stub;
-let warnSpy;
-
-beforeAll(async () => { stub = await startShippingStub(); });
-afterAll(async () => { if (stub) await stub.close(); });
-
+let savedSchema;
+let logSpies;
 beforeEach(() => {
-    stub.reset();
-    process.env.SHIPPING_API_BASE = stub.url;
-    process.env.SHIPPING_API_KEY = KEY;
-    // The client logs every failure with log.warn; keep the run quiet.
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    savedSchema = process.env.SHIPPING_DB_SCHEMA;
+    delete process.env.SHIPPING_DB_SCHEMA;
+    logSpies = ['warn', 'error', 'log'].map((level) => jest.spyOn(console, level).mockImplementation(() => {}));
 });
-
 afterEach(() => {
-    warnSpy.mockRestore();
-    delete process.env.SHIPPING_API_BASE;
-    delete process.env.SHIPPING_API_KEY;
+    if (savedSchema === undefined) delete process.env.SHIPPING_DB_SCHEMA;
+    else process.env.SHIPPING_DB_SCHEMA = savedSchema;
+    for (const spy of logSpies) spy.mockRestore();
+    jest.restoreAllMocks();
 });
 
 /** The thrown error of `promise`, or a failure when it resolves. */
@@ -46,117 +46,154 @@ async function rejectionOf(promise) {
 }
 
 describe('configuration', () => {
-    test('SHIPPING_TIMEOUT_MS is 5 seconds', () => {
-        expect(shipping.SHIPPING_TIMEOUT_MS).toBe(5000);
+    test('the reasons SHIPPING_UNAVAILABLE carries', () => {
+        expect(shipping.SHIPPING_REASONS).toEqual(['source_schema', 'source_error', 'bad_response']);
     });
 
-    test('isConfigured reads both keys per call, and blanks count as unset', () => {
+    test('SHIPPING_DB_SCHEMA: unset or blank → jfa; read per call; only ^[a-z0-9_]{1,64}$ is configured', () => {
+        expect(source.sourceSchema()).toBe('jfa');
         expect(shipping.isConfigured()).toBe(true);
-        process.env.SHIPPING_API_KEY = '   ';
-        expect(shipping.isConfigured()).toBe(false);
-        process.env.SHIPPING_API_KEY = KEY;
-        delete process.env.SHIPPING_API_BASE;
-        expect(shipping.isConfigured()).toBe(false);
-        process.env.SHIPPING_API_BASE = stub.url;
+        process.env.SHIPPING_DB_SCHEMA = '   ';
+        expect(source.sourceSchema()).toBe('jfa');
+        process.env.SHIPPING_DB_SCHEMA = ' jflow_test_ab12_jfa ';
+        expect(source.sourceSchema()).toBe('jflow_test_ab12_jfa');
         expect(shipping.isConfigured()).toBe(true);
+        process.env.SHIPPING_DB_SCHEMA = 'x'.repeat(64);
+        expect(shipping.isConfigured()).toBe(true);
+        for (const bad of ['JFA', 'jfa-test', 'jfa.orders', 'jfa`', 'x'.repeat(65), 'j fa']) {
+            process.env.SHIPPING_DB_SCHEMA = bad;
+            expect({ bad, schema: source.sourceSchema(), configured: shipping.isConfigured() })
+                .toEqual({ bad, schema: null, configured: false });
+        }
     });
 
-    test.each([
-        ['no key', () => { delete process.env.SHIPPING_API_KEY; }],
-        ['no base', () => { delete process.env.SHIPPING_API_BASE; }],
-        ['a blank key', () => { process.env.SHIPPING_API_KEY = ''; }],
-    ])('unconfigured (%s) → reason unconfigured, and no request is made', async (_label, unset) => {
-        unset();
-        stub.respondJson(200, feedBody([]));
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29', paidSince: '2026-08-01' }));
+    test('an invalid schema name → source_schema, and no connection is attempted', async () => {
+        const connect = jest.spyOn(mysql, 'createConnection');
+        process.env.SHIPPING_DB_SCHEMA = 'jfa; DROP TABLE x';
+        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: TODAY, paidSince: PAID_SINCE }));
         expect(shipping.isUnavailable(err)).toBe(true);
-        expect(err.reason).toBe('unconfigured');
-        expect(stub.requests).toHaveLength(0);
+        expect(err.reason).toBe('source_schema');
+        expect(err.message).toMatch(/SHIPPING_DB_SCHEMA is not a valid schema name/);
+        expect(connect).not.toHaveBeenCalled();
+    });
+
+    test('bad arguments are a TypeError, not an unavailable feed', async () => {
+        const connect = jest.spyOn(mysql, 'createConnection');
+        for (const args of [{}, { today: '2026-02-30', paidSince: PAID_SINCE }, { today: TODAY, paidSince: 'soon' }]) {
+            const err = await rejectionOf(source.readPaymentsForecast(args));
+            expect(err).toBeInstanceOf(TypeError);
+            expect(shipping.isUnavailable(err)).toBe(false);
+        }
+        expect(connect).not.toHaveBeenCalled();
+    });
+
+    test('a connection failure → source_error, with the code and never the password', async () => {
+        const savedPassword = process.env.DB_PASSWORD;
+        process.env.DB_PASSWORD = 'unit-secret-password-0123';
+        try {
+            jest.spyOn(mysql, 'createConnection').mockRejectedValue(Object.assign(
+                new Error(`connect ECONNREFUSED (password ${process.env.DB_PASSWORD})`), { code: 'ECONNREFUSED' }
+            ));
+            const err = await rejectionOf(source.readPaymentsForecast({ today: TODAY, paidSince: PAID_SINCE }));
+            expect(shipping.isUnavailable(err)).toBe(true);
+            expect(err.reason).toBe('source_error');
+            expect(err.message).toMatch(/ECONNREFUSED/);
+            expect(err.message).not.toMatch(/unit-secret-password/);
+        } finally {
+            if (savedPassword === undefined) delete process.env.DB_PASSWORD;
+            else process.env.DB_PASSWORD = savedPassword;
+        }
+    });
+});
+
+describe('the schema check', () => {
+    /** information_schema rows for every column the reads use, minus `drop`, with `rename` applied. */
+    const columnsQuery = ({ drop = [], upper = false } = {}) => {
+        const calls = [];
+        return {
+            calls,
+            async query(sql, params) {
+                calls.push({ sql, params });
+                const rows = [];
+                for (const [table, columns] of Object.entries(SOURCE_COLUMNS)) {
+                    for (const column of columns) {
+                        if (drop.includes(`${table}.${column}`)) continue;
+                        rows.push({ table_name: table, column_name: upper ? column.toUpperCase() : column });
+                    }
+                }
+                return [rows];
+            },
+        };
+    };
+
+    test('a complete schema passes; the query is scoped to the schema and the tables read', async () => {
+        const q = columnsQuery();
+        await expect(source.checkSchema(q, 'jfa')).resolves.toBeUndefined();
+        expect(q.calls).toHaveLength(1);
+        expect(q.calls[0].sql).toMatch(/FROM information_schema\.COLUMNS/);
+        expect(q.calls[0].params).toEqual(['jfa', ...Object.keys(SOURCE_COLUMNS)]);
+    });
+
+    test('column names compare case-blind (information_schema may report another case)', async () => {
+        await expect(source.checkSchema(columnsQuery({ upper: true }), 'jfa')).resolves.toBeUndefined();
+    });
+
+    test('a missing (or unreadable) column → source_schema naming it', async () => {
+        const err = await rejectionOf(source.checkSchema(columnsQuery({ drop: ['orders.unit_price', 'suppliers.paymentTerms'] }), 'jfa'));
+        expect(shipping.isUnavailable(err)).toBe(true);
+        expect(err.reason).toBe('source_schema');
+        expect(err.message).toMatch(/lacks 2 column\(s\)/);
+        expect(err.message).toMatch(/orders\.unit_price, suppliers\.paymentTerms/);
+        expect(err.missing).toEqual(['orders.unit_price', 'suppliers.paymentTerms']);
+    });
+
+    test('a schema that is not there at all → source_schema, the list cut short', async () => {
+        const q = { query: async () => [[]] };
+        const err = await rejectionOf(source.checkSchema(q, 'nope'));
+        expect(err.reason).toBe('source_schema');
+        const total = Object.values(SOURCE_COLUMNS).reduce((a, c) => a + c.length, 0);
+        expect(err.message).toMatch(new RegExp(`lacks ${total} column`));
+        expect(err.message).toMatch(/, …\.$/);
+    });
+
+    test('SOURCE_COLUMNS covers the tables the source reads, suppliers (the view) and companies included', () => {
+        expect(Object.keys(SOURCE_COLUMNS).sort()).toEqual([
+            'companies', 'containers', 'draft_container_documents', 'order_receipts', 'orders', 'payment_rules',
+            'purchase_order_invoice_payments', 'purchase_order_invoices', 'purchase_order_payments',
+            'purchase_order_signed_pis', 'purchase_orders', 'quality_assurance_documents', 'shipment_payment_allocations',
+            'shipment_payments', 'shipments', 'supplier_payment_lines', 'supplier_payments', 'suppliers',
+        ]);
     });
 });
 
 describe('fetchPaymentsForecast', () => {
-    test('GETs the internal path with the key in X-Api-Key only, and returns the body', async () => {
+    let stub;
+    beforeEach(() => { stub = stubShippingSource(); });
+    afterEach(() => stub.restore());
+
+    test('returns the source body for {today, paidSince}; no HTTP involved', async () => {
         const body = feedBody([feedItem('bal-812-s311')]);
-        stub.respondJson(200, body);
-        process.env.SHIPPING_API_BASE = `${stub.url}//`;   // trailing slashes are trimmed
-        const got = await shipping.fetchPaymentsForecast({ today: '2026-09-29', paidSince: '2026-08-01' });
-        expect(got).toEqual(body);
-        expect(stub.requests).toHaveLength(1);
-        const [req] = stub.requests;
-        expect(req).toMatchObject({
-            method: 'GET',
-            path: '/api/internal/payments-forecast',
-            query: { today: '2026-09-29', paidSince: '2026-08-01' },
-        });
-        expect(req.headers['x-api-key']).toBe(KEY);
-        expect(req.headers.accept).toBe('application/json');
-        expect(req.headers.authorization).toBeUndefined();
-        expect(JSON.stringify(req.query)).not.toContain(KEY);
+        stub.respond(body);
+        await expect(shipping.fetchPaymentsForecast({ today: TODAY, paidSince: PAID_SINCE })).resolves.toEqual(body);
+        expect(stub.requests).toEqual([{ today: TODAY, paidSince: PAID_SINCE }]);
     });
 
-    test('a 401 → http_401', async () => {
-        stub.respondJson(401, { error: 'Unauthorized' });
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29' }));
-        expect(shipping.isUnavailable(err)).toBe(true);
-        expect(err.reason).toBe('http_401');
-        expect(err.message).not.toContain(KEY);
+    test("the source's unavailable passes through unchanged", async () => {
+        for (const reason of ['source_schema', 'source_error']) {
+            stub.fail(reason, `stub ${reason}`);
+            const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: TODAY, paidSince: PAID_SINCE }));
+            expect(shipping.isUnavailable(err)).toBe(true);
+            expect(err.reason).toBe(reason);
+            expect(err.message).toBe(`stub ${reason}`);
+        }
     });
 
-    test.each([[500], [503], [404]])('a %i → http_<status>', async (status) => {
-        stub.respondJson(status, { error: 'An internal error occurred.' });
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29' }));
-        expect(err.reason).toBe(`http_${status}`);
-    });
-
-    test('a 200 that is not JSON → bad_response', async () => {
-        stub.respondText(200, '<html>gateway says hello</html>');
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29' }));
-        expect(shipping.isUnavailable(err)).toBe(true);
-        expect(err.reason).toBe('bad_response');
-    });
-
-    test.each([
-        ['an array', []],
-        ['no items', { meta: {}, companies: [] }],
-        ['items not an array', { items: { id: 'x' } }],
-        ['null', null],
-    ])('JSON of the wrong shape (%s) → bad_response', async (_label, body) => {
-        stub.respondJson(200, body);
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29' }));
-        expect(err.reason).toBe('bad_response');
-    });
-
-    test('no answer within the timeout → timeout (the default is 5s; the test injects 150ms)', async () => {
-        stub.stall();
-        const started = Date.now();
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29' }, { timeoutMs: 150 }));
-        expect(err.reason).toBe('timeout');
-        expect(Date.now() - started).toBeLessThan(3000);
-    });
-
-    test('headers on time but a body that stalls → timeout (the body read is bounded too)', async () => {
-        stub.stallBody();
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29' }, { timeoutMs: 150 }));
-        expect(err.reason).toBe('timeout');
-    });
-
-    test('nothing listening → unreachable', async () => {
-        // A port that was free a moment ago and is closed now.
-        const tmp = http.createServer();
-        await new Promise((resolve) => tmp.listen(0, '127.0.0.1', resolve));
-        const { port } = tmp.address();
-        await new Promise((resolve) => tmp.close(resolve));
-        process.env.SHIPPING_API_BASE = `http://127.0.0.1:${port}`;
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29' }));
-        expect(err.reason).toBe('unreachable');
-    });
-
-    test('no failure message or log line carries the key', async () => {
-        stub.respondJson(401, { error: 'Unauthorized' });
-        const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: '2026-09-29' }));
-        expect(err.message).not.toContain(KEY);
-        for (const call of warnSpy.mock.calls) expect(call.join(' ')).not.toContain(KEY);
+    test('a body with no items array → bad_response', async () => {
+        for (const body of [null, {}, { items: 'x' }, []]) {
+            stub.respondWith(() => body);
+            const err = await rejectionOf(shipping.fetchPaymentsForecast({ today: TODAY, paidSince: PAID_SINCE }));
+            expect(err.reason).toBe('bad_response');
+        }
     });
 });
 
@@ -263,5 +300,16 @@ describe('validateFeed', () => {
             expect(shipping.isUnavailable(err)).toBe(true);
             expect(err.reason).toBe('bad_response');
         }
+    });
+
+    test('every row rejected is a bad_response (it would mark the whole snapshot gone); an empty feed is fine', () => {
+        let err;
+        try {
+            shipping.validateFeed(feedBody([feedItem('derived:dep:1'), feedItem('a1', { amount: '0.00' })]));
+        } catch (e) { err = e; }
+        expect(shipping.isUnavailable(err)).toBe(true);
+        expect(err.reason).toBe('bad_response');
+        expect(err.message).toMatch(/Every row of the shipping feed was rejected \(2: id, amount\)/);
+        expect(shipping.validateFeed(feedBody([])).items).toEqual([]);
     });
 });

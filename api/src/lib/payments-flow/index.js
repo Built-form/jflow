@@ -4,9 +4,9 @@
 // Payments-flow model — "what money leaves the account, to whom, when" for
 // stock purchase orders. A CommonJS port of ShipLine's
 // src/components/payments/paymentsFlowMath.ts at commit f9499bc (JFlow PHASE2
-// P1 as amended: the math is ported into this API, api/src/lib/payments-flow/;
-// the TS is frozen until the step 17 cut-over). Pure: no database, no
-// network, no clock.
+// P1 as amended: the math is ported into this API, api/src/lib/payments-flow/,
+// and re-synced with the oracle when ShipLine's math changes). Pure: no
+// database, no network, no clock.
 //
 // Identical to the TS (proved by api/test/unit/payments-flow-golden.test.js
 // against the frozen TS itself, whose output api/tools/payments-flow-oracle.mjs
@@ -32,8 +32,8 @@
 //   ids         feed ids
 //   forecast    JFlow feed rows: open items + payments made, split per PO
 //   types       JSDoc types only
-// Not ported (display-only or not called by the model; they stay in ShipLine
-// or move with step 17): diffDays, weekMonday, isoWeek, fmtYmd, bucketize,
+// Not ported (display-only or not called by the model; they stay in
+// ShipLine): diffDays, weekMonday, isoWeek, fmtYmd, bucketize,
 // describePolicy, depositPctForSupplier, suggestAirBalance, compareInvoiceToOwed.
 
 const { dateOf, dateOfInstant, addDays } = require('./dates');
@@ -46,7 +46,7 @@ const { summarizePo } = require('./po');
 const { CURRENCY_ORDER, buildPaymentsFlow } = require('./flow');
 const { FEED_ID_RE, isFeedId, groupToken, feedId, itemFeedId } = require('./ids');
 const {
-    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows, filterForecastRows,
+    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows,
 } = require('./forecast');
 
 module.exports = {
@@ -63,5 +63,5 @@ module.exports = {
     // feed ids
     FEED_ID_RE, isFeedId, groupToken, feedId, itemFeedId,
     // JFlow feed
-    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows, filterForecastRows,
+    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows,
 };

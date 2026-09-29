@@ -21,7 +21,7 @@ step's "Done when" holds and its commit is made.
 | 8 | Web shell, settings, cash at bank | done |
 | 9 | Web forecast, items, schedules, scenarios | done |
 | 10 | Mobileweb | **parked by Dev (2026-09-29): web only for now** |
-| 11 | First deploy — STOP (Dev) | not started |
+| 11 | First deploy — STOP (Dev) | **test deployed (2026-09-29)**: `jflow-test-jflowApi`, `https://d3votdaxd9.execute-api.eu-north-1.amazonaws.com/api/v1`. Web points every host at it (`PRODUCTION_HOSTS` empty until prod). Prod not deployed |
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
 | 13 | Phase 2: adopt the plan — STOP (Dev) | done (signed off 2026-09-29) |
 | 14 | Phase 2: shipping — port the math (tests first) | done (shipping `phase2-payments-flow` @ `14e6115`) |

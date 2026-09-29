@@ -206,7 +206,9 @@ function feedCompanies(body) {
  *              case-insensitive unique key compares it);
  *   problems   the first few rejections as {index, id, reason}, for the log;
  *   companies  the feed's companies[], cleaned (feedCompanies).
- * A body with no items array throws unavailable('bad_response').
+ * A body with no items array throws unavailable('bad_response'), and so does a feed whose
+ * every row is rejected (CONTRACT §10.12 step 2d): taken as it stands, it would mark the
+ * whole snapshot gone. An empty feed is a valid one.
  */
 function validateFeed(body) {
     assertFeedShape(body);
@@ -235,6 +237,10 @@ function validateFeed(body) {
             problems.push({ index, id, reason });
         }
     });
+    if (rejected > 0 && items.length === 0) {
+        const reasons = [...new Set(problems.map((p) => p.reason))].join(', ');
+        throw unavailable('bad_response', `Every row of the shipping feed was rejected (${rejected}: ${reasons}).`);
+    }
     return { items, rejected, problems, companies: feedCompanies(body) };
 }
 
@@ -245,6 +251,7 @@ module.exports = {
     AMOUNT_BASES,
     BLOCKED_REASONS,
     SHIPPING_REASONS,
+    sourceSchema: () => source().sourceSchema(),
     isConfigured,
     isUnavailable,
     unavailable,

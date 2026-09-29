@@ -144,8 +144,155 @@ record); and `POST /external/refresh` honours the 60-second claim (§6.12).
   **`SHIPPING_DB_SCHEMA`** (optional env, default `jfa`; a plain `serverless.yml` env, not a
   secret; listed in `.env.example`) on the **same host and with the same DB user** as JFlow's
   own pool — explorer-test for local and the test stage, explorer via the RDS Proxy for prod.
-  No shipping secret exists and there is no `isConfigured()`: the source is configured
-  whenever the DB is. Each read takes its **own connection** from the pool, runs
+  No shipping secret exists; `services/shipping.js` `isConfigured()` is true when
+  `SHIPPING_DB_SCHEMA` (default `jfa`) is a valid name (`^[a-z0-9_]{1,64}# JFlow — API and engine contract
+
+Every file under `api/` follows this document. It is derived from `docs/PLAN.md` (the spec)
+and `docs/BUILD_PLAN.md` (the build order). Where this file and PLAN.md disagree, PLAN.md
+wins and the disagreement is a defect to raise, not a choice to make silently. Where PLAN.md
+is silent, §1 below records the decision and its reason.
+
+Paths in this file are relative to `api/` unless they start with `docs/` or `web/`.
+
+Sections: 1 Decisions made here · 2 Conventions · 3 Schema · 4 Item keys · 5 Recurrence ·
+6 Routes · 7 Error-code catalogue · 8 Load rules · 9 Engine · 10 Transactions and lock
+discipline · 11 Deferred · 12 File map.
+
+---
+
+## 1. Decisions made here (not in PLAN.md) — for Dev's review
+
+Each line is a choice PLAN.md and BUILD_PLAN.md leave open. Where they were silent the
+workflows convention was preferred; where that was silent too, the smaller, reversible choice.
+
+| # | Decision | Reason |
+|---|---|---|
+| D1 | Money in CRUD request and response bodies travels as a **DECIMAL string** with up to two decimals (`"1024.00"`, `"1024"`, `"-250.50"`); a JSON number is a 400. `/forecast` alone uses **integer minor units** (JSON integers, pence). | A JSON number is a float on both ends; the string is what MySQL returns and what `lib/money.js` parses. PLAN fixes `/forecast` to minor units. |
+| D2 | Currency codes are `^[A-Z]{3}$`, validated by format only, no ISO table. Every currency has a **minor-unit exponent of 2** in phase 1. | `DECIMAL(14,2)` cannot hold anything else; a 0- or 3-decimal currency is deferred (§11). |
+| D3 | GBP has **no `fx_rates` row** and is refused on `POST /fx-rates` (400). The engine treats GBP as rate `1.000000` exactly (`1000000` micro-units) and reports it in `meta.ratesUsed` with `effectiveFrom: null`. | One code path for every currency; a stored GBP rate other than 1 would be a data error waiting to happen. |
+| D4 | Optimistic locking uses workflows' names: the JSON field is `rowVersion`, the client sends **`baseVersion`** on `PUT`/`PATCH`/`DELETE`/action routes; it is **optional**. When sent and stale → 409 `STALE_WRITE` with `details.currentVersion`; when omitted, last write wins. Every mutation bumps `row_version`. | Mobile "mark paid" must work without a prior read; the web sends it. Same field names as workflows. |
+| D5 | **Roles**: `allowed_emails.type` is `standard \| admin` with the pre-2026-09-16 workflows meaning — `standard` can do everything except user management; `admin` adds user management. Admin-only routes are exactly `POST/PATCH/DELETE /users` and `GET /audit?entityType=allowed_email` (403 `ADMIN_REQUIRED`). No `manager` type, no reviewer flag, no answer-only boundary. The routes table (§6) carries a permission column. **Confirmed by Dev 2026-09-29.** | PLAN says `type standard \| admin` "as workflows"; today's workflows three-type model and its delete-is-admin rule were workflows-specific user decisions. Reversible by one gate. |
+| D6 | Week buckets start on **Monday** (ISO week); buckets are calendar-aligned (Mon–Sun, calendar month) and the first and last buckets are clipped to the window, so they may be partial. | UK business week; calendar alignment matches how people read a month. |
+| D7 | `include` defaults to `grid`. `bucket` defaults to `week`. `from` defaults to `today`, `to` defaults to `today + 90 days`. | Web is the primary client; mobile passes `include=summary` explicitly. |
+| D8 | **Retired by Phase 2 (P2/§4.4).** Phase 1 had nothing behind a `ship.` key; from Phase 2 a `ship.<ext_id>` key names an `external_items` row (§4, §8 rule 6, §8 `loadTarget`). | Superseded by the Phase 2 table below. |
+| D9 | The 45-day overdue boundary is inclusive: `today − effectiveDate <= 45` is **overdue**, `> 45` is **unresolved**. So `today − 45` is overdue, `today − 46` unresolved. The constant is `OVERDUE_WINDOW_DAYS = 45` in `lib/classify.js`. | BUILD_PLAN's tests fix −44 and −46; inclusive reads naturally as "within 45 days". |
+| D10 | `derivedStatus` values are `expected \| overdue \| unresolved \| assumed \| assumedSettled \| paid \| skipped`, one per item or instance, computed by the same `lib/classify.js` call the engine makes (§9.6). A `part_paid` item reports its **remainder's** band (`expected \| overdue \| unresolved`, never `assumed*` — the remainder is forced manual) and keeps `status: 'part_paid'`. | One vocabulary, one function, so `/items` and `/forecast` cannot disagree. |
+| D11 | The stale check on a `sched.` target compares `base_date`/`base_amount` against the **override-adjusted** effective values (override `due_date`/`amount` when set, else the weekend-adjusted natural date and the schedule's amount). A tune written after the adjustment therefore reads `BASE_CHANGED`. | "Base = the loader's current pre-adjustment effective values" — the override is part of the base, the adjustment is not. |
+| D12 | An account with **no anchor** is excluded from `/forecast` (`NO_ANCHOR`), and for `derivedStatus` on `/items` and `/instances` its anchor is treated as minus infinity: nothing is `assumedSettled`, an auto item before today reads `assumed`. | Without a balance nothing can be known to be in the bank. |
+| D13 | `settle_mode` defaults to `auto` on items and schedules. | PLAN describes `manual` as the exception ("Didn't happen"). |
+| D14 | `category_id` is `NOT NULL` on items and schedules; a category has `direction in \| out` and an item's or schedule's `direction` must equal its category's (400 otherwise). | Rows in the grid are category → items; an uncategorised item would have no row. NOT NULL can be relaxed later, NULL cannot be tightened. |
+| D15 | Reference-data soft deletes are refused while the row is referenced by live data: 409 `COMPANY_IN_USE` (live accounts), `ACCOUNT_IN_USE` (live items, schedules or balances), `CATEGORY_IN_USE` (live items or schedules). Company `code` uniqueness is enforced in code among live rows (409 `COMPANY_CODE_TAKEN`), not by a UNIQUE key, so a deleted code can be reused. | Mirrors workflows' `*_IN_USE` codes; a deleted account would silently drop its items from the forecast. |
+| D16 | Setting `isDefault: true` on an account clears the flag on the company's other accounts in the same transaction (audited); no refusal code. | One default per company without a round trip. |
+| D17 | `is_active = 0` accounts keep their data but are excluded from `/forecast`, `POST /balances/bulk` defaults and the account pickers. Deactivating (`PUT /accounts/:id {isActive: false}`) is **refused** with 409 `ACCOUNT_IN_USE` while the account has anything `/forecast` would show: a live one-off with `status part_paid`, or `expected` with a `derivedStatus` other than `assumedSettled`; a live schedule that still generates an occurrence on or after today; an instance whose `derivedStatus` is `overdue` or `unresolved`. `details` lists counts and keys (capped at 50 keys per kind). | The flag has to mean something, and switching off an account must never silently drop owed money from the forecast (refuse-or-warn asked by Dev; refuse chosen). |
+| D18 | Items, schedules and scenarios are soft-deleted with no in-use guard; a deleted target reads stale `TARGET_MISSING`. There are no restore routes in phase 1 (§11). | Reversible by SQL; restore routes are additive. |
+| D19 | Tune (`PUT …/instances/:naturalDate`) also accepts `status: 'expected' \| 'skipped'`, and `PUT /items/:id` accepts `status` moving between `expected` and `skipped` only. `paid`/`part_paid` are written only by pay/unpay. | Scenario apply writes `status = 'skipped'` on these rows; there must be a hand door to the same state and back. |
+| D20 | A scenario `company_id` is a **view-scope hint** only. `/forecast` never refuses a scope mismatch; an adjustment whose target is outside the requested account set is loaded (so the stale check is truthful), applied to nothing, and reported in `scenario.warnings` as `ADJUSTMENT_OUT_OF_SCOPE`. | Apply, rebase and the stale check are not company-scoped operations. |
+| D21 | Split: `fromNaturalDate` must be an occurrence strictly after the schedule's first **active** occurrence (400 otherwise). **Month-end identity survives a split** through `schedules.active_from`: when `changes` leaves `frequency`, `intervalCount`, `startDate` and `weekendRule` untouched, the successor gets `start_date = old.start_date`, `active_from = k`, and inherits `occurrence_count`/`end_date` verbatim unless `changes` sets one — so a monthly series from 31 Jan split at 30 Jun keeps yielding 31 Jul, 31 Aug. Otherwise `start_date = changes.startDate ?? k`, `active_from = NULL`, and the successor inherits the remaining end (`end_date`, or `occurrence_count` minus the occurrences before *k*) unless `changes` sets one. A series-keeping successor has `start_date <= today` and is born structure-locked (D37); a grid-changing split from a future *k* starts at `k > today` and is not locked until then or its first override. End: `lastNaturalDate` must be an occurrence; *k* is the next occurrence after it. | Occurrence *n* is always computed from `start_date` (§5.1); restarting the series at *k* would move every month-end date. The first instance is edited in place while the schedule is unused, or the schedule is deleted. |
+| D22 | A schedule may carry `occurrence_count` **or** `end_date`, not both (400). Split and end both go through `endBefore(schedule, k)`, which writes `end_date = k − 1 day` and `occurrence_count = NULL` on the old row. `status = 'ended'` marks a series closed by split or end; ended schedules still project their occurrences up to their end. | Two ends would need a precedence rule; one writer for both actions. |
+| D23 | **Payments are rows.** Every pay inserts one `payments` row (`paid_on`, `amount`) under the parent `cash_items` row or `schedule_overrides` row; `paid_amount = SUM(payments.amount)` and `paid_on = MAX(payments.paid_on)` on the parent are a **denormalised cache** rewritten in the same transaction as every payment write. Status becomes `paid` when the cache reaches `amount`, else `part_paid`. The classifier runs **each payment row** on its own `paid_on`, so a payment made before the anchor is excluded while a later one is included. A remainder date moves the item's `due_date` (one-off) or the override's `due_date` (instance). Unpay hard-deletes every payment row of the parent (one audit row each), resets the cache and the status, and does not restore an earlier `due_date`. | A single cached `paid_on` placed the whole paid amount at the latest date: 1,000 item, 400 paid at A−5, 300 at A+2 → 700 absorbed although 400 was already inside the anchor (Dev, 2026-09-29). |
+| D24 | `?today=` outside local/test is **ignored**, not refused; `meta.today` always reports the date used. | A stray parameter must not break a deployed client; the response says what happened. |
+| D25 | `to` beyond `today + 730 days` is clamped and `meta.toClamped` says so, mirroring `fromClamped`. | PLAN says "capped", not "refused". |
+| D26 | Companies are seeded as `('JFA', 'JFA', 1)` and `('HW', 'Hangerworld', 2)` (code, name, sort_order) with an idempotent `INSERT … SELECT … WHERE NOT EXISTS`. **Confirmed by Dev 2026-09-29.** | Short codes; the migration must be re-runnable. |
+| D27 | `withTransaction` retries on `ER_LOCK_DEADLOCK` **by default** (`retryOnDeadlock = 1`). | PLAN mandates the retry; JFlow has no out-of-transaction side effects (no events), so it is safe for every caller. |
+| D28 | Dated lists (`/items`, `/balances`, `/schedules/:id/instances`) sort by date ascending then id; reference lists by `sort_order, name`; `/schedules` and `/scenarios` by `created_at DESC, id DESC` (workflows' default). | A cashflow list is read by date. |
+| D29 | Unknown body fields are ignored; unknown query parameters are ignored. | Workflows' behaviour. |
+| D30 | An excluded item still appears in a scenario's `rows[]` with flag `excluded` and contributes nothing to any total. | The grid must show what the scenario removed, and offer the undo. |
+| D31 | **Every override row of a loaded schedule is loaded**, whatever its dates or columns (§8 rule 3). This replaces PLAN's two override rules ("due_date in the window" and "carries a status or a payment amount"). | PLAN's rules load nothing for an amount-only override (the headline June 983 tune), for an override moving an instance out of the window, or for a settle-mode-only "Didn't happen" row; overrides are few per schedule, so loading them all is cheap and complete. |
+| D32 | `target_id` is `VARCHAR(64)`: the decimal string of the id for `item`/`sched`, the raw id for `ship`. Queries bind the string form. | `ship.` ids are not numeric. |
+| D33 | A write of an adjustment against a target that is not `expected` answers 409 `TARGET_SETTLED`; against a target that does not exist, 404 `TARGET_MISSING`. The same names as the stale reasons. | One vocabulary for "why this adjustment cannot stand". |
+| D34 | `days[]` carries `baselineClosing` when a scenario is requested, so the chart draws both lines from one series. | PLAN's chart is baseline vs scenario; nothing else in the shape gives a daily baseline. |
+| D35 | `GET /schedules/:id/instances` defaults to `from = today − 90d`, `to = today + 365d`, span at most 730 days (400 otherwise). | Bounded reads; the forecast window has the same cap. |
+| D36 | Scenario status: `archived` is set by `PUT /scenarios/:id {status: 'archived'}` from `draft` or `applied` and is terminal in phase 1; rework by duplicate. | PLAN names the status but no transition. |
+| D37 | **Schedule structure** = `amount, currency, accountId, frequency, intervalCount, startDate, occurrenceCount, endDate, weekendRule, settleMode`. Editable in place only while `start_date > today` **and** no override row exists for the schedule; otherwise 409 `SCHEDULE_STRUCTURE_LOCKED` naming the fields. `name, counterparty, categoryId, notes` edit in place always. `occurrenceCount`/`endDate` are structural: a used schedule is shortened only through `POST …/end`; extending one is a new schedule (or a split whose `changes` set the end). A split's successor has `start_date <= today` and is therefore born locked. **`settleMode` stays structural** (a review proposed making it editable in place — rejected): flipping a used schedule between `auto` and `manual` would retroactively reclassify past instances — auto→manual floods overdue/unresolved with up to 730 days of instances, manual→auto silently assumes owed instances settled. A split from *k* changes it forward only; per-instance "Didn't happen" is the override's `settle_mode`. | BUILD_PLAN step 5's list, plus the two end fields, which change which natural dates exist exactly as frequency does. |
+| D38 | A fourth stale reason, **`DATE_PASSED`**: an `adjust` whose `new_date < today` at read time. Checked in §9.5 and again in apply's re-check; rebase cannot fix it (the user must re-date), so `dropStale: true` removes `TARGET_SETTLED`, `TARGET_MISSING` **and** `DATE_PASSED` adjustments. | A stale `new_date` would otherwise place a scenario line before today, which §9.10 forbids (Dev, 2026-09-29). |
+
+### 1.1 Phase 2 decisions (stock payments) — adopted by Dev 2026-09-29
+
+`docs/PHASE2.md` is the Phase 2 plan; its §5 decisions P1–P12 were **adopted as written**
+at step 13 and are folded into this file (§2.1, §2.2, §2.7–2.9, §3.5, §4, §6.2, §6.4,
+§6.10, §6.12, §7, §8, §9.3.1, §10.1, §10.7–10.12, §11, §12). PHASE2.md's line numbers
+refer to an older 2,470-line copy of `paymentsFlowMath.ts`; the source of truth is the
+commit named below. Where this file and PHASE2.md differ on a detail, this file is the one
+the code follows and the difference is recorded in `docs/PROGRESS.md`.
+
+**Amended by Dev 2026-09-29 (direct `jfa` read).** Two binding decisions: ShipLine is
+read-only (steps 16–17 dropped), and **shipping is not modified either** — "pull required
+shipping code into this repo rather than modify it; same DB, different schema; same test DB
+as here". JFlow reads shipping's data **directly from shipping's `jfa` schema, read-only**,
+on the same RDS instance (explorer-test for local and test, explorer via the RDS Proxy for
+prod), with JFlow's own DB user (the same user shipping uses; `SELECT` on `jfa.*` is verified
+on explorer-test and Dev confirms the prod grant at deploy). Nothing is built in shipping:
+no `GET /api/internal/payments-forecast`, no `/api/v1/payments-flow`, no API key. Rows P1
+and P12 below are amended accordingly; every other P-row stands. Where a section below still
+says "fetch", "feed endpoint" or "shipping's assembler", read §2.1 and §10.12 for the current
+rule.
+
+| # | Decision | Consequence here |
+|---|---|---|
+| P1 | **Amended by Dev 2026-09-29 (direct `jfa` read):** the payment math is ported into **`src/lib/payments-flow/`** (CommonJS, from ShipLine `f9499bc`, golden-tested against the frozen TS oracle `tools/payments-flow-oracle.mjs` under both `TZ=Europe/London` and `TZ=UTC`). `services/shippingSource.js` assembles the input from `jfa` tables (mappers copied from shipping's `src/handlers/orders.js`, each with the estate's copied-file header), runs the math and produces the same feed rows the shipping route would have (P2 ids, P3 paid rows). **ShipLine is read-only and unchanged** — it keeps its own copy; the two copies are kept equal by re-syncing the port against the oracle when ShipLine's math changes (PLAN.md "Phase 2"). *(Superseded: the port in `shipping/src/lib/payments-flow/` serving JFlow through `GET /api/internal/payments-forecast` with `X-Api-Key`.)* | JFlow now holds the payment math and the source read (§2.1, §10.12) as well as the feed snapshot (`external_items`) and the overlay. The snapshot, overlay, loader, engine and lock rules are unchanged by the source swap. |
+| P2 | Feed id grammar is exactly §4's `[A-Za-z0-9_-]{1,64}` (`dep-<po>`, `pi-<ip>[-<g>]`, `bal-<po>-<g>`, `inv-<sp>-<po>-a` or `-s`, `pay-<sp>-…`, `spd-<sp>-<po>`; `<g>` = `s<shipmentId>`, `r<10 hex>` or `n`). Ids survive date drift, amount changes, part payments and a draft becoming real; **a stage change mints a new id** (a PI replacing a derived deposit, lines booked, an invoice recorded). | `ship.<ext_id>` needs no escaping (§4). An overlay or adjustment does not follow a stage change: the old row goes `gone` and reads `SHIP_PLAN_ORPHANED` / `TARGET_MISSING`. D8 retired. |
+| P3 | Paid rows = transfer lines with `paid_on >= paidSince` plus balance records marked paid without a transfer; split per PO so each has one company. A PI marked paid with no transfer has no date and emits nothing. | A paid feed row is one payment line (§9.3.1); assumed-paid money leaves the feed with no paid row and reads as settled before the anchor. |
+| P4 | Refresh on demand: `/forecast` runs it first when `last_success_at` is over 10 minutes old or `feed_today ≠ today`; `POST /external/refresh` forces one. No schedule. | §6.12, §10.12. A failed refresh never fails `/forecast` (`SHIPPING_UNAVAILABLE`, last snapshot kept). |
+| P5 | The account is resolved in SQL at load time and never stored: the JFlow company whose `shipping_company_id` matches the row, then its live active account in the row's currency (lowest `sort_order`, then id), else its default account. No match → the row is omitted and counted in `SHIP_UNMAPPED`. **Dev (Q3): confirmed.** **Dev (Q2): POs with no company stay unmapped**, counted under `shippingCompanyId: null`. | §8 rule 11. Ship lines do not enter D17's deactivation guard: resolution is dynamic, so deactivating an account moves them to the default, never drops them (a company with no live active account resolves nothing and its rows count as unmapped). |
+| P6 | `planned_amount` applies only while `planned_base_amount` equals the feed `amount`; otherwise the feed amount is used and `SHIP_PLAN_STALE {key}` is warned. Every write of `planned_amount` stores `planned_base_amount = amount`. | §9.3.1, §10.9 step 5, §10.11. |
+| P7 | `exclude` on a `ship.` target → `planned_skipped = 1`, a third overlay column beyond PLAN's `planned_date` / `planned_amount`. **Dev (Q6): keep it.** | §10.9 step 5; `skipped` is also settable by hand (§6.12). |
+| P8 | The refresh writes **no per-row audit**; overlay writes (`plan`, `unplan`, `apply`) are audited. **Dev (Q6): acceptable.** | §2.8, §10.12. |
+| P9 | Ship lines are always settle mode `manual` (shipping, not the calendar, says a supplier was paid); undated open lines are counted, not banded. | §9.3.1. **Dev (Q8): 45 days stays** the overdue/unresolved cut-off for supplier money (D9 unchanged). |
+| P10 | System category "Stock payments" via `categories.system_key = 'ship'`, seeded by the Phase 2 migration; it refuses delete and direction change with `CATEGORY_IN_USE`. | §3.5, §6.4. |
+| P11 | `external_items` sits **after `cash_items`** in the lock order; the refresh takes no transaction. | §10.1. |
+| P12 | **Retired by Dev 2026-09-29 (direct `jfa` read).** There is no API key and no shipping secret; JFlow's DB user reads `jfa`. The only new setting is the optional env `SHIPPING_DB_SCHEMA` (default `jfa`, §2.1). *(Superseded: a new shipping key, `SHIPPING_INTERNAL_API_KEY` in `shipping/test\|prod`, `SHIPPING_API_KEY` beside `SHIPPING_API_BASE` in `jflow/test\|prod`; Dev (Q7) had confirmed.)* | §2.1. `SHIPPING_API_BASE` / `SHIPPING_API_KEY` appear nowhere in the code, `serverless.yml`, put-secret or `.env.example`. |
+
+Open questions answered at sign-off that are not a P-row: **Q4** — a ship currency with no
+rate is 422 `FX_RATE_MISSING`, one rule for every currency (§3.4 currencies in scope).
+**Q1** — the source of truth is ShipLine commit **`f9499bc`** (GitHub main/test,
+2026-09-29); `paymentsFlowMath.ts` there is 2,786 lines, last changed 2026-09-28 (`ec1cd76`,
+"balance number dupe in pop up"); the port is golden-tested against that commit (it was
+"frozen until step 17"; step 17 is dropped, so ShipLine is not frozen and later changes are
+picked up by a re-sync). **Risk 1** (shipping's runtime) — **no longer applies** to JFlow's
+work (Dev 2026-09-29): nothing is deployed to shipping. **Q5 (supplier tags) — not now**:
+see §11.
+
+**New risk (Dev 2026-09-29): coupling to shipping's schema.** JFlow reads `jfa` tables
+directly, so a column rename or drop in shipping's migrations stops the refresh — visibly,
+as `SHIPPING_UNAVAILABLE {reason: 'source_schema'}` with the last snapshot kept (§10.12),
+never as a silent wrong number. The e2e suite builds its shadow source tables with
+`CREATE TABLE … LIKE jfa.<table>`, so it tracks the real shape. Local/test and prod read
+different `jfa` data (explorer-test is a nightly copy of prod).
+
+Two details PHASE2.md left open are fixed here, not in the P-rows: an **undated** open ship
+row (no `due_date`, no `planned_date`) is not an adjustment target — `loadTarget` returns
+`null` for it (§8), so a `PUT` answers 404 `TARGET_MISSING` and the user dates it through
+the overlay first (`scenario_adjustments.base_date` is `NOT NULL`, so there is no base to
+record); and `POST /external/refresh` honours the 60-second claim (§6.12).
+
+---
+
+## 2. Conventions
+
+### 2.1 Transport, auth, identity
+
+- One Express app (`src/handlers/jflow.js`), `serverless-http` export, function `jflowApi`,
+  runtime `nodejs22.x`, region eu-north-1, `ANY /api/v1/{proxy+}` behind the shared Google
+  JWT authorizer plus the unauthenticated `OPTIONS` CORS shim. Everything below is under
+  `/api/v1`.
+- Auth middleware as workflows: the JWT email claim, normalised (trim + lowercase), must
+  exist in `allowed_emails` → else 401 `{error}`. `/api/v1/health` skips the allowlist lookup
+  only. Local bypass: `IS_LOCAL = !AWS_LAMBDA_FUNCTION_NAME && (IS_OFFLINE || NODE_ENV === 'development')`
+  → `req.userEmail = 'local@dev'`, type read from the row if present, else `admin`.
+- `allowed_emails.type` is `standard | admin`. `standard` may do everything except the
+  admin-only routes (D5). Every response carries `X-User-Type` and `X-Request-Id`
+  (caller's sanitised `x-request-id`, else API Gateway's request id, else a UUID).
+- `Cache-Control: no-store` on every response. Body limit 1 MB (`express.json({limit: '1mb'})`);
+  no uploads exist.
+- Every route awaits `schemaReady`; in Lambda it resolves at once (no DDL ever runs there);
+  locally it runs `ensureSchema` once per container.
+- **Phase 2 source (Dev 2026-09-29, direct `jfa` read; P1 amended, P12 retired):**
+  `services/shippingSource.js` reads shipping's tables **directly, read-only**, from schema
+  **`SHIPPING_DB_SCHEMA`** (optional env, default `jfa`; a plain `serverless.yml` env, not a
+  secret; listed in `.env.example`) on the **same host and with the same DB user** as JFlow's
+  own pool — explorer-test for local and the test stage, explorer via the RDS Proxy for prod.
+  ). Each read opens
+  its **own dedicated connection** (not one from the pool), runs
   `SET SESSION TRANSACTION READ ONLY` first, runs the **schema check** (every column the
   mappers read must exist in `information_schema.COLUMNS` for that schema, else
   `unavailable('source_schema', {missing})`), reads the schema-qualified tables, and releases
@@ -1104,7 +1251,7 @@ here are **ISO 8601 UTC strings** (§2.4), the same form everywhere they appear
 | `PUT /external-items/:key` | any | `{plannedDate?, plannedAmount?, skipped?, note?, baseVersion?}` — a **merge** like tune: absent = unchanged, `null` clears `plannedDate` / `plannedAmount` / `note`; `skipped` boolean | 200 the full row JSON **including `derivedStatus`** (clients replace the row from the response, as §6.9). §10.11. 404 no `external_items` row for the key (or not a `ship.` key); 404 `TARGET_MISSING {key}` when the row is gone; 409 `TARGET_SETTLED {key, status: 'paid'}` when `feedStatus = 'paid'`; 422 `PLANNED_DATE_IN_PAST {plannedDate, today}`; 400 `plannedAmount <= 0`, grammar, or nothing set after the merge ("nothing to plan; DELETE reverts"); 409 `STALE_WRITE`. Setting `plannedAmount` also stores `plannedBaseAmount` = the feed `amount` now (P6) | `external_item`/`plan` |
 | `DELETE /external-items/:key` | any | `{baseVersion?}` (a JSON body on a DELETE, as every other `baseVersion` route) | **200 the full row JSON** after the revert, `derivedStatus` included (**not 204** — the one exception to §2.2's delete row, because the row still exists and the client re-renders it from the feed values): clears every `planned_*` column, `planned_skipped` and `source_scenario_id` (revert to the feed). Works on a **gone** row too — this is how an orphaned overlay (`SHIP_PLAN_ORPHANED`) is cleaned up. 404 when no row has the key; 404 "no overlay" **only when every overlay column is already empty** (`planned_date`, `planned_amount`, `planned_base_amount`, `planned_note`, `source_scenario_id`, `planned_by`, `planned_at` all NULL and `planned_skipped = 0`); 409 `STALE_WRITE` | `external_item`/`unplan` |
 | `POST /external/refresh` | any | — | 200 `{ran: boolean, status: <status row below>}` after a forced run (P4): the 10-minute TTL is ignored, the 60-second claim is not (`ran: false` when another run holds it, and the current status is returned). 503 `SHIPPING_UNAVAILABLE {reason, lastSuccessAt}` when the run fails (`reason`: `source_schema` — a column the mappers read is missing from `jfa`; `source_error` — any other error on the read-only source connection; `bad_response` — the assembled rows failed `validateFeed`); the last snapshot is untouched. §10.12 | none (P8) |
-| `GET /external/status` | any | — | `{source: 'ship', lastAttemptAt, lastSuccessAt, feedToday, lastError, itemCount, rejectedCount, companies: [{id, name}], sourceSchema, updatedAt}` from `external_sync` (`companies` = `companies_json`, read from `<schema>.companies` at the last successful run, for the Settings picker; `sourceSchema` = the `SHIPPING_DB_SCHEMA` in use). *(`configured` is gone with P12 — there is nothing to configure.)* | — |
+| `GET /external/status` | any | — | `{source: 'ship', lastAttemptAt, lastSuccessAt, feedToday, lastError, itemCount, rejectedCount, companies: [{id, name}], configured, updatedAt}` from `external_sync` (`companies` = `companies_json`, read from `<schema>.companies` at the last successful run, for the Settings picker; `configured` = `SHIPPING_DB_SCHEMA` is a valid schema name). | — |
 
 `:key` arrives **un-encoded** in the path (§4: `ship.<ext_id>` is unreserved characters
 only, so `GET /external-items/ship.bal-812-s311` is the literal path — no percent-encoding,
@@ -1136,7 +1283,7 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 | `CATEGORY_IN_USE` | 409 | refusal | Deleting a category, or changing its direction, while live items or schedules use it; `details {itemCount, scheduleCount}`. Phase 2: deleting a system category or changing its direction, always; `details {systemKey}` (P10) |
 | `SHIPPING_COMPANY_TAKEN` | 409 | refusal | Phase 2: `PUT /companies/:id` with a `shippingCompanyId` another live company holds; `details {companyId}` |
 | `PLANNED_DATE_IN_PAST` | 422 | refusal | Phase 2: `plannedDate < today` on `PUT /external-items/:key`; `details {plannedDate, today}` |
-| `SHIPPING_UNAVAILABLE` | 503 | refusal | Phase 2: `POST /external/refresh` when the forced run fails; `details {reason, lastSuccessAt}` — `reason` one of `source_schema \| source_error \| bad_response` (Dev 2026-09-29, direct `jfa` read: the schema check failed, any other error on the read-only source connection, or the assembled rows failed validation; §10.12). *(Superseded reasons: `unconfigured \| timeout \| unreachable \| http_401 \| http_<status>`.)* |
+| `SHIPPING_UNAVAILABLE` | 503 | refusal | Phase 2: `POST /external/refresh` when the forced run fails; `details {reason, lastSuccessAt, missing?}` (`missing` = every `table.column` it cannot see, `source_schema` only) — `reason` one of `source_schema \| source_error \| bad_response` (Dev 2026-09-29, direct `jfa` read: the schema check failed, any other error on the read-only source connection, or the assembled rows failed validation; §10.12). *(Superseded reasons: `unconfigured \| timeout \| unreachable \| http_401 \| http_<status>`.)* |
 | `SHIPPING_UNAVAILABLE` | 200 | warning | Phase 2: `/forecast` when the refresh that was due did not succeed; the last snapshot is used; `{reason, lastSuccessAt}` with the same three reasons |
 | `SHIP_UNMAPPED` | 200 | warning | Phase 2: `/forecast`: ship rows omitted because no live company maps their `shippingCompanyId` (including `null`, Q2) or the company has no live active account; one per distinct id; `{shippingCompanyId, count}` |
 | `SHIP_PLAN_ORPHANED` | 200 | warning | Phase 2: `/forecast`: an overlay (`planned_*`) sits on a `gone` row; `{key}` |
@@ -1776,7 +1923,8 @@ changed, from an HTTP fetch to a direct read-only read of `jfa`.
    'ship' AND (last_attempt_at IS NULL OR last_attempt_at < UTC_TIMESTAMP() - INTERVAL 60
    SECOND)`. 0 rows → another run holds it; skip (`ran: false`).
 2. **Read the source** (Dev 2026-09-29, direct `jfa` read; was "Fetch"): `services/
-   shippingSource.js` `readSource({today, paidSince})` on **its own connection**, distinct
+   shippingSource.js` `readPaymentsForecast({today, paidSince})` (called through `services/shipping.js`
+   `fetchPaymentsForecast`, which keeps `validateFeed` and the `unavailable(reason)` shape) on **its own connection**, distinct
    from the refresh's, opened with `SET SESSION TRANSACTION READ ONLY` and released before
    step 3 — so no JFlow row is locked while the source is read, and the source connection
    can never write. In order: (a) the **schema check** — every `(table, column)` the mappers
@@ -1880,7 +2028,7 @@ Consciously left out of this contract:
 | `src/db/migrations/2026-09-29_jflow_ship.sql` (Phase 2) | §3.5: `external_items`, `external_sync`, guarded `companies.shipping_company_id` and `categories.system_key`, the "Stock payments" seed |
 | `src/lib/payments-flow/{dates,terms,suppliers,policy,po,flow,ids}.js` (Phase 2, P1 amended) | the CommonJS port of ShipLine `f9499bc` `paymentsFlowMath.ts` plus `feedId`; `dateOfInstant` pinned to Europe/London, `today` required; pure — imports nothing from `db/` |
 | `tools/payments-flow-oracle.mjs` (Phase 2) | runs the frozen TS from the ShipLine checkout via `npx tsx` under `TZ=Europe/London` with a fixed `today`; writes the golden fixtures' expected output |
-| `src/services/shippingSource.js` (+ `shippingSource/*.js`, Phase 2, Dev 2026-09-29) | §2.1, §10.12 step 2: `readSource({today, paidSince})` on its own read-only connection — schema check, `jfa` reads through the mappers copied from shipping's `orders.js` (copied-file headers), the ported math, `toForecastRows`, `validateFeed`, `unavailable(reason)`; the only file that knows `SHIPPING_DB_SCHEMA`; contains no `INSERT`/`UPDATE`/`DELETE`. *(Replaces `src/services/shipping.js`, the HTTP feed client — not built.)* |
+| `src/services/shippingSource.js` + `src/services/shippingReads.js` (the SQL loaders, `SOURCE_COLUMNS` for the schema check) + `src/lib/shippingCopy/*.js` (mappers copied from shipping, with headers) (Phase 2, Dev 2026-09-29) | §2.1, §10.12 step 2: `readPaymentsForecast({today, paidSince})` on its own read-only connection — schema check, `jfa` reads through the mappers copied from shipping's `orders.js` (copied-file headers), the ported math, `toForecastRows`, `validateFeed`, `unavailable(reason)`; the only file that knows `SHIPPING_DB_SCHEMA`; contains no `INSERT`/`UPDATE`/`DELETE`. *(Replaces `src/services/shipping.js`, the HTTP feed client — not built.)* |
 | `src/services/shippingRefresh.js` (Phase 2) | §10.12: claim, read (via `shippingSource`), diff, record; feed columns only, no transaction, no audit |
 | `src/routes/external.js` (Phase 2) | §6.12: `GET /external-items`, `GET`/`PUT`/`DELETE /external-items/:key` (all three answer the full row with `derivedStatus`), `POST /external/refresh`, `GET /external/status` |
 | `src/lib/lines.js` | item, instance and (Phase 2) ship rows → classifier input (§9.3.1); no band table |

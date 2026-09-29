@@ -493,7 +493,7 @@
 // ── JFlow feed (forecast.js) ────────────────────────────────────────────
 
 /**
- * A row of GET /api/internal/payments-forecast (JFlow PHASE2 §3).
+ * A feed row (JFlow PHASE2 §3): an `items` entry of services/shippingSource.js's body.
  * @typedef {object} FeedRow
  * @property {string} id  [A-Za-z0-9_-]{1,64}, from ids.js.
  * @property {'deposit'|'balance'} kind

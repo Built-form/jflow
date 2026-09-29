@@ -19,25 +19,21 @@ const {
     insertSchedule, insertOverride, insertOverridePayment, insertScenario, insertAdjustment,
 } = require('./forecastHelpers');
 const { londonToday } = require('../../src/lib/dates');
-const { startShippingStub } = require('../helpers/shippingStub');
+const { stubShippingSource } = require('../helpers/shippingSourceStub');
 
 jest.setTimeout(240000);
 
 // Phase 2: /forecast refreshes the shipping snapshot first (P4). This suite serves it an
-// empty, healthy feed from the stub, so its exact warnings[] are the phase-1 ones and no
-// SHIPPING_UNAVAILABLE appears; ship lines are pinned in forecast-ship.test.js.
+// empty, healthy feed from the source stub, so its exact warnings[] are the phase-1 ones
+// and no SHIPPING_UNAVAILABLE appears; ship lines are pinned in forecast-ship.test.js.
 let h;
 let stub;
 beforeAll(async () => {
     h = await startHarness();
-    stub = await startShippingStub();
-    process.env.SHIPPING_API_BASE = stub.url;
-    process.env.SHIPPING_API_KEY = 'e2e-forecast-key';
+    stub = stubShippingSource();
 });
 afterAll(async () => {
-    delete process.env.SHIPPING_API_BASE;
-    delete process.env.SHIPPING_API_KEY;
-    if (stub) await stub.close();
+    if (stub) stub.restore();
     if (h) await h.stop();
 });
 

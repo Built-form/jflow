@@ -365,14 +365,15 @@ describe('ship lines in /forecast (step 20)', () => {
         expect(stub.requests).toHaveLength(1);
 
         // A source that throws something else (a bug, not an unavailable) is reported as
-        // source_error; then an invalid SHIPPING_DB_SCHEMA through the real source is source_schema.
+        // source_error (with the loaded snapshot's age); then an invalid SHIPPING_DB_SCHEMA through the
+        // real source is source_schema.
         const saved = process.env.SHIPPING_DB_SCHEMA;
         try {
             await releaseClaim();
             stub.reset();
             stub.respondWith(() => { throw new TypeError('boom'); });
             expect((await ok({ companyId: co1.id })).warnings)
-                .toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'source_error', lastSuccessAt: null });
+                .toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'source_error', lastSuccessAt: stale });
             process.env.SHIPPING_DB_SCHEMA = 'no such schema';
             await releaseClaim();
             stub.reset();

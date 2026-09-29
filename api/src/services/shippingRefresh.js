@@ -9,7 +9,8 @@
 //
 //   1  claim   a conditional UPDATE on external_sync (the 60-second guard) — 0 rows means
 //              another run holds it, and this one does not run;
-//   2  fetch   services/shipping.js with NO database connection held; validateFeed;
+//   2  read    shipping's data (services/shipping.js → shippingSource.js, on the source's own
+//              READ ONLY connection) with none of the refresh's connections held; validateFeed;
 //   3  diff    by (ext_id, feed_hash, gone_at): a new id → INSERT; a changed hash, or a
 //              row back after gone_at → UPDATE the feed columns and clear gone_at; a row
 //              missing from the feed → set gone_at. Rows are never removed;
@@ -233,7 +234,7 @@ async function recordFailure(err) {
  *   {status: 'ok',      ran: true,  sync, counts}              counts: inserted, updated,
  *                                                              returned, gone, unchanged,
  *                                                              deferred, rejected
- *   {status: 'failed',  ran: true,  sync, reason, message}     the fetch failed; only
+ *   {status: 'failed',  ran: true,  sync, reason, message}     the read failed; only
  *                                                              last_error was written
  * `sync` is the external_sync row after the run (raw columns). A database error throws.
  */
@@ -259,7 +260,7 @@ async function runRefresh({ today } = {}) {
     });
     if (!claim.claimed) return { status: 'skipped', ran: false, sync: claim.sync };
 
-    // 2 — fetch with no connection held.
+    // 2 — read the source with no connection of ours held.
     let feed;
     try {
         const body = await shipping.fetchPaymentsForecast({ today, paidSince: claim.paidSince });
@@ -267,7 +268,7 @@ async function runRefresh({ today } = {}) {
     } catch (err) {
         if (!shipping.isUnavailable(err)) throw err;
         const sync = await recordFailure(err);
-        return { status: 'failed', ran: true, sync, reason: err.reason, message: err.message };
+        return { status: 'failed', ran: true, sync, reason: err.reason, message: err.message, missing: err.missing };
     }
     if (feed.rejected) {
         log.warn(`[shipping-refresh] ${feed.rejected} feed row(s) rejected:`, feed.problems);

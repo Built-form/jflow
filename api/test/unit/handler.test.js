@@ -102,7 +102,7 @@ describe('meta/enums', () => {
         expect(ENUMS.feedStatuses).toEqual(['open', 'paid']);
         expect(ENUMS.dateBases).toEqual(['firm', 'estimated', 'undated']);
         expect(ENUMS.amountBases).toEqual(['stated', 'derived']);
-        expect(ENUMS.shippingReasons).toEqual(['unconfigured', 'timeout', 'unreachable', 'http_401', 'http_<status>', 'bad_response']);
+        expect(ENUMS.shippingReasons).toEqual(['source_schema', 'source_error', 'bad_response']);
         expect(ENUMS.errorCodes).toEqual(expect.arrayContaining(['SHIPPING_COMPANY_TAKEN', 'PLANNED_DATE_IN_PAST', 'SHIPPING_UNAVAILABLE']));
         expect(ENUMS.warningCodes).toEqual(expect.arrayContaining(['SHIPPING_UNAVAILABLE', 'SHIP_UNMAPPED', 'SHIP_PLAN_ORPHANED', 'SHIP_PLAN_STALE']));
     });

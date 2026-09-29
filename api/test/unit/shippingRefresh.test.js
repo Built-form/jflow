@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { FEED_COLUMNS, feedRow, feedHash } = require('../../src/services/shippingRefresh');
 const shipping = require('../../src/services/shipping');
-const { feedItem, feedBody } = require('../helpers/shippingStub');
+const { feedItem, feedBody } = require('../helpers/shippingSourceStub');
 
 const SOURCE = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'services', 'shippingRefresh.js'), 'utf8');
 

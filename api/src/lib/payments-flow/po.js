@@ -5,7 +5,7 @@
 // to come, pro-rated over its containers, as PaymentItems.
 //
 // Ported from ShipLine src/components/payments/paymentsFlowMath.ts at f9499bc
-// (frozen until the JFlow PHASE2 step 17 cut-over): the TS with its types
+// (re-synced with the oracle when ShipLine changes it): the TS with its types
 // stripped (tsc transpileModule), split by concern. Behaviour, float money
 // arithmetic and rounding are the TS's — change the TS first, never just this.
 // Types: ./types.js.

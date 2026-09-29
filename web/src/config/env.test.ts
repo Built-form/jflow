@@ -3,12 +3,12 @@ import { resolveApiBase, resolveAppEnv, windowTitle } from './env';
 
 /**
  * The hostname picks the environment; unknown hosts are TEST; and a stack that does not
- * exist yet (both, until step 11) resolves to NO address — never to the other stack.
+ * exist yet (prod, for now) resolves to NO address — never to the other stack.
  */
 describe('which environment this is', () => {
-  it('is production only on jflow.built-form.co.uk', () => {
-    expect(resolveAppEnv(undefined, 'jflow.built-form.co.uk')).toBe('production');
-    expect(resolveAppEnv(undefined, 'JFLOW.built-form.co.uk ')).toBe('production');
+  it('is test on every host until prod is deployed', () => {
+    expect(resolveAppEnv(undefined, 'jflow.built-form.co.uk')).toBe('test');
+    expect(resolveAppEnv(undefined, 'JFLOW.built-form.co.uk ')).toBe('test');
     expect(resolveAppEnv(undefined, 'mjflow.built-form.co.uk')).toBe('test');
     expect(resolveAppEnv(undefined, 'localhost')).toBe('test');
     expect(resolveAppEnv(undefined, '')).toBe('test');

@@ -102,7 +102,12 @@ module.exports = ({ schemaReady, fail, serverError, todayFor }) => {
                 return fail(res, 503,
                     `The shipping feed could not be refreshed (${result.reason}); the last snapshot is kept.`,
                     'SHIPPING_UNAVAILABLE',
-                    { reason: result.reason, lastSuccessAt: statusJson(result.sync)?.lastSuccessAt ?? null });
+                    {
+                        reason: result.reason,
+                        lastSuccessAt: statusJson(result.sync)?.lastSuccessAt ?? null,
+                        // source_schema only: every `table.column` JFlow reads but cannot see.
+                        ...(Array.isArray(result.missing) ? { missing: result.missing } : {}),
+                    });
             }
             res.json({ ran: result.ran, status: statusJson(result.sync) });
         } catch (err) {
