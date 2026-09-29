@@ -1,22 +1,43 @@
 # JFlow — Phase 2 plan: stock payments
 
-**Dev, 2026-09-29: ShipLine is read-only.** This work never changes ShipLine; steps 16 (shadow) and 17 (cut-over) are dropped, and shipping's JWT `GET /api/v1/payments-flow` (whose only consumer was ShipLine) is not built. Consequence: there are **two copies** of the payment math — ShipLine's TS in the browser and shipping's JS port serving JFlow's feed. They are kept equal by **re-syncing**: when ShipLine's `paymentsFlowMath.ts` changes, re-run `tools/payments-flow-oracle.mjs` against the new ShipLine commit, update the port until the golden tests deep-equal again, and record the new commit here.
+**Dev, 2026-09-29 (second decision): shipping is not modified either — JFlow reads `jfa` directly.**
+"Pull required shipping code into this repo rather than modify it", "same DB, different schema",
+"same test DB as here". **Current rule:** the payment math is ported into
+**`jflow/api/src/lib/payments-flow/`** (from ShipLine `f9499bc`, golden-tested against the frozen
+TS oracle `api/tools/payments-flow-oracle.mjs`); JFlow's **`src/services/shippingSource.js`**
+assembles the input **read-only from shipping's `jfa` schema on the same RDS instance**
+(explorer-test for local and test, explorer via the RDS Proxy for prod; mappers copied from
+shipping's `orders.js` with the estate's copied-file headers), runs the math and produces the same
+feed rows §3 describes (P2 ids, P3 paid rows). JFlow's DB user (the one shipping uses) can already
+`SELECT jfa.*` on explorer-test (verified); prod needs the same grant, which Dev confirms at deploy.
+So: **steps 14, 15 and 18 move into JFlow** (§6, "source swap"); nothing is built in shipping —
+no `GET /api/internal/payments-forecast`, no `/api/v1/payments-flow`; **P12 is retired** (no API
+key); `SHIPPING_API_BASE` / `SHIPPING_API_KEY` are gone; one new optional env
+**`SHIPPING_DB_SCHEMA`** (default `jfa`). The refresh (§4.3) keeps its model but reads through a
+read-only session with a schema check first; `SHIPPING_UNAVAILABLE` reasons are now
+`source_schema | source_error | bad_response`. Risk 1 (shipping's runtime) no longer applies; a new
+risk 8 (schema coupling) is added in §7. Sections below that describe shipping-side work are
+marked "superseded by Dev 2026-09-29: direct `jfa` read" and kept for history.
 
-**Adopted 2026-09-29 (step 13, Dev).** P1–P12 adopted as written, with the recommended
+**Dev, 2026-09-29 (first decision): ShipLine is read-only.** This work never changes ShipLine; steps 16 (shadow) and 17 (cut-over) are dropped, and shipping's JWT `GET /api/v1/payments-flow` (whose only consumer was ShipLine) is not built. Consequence: there are **two copies** of the payment math — ShipLine's TS in the browser and JFlow's JS port (originally planned as shipping's port; moved into JFlow by the second decision). They are kept equal by **re-syncing**: when ShipLine's `paymentsFlowMath.ts` changes, re-run `tools/payments-flow-oracle.mjs` against the new ShipLine commit, update the port until the golden tests deep-equal again, and record the new commit here.
+
+**Adopted 2026-09-29 (step 13, Dev).** P1–P12 adopted as written (P1 since amended, P12 since retired — see above), with the recommended
 answers to §7's questions: Q1 — source of truth is ShipLine commit **`f9499bc`** (GitHub
 main/test, 2026-09-29), where `paymentsFlowMath.ts` is **2,786 lines**, last changed
-2026-09-28 (`ec1cd76`, "balance number dupe in pop up"), **frozen until step 17** — the line
-numbers in §1–§2 below refer to the older 2,470-line copy read on 2026-09-29 and are not
-re-chased; Q2 — POs with no company stay unmapped, counted in `SHIP_UNMAPPED`; Q3/P5 — the
-account is the company's active account in the row's currency, else its default; Q4 — a
-ship currency with no rate is 422 `FX_RATE_MISSING`, one rule; Q5 — **supplier tags not
-now**: step 15's assembler passes `tags: []` (Golden A unaffected; Golden B compares with
-tags stripped from the page-built input; tag-driven payment rules do not apply server-side
-until tags are wired); Q6 — no per-row refresh audit (P8) and `exclude` → `planned_skipped`
-(P7); Q7 — a new shipping key (P12); Q8 — 45 days stays. Risk 1: shipping stays on
-`nodejs18.x` for now; if AWS blocks an update, Phase 2 pauses there. The decisions are folded
-into `docs/PLAN.md` ("Phase 2") and `api/docs/CONTRACT.md` (§1.1 and the sections it lists);
-from here CONTRACT.md is the text the code follows, and PLAN.md still wins over both.
+2026-09-28 (`ec1cd76`, "balance number dupe in pop up"), the commit the port is golden-tested
+against (originally "frozen until step 17"; step 17 is dropped, so ShipLine is not frozen and later
+changes are picked up by a re-sync) — the line numbers in §1–§2 below refer to the older
+2,470-line copy read on 2026-09-29 and are not re-chased; Q2 — POs with no company stay unmapped,
+counted in `SHIP_UNMAPPED`; Q3/P5 — the account is the company's active account in the row's
+currency, else its default; Q4 — a ship currency with no rate is 422 `FX_RATE_MISSING`, one rule;
+Q5 — **supplier tags not now**: the assembler (now JFlow's `shippingSource.js`) passes `tags: []`
+(Golden A unaffected; Golden B compares with tags stripped from the page-built input; tag-driven
+payment rules do not apply in JFlow until tags are wired); Q6 — no per-row refresh audit (P8) and
+`exclude` → `planned_skipped` (P7); Q7 — a new shipping key (P12; **retired** by the direct `jfa`
+read); Q8 — 45 days stays. Risk 1 (shipping's runtime) **no longer applies**: JFlow deploys on its
+own runtime and shipping is not deployed. The decisions are folded into `docs/PLAN.md` ("Phase 2")
+and `api/docs/CONTRACT.md` (§1.1 and the sections it lists); from here CONTRACT.md is the text the
+code follows, and PLAN.md still wins over both.
 
 BUILD_PLAN step 12. **Written, not built.** Companion to `docs/PLAN.md` ("Phase 2"),
 `docs/BUILD_PLAN.md` and `api/docs/CONTRACT.md`. Decisions P1–P12 (§5) needed Dev's sign-off at step 13
@@ -69,11 +90,18 @@ relative to `C:\Users\OpsLondon\`. All findings come from a read-only pass on 20
     answers `TARGET_MISSING` and §9 says `externalItems` "must be `[]`". The loader, stale checks,
     apply and lock order all need Phase 2 text; `lib/classify.js` does not.
 
-## 2. Decision: route 2 — the math moves to the shipping API
+## 2. Decision: route 2 — the math moves to the shipping API — **superseded by Dev 2026-09-29: direct `jfa` read**
 
-**P1.** `buildPaymentsFlow` and its callees move to `shipping/src/lib/payments-flow/` (CommonJS,
-JSDoc types). ShipLine reads `GET /api/v1/payments-flow` (JWT); JFlow reads
-`GET /api/internal/payments-forecast`. Both project one call.
+**P1 as now amended.** `buildPaymentsFlow` and its callees are ported to
+**`jflow/api/src/lib/payments-flow/`** (CommonJS, JSDoc types), and JFlow's
+`src/services/shippingSource.js` assembles the input from `jfa` tables and runs it. Nothing moves
+to shipping and ShipLine is unchanged. The "why" and the proofs below still hold, read with
+"JFlow" in place of "shipping" as the home of the port.
+
+*P1 as first adopted (history):* `buildPaymentsFlow` and its callees move to
+`shipping/src/lib/payments-flow/` (CommonJS, JSDoc types). ShipLine reads
+`GET /api/v1/payments-flow` (JWT); JFlow reads `GET /api/internal/payments-forecast`. Both
+project one call.
 
 **Why.** The inputs are shipping's own tables (8). Route 1 needs the same server-side assembly, plus
 a package pipeline the estate lacks (9), a TS build shipping lacks (7), and two-repo releases of a
@@ -83,12 +111,13 @@ file that changes daily (6). Route 1 would also still disagree with itself:
 
 Shipping already needs the figure server-side (9).
 
-**Costs.** A one-time TS→JS port; ShipLine refetches after writes; ShipLine keeps response types
-only, in `paymentsFlowTypes.ts`.
+**Costs.** A one-time TS→JS port. *(Superseded: ShipLine refetches after writes; ShipLine keeps
+response types only, in `paymentsFlowTypes.ts` — ShipLine is not touched.)*
 
-**End state (grep gate, step 17).** `ShipLine/src` contains no `buildPaymentsFlow`, `summarizePo`,
-`parsePaymentTerms`, `resolveTermsRule`, `matchSupplier`, `resolvePolicy` or `deriveGroupDue`. Only
-display helpers stay (`fmtYmd`, `isoWeek`, `weekMonday`, `addDays`, `bucketize`, `describe*`).
+**End state (grep gate, step 17) — dropped with step 17.** *(History: `ShipLine/src` was to contain
+no `buildPaymentsFlow`, `summarizePo`, `parsePaymentTerms`, `resolveTermsRule`, `matchSupplier`,
+`resolvePolicy` or `deriveGroupDue`.)* The current end state is: two copies, kept equal by
+re-syncing against the oracle (top of this file).
 
 **Proving ShipLine's numbers are unchanged.**
 - **Golden A.** Fixtures are `PaymentsFlowInput` JSON: shipping-test snapshots plus edge cases
@@ -96,28 +125,38 @@ display helpers stay (`fmtYmd`, `isoWeek`, `weekMonday`, `addDays`, `bucketize`,
   oracle is the frozen TS via `npx tsx` (a ShipLine devDep), run under `TZ=Europe/London` with a
   fixed `today`. The JS port must `deepStrictEqual` it under both `TZ=Europe/London` and `TZ=UTC`.
 - **Golden B.** A script builds the input as `PaymentsFlowView` does (L238–284) and diffs it with
-  the server assembler's input for the same `today`. It must find zero diffs.
-- **Shadow.** The page computes both models and reports differences. Cut over at zero.
+  JFlow's `shippingSource.js` input (built from `jfa` on explorer-test) for the same `today`, with
+  tags stripped from the page-built side (Q5). It must find zero diffs.
+- **Shadow** — *dropped with step 16 (ShipLine read-only).* *(History: the page computes both
+  models and reports differences; cut over at zero.)*
 
-## 3. Shipping: `GET /api/internal/payments-forecast`
+## 3. Shipping: `GET /api/internal/payments-forecast` — **superseded by Dev 2026-09-29: direct `jfa` read; not built**
 
-- **Auth.** `src/lib/internal-auth.js` is JFPRO's middleware in CommonJS, on
+**Current rule.** There is no HTTP route, no auth middleware, no key and no query string: JFlow's
+`shippingSource.js` reads `jfa` directly (§4.1). What survives from this section is the **row
+shape** — `items[]` with the P2 ids, P3 paid rows, `dateBasis`, `amount` as a 2-dp string — which
+`shippingSource.js` produces in memory and `validateFeed` checks before the refresh diffs it, plus
+`companies` (from `jfa.companies`) for the Settings picker. "Auth", "Key", "Query", "Response"
+envelope and "Errors" below are history.
+
+- **Auth** *(history)*. `src/lib/internal-auth.js` is JFPRO's middleware in CommonJS, on
   `SHIPPING_INTERNAL_API_KEY`. Unset → 503 `{error: 'Internal API not configured'}`. Missing or wrong
   `X-Api-Key` → 401 `{error: 'Unauthorized'}`. It is registered before the allowlist middleware
   (`orders.js` L320). `serverless.yml` adds
   `- httpApi: {path: /api/internal/payments-forecast, method: GET}` to `ordersApi` with **no
   authorizer**, and env `SHIPPING_INTERNAL_API_KEY: ${self:custom.secrets.SHIPPING_INTERNAL_API_KEY, ''}`.
-- **Key (P12).** A new random 32-byte hex value, not JFPRO's. It is `SHIPPING_INTERNAL_API_KEY` in
-  `shipping/test|prod` and `SHIPPING_API_KEY` (beside `SHIPPING_API_BASE`) in `jflow/test|prod`.
-  Dev creates it. To rotate: update both secrets, redeploy both.
-- **Query.** All optional; a bad value → 400 `{error, code: 'INVALID_PARAM', details: {param}}`.
+- **Key (P12) — retired.** *(History: a new random 32-byte hex value, not JFPRO's, as
+  `SHIPPING_INTERNAL_API_KEY` in `shipping/test|prod` and `SHIPPING_API_KEY` beside
+  `SHIPPING_API_BASE` in `jflow/test|prod`.)* There is no key; JFlow's DB user reads `jfa`.
+- **Query** *(history)*. All optional; a bad value → 400 `{error, code: 'INVALID_PARAM', details: {param}}`.
   - `today` (default: London today).
   - `paidSince` (default `today − 60`).
   - `status=open,paid`.
   - `companyId=<id>[,…]|none`.
 
-  No paging.
-- **Response.** 200, `Cache-Control: no-store`, gzipped by the existing `compression()`:
+  No paging. *Now:* `shippingSource.js` takes `{today, paidSince}` as function arguments (§4.3
+  step 2) and returns every open and paid row for every company.
+- **Response** *(the envelope is history; the `items[]` row shape is current)*:
 ```
 { meta: { today, paidSince, generatedAt, model: '<git sha>' },
   companies: [ { id: 1, name: 'JFA Medical Ltd' }, … ],
@@ -138,7 +177,7 @@ display helpers stay (`fmtYmd`, `isoWeek`, `weekMonday`, `addDays`, `bucketize`,
   `amount` per currency = `kpis.outstanding`.
 - **`dateBasis`** is `undated` with no `dueDate`, `estimated` if `flags` has `estimated`, else `firm`.
   **`amount`** = `toFixed(2)` of the model's cent-rounded value.
-- **Ids (P2)** all come from `feedId` in the lib.
+- **Ids (P2)** all come from `feedId` in the lib (now `jflow/api/src/lib/payments-flow/ids.js`).
   - `<g>` = `s<shipmentId>`, or `r<10 hex of sha256(upper(ref))>` if the ref has no shipment, or `n`
     if unbooked.
   - Open rows: `dep-<po>`, `pi-<invoicePayment>[-<g>]`, `bal-<po>-<g>`,
@@ -147,21 +186,53 @@ display helpers stay (`fmtYmd`, `isoWeek`, `weekMonday`, `addDays`, `bucketize`,
 
   Ids survive date drift, amount changes, part payments and a draft becoming real. **A stage change
   mints a new id**: a PI replaces a derived deposit, lines get booked, an invoice is recorded.
-- **Errors.** 500 `{error: 'An internal error occurred.'}`, logged without the key.
+- **Errors** *(history)*. 500 `{error: 'An internal error occurred.'}`, logged without the key.
 
 ## 4. JFlow
 
-### 4.1 `api/src/services/shipping.js`
-It copies the shape of `workflows/api/src/services/jfpro.js`: `SHIPPING_TIMEOUT_MS = 5000` on an
+### 4.1 `api/src/services/shippingSource.js` — the direct `jfa` read (Dev 2026-09-29)
+
+Replaces the HTTP client `services/shipping.js` (history below). JFlow reads shipping's data
+itself, from shipping's schema on the same instance, and never writes to it.
+
+- **Where.** Schema-qualified tables `<SHIPPING_DB_SCHEMA>.<table>` (`SHIPPING_DB_SCHEMA` optional,
+  default `jfa`; `.env.example` lists it). Same host, same DB user as JFlow's own pool: explorer-test
+  for local and the test stage, explorer via the RDS Proxy for prod. No shipping secret, no
+  `isConfigured()` — the source is configured whenever the DB is.
+- **Read-only, on its own connection.** `readSource({today, paidSince})` takes a fresh connection
+  from the pool, runs `SET SESSION TRANSACTION READ ONLY` (so a stray write is a MySQL error, not a
+  write), and releases it before the refresh touches `external_items`. It never joins JFlow's own
+  transaction.
+- **Schema check first.** Before any data read, `SELECT … FROM information_schema.COLUMNS WHERE
+  TABLE_SCHEMA = ? AND (TABLE_NAME, COLUMN_NAME) IN (…)` for every column the mappers read (the
+  list is a constant beside the mappers). Any missing → throw `unavailable('source_schema',
+  {missing: ['table.column', …]})`; the refresh records it and `/forecast` warns. A column rename
+  in `jfa` therefore stops the refresh visibly (risk 8) and never yields a silent wrong number.
+- **Assemble.** The mappers are **copied** from shipping's `src/handlers/orders.js` (`rowToOrder` +
+  `mapOrder` rules, `loadPurchaseOrdersForOrders`, `invoicePaymentRowToJson`, `rowToContainer`,
+  `paymentRuleRowToJson`, shipment and supplier payments) into `src/services/shippingSource/*.js`,
+  each file carrying the estate's copied-file header naming the source path and commit. Suppliers
+  come from `jfa.suppliers` with `tags: []` (Q5). `today` is the route's; `paidSince` per §4.3.
+- **Run and shape.** `buildPaymentsFlow(input)` from `src/lib/payments-flow/`, then
+  `toForecastRows(flow, paidRows)` → the §3 row shape (`items[]`, `companies[]`) in memory.
+  `validateFeed` counts and rejects bad rows (id grammar, `parseMinor(amount)`, dates, currency);
+  a rejected row is counted, and when every row is rejected the run fails `bad_response`.
+- **Failures.** `unavailable(reason)` with `reason` one of **`source_schema | source_error |
+  bad_response`**: the schema check failed; any other DB error on the source connection (grant
+  missing, timeout, connection refused — the MySQL code goes in the log, not the reason); the
+  assembled rows failed validation. **Degrade.** `/forecast` keeps the last snapshot and adds
+  warning **`SHIPPING_UNAVAILABLE {reason, lastSuccessAt}`**.
+- **Env.** `SHIPPING_DB_SCHEMA` joins `serverless.yml` as a plain env (`${env:SHIPPING_DB_SCHEMA,
+  'jfa'}`), not a secret. `SHIPPING_API_BASE` / `SHIPPING_API_KEY` are **gone** from put-secret's
+  `OPTIONAL_DEPLOY_KEYS`, `serverless.yml` and `.env.example`.
+
+*History — `api/src/services/shipping.js` (superseded by Dev 2026-09-29: direct `jfa` read).*
+It copied the shape of `workflows/api/src/services/jfpro.js`: `SHIPPING_TIMEOUT_MS = 5000` on an
 `AbortController`, the key only in `X-Api-Key`, `SHIPPING_API_BASE` / `SHIPPING_API_KEY` read per
-call, and `isConfigured()`.
-- `fetchPaymentsForecast({today, paidSince})` returns the body or throws `unavailable(reason)`, with
-  `reason` one of `unconfigured | timeout | unreachable | http_401 | http_<status> | bad_response`.
-- `validateFeed` counts and rejects bad rows (id grammar, `parseMinor(amount)`, dates, currency).
-- **Degrade.** `/forecast` keeps the last snapshot and adds warning
-  **`SHIPPING_UNAVAILABLE {reason, lastSuccessAt}`**.
-- Both keys join put-secret's `OPTIONAL_DEPLOY_KEYS` and `serverless.yml`
-  (`${self:custom.secrets.SHIPPING_API_BASE, ''}`), as workflows does for `JFPRO_*`.
+call, and `isConfigured()`; `fetchPaymentsForecast({today, paidSince})` returned the body or threw
+`unavailable(reason)` with `reason` one of `unconfigured | timeout | unreachable | http_401 |
+http_<status> | bad_response`; both keys were to join put-secret's `OPTIONAL_DEPLOY_KEYS` and
+`serverless.yml`. Not built.
 
 ### 4.2 Schema — `api/src/db/migrations/<date>_jflow_ship.sql` (CONTRACT §3.1 style)
 ```sql
@@ -234,7 +305,9 @@ lock waits for the next run.
 1. **Claim.** `UPDATE external_sync SET last_attempt_at = UTC_TIMESTAMP() WHERE source = 'ship' AND
    (last_attempt_at IS NULL OR last_attempt_at < UTC_TIMESTAMP() - INTERVAL 60 SECOND)`. 0 rows →
    skip.
-2. **Fetch** with no DB connection held. `today` is the route's. `paidSince` is the earliest of the
+2. **Read** (was "Fetch"; Dev 2026-09-29) — `shippingSource.readSource({today, paidSince})` on its
+   **own read-only connection** (§4.1: schema check, then the `jfa` reads), released before step 3;
+   no JFlow row is locked meanwhile. `today` is the route's. `paidSince` is the earliest of the
    live accounts' latest `balance_date`s, else `today − 60`.
 3. **Diff** by `(ext_id, feed_hash, gone_at)`. A new id → `INSERT`. Changed, or back → `UPDATE` the
    feed columns, `gone_at = NULL`. Missing → `gone_at = UTC_TIMESTAMP()`. Each `UPDATE` bumps
@@ -322,7 +395,7 @@ unmapped.
 
 | # | Decision |
 |---|---|
-| P1 | Route 2: one implementation, in `shipping/src/lib/payments-flow/` |
+| P1 | **Amended by Dev 2026-09-29:** the math is ported into `jflow/api/src/lib/payments-flow/` and fed from a direct read-only read of `jfa`; ShipLine keeps its own copy (two copies, re-synced via the oracle). *(As first adopted: route 2, one implementation, in `shipping/src/lib/payments-flow/`.)* |
 | P2 | Feed id grammar and `feedId` (§3); a stage change mints a new id |
 | P3 | Paid rows = transfers + balance records marked paid; a PI marked paid with no transfer emits nothing |
 | P4 | Refresh on demand (10-minute TTL or a new `today`) plus a manual refresh; no schedule |
@@ -333,13 +406,15 @@ unmapped.
 | P9 | Ship lines are always `manual`; undated lines are counted, not banded |
 | P10 | System category "Stock payments" via `categories.system_key` |
 | P11 | `external_items` sits after `cash_items` in the lock order |
-| P12 | A separate shipping key, not JFPRO's |
+| P12 | **Retired by Dev 2026-09-29 (direct `jfa` read): no API key exists.** *(As adopted: a separate shipping key, not JFPRO's.)* |
 
 ## 6. Build order (steps 13–23)
 
-Steps 14–18 edit `shipping` and ShipLine, each on its own `test` branch and following its own
-conventions. Each needs Dev's go-ahead. Every shipping deploy, secret, and ShipLine prod change is a
-**STOP**.
+**Dev 2026-09-29:** steps 16–17 are dropped (ShipLine read-only) and steps 14, 15 and 18 are
+**moved into JFlow** as the **source-swap step (18a)** — nothing is built, deployed or configured in
+`shipping` or ShipLine. *(History: steps 14–18 edited `shipping` and ShipLine, each on its own
+`test` branch and following its own conventions; every shipping deploy, secret and ShipLine prod
+change was a STOP.)* The remaining STOPs are Dev's: the prod `jfa` grant and the JFlow deploys.
 
 ### Step 13 — Adopt the plan — **STOP** (Dev) — **done 2026-09-29**
 Do: fold P1–P12 into PLAN.md and CONTRACT.md (§3, §4, §6.10, §7–§9, §10.1, §10.7–10.9, §12; D8
@@ -353,21 +428,26 @@ that §4 left open: an undated open ship row is not an adjustment target (`loadT
 `null` → `TARGET_MISSING`; date it through the overlay first, since `base_date` is `NOT NULL`),
 and `POST /external/refresh` honours the 60-second claim (`ran: false`).
 
-### Step 14 — shipping: port the math, no routes (tests first)
+### Step 14 — shipping: port the math, no routes (tests first) — **moved into JFlow (source swap, step 18a)**
+The port lands in `jflow/api/src/lib/payments-flow/`, not in shipping; the file list, pins and
+golden tests below carry over unchanged (test files under `api/test/unit/`).
 Do: `src/lib/payments-flow/{dates,terms,suppliers,policy,po,flow,ids}.js` is a type-stripped port of
 the frozen TS plus `feedId`. `dateOfInstant` is pinned to Europe/London, and `today` is required.
 Tests: `tools/test-payments-terms-lib.js` (the 27 vectors), `test-payments-flow-golden.js` (Golden
 A), `test-payments-ids-lib.js` (grammar, uniqueness, allocated + shared), all in `test:unit`.
 Done when: every fixture deep-equals the oracle under both `TZ=UTC` and `TZ=Europe/London`.
 
-### Step 15 — shipping: input assembler + `GET /api/v1/payments-flow` — **STOP** before deploy
-Do: `src/services/payments-flow-input.js` reuses the routes' mappers (`rowToOrder` + `mapOrder`
+### Step 15 — shipping: input assembler + `GET /api/v1/payments-flow` — **moved into JFlow (source swap, step 18a)**
+The assembler becomes JFlow's `src/services/shippingSource.js` (§4.1) with the mappers **copied**
+from shipping (copied-file headers), reading `jfa` read-only; no JWT route, no shipping deploy, no
+`delivered-air.js` change. Golden B carries over.
+*(History:)* Do: `src/services/payments-flow-input.js` reuses the routes' mappers (`rowToOrder` + `mapOrder`
 rules, `loadPurchaseOrdersForOrders`, `invoicePaymentRowToJson`, `rowToContainer`,
 `paymentRuleRowToJson`, shipment and supplier payments, `jfa.suppliers` + tags). Add the JWT route.
 `delivered-air.js` imports `LANDED_STATUSES` from the lib.
 Tests: assembler units; Golden B.
 Done when: Golden B finds zero diffs on 3 snapshots from different days.
-**STOP**: Dev runs `bash deploy.sh test`.
+~~**STOP**: Dev runs `bash deploy.sh test`.~~ (no shipping deploy)
 
 ### Step 16 — ShipLine: shadow — **DROPPED by Dev 2026-09-29 (ShipLine read-only)**
 Do: the page also fetches `/payments-flow`, keeps rendering its own model, and shows admins a diff
@@ -381,21 +461,58 @@ Do: render the server model and refetch after writes. `PaymentRulesPanel` previe
 Tests: `npm run lint` (tsc); walk the page on test against the same day in prod.
 Done when: §2's grep gate finds nothing. **One implementation from here.**
 
-### Step 18 — shipping: `/api/internal/payments-forecast` — **STOP** (secret, deploy)
-Do: §3's `internal-auth.js`, the route before the allowlist, `toForecastRows(flow, paidRows)`, and
+### Step 18 — shipping: `/api/internal/payments-forecast` — **moved into JFlow (source swap, step 18a)**
+`toForecastRows(flow, paidRows)` and its tests (ids, amount strings, `dateBasis`, one company per
+row, paid split per PO, Σ open = `kpis.outstanding`) move into JFlow; there is no route, no
+`internal-auth.js`, no key, no gateway or env line, no shipping secret and no shipping deploy.
+*(History:)* Do: §3's `internal-auth.js`, the route before the allowlist, `toForecastRows(flow, paidRows)`, and
 the gateway and env lines.
-Tests: `test-payments-forecast-lib.js` (ids, amount strings, `dateBasis`, one company per row, paid
-split per PO, Σ open = `kpis.outstanding`); auth (401 with no key, 401 with a wrong key, 503 when
+Tests: `test-payments-forecast-lib.js` (…); auth (401 with no key, 401 with a wrong key, 503 when
 unset).
-**STOP**: Dev adds `SHIPPING_INTERNAL_API_KEY` to `shipping/test|prod` and deploys test.
-Done when: `curl` with the key → 200 that `validateFeed` accepts with 0 rejects. Without the key the
-401 comes from Express, not the gateway's JWT authorizer.
+~~**STOP**: Dev adds `SHIPPING_INTERNAL_API_KEY` to `shipping/test|prod` and deploys test.~~
+~~Done when: `curl` with the key → 200 that `validateFeed` accepts with 0 rejects.~~
+
+### Step 18a — JFlow: source swap (replaces 14, 15 and 18; tests first) — **added by Dev 2026-09-29**
+Do, all inside `jflow/api/`:
+- `src/lib/payments-flow/{dates,terms,suppliers,policy,po,flow,ids}.js` — the type-stripped port
+  of ShipLine `f9499bc` plus `feedId`; `dateOfInstant` pinned to Europe/London, `today` required
+  (step 14's content).
+- `tools/payments-flow-oracle.mjs` — runs the frozen TS via `npx tsx` from the ShipLine checkout
+  under `TZ=Europe/London` with a fixed `today`, writing the golden fixtures' expected output.
+- `src/services/shippingSource.js` (+ `shippingSource/*.js` mappers copied from shipping's
+  `orders.js`, copied-file headers) — schema check, read-only session, assemble, run,
+  `toForecastRows`, `validateFeed` (§4.1; steps 15 and 18's content).
+- `SHIPPING_DB_SCHEMA` in `serverless.yml` and `.env.example`; `SHIPPING_API_BASE` /
+  `SHIPPING_API_KEY` removed everywhere (`grep -rn SHIPPING_API_ api/` finds nothing).
+
+Tests:
+- **Golden A in both TZs**: every fixture `deepStrictEqual` to the oracle under `TZ=UTC` and
+  `TZ=Europe/London` (`test:unit`); the 27 terms vectors; id grammar, uniqueness, allocated + shared.
+- **Shadow-schema e2e**: the e2e run creates `jflow_test_<runid>_src` with `CREATE TABLE … LIKE
+  jfa.<table>` for every table the mappers read (so the shadow tracks the real shape), seeds it
+  with a fixture, points `SHIPPING_DB_SCHEMA` at it, and asserts the refresh snapshots the expected
+  rows; then drops one column the mappers read and asserts `SHIPPING_UNAVAILABLE {reason:
+  'source_schema'}` with the last snapshot intact.
+- **Read-only proof**: on the source connection an `INSERT` into a shadow table fails with the
+  MySQL read-only error; and `grep -n "INSERT\|UPDATE\|DELETE" src/services/shippingSource*` finds
+  nothing outside comments.
+- **Live read-only smoke** (local, against explorer-test `jfa`): `readSource` returns rows that
+  `validateFeed` accepts with **0 rejects**, and per-currency open totals match ShipLine's
+  Payments page for the same `today`.
+- **Golden B**: zero diffs against the page-built input (tags stripped) on 3 snapshots.
+
+Done when: green in both TZs; the smoke shows 0 rejects; `grep -rn SHIPPING_API_ api/` and
+`grep -rn payments-forecast api/src` find nothing.
 
 ### Step 19 — JFlow: schema, client, refresh
-Do: §4.2 migration, `services/shipping.js`, `services/shippingRefresh.js`, `routes/external.js`,
-`PUT /companies/:id {shippingCompanyId}`, put-secret, `serverless.yml`, `.env.example`.
-Tests (stub HTTP server):
-- timeout at 5s, 401, non-JSON, and unconfigured (which makes no call);
+Do: §4.2 migration, ~~`services/shipping.js`~~ (replaced by step 18a's `shippingSource.js`),
+`services/shippingRefresh.js`, `routes/external.js`, `PUT /companies/:id {shippingCompanyId}`,
+`serverless.yml`, `.env.example` (~~put-secret~~ — no shipping secret).
+Tests (the shadow schema from step 18a in place of a stub HTTP server):
+- ~~timeout at 5s, 401, non-JSON, and unconfigured (which makes no call)~~ → a missing source
+  column (`source_schema`), a source connection error (`source_error`), every row rejected
+  (`bad_response`) — each leaves the last snapshot and `last_success_at` untouched;
+- the source read holds no lock on any JFlow row and runs on a connection that is not the refresh's;
 - bad rows are counted;
 - insert, change, gone and back;
 - an overlay survives a refresh that changes every feed column;
@@ -441,28 +558,41 @@ Tests: vitest on the display helpers, plus a browser walk.
 Done when: the walk matches `/forecast`.
 
 ### Step 23 — Deploy — **STOP** (Dev)
-Dev adds `SHIPPING_API_BASE` / `SHIPPING_API_KEY` to `jflow/test|prod`, runs `bash deploy.sh test`,
-and maps JFA and HW. Per-currency open totals (mapped + unmapped) must match ShipLine's Payments page.
-After a day on test: `bash deploy.sh prod`.
+**Dev 2026-09-29:** no shipping deploy and no shipping secrets. Dev confirms JFlow's DB user can
+`SELECT` on `jfa.*` for the stage (already verified on explorer-test; **prod needs the same grant**,
+confirmed at deploy), optionally sets `SHIPPING_DB_SCHEMA` (default `jfa`), runs `bash deploy.sh
+test`, and maps JFA and HW. Per-currency open totals (mapped + unmapped) must match ShipLine's
+Payments page. After a day on test: the prod grant, then `bash deploy.sh prod`.
+*(History: Dev adds `SHIPPING_API_BASE` / `SHIPPING_API_KEY` to `jflow/test|prod` — gone.)*
 
 ## 7. Risks and open questions for Dev
 
 **Risks**
-1. **Shipping pins `nodejs18.x`** (PLAN's Risks). Steps 15–18 each need a shipping deploy. If AWS
-   already blocks updates on that runtime, `deploy.sh` fails and Phase 2 stops there. Moving to
-   `nodejs22.x` is its own change and test deploy, done before step 15 (check `pdfkit`, `@aws-sdk`,
-   the EMFILE workaround). I have not verified AWS's dates.
+1. **Shipping's runtime — no longer applies to JFlow's work (Dev 2026-09-29).** Nothing is deployed
+   to shipping, so its Lambda runtime cannot block Phase 2. *(History: shipping pins an end-of-life
+   Node runtime; steps 15–18 each needed a shipping deploy, and if AWS blocked updates on that
+   runtime `deploy.sh` would fail and Phase 2 stop there.)* It remains PLAN's "outside this work"
+   risk for shipping itself.
 2. **The TS I read is stale** (finding 6). Golden A is only as good as its oracle: the commit Dev
-   names, frozen until step 17.
+   names (`f9499bc`); ShipLine is not frozen, so the port must be re-synced when it changes.
 3. **Stage changes retire ids.** An overlay or adjustment on `dep-812` does not follow the PI that
    replaces it; the user sees `SHIP_PLAN_ORPHANED` / `TARGET_MISSING` and re-plans. The refresh never
    writes `planned_*`, so it cannot move the plan.
 4. **ETAs drift**, so draft scenarios on estimated ship lines go `BASE_CHANGED` often.
-5. **Local dev and JFlow test share explorer-test** (`jflow`). Both must point at shipping **test**,
-   or they overwrite each other's snapshot.
+5. **Local dev and JFlow test share explorer-test** (`jflow`), and both read the **same** `jfa` on
+   that instance, so they build the same snapshot (no longer "both must point at shipping test" —
+   there is no endpoint to point at). **Prod reads different data:** explorer-test is a nightly copy
+   of prod, so a snapshot on test is up to a day behind prod's.
 6. **Double counting**: stock payments entered by hand as `cash_items` must be removed at step 23.
 7. **Assumed-paid money has no date.** If it actually left after the anchor, today's opening is
    overstated until the next balance. Recording transfers in ShipLine fixes this.
+8. **Coupling to shipping's schema (new, Dev 2026-09-29).** JFlow reads `jfa` tables directly, so a
+   column rename or drop in shipping's migrations stops JFlow's refresh. The failure mode is chosen:
+   the schema check (§4.1) fails first → `SHIPPING_UNAVAILABLE {reason: 'source_schema'}`, the last
+   snapshot is kept, and no wrong number is ever computed silently. The e2e suite builds its shadow
+   tables with `CREATE TABLE … LIKE jfa.<table>`, so a shape change surfaces in CI on the test DB,
+   not in prod. Recovery is a JFlow change (re-copy the mapper, re-run the goldens), never a
+   shipping change.
 
 **Open questions**
 1. Which ShipLine commit is the source of truth? Can payments-math changes be frozen for steps 13–17?
@@ -475,5 +605,5 @@ After a day on test: `bash deploy.sh prod`.
    view run by admin, as on 2026-06-30?
 6. Is it acceptable that the refresh writes no per-row audit (P8)? Keep `exclude` for `ship.` via
    `planned_skipped` (P7), or refuse it?
-7. A new shipping key (recommended), or reuse JFPRO's?
+7. A new shipping key (recommended), or reuse JFPRO's? — *moot since Dev 2026-09-29: no key (P12 retired).*
 8. Is 45 days the right overdue/unresolved cut-off for supplier money?

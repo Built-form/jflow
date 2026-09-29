@@ -68,9 +68,21 @@ refer to an older 2,470-line copy of `paymentsFlowMath.ts`; the source of truth 
 commit named below. Where this file and PHASE2.md differ on a detail, this file is the one
 the code follows and the difference is recorded in `docs/PROGRESS.md`.
 
+**Amended by Dev 2026-09-29 (direct `jfa` read).** Two binding decisions: ShipLine is
+read-only (steps 16–17 dropped), and **shipping is not modified either** — "pull required
+shipping code into this repo rather than modify it; same DB, different schema; same test DB
+as here". JFlow reads shipping's data **directly from shipping's `jfa` schema, read-only**,
+on the same RDS instance (explorer-test for local and test, explorer via the RDS Proxy for
+prod), with JFlow's own DB user (the same user shipping uses; `SELECT` on `jfa.*` is verified
+on explorer-test and Dev confirms the prod grant at deploy). Nothing is built in shipping:
+no `GET /api/internal/payments-forecast`, no `/api/v1/payments-flow`, no API key. Rows P1
+and P12 below are amended accordingly; every other P-row stands. Where a section below still
+says "fetch", "feed endpoint" or "shipping's assembler", read §2.1 and §10.12 for the current
+rule.
+
 | # | Decision | Consequence here |
 |---|---|---|
-| P1 | **Route 2, amended by Dev 2026-09-29**: the payment math is ported to `shipping/src/lib/payments-flow/` and serves JFlow through `GET /api/internal/payments-forecast` (`X-Api-Key`). **ShipLine is read-only and unchanged** — it keeps its own copy (no `/api/v1/payments-flow`, no cut-over); the port is re-synced against ShipLine's commit when its math changes (PLAN.md "Phase 2"). | JFlow holds no payment math; it stores a feed snapshot (`external_items`) and an overlay. |
+| P1 | **Amended by Dev 2026-09-29 (direct `jfa` read):** the payment math is ported into **`src/lib/payments-flow/`** (CommonJS, from ShipLine `f9499bc`, golden-tested against the frozen TS oracle `tools/payments-flow-oracle.mjs` under both `TZ=Europe/London` and `TZ=UTC`). `services/shippingSource.js` assembles the input from `jfa` tables (mappers copied from shipping's `src/handlers/orders.js`, each with the estate's copied-file header), runs the math and produces the same feed rows the shipping route would have (P2 ids, P3 paid rows). **ShipLine is read-only and unchanged** — it keeps its own copy; the two copies are kept equal by re-syncing the port against the oracle when ShipLine's math changes (PLAN.md "Phase 2"). *(Superseded: the port in `shipping/src/lib/payments-flow/` serving JFlow through `GET /api/internal/payments-forecast` with `X-Api-Key`.)* | JFlow now holds the payment math and the source read (§2.1, §10.12) as well as the feed snapshot (`external_items`) and the overlay. The snapshot, overlay, loader, engine and lock rules are unchanged by the source swap. |
 | P2 | Feed id grammar is exactly §4's `[A-Za-z0-9_-]{1,64}` (`dep-<po>`, `pi-<ip>[-<g>]`, `bal-<po>-<g>`, `inv-<sp>-<po>-a` or `-s`, `pay-<sp>-…`, `spd-<sp>-<po>`; `<g>` = `s<shipmentId>`, `r<10 hex>` or `n`). Ids survive date drift, amount changes, part payments and a draft becoming real; **a stage change mints a new id** (a PI replacing a derived deposit, lines booked, an invoice recorded). | `ship.<ext_id>` needs no escaping (§4). An overlay or adjustment does not follow a stage change: the old row goes `gone` and reads `SHIP_PLAN_ORPHANED` / `TARGET_MISSING`. D8 retired. |
 | P3 | Paid rows = transfer lines with `paid_on >= paidSince` plus balance records marked paid without a transfer; split per PO so each has one company. A PI marked paid with no transfer has no date and emits nothing. | A paid feed row is one payment line (§9.3.1); assumed-paid money leaves the feed with no paid row and reads as settled before the anchor. |
 | P4 | Refresh on demand: `/forecast` runs it first when `last_success_at` is over 10 minutes old or `feed_today ≠ today`; `POST /external/refresh` forces one. No schedule. | §6.12, §10.12. A failed refresh never fails `/forecast` (`SHIPPING_UNAVAILABLE`, last snapshot kept). |
@@ -81,15 +93,24 @@ the code follows and the difference is recorded in `docs/PROGRESS.md`.
 | P9 | Ship lines are always settle mode `manual` (shipping, not the calendar, says a supplier was paid); undated open lines are counted, not banded. | §9.3.1. **Dev (Q8): 45 days stays** the overdue/unresolved cut-off for supplier money (D9 unchanged). |
 | P10 | System category "Stock payments" via `categories.system_key = 'ship'`, seeded by the Phase 2 migration; it refuses delete and direction change with `CATEGORY_IN_USE`. | §3.5, §6.4. |
 | P11 | `external_items` sits **after `cash_items`** in the lock order; the refresh takes no transaction. | §10.1. |
-| P12 | A **new** shipping key, not JFPRO's: `SHIPPING_INTERNAL_API_KEY` in `shipping/test\|prod`, `SHIPPING_API_KEY` beside `SHIPPING_API_BASE` in `jflow/test\|prod`. **Dev (Q7): confirmed.** | §2.1. |
+| P12 | **Retired by Dev 2026-09-29 (direct `jfa` read).** There is no API key and no shipping secret; JFlow's DB user reads `jfa`. The only new setting is the optional env `SHIPPING_DB_SCHEMA` (default `jfa`, §2.1). *(Superseded: a new shipping key, `SHIPPING_INTERNAL_API_KEY` in `shipping/test\|prod`, `SHIPPING_API_KEY` beside `SHIPPING_API_BASE` in `jflow/test\|prod`; Dev (Q7) had confirmed.)* | §2.1. `SHIPPING_API_BASE` / `SHIPPING_API_KEY` appear nowhere in the code, `serverless.yml`, put-secret or `.env.example`. |
 
 Open questions answered at sign-off that are not a P-row: **Q4** — a ship currency with no
 rate is 422 `FX_RATE_MISSING`, one rule for every currency (§3.4 currencies in scope).
 **Q1** — the source of truth is ShipLine commit **`f9499bc`** (GitHub main/test,
 2026-09-29); `paymentsFlowMath.ts` there is 2,786 lines, last changed 2026-09-28 (`ec1cd76`,
-"balance number dupe in pop up"), and it is **frozen until step 17**. **Risk 1** —
-shipping stays on its current Lambda runtime for now; if AWS blocks an update, Phase 2
-pauses there. **Q5 (supplier tags) — not now**: see §11.
+"balance number dupe in pop up"); the port is golden-tested against that commit (it was
+"frozen until step 17"; step 17 is dropped, so ShipLine is not frozen and later changes are
+picked up by a re-sync). **Risk 1** (shipping's runtime) — **no longer applies** to JFlow's
+work (Dev 2026-09-29): nothing is deployed to shipping. **Q5 (supplier tags) — not now**:
+see §11.
+
+**New risk (Dev 2026-09-29): coupling to shipping's schema.** JFlow reads `jfa` tables
+directly, so a column rename or drop in shipping's migrations stops the refresh — visibly,
+as `SHIPPING_UNAVAILABLE {reason: 'source_schema'}` with the last snapshot kept (§10.12),
+never as a silent wrong number. The e2e suite builds its shadow source tables with
+`CREATE TABLE … LIKE jfa.<table>`, so it tracks the real shape. Local/test and prod read
+different `jfa` data (explorer-test is a nightly copy of prod).
 
 Two details PHASE2.md left open are fixed here, not in the P-rows: an **undated** open ship
 row (no `due_date`, no `planned_date`) is not an adjustment target — `loadTarget` returns
@@ -118,12 +139,22 @@ record); and `POST /external/refresh` honours the 60-second claim (§6.12).
   no uploads exist.
 - Every route awaits `schemaReady`; in Lambda it resolves at once (no DDL ever runs there);
   locally it runs `ensureSchema` once per container.
-- **Phase 2 (P12):** `services/shipping.js` reads `SHIPPING_API_BASE` and `SHIPPING_API_KEY`
-  per call (from `jflow/<stage>` via `serverless.yml` `${self:custom.secrets.…, ''}`, both in
-  put-secret's `OPTIONAL_DEPLOY_KEYS`). The key travels only in `X-Api-Key` to shipping's
-  `GET /api/internal/payments-forecast`; 5 s timeout on an `AbortController`; `isConfigured()`
-  is false when either is unset, and then no call is made. The key is a new random value,
-  not JFPRO's; to rotate, update both secrets and redeploy both.
+- **Phase 2 source (Dev 2026-09-29, direct `jfa` read; P1 amended, P12 retired):**
+  `services/shippingSource.js` reads shipping's tables **directly, read-only**, from schema
+  **`SHIPPING_DB_SCHEMA`** (optional env, default `jfa`; a plain `serverless.yml` env, not a
+  secret; listed in `.env.example`) on the **same host and with the same DB user** as JFlow's
+  own pool — explorer-test for local and the test stage, explorer via the RDS Proxy for prod.
+  No shipping secret exists and there is no `isConfigured()`: the source is configured
+  whenever the DB is. Each read takes its **own connection** from the pool, runs
+  `SET SESSION TRANSACTION READ ONLY` first, runs the **schema check** (every column the
+  mappers read must exist in `information_schema.COLUMNS` for that schema, else
+  `unavailable('source_schema', {missing})`), reads the schema-qualified tables, and releases
+  the connection before the refresh touches `external_items` (§10.12). Any other error on
+  that connection is `source_error`. The ported math (`lib/payments-flow/`, P1) then runs in
+  process and `validateFeed` checks the rows it produces (`bad_response` when every row is
+  rejected). *(Superseded: `services/shipping.js` reading `SHIPPING_API_BASE` /
+  `SHIPPING_API_KEY` from `jflow/<stage>` and calling shipping's
+  `GET /api/internal/payments-forecast` with `X-Api-Key` on a 5 s timeout. Neither env exists.)*
 
 ### 2.2 Envelopes and status codes
 
@@ -131,7 +162,7 @@ record); and `POST /external/refresh` honours the 60-second claim (§6.12).
 |---|---|---|
 | Read, update, action | 200 | the resource (or the documented shape) |
 | Create | 201 | the resource |
-| Delete, revert | 204 | none |
+| Delete, revert | 204 | none — except `DELETE /external-items/:key` (Phase 2), which answers 200 with the reverted row (§6.12) |
 | Validation failure (shape, type, range, enum, malformed JSON) | 400 | `{error, details?}` — message-only unless the catalogue names a code |
 | Not signed in / not on the allowlist | 401 | `{error}` |
 | Admin-only route | 403 | `{error, code: 'ADMIN_REQUIRED'}` |
@@ -140,7 +171,7 @@ record); and `POST /external/refresh` honours the 60-second claim (§6.12).
 | Payload too large | 413 | `{error}` |
 | Business rule on otherwise valid input (dates, amounts, keys, FX) | 422 | `{error, code, details?}` |
 | Unhandled | 500 | `{error: 'An internal error occurred.', requestId}` |
-| Shipping feed unreachable on a forced refresh (`POST /external/refresh` only) | 503 | `{error, code: 'SHIPPING_UNAVAILABLE', details}` |
+| Shipping source unavailable on a forced refresh (`POST /external/refresh` only; schema check failed, source DB error, or rows rejected — §10.12) | 503 | `{error, code: 'SHIPPING_UNAVAILABLE', details}` |
 
 `fail(res, status, message, code?, details?)` and `apiError(status, code, message, details?)`
 from `lib/shape.js` build every refusal; a refusal thrown inside `withTransaction` rolls it
@@ -755,7 +786,7 @@ Row JSON: `{id, code, name, sortOrder, shippingCompanyId, rowVersion, createdBy,
 | `GET /companies?q&includeDeleted&page&limit` | any | — | list, sorted `sort_order, name`; `q` over `code, name` | — |
 | `POST /companies` | any | `{code, name, sortOrder?}` | 201; 400 code grammar / blank name; 409 `COMPANY_CODE_TAKEN {companyId}` among live rows | `company`/`create` |
 | `GET /companies/:id` | any | — | row; 404 | — |
-| `PUT /companies/:id` | any | `{code?, name?, sortOrder?, shippingCompanyId?, baseVersion?}` | row; same 400/409; 409 `STALE_WRITE`. **Phase 2:** `shippingCompanyId` is a positive integer or `null` (clears the mapping); 409 `SHIPPING_COMPANY_TAKEN {companyId}` when another live company already holds it (code-enforced among live rows, as `COMPANY_CODE_TAKEN`); it is **not** validated against the feed's `companies[]` (the feed may be down) — Settings offers the picker from `GET /external/status` | `update` |
+| `PUT /companies/:id` | any | `{code?, name?, sortOrder?, shippingCompanyId?, baseVersion?}` | row; same 400/409; 409 `STALE_WRITE`. **Phase 2:** `shippingCompanyId` is a positive integer or `null` (clears the mapping); 409 `SHIPPING_COMPANY_TAKEN {companyId}` when another live company already holds it (code-enforced among live rows, as `COMPANY_CODE_TAKEN`); it is **not** validated against the source's `companies[]` (the source may be unavailable) — Settings offers the picker from `GET /external/status` | `update` |
 | `DELETE /companies/:id` | any | `{baseVersion?}` | 204 soft; 409 `COMPANY_IN_USE {accountIds}` while any live account belongs to it | `delete` |
 
 Code is upper-cased and trimmed on write. The two seeded companies are ordinary rows.
@@ -899,8 +930,9 @@ accounts' currencies ∪ currencies of every loaded item and schedule, adjustmen
 included) other than GBP has no rate with `effective_from <= today`.
 
 Account set: live, `is_active` accounts of the company (or all companies). The route
-computes `today`, **runs the shipping refresh first when it is due** (P4, §10.12: no DB
-connection held while it fetches; a failure only adds `SHIPPING_UNAVAILABLE`), then calls
+computes `today`, **runs the shipping refresh first when it is due** (P4, §10.12: the source
+is read on its own read-only connection from `jfa`, no JFlow row locked meanwhile; a failure
+only adds `SHIPPING_UNAVAILABLE`), then calls
 `services/forecastLoad.js` (§8), then `lib/engine.js` (§9), and serialises. All money
 below is **integer minor units**; GBP unless the name says `Native`/`amountMinor`.
 
@@ -971,9 +1003,10 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   effective date; GBP at §9.7's rates) and `unmappedCount` (rows omitted for want of a
   company or account, the sum of the `SHIP_UNMAPPED` counts).
 - **`warnings[]` (Phase 2).** `SHIPPING_UNAVAILABLE {reason, lastSuccessAt}` when the
-  refresh that was due did not succeed (`reason` one of `unconfigured | timeout |
-  unreachable | http_401 | http_<status> | bad_response`); the response is built on the
-  last snapshot, or with no ship lines when there has never been one. `SHIP_UNMAPPED
+  refresh that was due did not succeed (`reason` one of **`source_schema | source_error |
+  bad_response`** — Dev 2026-09-29, direct `jfa` read; the HTTP reasons `unconfigured`,
+  `timeout`, `unreachable`, `http_401`, `http_<status>` are gone with the endpoint); the
+  response is built on the last snapshot, or with no ship lines when there has never been one. `SHIP_UNMAPPED
   {shippingCompanyId, count}` once per distinct `shippingCompanyId` (including `null`, Q2)
   among omitted rows. `SHIP_PLAN_ORPHANED {key}` for an overlay on a `gone` row.
   `SHIP_PLAN_STALE {key}` when `planned_amount` is ignored because the feed amount moved
@@ -1047,7 +1080,8 @@ overlay (nothing is written back to shipping).
 
 ### 6.12 External items and the shipping feed (Phase 2)
 
-Row JSON (`GET /external-items` and every overlay mutation response):
+Row JSON (`GET /external-items`, `GET /external-items/:key` and every overlay mutation
+response, `DELETE` included):
 `{key, id, source, extId, feedKind, feedStatus, supplier, shippingCompanyId, companyId, accountId,
 poId, poNumber, shipmentId, containerRef, currency, amount, dueDate, paidOn, settles, dateBasis,
 amountBasis, blocked, flags, goneAt, plannedDate, plannedAmount, plannedSkipped, plannedBaseAmount,
@@ -1059,17 +1093,22 @@ DECIMAL strings (D1); `flags` is the feed's `flags_json` array. `derivedStatus` 
 band of the row against its resolved account's anchor — `expected | overdue | unresolved |
 paid | skipped` — and **`null`** for an undated open row, a gone row or an unmapped row
 (nothing is classified). It agrees with `/forecast` for the same data; a test compares
-them.
+them. `lastSuccessAt`, `lastAttemptAt`, `goneAt`, `plannedAt` and every other `DATETIME`
+here are **ISO 8601 UTC strings** (§2.4), the same form everywhere they appear
+(`/forecast` `shipping` block and warnings, `GET /external/status`).
 
 | Method, path | Perm | Request | Response / refusals | Audit |
 |---|---|---|---|---|
 | `GET /external-items?status&companyId&from&to&includeGone&q&page&limit` | any | `status` comma list of `open, paid` (default both); `companyId` a live company or `all` (default); `from`/`to` bound the effective date; `includeGone=1` adds `gone_at` rows; `q` over `supplier, po_number, container_ref` | list sorted effective date ascending, undated last, then id; gone rows excluded by default | — |
-| `PUT /external-items/:key` | any | `{plannedDate?, plannedAmount?, skipped?, note?, baseVersion?}` — a **merge** like tune: absent = unchanged, `null` clears `plannedDate` / `plannedAmount` / `note`; `skipped` boolean | 200 row. §10.11. 404 no `external_items` row for the key (or not a `ship.` key); 404 `TARGET_MISSING {key}` when the row is gone; 409 `TARGET_SETTLED {key, status: 'paid'}` when `feedStatus = 'paid'`; 422 `PLANNED_DATE_IN_PAST {plannedDate, today}`; 400 `plannedAmount <= 0`, grammar, or nothing set after the merge ("nothing to plan; DELETE reverts"); 409 `STALE_WRITE`. Setting `plannedAmount` also stores `plannedBaseAmount` = the feed `amount` now (P6) | `external_item`/`plan` |
-| `DELETE /external-items/:key` | any | `{baseVersion?}` | 204: clears every `planned_*` column, `planned_skipped` and `source_scenario_id` (revert to the feed). Works on a **gone** row too — this is how an orphaned overlay (`SHIP_PLAN_ORPHANED`) is cleaned up. 404 when no row has the key or no overlay is set | `external_item`/`unplan` |
-| `POST /external/refresh` | any | — | 200 `{ran: boolean, status: <status row below>}` after a forced run (P4): the 10-minute TTL is ignored, the 60-second claim is not (`ran: false` when another run holds it, and the current status is returned). 503 `SHIPPING_UNAVAILABLE {reason, lastSuccessAt}` when the run fails (unconfigured, timeout, unreachable, 401, other HTTP status, bad response); the last snapshot is untouched. §10.12 | none (P8) |
-| `GET /external/status` | any | — | `{source: 'ship', lastAttemptAt, lastSuccessAt, feedToday, lastError, itemCount, rejectedCount, companies: [{id, name}], configured, updatedAt}` from `external_sync` (`companies` = `companies_json`, for the Settings picker; `configured` = `isConfigured()`) | — |
+| `GET /external-items/:key` | any | — | 200 the full row JSON above with `derivedStatus`, **gone rows included** (no `includeGone` needed — the web's plan dialog loads this on open, orphaned overlay or not); 404 when no `external_items` row has the key (or the key's kind is not `ship`); 422 `ITEM_KEY_INVALID` when the grammar fails. Built at step 21 (was §11 "deferred") | — |
+| `PUT /external-items/:key` | any | `{plannedDate?, plannedAmount?, skipped?, note?, baseVersion?}` — a **merge** like tune: absent = unchanged, `null` clears `plannedDate` / `plannedAmount` / `note`; `skipped` boolean | 200 the full row JSON **including `derivedStatus`** (clients replace the row from the response, as §6.9). §10.11. 404 no `external_items` row for the key (or not a `ship.` key); 404 `TARGET_MISSING {key}` when the row is gone; 409 `TARGET_SETTLED {key, status: 'paid'}` when `feedStatus = 'paid'`; 422 `PLANNED_DATE_IN_PAST {plannedDate, today}`; 400 `plannedAmount <= 0`, grammar, or nothing set after the merge ("nothing to plan; DELETE reverts"); 409 `STALE_WRITE`. Setting `plannedAmount` also stores `plannedBaseAmount` = the feed `amount` now (P6) | `external_item`/`plan` |
+| `DELETE /external-items/:key` | any | `{baseVersion?}` (a JSON body on a DELETE, as every other `baseVersion` route) | **200 the full row JSON** after the revert, `derivedStatus` included (**not 204** — the one exception to §2.2's delete row, because the row still exists and the client re-renders it from the feed values): clears every `planned_*` column, `planned_skipped` and `source_scenario_id` (revert to the feed). Works on a **gone** row too — this is how an orphaned overlay (`SHIP_PLAN_ORPHANED`) is cleaned up. 404 when no row has the key; 404 "no overlay" **only when every overlay column is already empty** (`planned_date`, `planned_amount`, `planned_base_amount`, `planned_note`, `source_scenario_id`, `planned_by`, `planned_at` all NULL and `planned_skipped = 0`); 409 `STALE_WRITE` | `external_item`/`unplan` |
+| `POST /external/refresh` | any | — | 200 `{ran: boolean, status: <status row below>}` after a forced run (P4): the 10-minute TTL is ignored, the 60-second claim is not (`ran: false` when another run holds it, and the current status is returned). 503 `SHIPPING_UNAVAILABLE {reason, lastSuccessAt}` when the run fails (`reason`: `source_schema` — a column the mappers read is missing from `jfa`; `source_error` — any other error on the read-only source connection; `bad_response` — the assembled rows failed `validateFeed`); the last snapshot is untouched. §10.12 | none (P8) |
+| `GET /external/status` | any | — | `{source: 'ship', lastAttemptAt, lastSuccessAt, feedToday, lastError, itemCount, rejectedCount, companies: [{id, name}], sourceSchema, updatedAt}` from `external_sync` (`companies` = `companies_json`, read from `<schema>.companies` at the last successful run, for the Settings picker; `sourceSchema` = the `SHIPPING_DB_SCHEMA` in use). *(`configured` is gone with P12 — there is nothing to configure.)* | — |
 
-`:key` arrives un-encoded (§4) and is parsed with `parseKey` before any DB read; a key
+`:key` arrives **un-encoded** in the path (§4: `ship.<ext_id>` is unreserved characters
+only, so `GET /external-items/ship.bal-812-s311` is the literal path — no percent-encoding,
+and an encoded form is not expected) and is parsed with `parseKey` before any DB read; a key
 whose kind is not `ship` is a 404, not a 422 (the grammar is fine, the row does not
 exist here).
 
@@ -1097,8 +1136,8 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 | `CATEGORY_IN_USE` | 409 | refusal | Deleting a category, or changing its direction, while live items or schedules use it; `details {itemCount, scheduleCount}`. Phase 2: deleting a system category or changing its direction, always; `details {systemKey}` (P10) |
 | `SHIPPING_COMPANY_TAKEN` | 409 | refusal | Phase 2: `PUT /companies/:id` with a `shippingCompanyId` another live company holds; `details {companyId}` |
 | `PLANNED_DATE_IN_PAST` | 422 | refusal | Phase 2: `plannedDate < today` on `PUT /external-items/:key`; `details {plannedDate, today}` |
-| `SHIPPING_UNAVAILABLE` | 503 | refusal | Phase 2: `POST /external/refresh` when the forced run fails; `details {reason, lastSuccessAt}` — `reason` one of `unconfigured \| timeout \| unreachable \| http_401 \| http_<status> \| bad_response` |
-| `SHIPPING_UNAVAILABLE` | 200 | warning | Phase 2: `/forecast` when the refresh that was due did not succeed; the last snapshot is used; `{reason, lastSuccessAt}` |
+| `SHIPPING_UNAVAILABLE` | 503 | refusal | Phase 2: `POST /external/refresh` when the forced run fails; `details {reason, lastSuccessAt}` — `reason` one of `source_schema \| source_error \| bad_response` (Dev 2026-09-29, direct `jfa` read: the schema check failed, any other error on the read-only source connection, or the assembled rows failed validation; §10.12). *(Superseded reasons: `unconfigured \| timeout \| unreachable \| http_401 \| http_<status>`.)* |
+| `SHIPPING_UNAVAILABLE` | 200 | warning | Phase 2: `/forecast` when the refresh that was due did not succeed; the last snapshot is used; `{reason, lastSuccessAt}` with the same three reasons |
 | `SHIP_UNMAPPED` | 200 | warning | Phase 2: `/forecast`: ship rows omitted because no live company maps their `shippingCompanyId` (including `null`, Q2) or the company has no live active account; one per distinct id; `{shippingCompanyId, count}` |
 | `SHIP_PLAN_ORPHANED` | 200 | warning | Phase 2: `/forecast`: an overlay (`planned_*`) sits on a `gone` row; `{key}` |
 | `SHIP_PLAN_STALE` | 200 | warning | Phase 2: `/forecast`: `planned_amount` ignored because `planned_base_amount ≠` the feed `amount` (P6); `{key}` |
@@ -1135,7 +1174,8 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 `staleReasons` lists `BASE_CHANGED`, `TARGET_SETTLED`, `TARGET_MISSING`, `DATE_PASSED`
 (Phase 2 adds no stale reason). Phase 2 also adds `feedKinds` (`deposit, balance`),
 `feedStatuses` (`open, paid`), `dateBases` (`firm, estimated, undated`), `amountBases`
-(`stated, derived`) and `shippingReasons` (the `SHIPPING_UNAVAILABLE` reasons).
+(`stated, derived`) and `shippingReasons` (the `SHIPPING_UNAVAILABLE` reasons:
+`source_schema, source_error, bad_response`).
 
 ---
 
@@ -1707,7 +1747,9 @@ transaction:
    when absent; `baseVersion` → `STALE_WRITE` (§2.9: the refresh bumps `row_version` too).
 2. `PUT`: `gone_at` set → 404 `TARGET_MISSING {key}`; `feed_status = 'paid'` → 409
    `TARGET_SETTLED {key, status: 'paid'}`. `DELETE`: neither check (an orphaned overlay on
-   a gone row must be clearable); no overlay column set → 404.
+   a gone row must be clearable); 404 "no overlay" only when **every** overlay column is
+   already empty (`planned_date`, `planned_amount`, `planned_base_amount`, `planned_note`,
+   `source_scenario_id`, `planned_by`, `planned_at` NULL and `planned_skipped = 0`).
 3. `PUT`: merge the body over the overlay columns (absent = unchanged, `null` = clear).
    `plannedAmount` set → `planned_base_amount = amount` (the feed amount under the lock,
    P6); cleared → `planned_base_amount = NULL`. `skipped` → `planned_skipped`. If every
@@ -1716,7 +1758,9 @@ transaction:
    `source_scenario_id`, `planned_by`, `planned_at` to NULL and `planned_skipped = 0`.
 4. `row_version + 1`; `planned_by` = caller, `planned_at = UTC_TIMESTAMP()` (`PUT`); audit
    `external_item`/`plan` or `unplan` (before/after = the overlay columns plus `key`);
-   return the row JSON (§6.12) or 204. Nothing else is locked; feed columns are never
+   **both** return 200 with the full row JSON of §6.12 including `derivedStatus` (the
+   `DELETE` is not a 204: the row still exists and the client re-renders it from the feed
+   values). Nothing else is locked; feed columns are never
    written here. A hand edit after a scenario apply leaves `source_scenario_id` as it is
    (as a hand edit of an applied `cash_items` row does).
 
@@ -1725,14 +1769,29 @@ Runs from `/forecast` (when `external_sync.last_success_at` is older than 10 min
 `feed_today ≠ today`) **before the route takes its read connection**, and from
 `POST /external/refresh` (TTL ignored). Never inside `withTransaction`; every statement is
 its own autocommit, single-row, with `SET innodb_lock_wait_timeout = 5` on the connection.
+**The model is unchanged by Dev's 2026-09-29 source swap** (claim, diff, snapshot into
+`external_items`, never `planned_*`, no transaction, on-demand TTL); only step 2's source
+changed, from an HTTP fetch to a direct read-only read of `jfa`.
 1. **Claim.** `UPDATE external_sync SET last_attempt_at = UTC_TIMESTAMP() WHERE source =
    'ship' AND (last_attempt_at IS NULL OR last_attempt_at < UTC_TIMESTAMP() - INTERVAL 60
    SECOND)`. 0 rows → another run holds it; skip (`ran: false`).
-2. **Fetch** with no DB connection held: `services/shipping.js` `fetchPaymentsForecast({today,
-   paidSince})`, `today` = the route's, `paidSince` = the earliest of the live active
-   accounts' latest `balance_date`s, else `today − 60`. `validateFeed` counts and drops bad
-   rows (id grammar per §4, `parseMinor(amount)`, dates, currency `^[A-Z]{3}$`, enums).
-   Unconfigured → no call, failure `unconfigured`.
+2. **Read the source** (Dev 2026-09-29, direct `jfa` read; was "Fetch"): `services/
+   shippingSource.js` `readSource({today, paidSince})` on **its own connection**, distinct
+   from the refresh's, opened with `SET SESSION TRANSACTION READ ONLY` and released before
+   step 3 — so no JFlow row is locked while the source is read, and the source connection
+   can never write. In order: (a) the **schema check** — every `(table, column)` the mappers
+   read must exist in `information_schema.COLUMNS` for `SHIPPING_DB_SCHEMA` (default `jfa`),
+   else failure **`source_schema`** (`details.missing` lists them; nothing else is read);
+   (b) the schema-qualified reads of shipping's tables with the mappers copied from
+   shipping's `orders.js`, suppliers with `tags: []` (§11) — any DB error here is failure
+   **`source_error`** (the MySQL code goes to the log, not the reason); (c) the ported math
+   (`lib/payments-flow/`, P1) and `toForecastRows` produce the feed rows (P2 ids, P3 paid
+   rows) and `companies[]` from `<schema>.companies`; (d) `validateFeed` counts and drops bad
+   rows (id grammar per §4, `parseMinor(amount)`, dates, currency `^[A-Z]{3}$`, enums) —
+   every row rejected → failure **`bad_response`**. `today` = the route's, `paidSince` = the
+   earliest of the live active accounts' latest `balance_date`s, else `today − 60`.
+   *(Superseded: `services/shipping.js` `fetchPaymentsForecast` over HTTP; `unconfigured`
+   when the endpoint was unset.)*
 3. **Diff** the accepted rows against `SELECT ext_id, feed_hash, gone_at FROM external_items
    WHERE source = 'ship'`: new `ext_id` → `INSERT` (`created_by = 'shipping-feed'`); changed
    `feed_hash`, or back after `gone_at` → `UPDATE` the feed columns, `gone_at = NULL`,
@@ -1747,9 +1806,16 @@ its own autocommit, single-row, with `SET innodb_lock_wait_timeout = 5` on the c
 No audit rows (P8). Concurrency: step 1 serialises runs; each `UPDATE` in step 3 holds one
 row lock for one statement, so an overlay write or an apply holding that row makes the
 refresh wait at most 5 s, and the refresh can never make a transaction wait on more than
-one statement. Local dev and JFlow test share one schema (`jflow` on explorer-test), so
-both must point at shipping **test** or they overwrite each other's snapshot (PHASE2.md
-risk 5).
+one statement. Local dev and JFlow test share one schema (`jflow` on explorer-test) and
+read the **same** `jfa` on that instance, so they build the same snapshot; prod reads
+explorer's `jfa` through the RDS Proxy, which is different data (explorer-test is a nightly
+copy of prod — PHASE2.md risk 5). **Schema coupling (PHASE2.md risk 8):** a column rename in
+`jfa` fails step 2(a) and shows as `SHIPPING_UNAVAILABLE {reason: 'source_schema'}` with the
+last snapshot kept; it can never produce a silent wrong number. The e2e suite builds its
+shadow source tables with `CREATE TABLE … LIKE jfa.<table>` in a per-run schema and points
+`SHIPPING_DB_SCHEMA` at it, so it tracks the real shape; a **read-only proof** (an `INSERT`
+on the source connection fails) and a **live read-only smoke** against explorer-test's `jfa`
+(0 `validateFeed` rejects) are part of the source-swap step (PHASE2.md step 18a).
 
 ---
 
@@ -1774,19 +1840,22 @@ BUILD_PLAN.md's additions:
 
 Phase 2 deferrals (Dev, 2026-09-29):
 
-- **Supplier tags on the server (PHASE2.md Q5) — not now.** Shipping's assembler (step 15)
-  passes suppliers **without tags** (`tags: []`). The ported math still accepts tags, so
-  Golden A (frozen TS vs the JS port on the same input) is unaffected, but **Golden B must
-  compare with tags stripped from the page-built input**, and **tag-driven payment rules
-  do not apply server-side until tags are wired** (a SELECT grant on `jfpro.supplier_tags`
-  / `jfpro.tags`, or a DEFINER view as on 2026-06-30). Until then, a supplier whose terms
-  come only from a tag rule is projected by the fallback rule on the server, and ShipLine
-  shows the server's figure from step 17.
+- **Supplier tags in JFlow (PHASE2.md Q5) — not now.** JFlow's assembler
+  (`services/shippingSource.js`; was "shipping's assembler, step 15") passes suppliers
+  **without tags** (`tags: []`). The ported math still accepts tags, so Golden A (frozen TS
+  vs the JS port on the same input) is unaffected, but **Golden B must compare with tags
+  stripped from the page-built input**, and **tag-driven payment rules do not apply in JFlow
+  until tags are wired** (a SELECT grant on `jfpro.supplier_tags` / `jfpro.tags`, or a
+  DEFINER view as on 2026-06-30). Until then, a supplier whose terms come only from a tag
+  rule is projected by the fallback rule in JFlow, and ShipLine (unchanged, with its own
+  copy of the math and tags) may show a different figure for that supplier.
 - A scheduled refresh (P4: on demand only); a per-row audit of the refresh (P8).
+- Modifying shipping or ShipLine in any way (Dev 2026-09-29): no route, no secret, no
+  deploy; shipping's code is copied into JFlow, never changed in place.
 - Following a stage change: an overlay or adjustment on `dep-812` does not follow the PI
   that replaces it (P2; the user sees `SHIP_PLAN_ORPHANED` / `TARGET_MISSING` and re-plans).
-- A single read `GET /external-items/:key` (the list filters by `q`), and a mobile
-  overlay editor (mobile shows the summary only).
+- A mobile overlay editor (mobile shows the summary only). *(The single read
+  `GET /external-items/:key`, once deferred here, was built at step 21 — §6.12.)*
 - Writing anything back to shipping.
 
 Consciously left out of this contract:
@@ -1809,9 +1878,11 @@ Consciously left out of this contract:
 | `src/db/index.js` | pool (`dateStrings: ['DATE']`, `timezone: 'Z'`), `withConnection`, `withTransaction` (deadlock retry default 1) |
 | `src/db/migrations/2026-09-29_jflow_core.sql` | §3 DDL (14 tables incl. `payments`) + seed |
 | `src/db/migrations/2026-09-29_jflow_ship.sql` (Phase 2) | §3.5: `external_items`, `external_sync`, guarded `companies.shipping_company_id` and `categories.system_key`, the "Stock payments" seed |
-| `src/services/shipping.js` (Phase 2) | §2.1: the feed client modelled on `workflows/api/src/services/jfpro.js` — `isConfigured`, `fetchPaymentsForecast`, `validateFeed`, `unavailable(reason)`; the only file that knows `SHIPPING_API_BASE` / `SHIPPING_API_KEY` |
-| `src/services/shippingRefresh.js` (Phase 2) | §10.12: claim, fetch, diff, record; feed columns only, no transaction, no audit |
-| `src/routes/external.js` (Phase 2) | §6.12: `GET /external-items`, `PUT`/`DELETE /external-items/:key`, `POST /external/refresh`, `GET /external/status` |
+| `src/lib/payments-flow/{dates,terms,suppliers,policy,po,flow,ids}.js` (Phase 2, P1 amended) | the CommonJS port of ShipLine `f9499bc` `paymentsFlowMath.ts` plus `feedId`; `dateOfInstant` pinned to Europe/London, `today` required; pure — imports nothing from `db/` |
+| `tools/payments-flow-oracle.mjs` (Phase 2) | runs the frozen TS from the ShipLine checkout via `npx tsx` under `TZ=Europe/London` with a fixed `today`; writes the golden fixtures' expected output |
+| `src/services/shippingSource.js` (+ `shippingSource/*.js`, Phase 2, Dev 2026-09-29) | §2.1, §10.12 step 2: `readSource({today, paidSince})` on its own read-only connection — schema check, `jfa` reads through the mappers copied from shipping's `orders.js` (copied-file headers), the ported math, `toForecastRows`, `validateFeed`, `unavailable(reason)`; the only file that knows `SHIPPING_DB_SCHEMA`; contains no `INSERT`/`UPDATE`/`DELETE`. *(Replaces `src/services/shipping.js`, the HTTP feed client — not built.)* |
+| `src/services/shippingRefresh.js` (Phase 2) | §10.12: claim, read (via `shippingSource`), diff, record; feed columns only, no transaction, no audit |
+| `src/routes/external.js` (Phase 2) | §6.12: `GET /external-items`, `GET`/`PUT`/`DELETE /external-items/:key` (all three answer the full row with `derivedStatus`), `POST /external/refresh`, `GET /external/status` |
 | `src/lib/lines.js` | item, instance and (Phase 2) ship rows → classifier input (§9.3.1); no band table |
 | `src/lib/stale.js` | maps `loadTarget` onto the engine's `staleReason`, so adjustment write, rebase, apply and `/forecast` share one stale definition |
 | `src/lib/shape.js` | `fail`, `apiError`, `serverError`, `listResponse`, `keysetResponse`, `parseId`, `parseListParams`, `normalizeEmail`, every `*ToJson` |
@@ -1824,5 +1895,5 @@ Consciously left out of this contract:
 | `src/lib/engine.js` | §9 |
 | `src/services/forecastLoad.js` | §8 — rows in, engine input out, `loadTarget` (incl. the `ship.` branch); no logic |
 | `src/routes/{companies,accounts,balances,fxRates,categories,items,schedules,forecast,scenarios}.js` | §6; router factories `({schemaReady, fail, serverError}) => router` as workflows; `schedules.js` owns instances, split and end; `forecast.js` calls the refresh (§10.12) before its read transaction; `companies.js` owns `shippingCompanyId` |
-| `test/unit` | dates, money, keys, recurrence, classify (the matrix), engine, loader shaping |
-| `test/e2e` | per-run `jflow_test_<runid>` schema; the headline flow and every refusal in §7 |
+| `test/unit` | dates, money, keys, recurrence, classify (the matrix), engine, loader shaping; Phase 2: the payments-flow goldens (Golden A, run under both `TZ=UTC` and `TZ=Europe/London`), the 27 terms vectors, id grammar |
+| `test/e2e` | per-run `jflow_test_<runid>` schema; the headline flow and every refusal in §7; Phase 2: a per-run shadow source schema built with `CREATE TABLE … LIKE jfa.<table>` (`SHIPPING_DB_SCHEMA` pointed at it), the `source_schema` failure, the read-only proof |
