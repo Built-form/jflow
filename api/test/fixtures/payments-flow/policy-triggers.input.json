@@ -1,0 +1,136 @@
+{
+  "description": "Company balance triggers over the terms (containerEvents given directly, so telex and documents can be set): telex released and awaited (estimated from the B/L), a named document attached and awaited (estimated from arrival), a supplier back on its own terms with the rule's offset, a policy deposit % on 'PI uploaded' with an estimate, post-arrival and after-PI triggers, a B/L issued on file, a stated PI with grace, a looping estimate chain, and ShipsGo times that are not actual.",
+  "input": {
+    "today": "2026-09-29",
+    "orders": [
+      { "id": "170101", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1701, "poNumber": "JF-PO-1701", "supplier": "Plain Telex Co., Ltd", "containerNumber": "350", "shippedDate": "2026-09-05", "poDate": "2026-07-01" },
+      { "id": "170201", "status": "CONSOLIDATED", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1702, "poNumber": "JF-PO-1702", "supplier": "Plain Telex Co., Ltd", "containerNumber": "354", "estimatedDepartureDate": "2026-10-01", "poDate": "2026-07-01" },
+      { "id": "170301", "status": "READY_AT_FACTORY", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1703, "poNumber": "JF-PO-1703", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "351", "estimatedDepartureDate": "2026-10-03", "poDate": "2026-07-01" },
+      { "id": "170401", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1704, "poNumber": "JF-PO-1704", "supplier": "Ningbo Tam Industrial Co., Ltd", "containerNumber": "353", "poDate": "2026-07-01" },
+      { "id": "170501", "status": "ON_AIR", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1705, "poNumber": "JF-PO-1705", "supplier": "Foreu Corporation", "containerNumber": "355", "poDate": "2026-07-01" },
+      { "id": "170601", "status": "PO_SENT", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1706, "poNumber": "JF-PO-1706", "supplier": "Guilin Yoho Co., Ltd", "poDate": "2026-09-20" },
+      { "id": "170701", "status": "ARRIVED_AT_WAREHOUSE", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1707, "poNumber": "JF-PO-1707", "supplier": "Shenzhen Arrival Co., Ltd", "containerNumber": "352", "arrivedDate": "2026-09-02", "poDate": "2026-06-01" },
+      { "id": "170801", "status": "READY_AT_FACTORY", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1708, "poNumber": "JF-PO-1708", "supplier": "Xiamen Invoice Co., Ltd", "containerNumber": "356", "estimatedDepartureDate": "2026-10-12", "poDate": "2026-08-20" },
+      { "id": "170901", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1709, "poNumber": "JF-PO-1709", "supplier": "Hubei Bl Co., Ltd", "containerNumber": "357", "externalContainerNumber": "oolu1111111", "shippedDate": "2026-09-15", "poDate": "2026-07-01" },
+      { "id": "171001", "status": "READY_AT_FACTORY", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1710, "poNumber": "JF-PO-1710", "supplier": "Plain Telex Co., Ltd", "containerNumber": "354", "estimatedDepartureDate": "2026-10-01", "poDate": "2026-07-01" },
+      { "id": "171101", "status": "UNDER_PRODUCTION", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1711, "poNumber": "JF-PO-1711", "supplier": "Cycle Co., Ltd", "poDate": "2026-09-01" },
+      { "id": "171201", "status": "READY_AT_FACTORY", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1712, "poNumber": "JF-PO-1712", "supplier": "Plain Telex Co., Ltd", "containerNumber": "358", "estimatedDepartureDate": "2026-10-20", "eta": "2026-11-25", "poDate": "2026-07-01" }
+    ],
+    "poBundles": {
+      "1701": { "id": 1701, "poNumber": "JF-PO-1701", "supplier": "Plain Telex Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1702": { "id": 1702, "poNumber": "JF-PO-1702", "supplier": "Plain Telex Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1703": { "id": 1703, "poNumber": "JF-PO-1703", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1704": { "id": 1704, "poNumber": "JF-PO-1704", "supplier": "Ningbo Tam Industrial Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1705": { "id": 1705, "poNumber": "JF-PO-1705", "supplier": "Foreu Corporation", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1706": {
+        "id": 1706, "poNumber": "JF-PO-1706", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-09-19 09:00:00", "updatedAt": "2026-09-19 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9171, "purchaseOrderId": 1706, "filename": "PI-1706.pdf", "uploadedAt": "2026-09-26 09:00:00", "latestCheck": null }]
+      },
+      "1707": { "id": 1707, "poNumber": "JF-PO-1707", "supplier": "Shenzhen Arrival Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-05-31 09:00:00", "updatedAt": "2026-05-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1708": {
+        "id": 1708, "poNumber": "JF-PO-1708", "supplier": "Xiamen Invoice Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-19 09:00:00", "updatedAt": "2026-09-01 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9181, "purchaseOrderId": 1708, "filename": "PI-1708.pdf", "uploadedAt": "2026-09-01 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1709": { "id": 1709, "poNumber": "JF-PO-1709", "supplier": "Hubei Bl Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1710": {
+        "id": 1710, "poNumber": "JF-PO-1710", "supplier": "Plain Telex Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-09-10 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [
+          { "id": 9191, "purchaseOrderId": 1710, "filename": "PI-1710-dep.pdf", "uploadedAt": "2026-07-02 09:00:00", "latestCheck": { "status": "succeeded" } },
+          { "id": 9192, "purchaseOrderId": 1710, "filename": "PI-1710-bal.pdf", "uploadedAt": "2026-09-10 09:00:00", "latestCheck": { "status": "succeeded" } }
+        ]
+      },
+      "1711": { "id": 1711, "poNumber": "JF-PO-1711", "supplier": "Cycle Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-08-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1712": { "id": 1712, "poNumber": "JF-PO-1712", "supplier": "Plain Telex Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] }
+    },
+    "invoicePayments": [
+      { "id": 181, "invoiceId": 9181, "purchaseOrderId": 1708, "paymentType": "deposit", "amountDue": 300, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 1000, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-09-03 09:00:00" },
+      { "id": 191, "invoiceId": 9191, "purchaseOrderId": 1710, "paymentType": "deposit", "amountDue": 300, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 1000, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-07-04 09:00:00" },
+      { "id": 192, "invoiceId": 9192, "purchaseOrderId": 1710, "paymentType": "balance", "amountDue": 700, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": "2026-10-12", "dueTerms": null, "rawTermsText": null, "paymentStatus": "arranged", "updatedAt": "2026-09-10 09:05:00" }
+    ],
+    "suppliers": [
+      { "supplierId": 40, "name": "Plain Telex Co., Ltd", "paymentTerms": "30% deposit, 70% B/L copy.", "tags": [] },
+      { "supplierId": 1, "name": "Suzhou Sunmed Co.,Ltd.", "paymentTerms": "30% deposit, 70% B/L copy.", "tags": [] },
+      { "supplierId": 11, "name": "Ningbo Tam Industrial Co., Ltd", "paymentTerms": "30% deposit, 70% before shipment", "tags": [] },
+      { "supplierId": 3, "name": "Foreu Corporation", "paymentTerms": "30% deposit, balance 30 days after B/L", "tags": [] },
+      { "supplierId": 2, "name": "Guilin Yoho Co., Ltd", "paymentTerms": "30D/70B BOL", "tags": [] },
+      { "supplierId": 18, "name": "Shenzhen Arrival Co., Ltd", "paymentTerms": "30% deposit, 70% 45 days after arrival at destination port", "tags": [] },
+      { "supplierId": 41, "name": "Xiamen Invoice Co., Ltd", "paymentTerms": "30% deposit, 70% before shipment", "tags": [] },
+      { "supplierId": 42, "name": "Hubei Bl Co., Ltd", "paymentTerms": "100% before dispatch", "tags": [] },
+      { "supplierId": 43, "name": "Cycle Co., Ltd", "paymentTerms": "30% deposit, 70% B/L copy.", "tags": [] }
+    ],
+    "containerIndex": {
+      "OOLU1111111": {
+        "containerNumber": "OOLU1111111", "pol": { "name": "Ningbo", "locode": "CNNGB" }, "pod": { "name": "Felixstowe", "locode": "GBFXT" },
+        "times": { "departure": "2026-09-14 10:00:00", "departureIsActual": false, "eta": "2026-10-22", "ata": null }
+      }
+    },
+    "containerEvents": {
+      "350": { "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-05", "arrivedAt": null, "blNumber": "BL350", "telexReleasedAt": "2026-09-20", "documents": [] },
+      "351": { "stage": "BOOKED", "mode": "SEA", "ata": null, "departedAt": null, "arrivedAt": null, "blNumber": null, "telexReleasedAt": null, "documents": [{ "type": "QA sheet", "attachedAt": "2026-09-20" }, { "type": " packing list ", "attachedAt": "2026-09-25" }] },
+      "352": { "stage": "ARRIVED", "mode": "SEA", "ata": "2026-09-01", "departedAt": "2026-08-01", "arrivedAt": "2026-09-02", "blNumber": "BL352", "telexReleasedAt": null, "documents": [] },
+      "353": { "stage": "IN_TRANSIT", "mode": "ROAD", "ata": null, "departedAt": "2026-09-26", "arrivedAt": null, "blNumber": null, "telexReleasedAt": null, "documents": [] },
+      "354": { "stage": "BOOKED", "mode": "sea", "ata": null, "departedAt": null, "arrivedAt": null, "blNumber": "BL354", "telexReleasedAt": null, "documents": [] },
+      "355": { "stage": "IN_TRANSIT", "mode": "AIR", "ata": null, "departedAt": "2026-09-27", "arrivedAt": null, "blNumber": "  ", "telexReleasedAt": null, "documents": [] },
+      "358": { "stage": "BOOKED", "mode": "SEA", "ata": null, "departedAt": null, "arrivedAt": null, "blNumber": null, "telexReleasedAt": null, "documents": [] }
+    },
+    "rules": [
+      {
+        "id": 1, "scope": "default", "supplierName": null, "supplierLabel": null, "depositPct": null, "depositTrigger": "po_sent", "depositGraceDays": 0,
+        "balanceTrigger": "telex_release", "balanceDocumentType": null, "balanceOffsetDays": 0, "balanceGraceDays": 3, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": { "from": "po", "days": 5 }, "piSigned": null, "ready": null, "telex": { "from": "bl", "days": 7 }, "document": { "from": "arrival", "days": 2 }, "transit": { "sea": 30, "air": 4, "road": 2 } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 2, "scope": "supplier", "supplierName": "suzhou sunmed co., ltd", "supplierLabel": "Suzhou Sunmed Co., Ltd", "depositPct": null, "depositTrigger": null, "depositGraceDays": 0,
+        "balanceTrigger": "container_document", "balanceDocumentType": "Packing List", "balanceOffsetDays": 2, "balanceGraceDays": 0, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 3, "scope": "supplier", "supplierName": "foreu corporation", "supplierLabel": "Foreu Corporation", "depositPct": null, "depositTrigger": null, "depositGraceDays": 0,
+        "balanceTrigger": "terms", "balanceDocumentType": null, "balanceOffsetDays": 5, "balanceGraceDays": 0, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 4, "scope": "supplier", "supplierName": "guilin yoho co., ltd", "supplierLabel": "Guilin Yoho Co., Ltd", "depositPct": 20, "depositTrigger": "pi_uploaded", "depositGraceDays": 1,
+        "balanceTrigger": null, "balanceDocumentType": null, "balanceOffsetDays": null, "balanceGraceDays": 0, "depositOffsetDays": 7,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 5, "scope": "supplier", "supplierName": "shenzhen arrival co., ltd", "supplierLabel": "Shenzhen Arrival Co., Ltd", "depositPct": null, "depositTrigger": null, "depositGraceDays": 0,
+        "balanceTrigger": "arrival", "balanceDocumentType": null, "balanceOffsetDays": 14, "balanceGraceDays": 0, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 6, "scope": "supplier", "supplierName": "ningbo tam industrial co., ltd", "supplierLabel": "Ningbo Tam Industrial Co., Ltd", "depositPct": null, "depositTrigger": null, "depositGraceDays": 0,
+        "balanceTrigger": "container_document", "balanceDocumentType": "QA Report", "balanceOffsetDays": null, "balanceGraceDays": 0, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 7, "scope": "supplier", "supplierName": "xiamen invoice co., ltd", "supplierLabel": "Xiamen Invoice Co., Ltd", "depositPct": null, "depositTrigger": null, "depositGraceDays": 0,
+        "balanceTrigger": "invoice", "balanceDocumentType": null, "balanceOffsetDays": 30, "balanceGraceDays": 0, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 8, "scope": "supplier", "supplierName": "hubei bl co., ltd", "supplierLabel": "Hubei Bl Co., Ltd", "depositPct": null, "depositTrigger": null, "depositGraceDays": 0,
+        "balanceTrigger": "bl", "balanceDocumentType": null, "balanceOffsetDays": null, "balanceGraceDays": 0, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 9, "scope": "supplier", "supplierName": "cycle co., ltd", "supplierLabel": "Cycle Co., Ltd", "depositPct": null, "depositTrigger": "artwork_confirmed", "depositGraceDays": 0,
+        "balanceTrigger": null, "balanceDocumentType": null, "balanceOffsetDays": null, "balanceGraceDays": 0, "depositOffsetDays": 2,
+        "estimates": { "artwork": { "from": "pi_signed", "days": 3 }, "pi": null, "piSigned": { "from": "artwork", "days": 2 }, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": "a loop: neither is ever real", "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      }
+    ],
+    "shipmentPayments": [],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": []
+  }
+}

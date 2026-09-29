@@ -1,0 +1,2885 @@
+{
+ "fixture": "float-money",
+ "source": {
+  "commit": "f9499bc",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 2786,
+    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-09-29",
+ "output": {
+  "today": "2026-09-29",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 760.47,
+     "due7": 0,
+     "due30": 207.2,
+     "unscheduled": 839.41,
+     "outstanding": 1807.08,
+     "later": 0,
+     "notPayable": 839.41,
+     "overdueCount": 5,
+     "itemCount": 13
+    },
+    "items": [
+     {
+      "id": "derived:dep:2001",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 2001,
+      "poNumber": "JF-PO-2001",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 3.54,
+      "dueDate": "2026-09-01",
+      "contractualDate": "2026-09-01",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 10.73,
+        "result": 10.73,
+        "source": "4 priced lines 10.43 + shipping 0.30"
+       },
+       {
+        "op": "×",
+        "label": "Deposit 33%",
+        "value": 0.33,
+        "result": 3.54,
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:2006",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 2006,
+      "poNumber": "JF-PO-2006",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 413.07,
+      "dueDate": "2026-09-10",
+      "contractualDate": "2026-09-10",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1251.73,
+        "result": 1251.73,
+        "source": "1 priced line 1,234.56 + shipping 17.17"
+       },
+       {
+        "op": "×",
+        "label": "Deposit 33%",
+        "value": 0.33,
+        "result": 413.07,
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:2008:307",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2008,
+      "poNumber": "JF-PO-2008",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 229.02,
+      "dueDate": "2026-09-18",
+      "contractualDate": "2026-09-18",
+      "trigger": "bl",
+      "containerNumber": "307",
+      "containerShare": 1,
+      "status": "pending",
+      "blocked": null,
+      "shipmentPaymentId": 7601,
+      "flags": [
+       "partly_paid",
+       "invoice_vs_share"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "owedInFull": 451.36,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 673.67,
+        "result": 673.67,
+        "source": "1 priced line 673.67"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 33% of the PO",
+        "value": 222.31,
+        "result": 451.36,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 451.36,
+        "result": 451.36,
+        "source": "67% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 307",
+        "value": 1,
+        "result": 451.36,
+        "source": "goods on board 673.67 of 673.67"
+       },
+       {
+        "op": "−",
+        "label": "Already paid on this container",
+        "value": 222.34,
+        "result": 229.02,
+        "source": "transfers applied to its balance record"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:2007:307",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2007,
+      "poNumber": "JF-PO-2007",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 114.34,
+      "dueDate": "2026-09-18",
+      "contractualDate": "2026-09-18",
+      "trigger": "bl",
+      "containerNumber": "307",
+      "containerShare": 1,
+      "status": "pending",
+      "blocked": null,
+      "shipmentPaymentId": 7601,
+      "flags": [
+       "partly_paid",
+       "invoice_vs_share"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "owedInFull": 225.34,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 336.33,
+        "result": 336.33,
+        "source": "1 priced line 336.33"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 33% of the PO",
+        "value": 110.99,
+        "result": 225.34,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 225.34,
+        "result": 225.34,
+        "source": "67% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 307",
+        "value": 1,
+        "result": 225.34,
+        "source": "goods on board 336.33 of 336.33"
+       },
+       {
+        "op": "−",
+        "label": "Already paid on this container",
+        "value": 111,
+        "result": 114.34,
+        "source": "transfers applied to its balance record"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:2003:303",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2003,
+      "poNumber": "JF-PO-2003",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 0.5,
+      "dueDate": "2026-09-20",
+      "contractualDate": "2026-09-20",
+      "trigger": "bl",
+      "containerNumber": "303",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 100.5,
+        "result": 100.5,
+        "source": "1 priced line 100.50"
+       },
+       {
+        "op": "−",
+        "label": "Deposit paid",
+        "value": 100,
+        "result": 0.5,
+        "source": "deposit PI marked paid 100.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 0.5,
+        "result": 0.5
+       },
+       {
+        "op": "×",
+        "label": "Share in 303",
+        "value": 1,
+        "result": 0.5,
+        "source": "goods on board 100.50 of 100.50"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:2001:300",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2001,
+      "poNumber": "JF-PO-2001",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 2.79,
+      "dueDate": "2026-10-10",
+      "contractualDate": "2026-10-10",
+      "trigger": "bl",
+      "containerNumber": "300",
+      "containerShare": 0.38800959232613913,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 10.73,
+        "result": 10.73,
+        "source": "4 priced lines 10.43 + shipping 0.30"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 33% of the PO",
+        "value": 3.54,
+        "result": 7.19,
+        "source": "still to pay — a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 7.19,
+        "result": 7.19,
+        "source": "67% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 300",
+        "value": 0.38800959232613913,
+        "result": 2.79,
+        "source": "goods on board 4.05 of 10.43"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:2001:301",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2001,
+      "poNumber": "JF-PO-2001",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 1.84,
+      "dueDate": "2026-10-12",
+      "contractualDate": "2026-10-12",
+      "trigger": "bl",
+      "containerNumber": "301",
+      "containerShare": 0.2565947242206235,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 10.73,
+        "result": 10.73,
+        "source": "4 priced lines 10.43 + shipping 0.30"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 33% of the PO",
+        "value": 3.54,
+        "result": 7.19,
+        "source": "still to pay — a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 7.19,
+        "result": 7.19,
+        "source": "67% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 301",
+        "value": 0.2565947242206235,
+        "result": 1.84,
+        "source": "goods on board 2.68 of 10.43"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:2001:302",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2001,
+      "poNumber": "JF-PO-2001",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 2.56,
+      "dueDate": "2026-10-14",
+      "contractualDate": "2026-10-14",
+      "trigger": "bl",
+      "containerNumber": "302",
+      "containerShare": 0.3553956834532374,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 10.73,
+        "result": 10.73,
+        "source": "4 priced lines 10.43 + shipping 0.30"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 33% of the PO",
+        "value": 3.54,
+        "result": 7.19,
+        "source": "still to pay — a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 7.19,
+        "result": 7.19,
+        "source": "67% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 302",
+        "value": 0.3553956834532374,
+        "result": 2.56,
+        "source": "goods on board 3.70 of 10.43"
+       }
+      ]
+     },
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 2005,
+      "poNumber": "JF-PO-2005",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9206,
+      "paymentId": 2052,
+      "shipmentPaymentId": null,
+      "id": "stated:2052:304",
+      "amount": 66.67,
+      "dueDate": "2026-10-20",
+      "contractualDate": "2026-10-20",
+      "trigger": "bl",
+      "containerNumber": "304",
+      "containerShare": 0.3333333333333333,
+      "blocked": null,
+      "flags": [
+       "derived_date",
+       "estimated",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Balance PI",
+        "value": 200,
+        "result": 200,
+        "source": "PI-2005-bal.pdf — what the PI asks for"
+       },
+       {
+        "op": "×",
+        "label": "Share in 304",
+        "value": 0.3333333333333333,
+        "result": 66.67,
+        "source": "goods on board 100.00 of 300.00"
+       }
+      ]
+     },
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 2005,
+      "poNumber": "JF-PO-2005",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9206,
+      "paymentId": 2052,
+      "shipmentPaymentId": null,
+      "id": "stated:2052:305",
+      "amount": 66.67,
+      "dueDate": "2026-10-21",
+      "contractualDate": "2026-10-21",
+      "trigger": "bl",
+      "containerNumber": "305",
+      "containerShare": 0.3333333333333333,
+      "blocked": null,
+      "flags": [
+       "derived_date",
+       "estimated",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Balance PI",
+        "value": 200,
+        "result": 200,
+        "source": "PI-2005-bal.pdf — what the PI asks for"
+       },
+       {
+        "op": "×",
+        "label": "Share in 305",
+        "value": 0.3333333333333333,
+        "result": 66.67,
+        "source": "goods on board 100.00 of 300.00"
+       }
+      ]
+     },
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 2005,
+      "poNumber": "JF-PO-2005",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9206,
+      "paymentId": 2052,
+      "shipmentPaymentId": null,
+      "id": "stated:2052:306",
+      "amount": 66.67,
+      "dueDate": "2026-10-22",
+      "contractualDate": "2026-10-22",
+      "trigger": "bl",
+      "containerNumber": "306",
+      "containerShare": 0.3333333333333333,
+      "blocked": null,
+      "flags": [
+       "derived_date",
+       "estimated",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Balance PI",
+        "value": 200,
+        "result": 200,
+        "source": "PI-2005-bal.pdf — what the PI asks for"
+       },
+       {
+        "op": "×",
+        "label": "Share in 306",
+        "value": 0.3333333333333333,
+        "result": 66.67,
+        "source": "goods on board 100.00 of 300.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:2006:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2006,
+      "poNumber": "JF-PO-2006",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 838.66,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1251.73,
+        "result": 1251.73,
+        "source": "1 priced line 1,234.56 + shipping 17.17"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 33% of the PO",
+        "value": 413.07,
+        "result": 838.66,
+        "source": "still to pay — a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 838.66,
+        "result": 838.66,
+        "source": "67% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 838.66,
+        "source": "goods on board 1,234.56 of 1,234.56"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:2002:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2002,
+      "poNumber": "JF-PO-2002",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 0.75,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1.12,
+        "result": 1.12,
+        "source": "1 priced line 1.12"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 33% of the PO",
+        "value": 0.37,
+        "result": 0.75,
+        "source": "under 0.50 — left out"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 0.75,
+        "result": 0.75,
+        "source": "67% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 0.75,
+        "source": "goods on board 1.12 of 1.12"
+       }
+      ]
+     }
+    ],
+    "pos": [
+     {
+      "poId": 2001,
+      "poNumber": "JF-PO-2001",
+      "supplier": "Float Co., Ltd",
+      "supplierRaw": "Float Co., Ltd",
+      "currency": "USD",
+      "poTotal": 10.73,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 10.43,
+      "shippingTotal": 0.3,
+      "lineCount": 4,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 10.73,
+      "derivedDeposit": 3.54,
+      "derivedBalance": 7.19,
+      "outstanding": 10.73,
+      "rule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "300",
+        "share": 0.38800959232613913,
+        "lineCount": 2,
+        "units": 10,
+        "value": 4.045,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-10",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": "301",
+        "share": 0.2565947242206235,
+        "lineCount": 1,
+        "units": 1,
+        "value": 2.675,
+        "dueDate": "2026-10-12",
+        "contractualDate": "2026-10-12",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-12",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": "302",
+        "share": 0.3553956834532374,
+        "lineCount": 1,
+        "units": 13,
+        "value": 3.7049999999999996,
+        "dueDate": "2026-10-14",
+        "contractualDate": "2026-10-14",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-14",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:dep:2001",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 2001,
+        "poNumber": "JF-PO-2001",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 3.54,
+        "dueDate": "2026-09-01",
+        "contractualDate": "2026-09-01",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 10.73,
+          "result": 10.73,
+          "source": "4 priced lines 10.43 + shipping 0.30"
+         },
+         {
+          "op": "×",
+          "label": "Deposit 33%",
+          "value": 0.33,
+          "result": 3.54,
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:2001:300",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2001,
+        "poNumber": "JF-PO-2001",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 2.79,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "trigger": "bl",
+        "containerNumber": "300",
+        "containerShare": 0.38800959232613913,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 10.73,
+          "result": 10.73,
+          "source": "4 priced lines 10.43 + shipping 0.30"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 33% of the PO",
+          "value": 3.54,
+          "result": 7.19,
+          "source": "still to pay — a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 7.19,
+          "result": 7.19,
+          "source": "67% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 300",
+          "value": 0.38800959232613913,
+          "result": 2.79,
+          "source": "goods on board 4.05 of 10.43"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:2001:301",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2001,
+        "poNumber": "JF-PO-2001",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 1.84,
+        "dueDate": "2026-10-12",
+        "contractualDate": "2026-10-12",
+        "trigger": "bl",
+        "containerNumber": "301",
+        "containerShare": 0.2565947242206235,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 10.73,
+          "result": 10.73,
+          "source": "4 priced lines 10.43 + shipping 0.30"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 33% of the PO",
+          "value": 3.54,
+          "result": 7.19,
+          "source": "still to pay — a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 7.19,
+          "result": 7.19,
+          "source": "67% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 301",
+          "value": 0.2565947242206235,
+          "result": 1.84,
+          "source": "goods on board 2.68 of 10.43"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:2001:302",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2001,
+        "poNumber": "JF-PO-2001",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 2.56,
+        "dueDate": "2026-10-14",
+        "contractualDate": "2026-10-14",
+        "trigger": "bl",
+        "containerNumber": "302",
+        "containerShare": 0.3553956834532374,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 10.73,
+          "result": 10.73,
+          "source": "4 priced lines 10.43 + shipping 0.30"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 33% of the PO",
+          "value": 3.54,
+          "result": 7.19,
+          "source": "still to pay — a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 7.19,
+          "result": 7.19,
+          "source": "67% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 302",
+          "value": 0.3553956834532374,
+          "result": 2.56,
+          "source": "goods on board 3.70 of 10.43"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 2002,
+      "poNumber": "JF-PO-2002",
+      "supplier": "Float Co., Ltd",
+      "supplierRaw": "Float Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1.12,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1.12,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1.12,
+      "derivedDeposit": 0.37,
+      "derivedBalance": 0.75,
+      "outstanding": 0.75,
+      "rule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 1,
+        "value": 1.115,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:bal:2002:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2002,
+        "poNumber": "JF-PO-2002",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 0.75,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1.12,
+          "result": 1.12,
+          "source": "1 priced line 1.12"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 33% of the PO",
+          "value": 0.37,
+          "result": 0.75,
+          "source": "under 0.50 — left out"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 0.75,
+          "result": 0.75,
+          "source": "67% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 0.75,
+          "source": "goods on board 1.12 of 1.12"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 2003,
+      "poNumber": "JF-PO-2003",
+      "supplier": "Float Co., Ltd",
+      "supplierRaw": "Float Co., Ltd",
+      "currency": "USD",
+      "poTotal": 100.5,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 100.5,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 100,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 0.5,
+      "derivedDeposit": 0,
+      "derivedBalance": 0.5,
+      "outstanding": 0.5,
+      "rule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "303",
+        "share": 1,
+        "lineCount": 1,
+        "units": 201,
+        "value": 100.5,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-20",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:bal:2003:303",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2003,
+        "poNumber": "JF-PO-2003",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 0.5,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "trigger": "bl",
+        "containerNumber": "303",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 100.5,
+          "result": 100.5,
+          "source": "1 priced line 100.50"
+         },
+         {
+          "op": "−",
+          "label": "Deposit paid",
+          "value": 100,
+          "result": 0.5,
+          "source": "deposit PI marked paid 100.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 0.5,
+          "result": 0.5
+         },
+         {
+          "op": "×",
+          "label": "Share in 303",
+          "value": 1,
+          "result": 0.5,
+          "source": "goods on board 100.50 of 100.50"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 2009,
+      "poNumber": "JF-PO-2009",
+      "supplier": "Float Co., Ltd",
+      "supplierRaw": "Float Co., Ltd",
+      "currency": "USD",
+      "poTotal": 100,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 100,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 99.98,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 0.02,
+      "derivedDeposit": 0,
+      "derivedBalance": 0,
+      "outstanding": 0,
+      "rule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 100,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": []
+     },
+     {
+      "poId": 2005,
+      "poNumber": "JF-PO-2005",
+      "supplier": "Float Co., Ltd",
+      "supplierRaw": "Float Co., Ltd",
+      "currency": "USD",
+      "poTotal": 300,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9205,
+      "linesValue": 300,
+      "shippingTotal": 0,
+      "lineCount": 3,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 99,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 200,
+      "remainder": 1,
+      "derivedDeposit": 0,
+      "derivedBalance": 0,
+      "outstanding": 200.01,
+      "rule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "304",
+        "share": 0.3333333333333333,
+        "lineCount": 1,
+        "units": 1,
+        "value": 100,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-20",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": "305",
+        "share": 0.3333333333333333,
+        "lineCount": 1,
+        "units": 1,
+        "value": 100,
+        "dueDate": "2026-10-21",
+        "contractualDate": "2026-10-21",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-21",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": "306",
+        "share": 0.3333333333333333,
+        "lineCount": 1,
+        "units": 1,
+        "value": 100,
+        "dueDate": "2026-10-22",
+        "contractualDate": "2026-10-22",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-22",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "invoice_total_used"
+      ],
+      "items": [
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 2005,
+        "poNumber": "JF-PO-2005",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9206,
+        "paymentId": 2052,
+        "shipmentPaymentId": null,
+        "id": "stated:2052:304",
+        "amount": 66.67,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "trigger": "bl",
+        "containerNumber": "304",
+        "containerShare": 0.3333333333333333,
+        "blocked": null,
+        "flags": [
+         "derived_date",
+         "estimated",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Balance PI",
+          "value": 200,
+          "result": 200,
+          "source": "PI-2005-bal.pdf — what the PI asks for"
+         },
+         {
+          "op": "×",
+          "label": "Share in 304",
+          "value": 0.3333333333333333,
+          "result": 66.67,
+          "source": "goods on board 100.00 of 300.00"
+         }
+        ]
+       },
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 2005,
+        "poNumber": "JF-PO-2005",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9206,
+        "paymentId": 2052,
+        "shipmentPaymentId": null,
+        "id": "stated:2052:305",
+        "amount": 66.67,
+        "dueDate": "2026-10-21",
+        "contractualDate": "2026-10-21",
+        "trigger": "bl",
+        "containerNumber": "305",
+        "containerShare": 0.3333333333333333,
+        "blocked": null,
+        "flags": [
+         "derived_date",
+         "estimated",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Balance PI",
+          "value": 200,
+          "result": 200,
+          "source": "PI-2005-bal.pdf — what the PI asks for"
+         },
+         {
+          "op": "×",
+          "label": "Share in 305",
+          "value": 0.3333333333333333,
+          "result": 66.67,
+          "source": "goods on board 100.00 of 300.00"
+         }
+        ]
+       },
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 2005,
+        "poNumber": "JF-PO-2005",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9206,
+        "paymentId": 2052,
+        "shipmentPaymentId": null,
+        "id": "stated:2052:306",
+        "amount": 66.67,
+        "dueDate": "2026-10-22",
+        "contractualDate": "2026-10-22",
+        "trigger": "bl",
+        "containerNumber": "306",
+        "containerShare": 0.3333333333333333,
+        "blocked": null,
+        "flags": [
+         "derived_date",
+         "estimated",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Balance PI",
+          "value": 200,
+          "result": 200,
+          "source": "PI-2005-bal.pdf — what the PI asks for"
+         },
+         {
+          "op": "×",
+          "label": "Share in 306",
+          "value": 0.3333333333333333,
+          "result": 66.67,
+          "source": "goods on board 100.00 of 300.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 2006,
+      "poNumber": "JF-PO-2006",
+      "supplier": "Float Co., Ltd",
+      "supplierRaw": "Float Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1251.73,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1234.56,
+      "shippingTotal": 17.17,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1251.73,
+      "derivedDeposit": 413.07,
+      "derivedBalance": 838.66,
+      "outstanding": 1251.73,
+      "rule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 17,
+        "value": 1234.5604,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:dep:2006",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 2006,
+        "poNumber": "JF-PO-2006",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 413.07,
+        "dueDate": "2026-09-10",
+        "contractualDate": "2026-09-10",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1251.73,
+          "result": 1251.73,
+          "source": "1 priced line 1,234.56 + shipping 17.17"
+         },
+         {
+          "op": "×",
+          "label": "Deposit 33%",
+          "value": 0.33,
+          "result": 413.07,
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:2006:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2006,
+        "poNumber": "JF-PO-2006",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 838.66,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1251.73,
+          "result": 1251.73,
+          "source": "1 priced line 1,234.56 + shipping 17.17"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 33% of the PO",
+          "value": 413.07,
+          "result": 838.66,
+          "source": "still to pay — a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 838.66,
+          "result": 838.66,
+          "source": "67% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 838.66,
+          "source": "goods on board 1,234.56 of 1,234.56"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 2007,
+      "poNumber": "JF-PO-2007",
+      "supplier": "Float Co., Ltd",
+      "supplierRaw": "Float Co., Ltd",
+      "currency": "USD",
+      "poTotal": 336.33,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 336.33,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 111,
+      "assumedPaid": 110.99,
+      "shipmentPaid": 111,
+      "shipmentStated": 222,
+      "stated": 0,
+      "remainder": 336.33,
+      "derivedDeposit": 110.99,
+      "derivedBalance": 114.34,
+      "outstanding": 114.34,
+      "rule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "307",
+        "share": 1,
+        "lineCount": 1,
+        "units": 333,
+        "value": 336.33,
+        "dueDate": "2026-09-18",
+        "contractualDate": "2026-09-18",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-18",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:2007:307",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2007,
+        "poNumber": "JF-PO-2007",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 114.34,
+        "dueDate": "2026-09-18",
+        "contractualDate": "2026-09-18",
+        "trigger": "bl",
+        "containerNumber": "307",
+        "containerShare": 1,
+        "status": "pending",
+        "blocked": null,
+        "shipmentPaymentId": 7601,
+        "flags": [
+         "partly_paid",
+         "invoice_vs_share"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "owedInFull": 225.34,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 336.33,
+          "result": 336.33,
+          "source": "1 priced line 336.33"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 33% of the PO",
+          "value": 110.99,
+          "result": 225.34,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 225.34,
+          "result": 225.34,
+          "source": "67% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 307",
+          "value": 1,
+          "result": 225.34,
+          "source": "goods on board 336.33 of 336.33"
+         },
+         {
+          "op": "−",
+          "label": "Already paid on this container",
+          "value": 111,
+          "result": 114.34,
+          "source": "transfers applied to its balance record"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 2008,
+      "poNumber": "JF-PO-2008",
+      "supplier": "Float Co., Ltd",
+      "supplierRaw": "Float Co., Ltd",
+      "currency": "USD",
+      "poTotal": 673.67,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 673.67,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 222.34,
+      "assumedPaid": 222.31,
+      "shipmentPaid": 222.34,
+      "shipmentStated": 444.67,
+      "stated": 0,
+      "remainder": 673.67,
+      "derivedDeposit": 222.31,
+      "derivedBalance": 229.02,
+      "outstanding": 229.02,
+      "rule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "307",
+        "share": 1,
+        "lineCount": 1,
+        "units": 667,
+        "value": 673.67,
+        "dueDate": "2026-09-18",
+        "contractualDate": "2026-09-18",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-18",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:2008:307",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2008,
+        "poNumber": "JF-PO-2008",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 229.02,
+        "dueDate": "2026-09-18",
+        "contractualDate": "2026-09-18",
+        "trigger": "bl",
+        "containerNumber": "307",
+        "containerShare": 1,
+        "status": "pending",
+        "blocked": null,
+        "shipmentPaymentId": 7601,
+        "flags": [
+         "partly_paid",
+         "invoice_vs_share"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "owedInFull": 451.36,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 673.67,
+          "result": 673.67,
+          "source": "1 priced line 673.67"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 33% of the PO",
+          "value": 222.31,
+          "result": 451.36,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 451.36,
+          "result": 451.36,
+          "source": "67% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 307",
+          "value": 1,
+          "result": 451.36,
+          "source": "goods on board 673.67 of 673.67"
+         },
+         {
+          "op": "−",
+          "label": "Already paid on this container",
+          "value": 222.34,
+          "result": 229.02,
+          "source": "transfers applied to its balance record"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "outstanding": 1807.08,
+      "overdue": 760.47,
+      "due30": 207.2,
+      "unscheduled": 839.41,
+      "paid": 632.32,
+      "assumedPaid": 333.3,
+      "poCount": 8,
+      "itemCount": 13,
+      "nextDue": "2026-09-01",
+      "supplierRule": {
+       "depositPct": 33,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "33% deposit, 67% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "33% deposit, 67% B/L copy.",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "307",
+      "currency": "USD",
+      "amount": 343.36,
+      "dueDate": "2026-09-18",
+      "etd": "2026-09-18",
+      "eta": null,
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-2008",
+       "JF-PO-2007"
+      ],
+      "itemCount": 2,
+      "payables": [
+       {
+        "supplier": "Float Co., Ltd",
+        "amount": 343.36,
+        "dueDate": "2026-09-18",
+        "poNumbers": [
+         "JF-PO-2008",
+         "JF-PO-2007"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:2008:307",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 2008,
+          "poNumber": "JF-PO-2008",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "amount": 229.02,
+          "dueDate": "2026-09-18",
+          "contractualDate": "2026-09-18",
+          "trigger": "bl",
+          "containerNumber": "307",
+          "containerShare": 1,
+          "status": "pending",
+          "blocked": null,
+          "shipmentPaymentId": 7601,
+          "flags": [
+           "partly_paid",
+           "invoice_vs_share"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "owedInFull": 451.36,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 673.67,
+            "result": 673.67,
+            "source": "1 priced line 673.67"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 33% of the PO",
+            "value": 222.31,
+            "result": 451.36,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 451.36,
+            "result": 451.36,
+            "source": "67% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 307",
+            "value": 1,
+            "result": 451.36,
+            "source": "goods on board 673.67 of 673.67"
+           },
+           {
+            "op": "−",
+            "label": "Already paid on this container",
+            "value": 222.34,
+            "result": 229.02,
+            "source": "transfers applied to its balance record"
+           }
+          ]
+         },
+         {
+          "id": "derived:bal:2007:307",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 2007,
+          "poNumber": "JF-PO-2007",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "amount": 114.34,
+          "dueDate": "2026-09-18",
+          "contractualDate": "2026-09-18",
+          "trigger": "bl",
+          "containerNumber": "307",
+          "containerShare": 1,
+          "status": "pending",
+          "blocked": null,
+          "shipmentPaymentId": 7601,
+          "flags": [
+           "partly_paid",
+           "invoice_vs_share"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "owedInFull": 225.34,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 336.33,
+            "result": 336.33,
+            "source": "1 priced line 336.33"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 33% of the PO",
+            "value": 110.99,
+            "result": 225.34,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 225.34,
+            "result": 225.34,
+            "source": "67% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 307",
+            "value": 1,
+            "result": 225.34,
+            "source": "goods on board 336.33 of 336.33"
+           },
+           {
+            "op": "−",
+            "label": "Already paid on this container",
+            "value": 111,
+            "result": 114.34,
+            "source": "transfers applied to its balance record"
+           }
+          ]
+         }
+        ],
+        "payments": [
+         {
+          "id": 7601,
+          "shipmentId": 607,
+          "shipmentReference": "307",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Float Co., Ltd",
+          "supplierKey": "float co., ltd",
+          "kind": "balance",
+          "amount": 1000.005,
+          "currency": "USD",
+          "invoiceNumber": "FL-307",
+          "invoiceDate": "2026-09-19",
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "pending",
+          "paidOn": null,
+          "allocations": [],
+          "appliedTotal": 0,
+          "remaining": 1000.005,
+          "settledByPaymentId": null
+         }
+        ],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "303",
+      "currency": "USD",
+      "amount": 0.5,
+      "dueDate": "2026-09-20",
+      "etd": "2026-09-20",
+      "eta": null,
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-2003"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Float Co., Ltd",
+        "amount": 0.5,
+        "dueDate": "2026-09-20",
+        "poNumbers": [
+         "JF-PO-2003"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:2003:303",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 2003,
+          "poNumber": "JF-PO-2003",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "amount": 0.5,
+          "dueDate": "2026-09-20",
+          "contractualDate": "2026-09-20",
+          "trigger": "bl",
+          "containerNumber": "303",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 100.5,
+            "result": 100.5,
+            "source": "1 priced line 100.50"
+           },
+           {
+            "op": "−",
+            "label": "Deposit paid",
+            "value": 100,
+            "result": 0.5,
+            "source": "deposit PI marked paid 100.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 0.5,
+            "result": 0.5
+           },
+           {
+            "op": "×",
+            "label": "Share in 303",
+            "value": 1,
+            "result": 0.5,
+            "source": "goods on board 100.50 of 100.50"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "300",
+      "currency": "USD",
+      "amount": 2.79,
+      "dueDate": "2026-10-10",
+      "etd": "2026-10-10",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-2001"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Float Co., Ltd",
+        "amount": 2.79,
+        "dueDate": "2026-10-10",
+        "poNumbers": [
+         "JF-PO-2001"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:2001:300",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 2001,
+          "poNumber": "JF-PO-2001",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "amount": 2.79,
+          "dueDate": "2026-10-10",
+          "contractualDate": "2026-10-10",
+          "trigger": "bl",
+          "containerNumber": "300",
+          "containerShare": 0.38800959232613913,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "estimated"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 10.73,
+            "result": 10.73,
+            "source": "4 priced lines 10.43 + shipping 0.30"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 33% of the PO",
+            "value": 3.54,
+            "result": 7.19,
+            "source": "still to pay — a payment of its own"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 7.19,
+            "result": 7.19,
+            "source": "67% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 300",
+            "value": 0.38800959232613913,
+            "result": 2.79,
+            "source": "goods on board 4.05 of 10.43"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "301",
+      "currency": "USD",
+      "amount": 1.84,
+      "dueDate": "2026-10-12",
+      "etd": "2026-10-12",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-2001"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Float Co., Ltd",
+        "amount": 1.84,
+        "dueDate": "2026-10-12",
+        "poNumbers": [
+         "JF-PO-2001"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:2001:301",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 2001,
+          "poNumber": "JF-PO-2001",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "amount": 1.84,
+          "dueDate": "2026-10-12",
+          "contractualDate": "2026-10-12",
+          "trigger": "bl",
+          "containerNumber": "301",
+          "containerShare": 0.2565947242206235,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "estimated"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 10.73,
+            "result": 10.73,
+            "source": "4 priced lines 10.43 + shipping 0.30"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 33% of the PO",
+            "value": 3.54,
+            "result": 7.19,
+            "source": "still to pay — a payment of its own"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 7.19,
+            "result": 7.19,
+            "source": "67% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 301",
+            "value": 0.2565947242206235,
+            "result": 1.84,
+            "source": "goods on board 2.68 of 10.43"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "302",
+      "currency": "USD",
+      "amount": 2.56,
+      "dueDate": "2026-10-14",
+      "etd": "2026-10-14",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-2001"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Float Co., Ltd",
+        "amount": 2.56,
+        "dueDate": "2026-10-14",
+        "poNumbers": [
+         "JF-PO-2001"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:2001:302",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 2001,
+          "poNumber": "JF-PO-2001",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "amount": 2.56,
+          "dueDate": "2026-10-14",
+          "contractualDate": "2026-10-14",
+          "trigger": "bl",
+          "containerNumber": "302",
+          "containerShare": 0.3553956834532374,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "estimated"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 10.73,
+            "result": 10.73,
+            "source": "4 priced lines 10.43 + shipping 0.30"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 33% of the PO",
+            "value": 3.54,
+            "result": 7.19,
+            "source": "still to pay — a payment of its own"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 7.19,
+            "result": 7.19,
+            "source": "67% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 302",
+            "value": 0.3553956834532374,
+            "result": 2.56,
+            "source": "goods on board 3.70 of 10.43"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "304",
+      "currency": "USD",
+      "amount": 66.67,
+      "dueDate": "2026-10-20",
+      "etd": "2026-10-20",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-2005"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Float Co., Ltd",
+        "amount": 66.67,
+        "dueDate": "2026-10-20",
+        "poNumbers": [
+         "JF-PO-2005"
+        ],
+        "items": [
+         {
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 2005,
+          "poNumber": "JF-PO-2005",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "status": "pending",
+          "invoiceId": 9206,
+          "paymentId": 2052,
+          "shipmentPaymentId": null,
+          "id": "stated:2052:304",
+          "amount": 66.67,
+          "dueDate": "2026-10-20",
+          "contractualDate": "2026-10-20",
+          "trigger": "bl",
+          "containerNumber": "304",
+          "containerShare": 0.3333333333333333,
+          "blocked": null,
+          "flags": [
+           "derived_date",
+           "estimated",
+           "multi_container"
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Balance PI",
+            "value": 200,
+            "result": 200,
+            "source": "PI-2005-bal.pdf — what the PI asks for"
+           },
+           {
+            "op": "×",
+            "label": "Share in 304",
+            "value": 0.3333333333333333,
+            "result": 66.67,
+            "source": "goods on board 100.00 of 300.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "305",
+      "currency": "USD",
+      "amount": 66.67,
+      "dueDate": "2026-10-21",
+      "etd": "2026-10-21",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-2005"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Float Co., Ltd",
+        "amount": 66.67,
+        "dueDate": "2026-10-21",
+        "poNumbers": [
+         "JF-PO-2005"
+        ],
+        "items": [
+         {
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 2005,
+          "poNumber": "JF-PO-2005",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "status": "pending",
+          "invoiceId": 9206,
+          "paymentId": 2052,
+          "shipmentPaymentId": null,
+          "id": "stated:2052:305",
+          "amount": 66.67,
+          "dueDate": "2026-10-21",
+          "contractualDate": "2026-10-21",
+          "trigger": "bl",
+          "containerNumber": "305",
+          "containerShare": 0.3333333333333333,
+          "blocked": null,
+          "flags": [
+           "derived_date",
+           "estimated",
+           "multi_container"
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Balance PI",
+            "value": 200,
+            "result": 200,
+            "source": "PI-2005-bal.pdf — what the PI asks for"
+           },
+           {
+            "op": "×",
+            "label": "Share in 305",
+            "value": 0.3333333333333333,
+            "result": 66.67,
+            "source": "goods on board 100.00 of 300.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "306",
+      "currency": "USD",
+      "amount": 66.67,
+      "dueDate": "2026-10-22",
+      "etd": "2026-10-22",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-2005"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Float Co., Ltd",
+        "amount": 66.67,
+        "dueDate": "2026-10-22",
+        "poNumbers": [
+         "JF-PO-2005"
+        ],
+        "items": [
+         {
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 2005,
+          "poNumber": "JF-PO-2005",
+          "supplier": "Float Co., Ltd",
+          "currency": "USD",
+          "status": "pending",
+          "invoiceId": 9206,
+          "paymentId": 2052,
+          "shipmentPaymentId": null,
+          "id": "stated:2052:306",
+          "amount": 66.67,
+          "dueDate": "2026-10-22",
+          "contractualDate": "2026-10-22",
+          "trigger": "bl",
+          "containerNumber": "306",
+          "containerShare": 0.3333333333333333,
+          "blocked": null,
+          "flags": [
+           "derived_date",
+           "estimated",
+           "multi_container"
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Balance PI",
+            "value": 200,
+            "result": 200,
+            "source": "PI-2005-bal.pdf — what the PI asks for"
+           },
+           {
+            "op": "×",
+            "label": "Share in 306",
+            "value": 0.3333333333333333,
+            "result": 66.67,
+            "source": "goods on board 100.00 of 300.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": [
+     {
+      "kind": "shipment_payment_mismatch",
+      "poId": 2007,
+      "poNumber": "JF-PO-2007",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "detail": "A balance of 333 is recorded for 307, the terms say 225.34 — the terms figure is what is owed",
+      "amount": 107.66,
+      "shipmentReference": "307"
+     },
+     {
+      "kind": "shipment_payment_mismatch",
+      "poId": 2008,
+      "poNumber": "JF-PO-2008",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "detail": "A balance of 667.01 is recorded for 307, the terms say 451.36 — the terms figure is what is owed",
+      "amount": 215.65,
+      "shipmentReference": "307"
+     },
+     {
+      "kind": "shipment_payment_unallocated",
+      "poId": 2007,
+      "poNumber": "JF-PO-2007",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "detail": "The 307 invoice names no purchase order — shared across 2 POs by value by what each has on board",
+      "amount": 1000.01,
+      "shipmentReference": "307"
+     }
+    ]
+   }
+  ],
+  "poCount": 9
+ }
+}

@@ -1,0 +1,87 @@
+{
+  "description": "Money already gone: a PO paid in full by PIs (excluded), a landed PO under pre-arrival terms (settled by landing), an overpaid PO (settled, but the overpayment is still reported), post-arrival terms that stay owed after landing, proof files matched to stages (assumed paid), a deposit PI still pending after the goods shipped, a part-received box, destroyed lines, a PO whose lines are all destroyed, paid deposit + balance PIs worded 'paid so far', proofs on a PO with no PI (deposit stage matched), and an upload on a settled box with no record.",
+  "input": {
+    "today": "2026-09-29",
+    "orders": [
+      { "id": "140101", "status": "ON_SEA", "quantity": 100, "unitPrice": 20, "purchaseOrderId": 1401, "poNumber": "JF-PO-1401", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "360", "shippedDate": "2026-09-05", "poDate": "2026-07-01" },
+      { "id": "140201", "status": "RECEIVED", "quantity": 100, "unitPrice": 12, "receivedQuantity": 100, "purchaseOrderId": 1402, "poNumber": "JF-PO-1402", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "361", "arrivedDate": "2026-09-01", "poDate": "2026-06-01" },
+      { "id": "140301", "status": "ON_SEA", "quantity": 100, "unitPrice": 20, "purchaseOrderId": 1403, "poNumber": "JF-PO-1403", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "360", "shippedDate": "2026-09-05", "poDate": "2026-07-01" },
+      { "id": "140401", "status": "RECEIVED", "quantity": 300, "unitPrice": 10, "purchaseOrderId": 1404, "poNumber": "JF-PO-1404", "supplier": "Foreu Corporation", "containerNumber": "362", "deliveryDate": "2026-09-10", "arrivedDate": "2026-09-12", "poDate": "2026-07-01" },
+      { "id": "140501", "status": "ON_SEA", "quantity": 1000, "unitPrice": 2, "purchaseOrderId": 1405, "poNumber": "JF-PO-1405", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": "363", "shippedDate": "2026-09-08", "poDate": "2026-07-20" },
+      { "id": "140502", "status": "CONSOLIDATED", "quantity": 500, "unitPrice": 2, "purchaseOrderId": 1405, "poNumber": "JF-PO-1405", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": "364", "estimatedDepartureDate": "2026-10-05", "poDate": "2026-07-20" },
+      { "id": "140601", "status": "ON_SEA", "quantity": 100, "unitPrice": 20, "purchaseOrderId": 1406, "poNumber": "JF-PO-1406", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "365", "shippedDate": "2026-09-01", "poDate": "2026-07-01" },
+      { "id": "140701", "status": "ON_SEA", "quantity": 100, "unitPrice": 5, "receivedQuantity": 50, "purchaseOrderId": 1407, "poNumber": "JF-PO-1407", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": "366", "shippedDate": "2026-08-01", "poDate": "2026-06-15" },
+      { "id": "140702", "status": "DESTROYED", "quantity": 40, "unitPrice": 5, "purchaseOrderId": 1407, "poNumber": "JF-PO-1407", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": "366", "poDate": "2026-06-15" },
+      { "id": "140703", "status": "ON_SEA", "quantity": 200, "unitPrice": 5, "purchaseOrderId": 1407, "poNumber": "JF-PO-1407", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": "367", "shippedDate": "2026-09-15", "poDate": "2026-06-15" },
+      { "id": "140801", "status": "DESTROYED", "quantity": 10, "unitPrice": 5, "purchaseOrderId": 1408, "poNumber": "JF-PO-1408", "supplier": "Guilin Yoho Co., Ltd", "poDate": "2026-06-15" },
+      { "id": "141001", "status": "CONSOLIDATED", "quantity": 400, "unitPrice": 5, "purchaseOrderId": 1410, "poNumber": "JF-PO-1410", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": "369", "estimatedDepartureDate": "2026-10-12", "poDate": "2026-08-01" },
+      { "id": "141002", "status": "UNDER_PRODUCTION", "quantity": 100, "unitPrice": 5, "purchaseOrderId": 1410, "poNumber": "JF-PO-1410", "supplier": "Guilin Yoho Co., Ltd", "estimatedReadyDate": "2026-11-01", "poDate": "2026-08-01" },
+      { "id": "140901", "status": "ON_SEA", "quantity": 100, "unitPrice": 15, "purchaseOrderId": 1409, "poNumber": "JF-PO-1409", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "368", "shippedDate": "2026-09-20", "poDate": "2026-07-10" }
+    ],
+    "poBundles": {
+      "1401": {
+        "id": 1401, "poNumber": "JF-PO-1401", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-09-06 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [
+          { "id": 9501, "purchaseOrderId": 1401, "filename": "PI-1401.pdf", "uploadedAt": "2026-07-02 09:00:00", "latestCheck": { "status": "succeeded" } },
+          { "id": 9502, "purchaseOrderId": 1401, "filename": "PI-1401-bal.pdf", "uploadedAt": "2026-09-01 09:00:00", "latestCheck": { "status": "succeeded" } }
+        ]
+      },
+      "1402": { "id": 1402, "poNumber": "JF-PO-1402", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-05-31 09:00:00", "updatedAt": "2026-05-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1403": {
+        "id": 1403, "poNumber": "JF-PO-1403", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-09-06 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [
+          { "id": 9511, "purchaseOrderId": 1403, "filename": "PI-1403.pdf", "uploadedAt": "2026-07-02 09:00:00", "latestCheck": { "status": "succeeded" } },
+          { "id": 9512, "purchaseOrderId": 1403, "filename": "PI-1403-bal.pdf", "uploadedAt": "2026-09-01 09:00:00", "latestCheck": { "status": "succeeded" } }
+        ]
+      },
+      "1404": { "id": 1404, "poNumber": "JF-PO-1404", "supplier": "Foreu Corporation", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1405": {
+        "id": 1405, "poNumber": "JF-PO-1405", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-07-19 09:00:00", "updatedAt": "2026-09-10 09:00:00", "documents": [], "signedPis": [],
+        "invoices": [{ "id": 9601, "purchaseOrderId": 1405, "filename": "PI-1405.pdf", "uploadedAt": "2026-07-22 09:00:00", "latestCheck": { "status": "succeeded" } }],
+        "payments": [
+          { "id": 71, "purchaseOrderId": 1405, "filename": "proof-1.pdf", "uploadedAt": "2026-08-01 09:00:00" },
+          { "id": 72, "purchaseOrderId": 1405, "filename": "proof-2.pdf", "uploadedAt": "2026-08-20 09:00:00" },
+          { "id": 73, "purchaseOrderId": 1405, "filename": "proof-3.pdf", "uploadedAt": "2026-09-10 09:00:00" }
+        ]
+      },
+      "1406": {
+        "id": 1406, "poNumber": "JF-PO-1406", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-07-03 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9701, "purchaseOrderId": 1406, "filename": "PI-1406.pdf", "uploadedAt": "2026-07-03 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1407": { "id": 1407, "poNumber": "JF-PO-1407", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-06-14 09:00:00", "updatedAt": "2026-06-14 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1408": { "id": 1408, "poNumber": "JF-PO-1408", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-06-14 09:00:00", "updatedAt": "2026-06-14 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1409": {
+        "id": 1409, "poNumber": "JF-PO-1409", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-09 09:00:00", "updatedAt": "2026-09-21 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [
+          { "id": 9901, "purchaseOrderId": 1409, "filename": "PI-1409.pdf", "uploadedAt": "2026-07-11 09:00:00", "latestCheck": { "status": "succeeded" } },
+          { "id": 9902, "purchaseOrderId": 1409, "filename": "PI-1409-part.pdf", "uploadedAt": "2026-09-15 09:00:00", "latestCheck": { "status": "succeeded" } }
+        ]
+      },
+      "1410": {
+        "id": 1410, "poNumber": "JF-PO-1410", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-08-15 09:00:00", "documents": [], "invoices": [], "signedPis": [],
+        "payments": [{ "id": 81, "purchaseOrderId": 1410, "filename": "tt-1410.pdf", "uploadedAt": "2026-08-15 09:00:00" }, { "id": 82, "purchaseOrderId": 1410, "filename": "tt-1410-b.pdf", "uploadedAt": "2026-09-02 09:00:00" }]
+      }
+    },
+    "invoicePayments": [
+      { "id": 501, "invoiceId": 9501, "purchaseOrderId": 1401, "paymentType": "deposit", "amountDue": 600, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 2000, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-07-05 09:00:00" },
+      { "id": 502, "invoiceId": 9502, "purchaseOrderId": 1401, "paymentType": "balance", "amountDue": 1400, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-09-06 09:00:00" },
+      { "id": 511, "invoiceId": 9511, "purchaseOrderId": 1403, "paymentType": "deposit", "amountDue": 900, "currency": "USD", "depositPercentage": 45, "invoiceTotal": 2000, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-07-05 09:00:00" },
+      { "id": 512, "invoiceId": 9512, "purchaseOrderId": 1403, "paymentType": "balance", "amountDue": 1400, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-09-06 09:00:00" },
+      { "id": 601, "invoiceId": 9601, "purchaseOrderId": 1405, "paymentType": "deposit", "amountDue": 900, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 3000, "dueDate": "2026-07-29", "dueTerms": "30D/70B BOL", "rawTermsText": null, "paymentStatus": "pending", "updatedAt": "2026-07-22 09:05:00" },
+      { "id": 701, "invoiceId": 9701, "purchaseOrderId": 1406, "paymentType": "deposit", "amountDue": 600, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 2000, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "pending", "updatedAt": "2026-07-03 09:05:00" },
+      { "id": 901, "invoiceId": 9901, "purchaseOrderId": 1409, "paymentType": "deposit", "amountDue": 450, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 1500, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-07-15 09:00:00" },
+      { "id": 902, "invoiceId": 9902, "purchaseOrderId": 1409, "paymentType": "balance", "amountDue": 500, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-09-21 09:00:00" }
+    ],
+    "suppliers": [
+      { "supplierId": 1, "name": "Suzhou Sunmed Co.,Ltd.", "paymentTerms": "30% deposit, 70% B/L copy.", "tags": [] },
+      { "supplierId": 3, "name": "Foreu Corporation", "paymentTerms": "100% T/T 30 days after delivery", "tags": [] },
+      { "supplierId": 2, "name": "Guilin Yoho Co., Ltd", "paymentTerms": "30D/70B BOL", "tags": [] }
+    ],
+    "rules": [],
+    "shipmentPayments": [],
+    "shipmentPaymentDocuments": [
+      { "id": 8401, "shipmentId": null, "shipmentReference": "366", "supplierName": "Guilin Yoho Co., Ltd", "paymentId": null, "supplierPaymentId": null, "docKind": "balance_invoice", "filename": "yoho-366.pdf", "extractStatus": "processing", "extractError": null, "createdAt": "2026-09-28 12:00:00" }
+    ],
+    "supplierPayments": []
+  }
+}

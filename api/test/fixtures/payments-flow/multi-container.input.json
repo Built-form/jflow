@@ -1,0 +1,64 @@
+{
+  "description": "One PO spread over two booked boxes and unbooked lines: a paid deposit PI with the PO total, a pending balance PI with no due date (split per box), the derived remainder per box, live ShipsGo tracking on one box, a BOOKED shipment with a stray departedAt (ignored), a second supplier in the same box, a derived deposit with unbooked lines, and an EUR PO.",
+  "input": {
+    "today": "2026-09-29",
+    "orders": [
+      { "id": "81201", "status": "ON_SEA", "quantity": 1000, "unitPrice": 2.35, "purchaseOrderId": 812, "poNumber": "JF-PO-812", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "268", "externalContainerNumber": "MSKU1234567", "shippedDate": "2026-09-02", "poDate": "2026-07-01", "estimatedDepartureDate": "2026-08-30", "eta": "2026-10-12" },
+      { "id": "81202", "status": "ON_SEA", "quantity": 500, "unitPrice": 1.1, "purchaseOrderId": 812, "poNumber": "JF-PO-812", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "268", "shippedDate": "2026-09-02", "poDate": "2026-07-01" },
+      { "id": "81203", "status": "READY_AT_FACTORY", "quantity": 800, "unitPrice": 3.05, "purchaseOrderId": 812, "poNumber": "JF-PO-812", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "271", "estimatedDepartureDate": "2026-10-08", "poDate": "2026-07-01" },
+      { "id": "81204", "status": "UNDER_PRODUCTION", "quantity": 300, "unitPrice": 0.95, "purchaseOrderId": 812, "poNumber": "JF-PO-812", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "", "estimatedReadyDate": "2026-11-02", "poDate": "2026-07-01" },
+      { "id": "81301", "status": "ON_SEA", "quantity": 2000, "unitPrice": 0.8, "purchaseOrderId": 813, "poNumber": "JF-PO-813", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": "268", "shippedDate": "2026-09-02", "poDate": "2026-07-15" },
+      { "id": "81302", "status": "CONSOLIDATED", "quantity": 600, "unitPrice": 1.25, "purchaseOrderId": 813, "poNumber": "JF-PO-813", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": " 271 ", "estimatedDepartureDate": "2026-10-08", "poDate": "2026-07-15" },
+      { "id": "81401", "status": "PO_SENT", "quantity": 400, "unitPrice": 4.5, "purchaseOrderId": 814, "poNumber": "JF-PO-814", "supplier": "Foreu Corporation", "estimatedReadyDate": "2026-11-20", "poDate": "2026-09-10" },
+      { "id": "81402", "status": "PO_SENT", "quantity": 100, "unitPrice": 12, "purchaseOrderId": 814, "poNumber": "JF-PO-814", "supplier": "Foreu Corporation", "poDate": "2026-09-10" },
+      { "id": "81501", "status": "ON_SEA", "quantity": 100, "unitPrice": 20, "purchaseOrderId": 815, "poNumber": "JF-PO-815", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "272", "shippedDate": "2026-09-20", "poDate": "2026-08-01" },
+      { "id": "81502", "status": "ON_SEA", "quantity": 40, "unitPrice": 12.5, "purchaseOrderId": 815, "poNumber": "JF-PO-815", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "272", "shippedDate": "2026-09-20", "poDate": "2026-08-01" }
+    ],
+    "poBundles": {
+      "812": {
+        "id": 812, "poNumber": "JF-PO-812", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 150, "companyId": 1,
+        "createdAt": "2026-06-28 10:00:00", "updatedAt": "2026-09-05 11:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [
+          { "id": 9001, "purchaseOrderId": 812, "filename": "PI-812-deposit.pdf", "uploadedAt": "2026-07-03 09:30:00", "latestCheck": { "status": "succeeded" } },
+          { "id": 9002, "purchaseOrderId": 812, "filename": "PI-812-balance.pdf", "uploadedAt": "2026-09-05 14:10:00", "latestCheck": { "status": "succeeded" } }
+        ]
+      },
+      "813": {
+        "id": 813, "poNumber": "JF-PO-813", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2,
+        "createdAt": "2026-07-14 08:00:00", "updatedAt": "2026-07-14 08:00:00", "documents": [], "signedPis": [], "payments": [], "invoices": []
+      },
+      "814": {
+        "id": 814, "poNumber": "JF-PO-814", "supplier": "Foreu Corporation", "currency": "usd", "shippingTotal": null, "companyId": null,
+        "createdAt": "2026-09-09 16:45:00", "updatedAt": "2026-09-09 16:45:00", "documents": [], "signedPis": [], "payments": [], "invoices": []
+      },
+      "815": {
+        "id": 815, "poNumber": "JF-PO-815", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "EUR", "shippingTotal": 0, "companyId": 1,
+        "createdAt": "2026-07-30 12:00:00", "updatedAt": "2026-07-30 12:00:00", "documents": [], "signedPis": [], "payments": [], "invoices": []
+      }
+    },
+    "invoicePayments": [
+      { "id": 55, "invoiceId": 9001, "purchaseOrderId": 812, "paymentType": "deposit", "amountDue": 1732.5, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 5775, "dueDate": null, "dueTerms": "30% deposit, 70% B/L copy.", "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-07-10 09:12:00" },
+      { "id": 56, "invoiceId": 9002, "purchaseOrderId": 812, "paymentType": "balance", "amountDue": 2000, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "pending", "updatedAt": "2026-09-05 14:12:00" }
+    ],
+    "suppliers": [
+      { "supplierId": 1, "name": "Suzhou Sunmed Co.,Ltd.", "paymentTerms": "30% deposit, 70% B/L copy.", "tags": [] },
+      { "supplierId": 2, "name": "Guilin Yoho Co., Ltd", "paymentTerms": "30D/70B BOL", "tags": [{ "id": 5, "name": "medical", "type": "category" }] },
+      { "supplierId": 3, "name": "Foreu Corporation", "paymentTerms": "50% deposit, 50% before shipment" }
+    ],
+    "containerIndex": {
+      "MSKU1234567": {
+        "containerNumber": "MSKU1234567", "pol": { "name": "Shanghai", "locode": "CNSHA" }, "pod": { "name": "Felixstowe", "locode": "GBFXT" },
+        "times": { "departure": "2026-09-03 08:00:00", "departureIsActual": true, "arrival": null, "arrivalIsActual": false, "eta": "2026-10-14 06:00:00", "ata": null }
+      }
+    },
+    "rules": [],
+    "shipmentPayments": [],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": []
+  },
+  "shipments": [
+    { "id": 311, "reference": "268", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-03T06:00:00.000Z", "arrivedAt": null, "blNumber": "MEDUBL0268" },
+    { "id": 312, "reference": "271", "stage": "BOOKED", "mode": "SEA", "ata": null, "departedAt": "2026-08-30T10:00:00.000Z", "arrivedAt": null, "blNumber": null },
+    { "id": 313, "reference": "272", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-20T04:00:00.000Z", "arrivedAt": null, "blNumber": null }
+  ]
+}

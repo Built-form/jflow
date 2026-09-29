@@ -2,7 +2,7 @@
 
 // Overlay routes and `ship.` scenarios (Phase 2 step 21; CONTRACT §6.11, §6.12, §10.1,
 // §10.7–10.9, §10.11; P6, P7, P11), end to end against a per-run jflow_test_<runid> schema
-// and the stub shipping server (test/helpers/shippingStub.js). The feed reaches
+// and an in-process stand-in for the shipping source (test/helpers/shippingSourceStub.js). The feed reaches
 // external_items only through the real refresh; no real shipping call is made.
 //
 // Pinned here:
@@ -24,11 +24,10 @@
 
 const mysql = require('mysql2/promise');
 const { startHarness } = require('./harness');
-const { startShippingStub, feedItem, feedBody } = require('../helpers/shippingStub');
+const { stubShippingSource, feedItem, feedBody } = require('../helpers/shippingSourceStub');
 
 jest.setTimeout(240000);
 
-const KEY = 'e2e-ship-overlay-key';
 const TODAY = '2026-09-29';
 const A = '2026-09-20';
 const USER = 'local@dev';
@@ -56,9 +55,7 @@ let other;          // a second connection, for NOWAIT probes and held locks out
 
 beforeAll(async () => {
     h = await startHarness();
-    stub = await startShippingStub();
-    process.env.SHIPPING_API_BASE = stub.url;
-    process.env.SHIPPING_API_KEY = KEY;
+    stub = stubShippingSource();
     other = await mysql.createConnection({
         host: process.env.DB_HOST, port: process.env.DB_PORT, user: process.env.DB_USER,
         password: process.env.DB_PASSWORD, database: h.schema, ssl: { rejectUnauthorized: false },
@@ -67,10 +64,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-    delete process.env.SHIPPING_API_BASE;
-    delete process.env.SHIPPING_API_KEY;
     if (other) await other.end();
-    if (stub) await stub.close();
+    if (stub) stub.restore();
     if (h) await h.stop();
 });
 
@@ -108,7 +103,7 @@ const releaseClaim = () => h.sql("UPDATE external_sync SET last_attempt_at = NUL
 async function serveFeed() {
     await releaseClaim();
     stub.reset();
-    stub.respondJson(200, feedBody([...feed.values()]));
+    stub.respond(feedBody([...feed.values()]));
 }
 /** One forced refresh through the route. */
 async function refresh() {
@@ -799,16 +794,16 @@ describe('lastSuccessAt is ISO 8601 UTC everywhere it appears', () => {
         try {
             await releaseClaim();
             stub.reset();
-            stub.respondJson(500, { error: 'An internal error occurred.' });
+            stub.fail('source_error');
             const failed = await post('/external/refresh').expect(503);
-            expect(failed.body.details).toEqual({ reason: 'http_500', lastSuccessAt });
+            expect(failed.body.details).toEqual({ reason: 'source_error', lastSuccessAt });
 
             // Due by the TTL, and the fetch fails: /forecast answers on the snapshot, and says why.
             await h.sql("UPDATE external_sync SET last_success_at = last_success_at - INTERVAL 11 MINUTE, last_attempt_at = NULL WHERE source = 'ship'");
             const aged = (await get('/external/status').expect(200)).body.lastSuccessAt;
             expect(aged).toMatch(ISO_UTC);
             const body = await forecast();
-            expect(body.warnings).toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'http_500', lastSuccessAt: aged });
+            expect(body.warnings).toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'source_error', lastSuccessAt: aged });
             expect(body.shipping.lastSuccessAt).toBe(aged);
         } finally {
             await refresh();

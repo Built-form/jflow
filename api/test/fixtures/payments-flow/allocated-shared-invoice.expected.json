@@ -1,0 +1,1570 @@
+{
+ "fixture": "allocated-shared-invoice",
+ "source": {
+  "commit": "f9499bc",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 2786,
+    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-09-29",
+ "output": {
+  "today": "2026-09-29",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 700,
+     "due7": 0,
+     "due30": 4400,
+     "unscheduled": 0,
+     "outstanding": 5240,
+     "later": 140,
+     "notPayable": 140,
+     "overdueCount": 1,
+     "itemCount": 5
+    },
+    "items": [
+     {
+      "id": "derived:bal:903:280",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 903,
+      "poNumber": "JF-PO-903",
+      "supplier": "Guilin Yoho Co., Ltd",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-09-10",
+      "contractualDate": "2026-09-10",
+      "trigger": "bl",
+      "containerNumber": "280",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 300,
+        "result": 700,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 700,
+        "result": 700,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 280",
+        "value": 1,
+        "result": 700,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:902:280",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 902,
+      "poNumber": "JF-PO-902",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "amount": 2100,
+      "dueDate": "2026-10-10",
+      "contractualDate": "2026-10-10",
+      "trigger": "bl",
+      "containerNumber": "280",
+      "containerShare": 0.9375,
+      "status": "arranged",
+      "blocked": null,
+      "shipmentPaymentId": 7003,
+      "flags": [
+       "arranged",
+       "invoice_vs_share"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 3200,
+        "result": 3200,
+        "source": "2 priced lines 3,200.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 960,
+        "result": 2240,
+        "source": "the supplier’s invoice deducts it, so it went out"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 2240,
+        "result": 2240,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 280",
+        "value": 0.9375,
+        "result": 2100,
+        "source": "goods on board 3,000.00 of 3,200.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:901:280",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "amount": 2000,
+      "dueDate": "2026-10-10",
+      "contractualDate": "2026-10-10",
+      "trigger": "bl",
+      "containerNumber": "280",
+      "containerShare": 0.6,
+      "status": "pending",
+      "blocked": null,
+      "shipmentPaymentId": 7001,
+      "flags": [
+       "currency_mismatch",
+       "invoice_vs_share"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 5000,
+        "result": 5000,
+        "source": "PI total — PI-901.pdf"
+       },
+       {
+        "op": "−",
+        "label": "Paid so far",
+        "value": 2700,
+        "result": 2300,
+        "source": "deposit PI marked paid 1,500.00 · paid container balances 1,200.00"
+       },
+       {
+        "op": "−",
+        "label": "Asked for on open PIs",
+        "value": 300,
+        "result": 2000,
+        "source": "each open PI is a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 2000,
+        "result": 2000
+       },
+       {
+        "op": "×",
+        "label": "Share in 280",
+        "value": 1,
+        "result": 2000,
+        "source": "goods on board 3,000.00 of 3,000.00 — 1 paid container left out"
+       }
+      ]
+     },
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9102,
+      "paymentId": 102,
+      "shipmentPaymentId": null,
+      "id": "stated:102:280",
+      "amount": 300,
+      "dueDate": "2026-10-10",
+      "contractualDate": "2026-10-10",
+      "trigger": "bl",
+      "containerNumber": "280",
+      "containerShare": 0.6,
+      "blocked": null,
+      "flags": [
+       "currency_mismatch",
+       "superseded_by_shipment_invoice",
+       "derived_date",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Balance PI",
+        "value": 1500,
+        "result": 1500,
+        "source": "PI-901-balance.pdf — what the PI asks for"
+       },
+       {
+        "op": "−",
+        "label": "Covered by paid container balances",
+        "value": 1200,
+        "result": 300,
+        "source": "the same goods, paid container by container"
+       },
+       {
+        "op": "×",
+        "label": "Share in 280",
+        "value": 1,
+        "result": 300,
+        "source": "goods on board 3,000.00 of 3,000.00 — 1 paid container left out"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:902:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 902,
+      "poNumber": "JF-PO-902",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "amount": 140,
+      "dueDate": "2026-11-29",
+      "contractualDate": "2026-11-29",
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 0.0625,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container",
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 3200,
+        "result": 3200,
+        "source": "2 priced lines 3,200.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 960,
+        "result": 2240,
+        "source": "the supplier’s invoice deducts it, so it went out"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 2240,
+        "result": 2240,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 0.0625,
+        "result": 140,
+        "source": "goods on board 200.00 of 3,200.00"
+       }
+      ]
+     }
+    ],
+    "pos": [
+     {
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Foreu Corporation",
+      "supplierRaw": "Foreu Corporation",
+      "currency": "USD",
+      "poTotal": 5000,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9101,
+      "linesValue": 5000,
+      "shippingTotal": 0,
+      "lineCount": 3,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 2700,
+      "assumedPaid": 0,
+      "shipmentPaid": 1200,
+      "shipmentStated": 3150,
+      "stated": 300,
+      "remainder": 2000,
+      "derivedDeposit": 0,
+      "derivedBalance": 2000,
+      "outstanding": 2300,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "30% deposit, balance 30 days after B/L",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "280",
+        "share": 0.6,
+        "lineCount": 1,
+        "units": 1000,
+        "value": 3000,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-10",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": "281",
+        "share": 0.4,
+        "lineCount": 2,
+        "units": 700,
+        "value": 2000,
+        "dueDate": "2026-09-19",
+        "contractualDate": "2026-09-19",
+        "landed": true,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-08-20",
+        "eta": "2026-09-24",
+        "settledBy": "payment",
+        "airOwed": false,
+        "deliveredOn": "2026-09-25"
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "invoice_total_used",
+       "currency_mismatch"
+      ],
+      "items": [
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 901,
+        "poNumber": "JF-PO-901",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9102,
+        "paymentId": 102,
+        "shipmentPaymentId": null,
+        "id": "stated:102:280",
+        "amount": 300,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "trigger": "bl",
+        "containerNumber": "280",
+        "containerShare": 0.6,
+        "blocked": null,
+        "flags": [
+         "currency_mismatch",
+         "superseded_by_shipment_invoice",
+         "derived_date",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Balance PI",
+          "value": 1500,
+          "result": 1500,
+          "source": "PI-901-balance.pdf — what the PI asks for"
+         },
+         {
+          "op": "−",
+          "label": "Covered by paid container balances",
+          "value": 1200,
+          "result": 300,
+          "source": "the same goods, paid container by container"
+         },
+         {
+          "op": "×",
+          "label": "Share in 280",
+          "value": 1,
+          "result": 300,
+          "source": "goods on board 3,000.00 of 3,000.00 — 1 paid container left out"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:901:280",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 901,
+        "poNumber": "JF-PO-901",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "amount": 2000,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "trigger": "bl",
+        "containerNumber": "280",
+        "containerShare": 0.6,
+        "status": "pending",
+        "blocked": null,
+        "shipmentPaymentId": 7001,
+        "flags": [
+         "currency_mismatch",
+         "invoice_vs_share"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 5000,
+          "result": 5000,
+          "source": "PI total — PI-901.pdf"
+         },
+         {
+          "op": "−",
+          "label": "Paid so far",
+          "value": 2700,
+          "result": 2300,
+          "source": "deposit PI marked paid 1,500.00 · paid container balances 1,200.00"
+         },
+         {
+          "op": "−",
+          "label": "Asked for on open PIs",
+          "value": 300,
+          "result": 2000,
+          "source": "each open PI is a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 2000,
+          "result": 2000
+         },
+         {
+          "op": "×",
+          "label": "Share in 280",
+          "value": 1,
+          "result": 2000,
+          "source": "goods on board 3,000.00 of 3,000.00 — 1 paid container left out"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 902,
+      "poNumber": "JF-PO-902",
+      "supplier": "Foreu Corporation",
+      "supplierRaw": "Foreu Corporation",
+      "currency": "USD",
+      "poTotal": 3200,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 3200,
+      "shippingTotal": 0,
+      "lineCount": 2,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 960,
+      "shipmentPaid": 0,
+      "shipmentStated": 1800,
+      "stated": 0,
+      "remainder": 3200,
+      "derivedDeposit": 960,
+      "derivedBalance": 2240,
+      "outstanding": 2240,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "30% deposit, balance 30 days after B/L",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "280",
+        "share": 0.9375,
+        "lineCount": 1,
+        "units": 1500,
+        "value": 3000,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-10",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": null,
+        "share": 0.0625,
+        "lineCount": 1,
+        "units": 100,
+        "value": 200,
+        "dueDate": "2026-11-29",
+        "contractualDate": "2026-11-29",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": "shipment",
+        "flags": [
+         "no_container",
+         "estimated"
+        ],
+        "etd": "2026-10-30",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid",
+       "deposit_deducted"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:902:280",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 902,
+        "poNumber": "JF-PO-902",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "amount": 2100,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "trigger": "bl",
+        "containerNumber": "280",
+        "containerShare": 0.9375,
+        "status": "arranged",
+        "blocked": null,
+        "shipmentPaymentId": 7003,
+        "flags": [
+         "arranged",
+         "invoice_vs_share"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 3200,
+          "result": 3200,
+          "source": "2 priced lines 3,200.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 960,
+          "result": 2240,
+          "source": "the supplier’s invoice deducts it, so it went out"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 2240,
+          "result": 2240,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 280",
+          "value": 0.9375,
+          "result": 2100,
+          "source": "goods on board 3,000.00 of 3,200.00"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:902:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 902,
+        "poNumber": "JF-PO-902",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "amount": 140,
+        "dueDate": "2026-11-29",
+        "contractualDate": "2026-11-29",
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 0.0625,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container",
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 3200,
+          "result": 3200,
+          "source": "2 priced lines 3,200.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 960,
+          "result": 2240,
+          "source": "the supplier’s invoice deducts it, so it went out"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 2240,
+          "result": 2240,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 0.0625,
+          "result": 140,
+          "source": "goods on board 200.00 of 3,200.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 903,
+      "poNumber": "JF-PO-903",
+      "supplier": "Guilin Yoho Co., Ltd",
+      "supplierRaw": "Guilin Yoho Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 300,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 300,
+      "derivedBalance": 700,
+      "outstanding": 700,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30D/70B BOL",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "280",
+        "share": 1,
+        "lineCount": 1,
+        "units": 400,
+        "value": 1000,
+        "dueDate": "2026-09-10",
+        "contractualDate": "2026-09-10",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-10",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:903:280",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 903,
+        "poNumber": "JF-PO-903",
+        "supplier": "Guilin Yoho Co., Ltd",
+        "currency": "USD",
+        "amount": 700,
+        "dueDate": "2026-09-10",
+        "contractualDate": "2026-09-10",
+        "trigger": "bl",
+        "containerNumber": "280",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 300,
+          "result": 700,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 700,
+          "result": 700,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 280",
+          "value": 1,
+          "result": 700,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "outstanding": 4540,
+      "overdue": 0,
+      "due30": 4400,
+      "unscheduled": 0,
+      "paid": 2700,
+      "assumedPaid": 960,
+      "poCount": 2,
+      "itemCount": 4,
+      "nextDue": "2026-10-10",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "30% deposit, balance 30 days after B/L",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% deposit, balance 30 days after B/L",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Guilin Yoho Co., Ltd",
+      "currency": "USD",
+      "outstanding": 700,
+      "overdue": 700,
+      "due30": 0,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 300,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": "2026-09-10",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30D/70B BOL",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30D/70B BOL",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "280",
+      "currency": "USD",
+      "amount": 5100,
+      "dueDate": "2026-09-10",
+      "etd": "2026-09-10",
+      "eta": null,
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-903",
+       "JF-PO-902",
+       "JF-PO-901"
+      ],
+      "itemCount": 4,
+      "payables": [
+       {
+        "supplier": "Foreu Corporation",
+        "amount": 4400,
+        "dueDate": "2026-10-10",
+        "poNumbers": [
+         "JF-PO-902",
+         "JF-PO-901"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:902:280",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 902,
+          "poNumber": "JF-PO-902",
+          "supplier": "Foreu Corporation",
+          "currency": "USD",
+          "amount": 2100,
+          "dueDate": "2026-10-10",
+          "contractualDate": "2026-10-10",
+          "trigger": "bl",
+          "containerNumber": "280",
+          "containerShare": 0.9375,
+          "status": "arranged",
+          "blocked": null,
+          "shipmentPaymentId": 7003,
+          "flags": [
+           "arranged",
+           "invoice_vs_share"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 3200,
+            "result": 3200,
+            "source": "2 priced lines 3,200.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 960,
+            "result": 2240,
+            "source": "the supplier’s invoice deducts it, so it went out"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 2240,
+            "result": 2240,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 280",
+            "value": 0.9375,
+            "result": 2100,
+            "source": "goods on board 3,000.00 of 3,200.00"
+           }
+          ]
+         },
+         {
+          "id": "derived:bal:901:280",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 901,
+          "poNumber": "JF-PO-901",
+          "supplier": "Foreu Corporation",
+          "currency": "USD",
+          "amount": 2000,
+          "dueDate": "2026-10-10",
+          "contractualDate": "2026-10-10",
+          "trigger": "bl",
+          "containerNumber": "280",
+          "containerShare": 0.6,
+          "status": "pending",
+          "blocked": null,
+          "shipmentPaymentId": 7001,
+          "flags": [
+           "currency_mismatch",
+           "invoice_vs_share"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 5000,
+            "result": 5000,
+            "source": "PI total — PI-901.pdf"
+           },
+           {
+            "op": "−",
+            "label": "Paid so far",
+            "value": 2700,
+            "result": 2300,
+            "source": "deposit PI marked paid 1,500.00 · paid container balances 1,200.00"
+           },
+           {
+            "op": "−",
+            "label": "Asked for on open PIs",
+            "value": 300,
+            "result": 2000,
+            "source": "each open PI is a payment of its own"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 2000,
+            "result": 2000
+           },
+           {
+            "op": "×",
+            "label": "Share in 280",
+            "value": 1,
+            "result": 2000,
+            "source": "goods on board 3,000.00 of 3,000.00 — 1 paid container left out"
+           }
+          ]
+         },
+         {
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 901,
+          "poNumber": "JF-PO-901",
+          "supplier": "Foreu Corporation",
+          "currency": "USD",
+          "status": "pending",
+          "invoiceId": 9102,
+          "paymentId": 102,
+          "shipmentPaymentId": null,
+          "id": "stated:102:280",
+          "amount": 300,
+          "dueDate": "2026-10-10",
+          "contractualDate": "2026-10-10",
+          "trigger": "bl",
+          "containerNumber": "280",
+          "containerShare": 0.6,
+          "blocked": null,
+          "flags": [
+           "currency_mismatch",
+           "superseded_by_shipment_invoice",
+           "derived_date",
+           "multi_container"
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Balance PI",
+            "value": 1500,
+            "result": 1500,
+            "source": "PI-901-balance.pdf — what the PI asks for"
+           },
+           {
+            "op": "−",
+            "label": "Covered by paid container balances",
+            "value": 1200,
+            "result": 300,
+            "source": "the same goods, paid container by container"
+           },
+           {
+            "op": "×",
+            "label": "Share in 280",
+            "value": 1,
+            "result": 300,
+            "source": "goods on board 3,000.00 of 3,000.00 — 1 paid container left out"
+           }
+          ]
+         }
+        ],
+        "payments": [
+         {
+          "id": 7001,
+          "shipmentId": 321,
+          "shipmentReference": "280",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Foreu Corporation",
+          "supplierKey": "foreu corporation",
+          "kind": "balance",
+          "amount": 4200,
+          "currency": "USD",
+          "invoiceNumber": "FR-280",
+          "invoiceDate": "2026-09-14",
+          "dueDate": null,
+          "invoiceTotal": 6000,
+          "depositDeducted": 1800,
+          "status": "pending",
+          "paidOn": null,
+          "allocations": [
+           {
+            "id": 1,
+            "purchaseOrderId": 901,
+            "poRef": "JF-PO-901",
+            "poNumber": "JF-PO-901",
+            "amount": 1500,
+            "source": "extracted"
+           }
+          ],
+          "appliedTotal": 0,
+          "remaining": 4200,
+          "settledByPaymentId": null
+         },
+         {
+          "id": 7003,
+          "shipmentId": 321,
+          "shipmentReference": "280",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Foreu Corporation",
+          "supplierKey": "foreu corporation",
+          "kind": "balance",
+          "amount": 300,
+          "currency": "USD",
+          "invoiceNumber": "FR-280-B",
+          "invoiceDate": null,
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "arranged",
+          "paidOn": null,
+          "allocations": [
+           {
+            "id": 2,
+            "purchaseOrderId": 902,
+            "poRef": "902",
+            "poNumber": "JF-PO-902",
+            "amount": 450,
+            "source": "manual"
+           }
+          ],
+          "appliedTotal": 0,
+          "remaining": 300,
+          "settledByPaymentId": null
+         },
+         {
+          "id": 7006,
+          "shipmentId": 321,
+          "shipmentReference": "280 ",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Foreu Corporation",
+          "supplierKey": "foreu corporation",
+          "kind": "balance",
+          "amount": 500,
+          "currency": "USD",
+          "invoiceNumber": "FR-280-OLD",
+          "invoiceDate": null,
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "skipped",
+          "paidOn": null,
+          "allocations": [],
+          "appliedTotal": 0,
+          "remaining": 500,
+          "settledByPaymentId": null
+         }
+        ],
+        "documents": [
+         {
+          "id": 8001,
+          "shipmentId": 321,
+          "shipmentReference": "280",
+          "supplierName": "Foreu Corporation",
+          "paymentId": 7001,
+          "supplierPaymentId": null,
+          "docKind": "balance_invoice",
+          "filename": "INV-280.pdf",
+          "extractStatus": "succeeded",
+          "extractError": null,
+          "createdAt": "2026-09-14 12:00:00"
+         }
+        ]
+       },
+       {
+        "supplier": "Guilin Yoho Co., Ltd",
+        "amount": 700,
+        "dueDate": "2026-09-10",
+        "poNumbers": [
+         "JF-PO-903"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:903:280",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 903,
+          "poNumber": "JF-PO-903",
+          "supplier": "Guilin Yoho Co., Ltd",
+          "currency": "USD",
+          "amount": 700,
+          "dueDate": "2026-09-10",
+          "contractualDate": "2026-09-10",
+          "trigger": "bl",
+          "containerNumber": "280",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 300,
+            "result": 700,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 700,
+            "result": 700,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 280",
+            "value": 1,
+            "result": 700,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": [
+         {
+          "id": 8003,
+          "shipmentId": 321,
+          "shipmentReference": "280",
+          "supplierName": "Guilin Yoho Co., Ltd",
+          "paymentId": null,
+          "supplierPaymentId": null,
+          "docKind": "balance_invoice",
+          "filename": "yoho-280.pdf",
+          "extractStatus": "processing",
+          "extractError": null,
+          "createdAt": "2026-09-28 12:00:00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "containerNumber": "281",
+      "currency": "USD",
+      "amount": 0,
+      "dueDate": null,
+      "etd": "2026-08-20",
+      "eta": "2026-09-24",
+      "landed": true,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [],
+      "itemCount": 0,
+      "payables": [
+       {
+        "supplier": "Foreu Corporation",
+        "amount": 0,
+        "dueDate": null,
+        "poNumbers": [],
+        "items": [],
+        "payments": [
+         {
+          "id": 7002,
+          "shipmentId": 322,
+          "shipmentReference": "281",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "FOREU CORPORATION",
+          "supplierKey": "foreu corporation",
+          "kind": "balance",
+          "amount": 1200,
+          "currency": "USD",
+          "invoiceNumber": "FR-281",
+          "invoiceDate": "2026-09-01",
+          "dueDate": "2026-09-20",
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "paid",
+          "paidOn": "2026-09-20",
+          "allocations": [],
+          "appliedTotal": 1200,
+          "remaining": 0,
+          "settledByPaymentId": 5101
+         },
+         {
+          "id": 7004,
+          "shipmentId": 322,
+          "shipmentReference": "281",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Foreu Corporation",
+          "supplierKey": "foreu corporation",
+          "kind": "balance",
+          "amount": 200,
+          "currency": "USD",
+          "invoiceNumber": "FR-281-C",
+          "invoiceDate": null,
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "pending",
+          "paidOn": null,
+          "allocations": [
+           {
+            "id": 3,
+            "purchaseOrderId": 999,
+            "poRef": "JF-PO-999",
+            "poNumber": null,
+            "amount": 200,
+            "source": "extracted"
+           },
+           {
+            "id": 4,
+            "purchaseOrderId": null,
+            "poRef": "??",
+            "poNumber": null,
+            "amount": 50,
+            "source": "extracted"
+           }
+          ],
+          "appliedTotal": 0,
+          "remaining": 200,
+          "settledByPaymentId": null
+         }
+        ],
+        "documents": [
+         {
+          "id": 8005,
+          "shipmentId": 322,
+          "shipmentReference": "281",
+          "supplierName": "Foreu Corporation",
+          "paymentId": null,
+          "supplierPaymentId": null,
+          "docKind": "balance_invoice",
+          "filename": "INV-281-v2.pdf",
+          "extractStatus": "failed",
+          "extractError": null,
+          "createdAt": "2026-09-22 12:00:00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "containerNumber": "290",
+      "currency": "USD",
+      "amount": 0,
+      "dueDate": null,
+      "etd": null,
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": false,
+      "poNumbers": [],
+      "itemCount": 0,
+      "payables": [
+       {
+        "supplier": "Nobody Trading",
+        "amount": 0,
+        "dueDate": null,
+        "poNumbers": [],
+        "items": [],
+        "payments": [
+         {
+          "id": 7005,
+          "shipmentId": 329,
+          "shipmentReference": "290",
+          "link": "missing",
+          "mergedIntoId": null,
+          "supplierName": "Nobody Trading",
+          "supplierKey": "nobody trading",
+          "kind": "balance",
+          "amount": 800,
+          "currency": "USD",
+          "invoiceNumber": null,
+          "invoiceDate": null,
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "pending",
+          "paidOn": null,
+          "allocations": [],
+          "appliedTotal": 0,
+          "remaining": 800,
+          "settledByPaymentId": null
+         }
+        ],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": [
+     {
+      "kind": "shipment_payment_currency",
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "detail": "Balance invoice for 281 is in EUR, this PO is in USD — the PO's currency is used",
+      "amount": null,
+      "shipmentReference": "281"
+     },
+     {
+      "kind": "extraction_failed",
+      "poId": 0,
+      "poNumber": "—",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "shipmentReference": "283",
+      "detail": "INV-283.pdf for 283 could not be read: no text layer — re-run it or record the figures by hand",
+      "amount": null
+     },
+     {
+      "kind": "extraction_failed",
+      "poId": 0,
+      "poNumber": "—",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "shipmentReference": "281",
+      "detail": "INV-281-v2.pdf for 281 could not be read — re-run it or record the figures by hand",
+      "amount": null
+     },
+     {
+      "kind": "shipment_payment_mismatch",
+      "poId": 0,
+      "poNumber": "—",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "shipmentReference": "280",
+      "detail": "The split of the 280 invoice adds up to 450, more than the 300 invoiced",
+      "amount": 150
+     },
+     {
+      "kind": "shipment_payment_mismatch",
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "detail": "A balance of 2,850 is recorded for 280, the terms say 2,000 — the terms figure is what is owed",
+      "amount": 850,
+      "shipmentReference": "280"
+     },
+     {
+      "kind": "shipment_payment_mismatch",
+      "poId": 902,
+      "poNumber": "JF-PO-902",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "detail": "A balance of 1,800 is recorded for 280, the terms say 2,100 — the terms figure is what is owed",
+      "amount": -300,
+      "shipmentReference": "280"
+     },
+     {
+      "kind": "shipment_payment_mismatch",
+      "poId": 0,
+      "poNumber": "JF-PO-999",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "shipmentReference": "281",
+      "detail": "200 on the 281 invoice is attributed to JF-PO-999, which has no lines in that container",
+      "amount": 200
+     },
+     {
+      "kind": "shipment_payment_unallocated",
+      "poId": 0,
+      "poNumber": "—",
+      "supplier": "Nobody Trading",
+      "currency": "USD",
+      "shipmentReference": "290",
+      "detail": "800 invoiced for 290, but no purchase order for this supplier has lines in that container",
+      "amount": 800
+     },
+     {
+      "kind": "shipment_payment_unallocated",
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "detail": "2,700 of the 280 invoice names no purchase order — shared out by value by what each has on board",
+      "amount": 2700,
+      "shipmentReference": "280"
+     },
+     {
+      "kind": "shipment_payment_unallocated",
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "detail": "200 of the 281 invoice names no purchase order — shared out by value by what each has on board",
+      "amount": 200,
+      "shipmentReference": "281"
+     }
+    ]
+   }
+  ],
+  "poCount": 3
+ }
+}

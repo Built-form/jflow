@@ -1,0 +1,88 @@
+{
+  "description": "Instants near midnight UTC. Shipment stage moments are instants and go through dateOfInstant (London): 2026-09-11T23:30Z departs on the 12th in the UK, so a before-dispatch balance is due today, not overdue (on a UTC host the unpinned TS would say the 11th). Offsets, zone-less datetimes, a winter instant and dates that are only sliced (dateOf: PI uploads, ShipsGo times) sit alongside. `instants` checks dateOfInstant directly, incl. both BST switch nights.",
+  "input": {
+    "today": "2026-09-12",
+    "orders": [
+      { "id": "160101", "status": "CONSOLIDATED", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1601, "poNumber": "JF-PO-1601", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "330", "poDate": "2026-08-01" },
+      { "id": "160201", "status": "ON_AIR", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1602, "poNumber": "JF-PO-1602", "supplier": "Foreu Corporation", "containerNumber": "331", "poDate": "2026-08-01" },
+      { "id": "160301", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1603, "poNumber": "JF-PO-1603", "supplier": "Guilin Yoho Co., Ltd", "containerNumber": "332", "externalContainerNumber": "TGHU7654321", "poDate": "2026-08-01" },
+      { "id": "160401", "status": "ARRIVED_AT_WAREHOUSE", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1604, "poNumber": "JF-PO-1604", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "333", "poDate": "2026-01-02" },
+      { "id": "160501", "status": "CONSOLIDATED", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1605, "poNumber": "JF-PO-1605", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "334", "poDate": "2026-08-01" },
+      { "id": "160601", "status": "CONSOLIDATED", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1606, "poNumber": "JF-PO-1606", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "335", "poDate": "2026-08-01" }
+    ],
+    "poBundles": {
+      "1601": { "id": 1601, "poNumber": "JF-PO-1601", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31T23:30:00.000Z", "updatedAt": "2026-07-31T23:30:00.000Z", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1602": {
+        "id": 1602, "poNumber": "JF-PO-1602", "supplier": "Foreu Corporation", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9161, "purchaseOrderId": 1602, "filename": "PI-1602.pdf", "uploadedAt": "2026-08-01T23:45:00.000Z", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1603": { "id": 1603, "poNumber": "JF-PO-1603", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1604": {
+        "id": 1604, "poNumber": "JF-PO-1604", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-01-01 09:00:00", "updatedAt": "2026-09-11T23:50:00.000Z", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9164, "purchaseOrderId": 1604, "filename": "PI-1604.pdf", "uploadedAt": "2026-09-11T23:45:00.000Z", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1605": { "id": 1605, "poNumber": "JF-PO-1605", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1606": { "id": 1606, "poNumber": "JF-PO-1606", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] }
+    },
+    "invoicePayments": [
+      { "id": 161, "invoiceId": 9161, "purchaseOrderId": 1602, "paymentType": "deposit", "amountDue": 300, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 1000, "dueDate": null, "dueTerms": "30% deposit, 70% 7 days after arrival", "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-08-02T23:30:00.000Z" },
+      { "id": 164, "invoiceId": 9164, "purchaseOrderId": 1604, "paymentType": "balance", "amountDue": 500, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": null, "dueTerms": "T/T 60 days from PI date", "rawTermsText": null, "paymentStatus": "pending", "updatedAt": "2026-09-11T23:50:00.000Z" }
+    ],
+    "suppliers": [
+      { "supplierId": 1, "name": "Suzhou Sunmed Co.,Ltd.", "paymentTerms": "payment before dispatch", "tags": [] },
+      { "supplierId": 3, "name": "Foreu Corporation", "paymentTerms": "30% deposit, 70% 7 days after arrival", "tags": [] },
+      { "supplierId": 2, "name": "Guilin Yoho Co., Ltd", "paymentTerms": "30D/70B BOL", "tags": [] }
+    ],
+    "containerIndex": {
+      "TGHU7654321": {
+        "containerNumber": "TGHU7654321", "pol": { "name": "Ningbo", "locode": "CNNGB" }, "pod": { "name": "Southampton", "locode": "GBSOU" },
+        "times": { "departure": "2026-09-11T23:59:00Z", "departureIsActual": true, "eta": "2026-10-20T23:30:00Z", "ata": null }
+      }
+    },
+    "rules": [],
+    "shipmentPayments": [],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": []
+  },
+  "shipments": [
+    { "id": 501, "reference": "330", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-11T23:30:00.000Z", "arrivedAt": null, "blNumber": null },
+    { "id": 502, "reference": "331", "stage": "ARRIVED", "mode": "AIR", "ata": null, "departedAt": "2026-09-09T01:30:00+08:00", "arrivedAt": "2026-09-11T23:05:00Z", "blNumber": null },
+    { "id": 503, "reference": "332", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-11T22:59:00Z", "arrivedAt": null, "blNumber": null },
+    { "id": 504, "reference": "333", "stage": "CLOSED", "mode": "SEA", "ata": "2026-01-16", "departedAt": "2025-12-01T23:30:00Z", "arrivedAt": "2026-01-15T23:30:00Z", "blNumber": null },
+    { "id": 505, "reference": "334", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-11T23:30:00", "arrivedAt": null, "blNumber": null },
+    { "id": 506, "reference": "335", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-12T00:15:00+01:00", "arrivedAt": null, "blNumber": null }
+  ],
+  "instants": [
+    "2026-09-11T23:30:00.000Z",
+    "2026-09-11T22:59:59Z",
+    "2026-09-11T23:00:00Z",
+    "2026-09-11T23:30:00.000+00:00",
+    "2026-09-12T00:15:00+01:00",
+    "2026-09-11T19:30:00-04:00",
+    "2026-09-12T07:00:00+0800",
+    "2026-03-28T23:30:00Z",
+    "2026-03-29T00:59:59Z",
+    "2026-03-29T01:00:00Z",
+    "2026-10-24T23:30:00Z",
+    "2026-10-25T00:30:00Z",
+    "2026-10-25T01:30:00Z",
+    "2025-12-31T23:59:59.999Z",
+    "2026-06-30T23:00:00Z",
+    " 2026-09-11T23:30:00Z ",
+    "2026-09-11T23:30:00",
+    "2026-09-11 23:30:00Z",
+    "2026-09-11",
+    "2026-09-31",
+    "2026-09-32",
+    "2026-13-01",
+    "2026-00-10",
+    "2026-09-00",
+    "0000-00-00",
+    "20260911",
+    "2026-02-30T23:30:00Z",
+    "0000-00-00T00:00:00Z",
+    "not a date",
+    "",
+    null
+  ]
+}

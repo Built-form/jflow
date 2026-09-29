@@ -1,10 +1,11 @@
 'use strict';
 
 // Ship lines in /forecast (Phase 2 step 20; CONTRACT §6.10, §6.12, §8 rules 6 and 11,
-// §9.3.1, P4–P9), end to end against a per-run jflow_test_<runid> schema and the stub
-// shipping server (test/helpers/shippingStub.js). The feed reaches external_items only
-// through the real refresh (POST /external/refresh, or /forecast's own refreshIfStale);
-// overlays are SQL, as step 21's routes will leave them. No real shipping call is made.
+// §9.3.1, P4–P9), end to end against a per-run jflow_test_<runid> schema, with shipping's
+// data served by an in-process stand-in for services/shippingSource.js
+// (test/helpers/shippingSourceStub.js). The feed reaches external_items only through the
+// real refresh (POST /external/refresh, or /forecast's own refreshIfStale); overlays are
+// SQL, as step 21's routes will leave them. No real shipping data is read.
 //
 // Pinned here:
 //   · the Stock payments row: ship lines, accounts by currency else the company default
@@ -12,20 +13,19 @@
 //   · SHIP_UNMAPPED per shipping company, and re-mapping moving rows on the next /forecast;
 //   · GET /external-items: its shape, filters and order, and derivedStatus agreeing with
 //     /forecast for every row (null for undated, gone and unmapped rows);
-//   · a failed refresh → 200 + SHIPPING_UNAVAILABLE on the last snapshot (http_500,
-//     unreachable, unconfigured), include=summary keeping the shipping block;
+//   · a failed refresh → 200 + SHIPPING_UNAVAILABLE on the last snapshot (source_error,
+//     source_schema), include=summary keeping the shipping block;
 //   · rule 6 / loadTarget for ship. keys, and a draft scenario's ship. adjustments;
 //   · FX_RATE_MISSING for a ship currency.
 
 const { startHarness } = require('./harness');
-const { startShippingStub, feedItem, feedBody } = require('../helpers/shippingStub');
+const { stubShippingSource, feedItem, feedBody } = require('../helpers/shippingSourceStub');
 const { insertScenario, insertAdjustment } = require('./forecastHelpers');
 const { toGbp, parseRate } = require('../../src/lib/money');
 const { parseKey } = require('../../src/lib/keys');
 
 jest.setTimeout(240000);
 
-const KEY = 'e2e-forecast-ship-key';
 const TODAY = '2026-09-29';
 const A = '2026-09-20';
 const USD = '0.786543';
@@ -40,17 +40,13 @@ let load;
 
 beforeAll(async () => {
     h = await startHarness();
-    stub = await startShippingStub();
-    process.env.SHIPPING_API_BASE = stub.url;
-    process.env.SHIPPING_API_KEY = KEY;
+    stub = stubShippingSource();
     db = require('../../src/db');
     load = require('../../src/services/forecastLoad');
 });
 
 afterAll(async () => {
-    delete process.env.SHIPPING_API_BASE;
-    delete process.env.SHIPPING_API_KEY;
-    if (stub) await stub.close();
+    if (stub) stub.restore();
     if (h) await h.stop();
 });
 
@@ -80,7 +76,7 @@ const releaseClaim = () => h.sql("UPDATE external_sync SET last_attempt_at = NUL
 async function refreshWith(items) {
     await releaseClaim();
     stub.reset();
-    stub.respondJson(200, feedBody(items));
+    stub.respond(feedBody(items));
     await q(api().post('/api/v1/external/refresh')).expect(200);
 }
 const overlay = (extId, set) => h.sql(`UPDATE external_items SET ${set} WHERE source = 'ship' AND ext_id = ?`, [extId]);
@@ -348,15 +344,15 @@ describe('ship lines in /forecast (step 20)', () => {
     test('a failed refresh → 200 + SHIPPING_UNAVAILABLE on the last snapshot; include=summary keeps shipping', async () => {
         const before = await ok({ companyId: co1.id });
         const lastSuccessAt = before.shipping.lastSuccessAt;
-        // Make the snapshot due, then fail the fetch.
+        // Make the snapshot due, then fail the read.
         expect(typeof lastSuccessAt).toBe('string');
         await h.sql("UPDATE external_sync SET last_success_at = last_success_at - INTERVAL 11 MINUTE, last_attempt_at = NULL WHERE source = 'ship'");
         const stale = (await h.sql("SELECT last_success_at FROM external_sync WHERE source = 'ship'"))[0].last_success_at.toISOString();
         stub.reset();
-        stub.respondJson(500, { error: 'An internal error occurred.' });
+        stub.fail('source_error');
 
         const body = await ok({ companyId: co1.id });
-        expect(body.warnings).toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'http_500', lastSuccessAt: stale });
+        expect(body.warnings).toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'source_error', lastSuccessAt: stale });
         expect(body.shipping).toMatchObject({ lastSuccessAt: stale, openCount: 8 });
         expect(lineOf(body, 'ship.bal-812-s311').accountId).toBe(a3.id);          // the last snapshot, unchanged
         expect(stub.requests).toHaveLength(1);
@@ -365,31 +361,33 @@ describe('ship lines in /forecast (step 20)', () => {
         const summary = await ok({ companyId: co1.id, include: 'summary' });
         expect('rows' in summary).toBe(false);
         expect(summary.shipping).toMatchObject({ lastSuccessAt: stale, undatedCount: 1 });
-        expect(summary.warnings).toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'http_500', lastSuccessAt: stale });
+        expect(summary.warnings).toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'source_error', lastSuccessAt: stale });
         expect(stub.requests).toHaveLength(1);
 
-        // Unreachable, then unconfigured (no call made).
+        // A source that throws something else (a bug, not an unavailable) is reported as
+        // source_error; then an invalid SHIPPING_DB_SCHEMA through the real source is source_schema.
+        const saved = process.env.SHIPPING_DB_SCHEMA;
         try {
-            process.env.SHIPPING_API_BASE = 'http://127.0.0.1:1';
-            await releaseClaim();
-            expect((await ok({ companyId: co1.id })).warnings)
-                .toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'unreachable', lastSuccessAt: stale });
-            process.env.SHIPPING_API_BASE = stub.url;
-            delete process.env.SHIPPING_API_KEY;
             await releaseClaim();
             stub.reset();
+            stub.respondWith(() => { throw new TypeError('boom'); });
             expect((await ok({ companyId: co1.id })).warnings)
-                .toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'unconfigured', lastSuccessAt: stale });
-            expect(stub.requests).toHaveLength(0);
+                .toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'source_error', lastSuccessAt: null });
+            process.env.SHIPPING_DB_SCHEMA = 'no such schema';
+            await releaseClaim();
+            stub.reset();
+            stub.passThrough();
+            expect((await ok({ companyId: co1.id })).warnings)
+                .toContainEqual({ code: 'SHIPPING_UNAVAILABLE', reason: 'source_schema', lastSuccessAt: stale });
+            expect(stub.requests).toHaveLength(1);
         } finally {
-            process.env.SHIPPING_API_BASE = stub.url;
-            process.env.SHIPPING_API_KEY = KEY;
+            process.env.SHIPPING_DB_SCHEMA = saved;
         }
 
         // The feed is back: the next due /forecast refreshes and the warning goes.
         await releaseClaim();
         stub.reset();
-        stub.respondJson(200, feedBody(WITHOUT_919));
+        stub.respond(feedBody(WITHOUT_919));
         const back = await ok({ companyId: co1.id });
         expect(back.warnings.some((w) => w.code === 'SHIPPING_UNAVAILABLE')).toBe(false);
         expect(back.shipping.lastSuccessAt > stale).toBe(true);

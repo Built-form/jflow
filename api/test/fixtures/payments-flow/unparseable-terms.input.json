@@ -1,0 +1,54 @@
+{
+  "description": "Terms the parser cannot or can only partly read: L/C terms, a supplier not in JFPRO, a legacy-only record with blank terms, a native record with no terms, multi-stage (partial), deposit only, net N, 'as per contract' rescued by the PI's own terms, a deposit % back-filled from the PI, and a PO with no supplier at all.",
+  "input": {
+    "today": "2026-09-29",
+    "orders": [
+      { "id": "110101", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1101, "poNumber": "JF-PO-1101", "supplier": "Ningbo Tam Industrial Co., Ltd", "containerNumber": "310", "shippedDate": "2026-09-15", "poDate": "2026-08-01" },
+      { "id": "110201", "status": "PO_SENT", "quantity": 50, "unitPrice": 8, "purchaseOrderId": 1102, "poNumber": "JF-PO-1102", "supplier": "Mystery Trading", "poDate": "2026-09-01" },
+      { "id": "110301", "status": "READY_AT_FACTORY", "quantity": 20, "unitPrice": 30, "purchaseOrderId": 1103, "poNumber": "JF-PO-1103", "supplier": "Hangzhou Oldco Trading", "containerNumber": "311", "estimatedDepartureDate": "2026-10-02", "poDate": "2026-08-10" },
+      { "id": "110401", "status": "UNDER_PRODUCTION", "quantity": 60, "unitPrice": 15, "purchaseOrderId": 1104, "poNumber": "JF-PO-1104", "supplier": "Xiamen Brightway Co., Ltd", "poDate": "2026-09-05" },
+      { "id": "110501", "status": "CONSOLIDATED", "quantity": 300, "unitPrice": 2, "purchaseOrderId": 1105, "poNumber": "JF-PO-1105", "supplier": "Dongguan Partial Co., Ltd", "containerNumber": "313", "estimatedDepartureDate": "2026-10-10", "poDate": "2026-08-15" },
+      { "id": "110601", "status": "PO_SENT", "quantity": 100, "unitPrice": 5, "purchaseOrderId": 1106, "poNumber": "JF-PO-1106", "supplier": "Wenzhou Deposit Only Co., Ltd", "poDate": "2026-09-20" },
+      { "id": "110701", "status": "ON_SEA", "quantity": 100, "unitPrice": 7, "purchaseOrderId": 1107, "poNumber": "JF-PO-1107", "supplier": "Yiwu Net Terms Co., Ltd", "containerNumber": "314", "shippedDate": "2026-09-10", "poDate": "2026-08-01" },
+      { "id": "110801", "status": "UNDER_PRODUCTION", "quantity": 250, "unitPrice": 4, "purchaseOrderId": 1108, "poNumber": "JF-PO-1108", "supplier": "Qingdao Pictures Co., Ltd", "estimatedReadyDate": "2026-10-20", "poDate": "2026-09-02" },
+      { "id": "110901", "status": "UNDER_PRODUCTION", "quantity": 250, "unitPrice": 4, "purchaseOrderId": 1109, "poNumber": "JF-PO-1109", "supplier": "Qingdao Pictures Co., Ltd", "estimatedReadyDate": "2026-10-20", "poDate": "2026-09-02" },
+      { "id": "111001", "status": "SCHEDULED", "quantity": 10, "unitPrice": 9, "purchaseOrderId": 1110, "poNumber": "JF-PO-1110", "supplier": "   " },
+      { "id": "111101", "status": "PO_SENT", "quantity": 80, "unitPrice": 2.5, "purchaseOrderId": 1111, "poNumber": "JF-PO-1111", "supplier": "Ningbo Tam Industrial Co., Ltd", "poDate": "2026-09-12" }
+    ],
+    "poBundles": {
+      "1101": { "id": 1101, "poNumber": "JF-PO-1101", "supplier": "Ningbo Tam Industrial Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1102": { "id": 1102, "poNumber": "JF-PO-1102", "supplier": "Mystery Trading", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-08-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1103": { "id": 1103, "poNumber": "JF-PO-1103", "supplier": "Hangzhou Oldco Trading", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-08-09 09:00:00", "updatedAt": "2026-08-09 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1104": { "id": 1104, "poNumber": "JF-PO-1104", "supplier": "Xiamen Brightway Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-09-04 09:00:00", "updatedAt": "2026-09-04 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1105": { "id": 1105, "poNumber": "JF-PO-1105", "supplier": "Dongguan Partial Co., Ltd", "currency": "USD", "shippingTotal": 25, "companyId": 1, "createdAt": "2026-08-14 09:00:00", "updatedAt": "2026-08-14 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1106": { "id": 1106, "poNumber": "JF-PO-1106", "supplier": "Wenzhou Deposit Only Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-19 09:00:00", "updatedAt": "2026-09-19 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1107": { "id": 1107, "poNumber": "JF-PO-1107", "supplier": "Yiwu Net Terms Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1108": {
+        "id": 1108, "poNumber": "JF-PO-1108", "supplier": "Qingdao Pictures Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-01 09:00:00", "updatedAt": "2026-09-03 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9801, "purchaseOrderId": 1108, "filename": "PI-1108.pdf", "uploadedAt": "2026-09-03 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1109": {
+        "id": 1109, "poNumber": "JF-PO-1109", "supplier": "Qingdao Pictures Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-01 09:00:00", "updatedAt": "2026-09-03 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9901, "purchaseOrderId": 1109, "filename": "PI-1109.pdf", "uploadedAt": "2026-09-03 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1110": { "id": 1110, "poNumber": "", "supplier": null, "currency": "USD", "shippingTotal": 0, "companyId": null, "createdAt": "", "updatedAt": "2026-09-25 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1111": { "id": 1111, "poNumber": "JF-PO-1111", "supplier": null, "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-11 09:00:00", "updatedAt": "2026-09-11 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] }
+    },
+    "invoicePayments": [
+      { "id": 801, "invoiceId": 9801, "purchaseOrderId": 1108, "paymentType": "deposit", "amountDue": 300, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 1000, "dueDate": null, "dueTerms": "As per contract", "rawTermsText": "T/T 30% deposit, balance against copy of B/L", "paymentStatus": "pending", "updatedAt": "2026-09-03 09:05:00" },
+      { "id": 901, "invoiceId": 9901, "purchaseOrderId": 1109, "paymentType": "deposit", "amountDue": 400, "currency": "USD", "depositPercentage": 40, "invoiceTotal": null, "dueDate": "2026-09-10", "dueTerms": null, "rawTermsText": null, "paymentStatus": "pending", "updatedAt": "2026-09-03 09:05:00" }
+    ],
+    "suppliers": [
+      { "supplierId": 11, "name": "Ningbo Tam Industrial Co., Ltd", "paymentTerms": "L/C at sight", "tags": [] },
+      { "supplierId": 12, "name": "Hangzhou Oldco Trading", "paymentTerms": "", "tags": [{ "id": 1, "name": "shipsline-legacy", "type": "system" }] },
+      { "supplierId": 13, "name": "Xiamen Brightway Co., Ltd", "paymentTerms": null, "tags": [] },
+      { "supplierId": 14, "name": "Dongguan Partial Co., Ltd", "paymentTerms": "30% deposit, 40% before shipment, 30% 30 days after delivery", "tags": [] },
+      { "supplierId": 15, "name": "Wenzhou Deposit Only Co., Ltd", "paymentTerms": "Deposit 30% paid", "tags": [] },
+      { "supplierId": 16, "name": "Yiwu Net Terms Co., Ltd", "paymentTerms": "net 30", "tags": [] },
+      { "supplierId": 17, "name": "Qingdao Pictures Co., Ltd", "paymentTerms": "As per contract", "tags": [] }
+    ],
+    "shipmentPayments": [],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": []
+  }
+}

@@ -1,0 +1,3250 @@
+{
+ "fixture": "terms-triggers",
+ "source": {
+  "commit": "f9499bc",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 2786,
+    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-09-29",
+ "output": {
+  "today": "2026-09-29",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 3500,
+     "due7": 2700,
+     "due30": 5400,
+     "unscheduled": 0,
+     "outstanding": 10600,
+     "later": 1700,
+     "notPayable": 500,
+     "overdueCount": 4,
+     "itemCount": 13
+    },
+    "items": [
+     {
+      "id": "derived:dep:1905",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 1905,
+      "poNumber": "JF-PO-1905",
+      "supplier": "Advance Co., Ltd",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-09-01",
+      "contractualDate": "2026-09-01",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "×",
+        "label": "Deposit 100%",
+        "value": 1,
+        "result": 1000,
+        "source": "the supplier's terms in JFPRO “100% in advance”"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:1907",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 1907,
+      "poNumber": "JF-PO-1907",
+      "supplier": "Invoice Co., Ltd",
+      "currency": "USD",
+      "amount": 500,
+      "dueDate": "2026-09-01",
+      "contractualDate": "2026-09-01",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "×",
+        "label": "Deposit 50%",
+        "value": 0.5,
+        "result": 500,
+        "source": "the supplier's terms in JFPRO “50% deposit, 50% 1 month after invoice date”"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:1908",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 1908,
+      "poNumber": "JF-PO-1908",
+      "supplier": "Advance Co., Ltd",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-09-03",
+      "contractualDate": "2026-09-03",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "×",
+        "label": "Deposit 100%",
+        "value": 1,
+        "result": 1000,
+        "source": "the supplier's terms in JFPRO “100% in advance”"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1910:397",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1910,
+      "poNumber": "JF-PO-1910",
+      "supplier": "Dispatch Co., Ltd",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-09-21",
+      "contractualDate": "2026-09-21",
+      "trigger": "before_dispatch",
+      "containerNumber": "397",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1000,
+        "result": 1000,
+        "source": "100% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 397",
+        "value": 1,
+        "result": 1000,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1909:396",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1909,
+      "poNumber": "JF-PO-1909",
+      "supplier": "Bare Co., Ltd",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-09-29",
+      "contractualDate": "2026-09-29",
+      "trigger": "before_dispatch",
+      "containerNumber": "396",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_partial",
+       "departed_no_date"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 300,
+        "result": 700,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 700,
+        "result": 700,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 396",
+        "value": 1,
+        "result": 700,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1904:393",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1904,
+      "poNumber": "JF-PO-1904",
+      "supplier": "Delivery Co., Ltd",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-10-01",
+      "contractualDate": "2026-10-01",
+      "trigger": "delivery",
+      "containerNumber": "393",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1000,
+        "result": 1000,
+        "source": "100% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 393",
+        "value": 1,
+        "result": 1000,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1907:394",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1907,
+      "poNumber": "JF-PO-1907",
+      "supplier": "Invoice Co., Ltd",
+      "currency": "USD",
+      "amount": 500,
+      "dueDate": "2026-10-01",
+      "contractualDate": "2026-10-01",
+      "trigger": "invoice",
+      "containerNumber": "394",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 50% of the PO",
+        "value": 500,
+        "result": 500,
+        "source": "still to pay — a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 500,
+        "result": 500,
+        "source": "50% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 394",
+        "value": 1,
+        "result": 500,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1906:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1906,
+      "poNumber": "JF-PO-1906",
+      "supplier": "Invoice Co., Ltd",
+      "currency": "USD",
+      "amount": 500,
+      "dueDate": "2026-10-04",
+      "contractualDate": "2026-10-04",
+      "trigger": "invoice",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "PI total — PI-1906.pdf"
+       },
+       {
+        "op": "−",
+        "label": "Deposit paid",
+        "value": 500,
+        "result": 500,
+        "source": "deposit PI marked paid 500.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 500,
+        "result": 500,
+        "source": "50% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 500,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1901:390",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1901,
+      "poNumber": "JF-PO-1901",
+      "supplier": "Delivery Co., Ltd",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-10-20",
+      "contractualDate": "2026-10-20",
+      "trigger": "delivery",
+      "containerNumber": "390",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1000,
+        "result": 1000,
+        "source": "100% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 390",
+        "value": 1,
+        "result": 1000,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1902:391",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1902,
+      "poNumber": "JF-PO-1902",
+      "supplier": "Delivery Co., Ltd",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-10-24",
+      "contractualDate": "2026-10-24",
+      "trigger": "delivery",
+      "containerNumber": "391",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "derived_date"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1000,
+        "result": 1000,
+        "source": "100% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 391",
+        "value": 1,
+        "result": 1000,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1911:398",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1911,
+      "poNumber": "JF-PO-1911",
+      "supplier": "Arrival Co., Ltd",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-10-25",
+      "contractualDate": "2026-10-25",
+      "trigger": "arrival",
+      "containerNumber": "398",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 300,
+        "result": 700,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 700,
+        "result": 700,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 398",
+        "value": 1,
+        "result": 700,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1903:392",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1903,
+      "poNumber": "JF-PO-1903",
+      "supplier": "Delivery Co., Ltd",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-11-24",
+      "contractualDate": "2026-11-24",
+      "trigger": "delivery",
+      "containerNumber": "392",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1000,
+        "result": 1000,
+        "source": "100% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 392",
+        "value": 1,
+        "result": 1000,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1912:399",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1912,
+      "poNumber": "JF-PO-1912",
+      "supplier": "Arrival Co., Ltd",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-12-02",
+      "contractualDate": "2026-12-02",
+      "trigger": "arrival",
+      "containerNumber": "399",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 300,
+        "result": 700,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 700,
+        "result": 700,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 399",
+        "value": 1,
+        "result": 700,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     }
+    ],
+    "pos": [
+     {
+      "poId": 1901,
+      "poNumber": "JF-PO-1901",
+      "supplier": "Delivery Co., Ltd",
+      "supplierRaw": "Delivery Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 0,
+      "derivedBalance": 1000,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 0,
+       "balanceTrigger": "delivery",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "100% T/T 30 days after delivery",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "390",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "landed": true,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-08-20",
+        "eta": "2026-09-20",
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": "2026-09-20"
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:bal:1901:390",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1901,
+        "poNumber": "JF-PO-1901",
+        "supplier": "Delivery Co., Ltd",
+        "currency": "USD",
+        "amount": 1000,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "trigger": "delivery",
+        "containerNumber": "390",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1000,
+          "result": 1000,
+          "source": "100% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 390",
+          "value": 1,
+          "result": 1000,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1902,
+      "poNumber": "JF-PO-1902",
+      "supplier": "Delivery Co., Ltd",
+      "supplierRaw": "Delivery Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 0,
+      "derivedBalance": 1000,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 0,
+       "balanceTrigger": "delivery",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "100% T/T 30 days after delivery",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "391",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-10-24",
+        "contractualDate": "2026-10-24",
+        "landed": true,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [
+         "derived_date"
+        ],
+        "etd": "2026-08-22",
+        "eta": "2026-09-24",
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": "2026-09-24"
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:bal:1902:391",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1902,
+        "poNumber": "JF-PO-1902",
+        "supplier": "Delivery Co., Ltd",
+        "currency": "USD",
+        "amount": 1000,
+        "dueDate": "2026-10-24",
+        "contractualDate": "2026-10-24",
+        "trigger": "delivery",
+        "containerNumber": "391",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "derived_date"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1000,
+          "result": 1000,
+          "source": "100% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 391",
+          "value": 1,
+          "result": 1000,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1903,
+      "poNumber": "JF-PO-1903",
+      "supplier": "Delivery Co., Ltd",
+      "supplierRaw": "Delivery Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 0,
+      "derivedBalance": 1000,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 0,
+       "balanceTrigger": "delivery",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "100% T/T 30 days after delivery",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "392",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-11-24",
+        "contractualDate": "2026-11-24",
+        "landed": false,
+        "departed": true,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-09-15",
+        "eta": "2026-10-25",
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:bal:1903:392",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1903,
+        "poNumber": "JF-PO-1903",
+        "supplier": "Delivery Co., Ltd",
+        "currency": "USD",
+        "amount": 1000,
+        "dueDate": "2026-11-24",
+        "contractualDate": "2026-11-24",
+        "trigger": "delivery",
+        "containerNumber": "392",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1000,
+          "result": 1000,
+          "source": "100% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 392",
+          "value": 1,
+          "result": 1000,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1904,
+      "poNumber": "JF-PO-1904",
+      "supplier": "Delivery Co., Ltd",
+      "supplierRaw": "Delivery Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 0,
+      "derivedBalance": 1000,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 0,
+       "balanceTrigger": "delivery",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "100% T/T 30 days after delivery",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "393",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-10-01",
+        "contractualDate": "2026-10-01",
+        "landed": true,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": "2026-09-01"
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:bal:1904:393",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1904,
+        "poNumber": "JF-PO-1904",
+        "supplier": "Delivery Co., Ltd",
+        "currency": "USD",
+        "amount": 1000,
+        "dueDate": "2026-10-01",
+        "contractualDate": "2026-10-01",
+        "trigger": "delivery",
+        "containerNumber": "393",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1000,
+          "result": 1000,
+          "source": "100% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 393",
+          "value": 1,
+          "result": 1000,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1905,
+      "poNumber": "JF-PO-1905",
+      "supplier": "Advance Co., Ltd",
+      "supplierRaw": "Advance Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 1000,
+      "derivedBalance": 0,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "100% in advance",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-09-01",
+        "contractualDate": "2026-09-01",
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:dep:1905",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 1905,
+        "poNumber": "JF-PO-1905",
+        "supplier": "Advance Co., Ltd",
+        "currency": "USD",
+        "amount": 1000,
+        "dueDate": "2026-09-01",
+        "contractualDate": "2026-09-01",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "×",
+          "label": "Deposit 100%",
+          "value": 1,
+          "result": 1000,
+          "source": "the supplier's terms in JFPRO “100% in advance”"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1906,
+      "poNumber": "JF-PO-1906",
+      "supplier": "Invoice Co., Ltd",
+      "supplierRaw": "Invoice Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9196,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 500,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 500,
+      "derivedDeposit": 0,
+      "derivedBalance": 500,
+      "outstanding": 500,
+      "rule": {
+       "depositPct": 50,
+       "balanceTrigger": "invoice",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "50% deposit, 50% 1 month after invoice date",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-10-04",
+        "contractualDate": "2026-10-04",
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "invoice_total_used"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1906:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1906,
+        "poNumber": "JF-PO-1906",
+        "supplier": "Invoice Co., Ltd",
+        "currency": "USD",
+        "amount": 500,
+        "dueDate": "2026-10-04",
+        "contractualDate": "2026-10-04",
+        "trigger": "invoice",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "PI total — PI-1906.pdf"
+         },
+         {
+          "op": "−",
+          "label": "Deposit paid",
+          "value": 500,
+          "result": 500,
+          "source": "deposit PI marked paid 500.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 500,
+          "result": 500,
+          "source": "50% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 500,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1907,
+      "poNumber": "JF-PO-1907",
+      "supplier": "Invoice Co., Ltd",
+      "supplierRaw": "Invoice Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 500,
+      "derivedBalance": 500,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 50,
+       "balanceTrigger": "invoice",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "50% deposit, 50% 1 month after invoice date",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "394",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-10-01",
+        "contractualDate": "2026-10-01",
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-10-05",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:dep:1907",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 1907,
+        "poNumber": "JF-PO-1907",
+        "supplier": "Invoice Co., Ltd",
+        "currency": "USD",
+        "amount": 500,
+        "dueDate": "2026-09-01",
+        "contractualDate": "2026-09-01",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "×",
+          "label": "Deposit 50%",
+          "value": 0.5,
+          "result": 500,
+          "source": "the supplier's terms in JFPRO “50% deposit, 50% 1 month after invoice date”"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:1907:394",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1907,
+        "poNumber": "JF-PO-1907",
+        "supplier": "Invoice Co., Ltd",
+        "currency": "USD",
+        "amount": 500,
+        "dueDate": "2026-10-01",
+        "contractualDate": "2026-10-01",
+        "trigger": "invoice",
+        "containerNumber": "394",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 50% of the PO",
+          "value": 500,
+          "result": 500,
+          "source": "still to pay — a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 500,
+          "result": 500,
+          "source": "50% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 394",
+          "value": 1,
+          "result": 500,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1908,
+      "poNumber": "JF-PO-1908",
+      "supplier": "Advance Co., Ltd",
+      "supplierRaw": "Advance Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 1000,
+      "derivedBalance": 0,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "100% in advance",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "395",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-09-03",
+        "contractualDate": "2026-09-03",
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:dep:1908",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 1908,
+        "poNumber": "JF-PO-1908",
+        "supplier": "Advance Co., Ltd",
+        "currency": "USD",
+        "amount": 1000,
+        "dueDate": "2026-09-03",
+        "contractualDate": "2026-09-03",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "×",
+          "label": "Deposit 100%",
+          "value": 1,
+          "result": 1000,
+          "source": "the supplier's terms in JFPRO “100% in advance”"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1909,
+      "poNumber": "JF-PO-1909",
+      "supplier": "Bare Co., Ltd",
+      "supplierRaw": "Bare Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 300,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 300,
+      "derivedBalance": 700,
+      "outstanding": 700,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% at shipment",
+       "confidence": "partial",
+       "notes": [
+        "bare_keyword"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "396",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-09-29",
+        "contractualDate": "2026-09-29",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [
+         "departed_no_date"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_partial",
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1909:396",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1909,
+        "poNumber": "JF-PO-1909",
+        "supplier": "Bare Co., Ltd",
+        "currency": "USD",
+        "amount": 700,
+        "dueDate": "2026-09-29",
+        "contractualDate": "2026-09-29",
+        "trigger": "before_dispatch",
+        "containerNumber": "396",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_partial",
+         "departed_no_date"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 300,
+          "result": 700,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 700,
+          "result": 700,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 396",
+          "value": 1,
+          "result": 700,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1910,
+      "poNumber": "JF-PO-1910",
+      "supplier": "Dispatch Co., Ltd",
+      "supplierRaw": "Dispatch Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 0,
+      "derivedBalance": 1000,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 0,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "payment before dispatch",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "397",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-09-21",
+        "contractualDate": "2026-09-21",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-21",
+        "eta": "2026-10-30",
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:bal:1910:397",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1910,
+        "poNumber": "JF-PO-1910",
+        "supplier": "Dispatch Co., Ltd",
+        "currency": "USD",
+        "amount": 1000,
+        "dueDate": "2026-09-21",
+        "contractualDate": "2026-09-21",
+        "trigger": "before_dispatch",
+        "containerNumber": "397",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1000,
+          "result": 1000,
+          "source": "100% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 397",
+          "value": 1,
+          "result": 1000,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1911,
+      "poNumber": "JF-PO-1911",
+      "supplier": "Arrival Co., Ltd",
+      "supplierRaw": "Arrival Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 300,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 300,
+      "derivedBalance": 700,
+      "outstanding": 700,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "arrival",
+       "balanceOffsetDays": 45,
+       "source": "supplier",
+       "raw": "30% deposit, 70% 45 days after arrival at destination port",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "398",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-10-25",
+        "contractualDate": "2026-10-25",
+        "landed": true,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": "2026-09-10"
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1911:398",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1911,
+        "poNumber": "JF-PO-1911",
+        "supplier": "Arrival Co., Ltd",
+        "currency": "USD",
+        "amount": 700,
+        "dueDate": "2026-10-25",
+        "contractualDate": "2026-10-25",
+        "trigger": "arrival",
+        "containerNumber": "398",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 300,
+          "result": 700,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 700,
+          "result": 700,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 398",
+          "value": 1,
+          "result": 700,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1912,
+      "poNumber": "JF-PO-1912",
+      "supplier": "Arrival Co., Ltd",
+      "supplierRaw": "Arrival Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 300,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 300,
+      "derivedBalance": 700,
+      "outstanding": 700,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "arrival",
+       "balanceOffsetDays": 45,
+       "source": "supplier",
+       "raw": "30% deposit, 70% 45 days after arrival at destination port",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "399",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": "2026-12-02",
+        "contractualDate": "2026-12-02",
+        "landed": false,
+        "departed": true,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-09-05",
+        "eta": "2026-10-18",
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1912:399",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1912,
+        "poNumber": "JF-PO-1912",
+        "supplier": "Arrival Co., Ltd",
+        "currency": "USD",
+        "amount": 700,
+        "dueDate": "2026-12-02",
+        "contractualDate": "2026-12-02",
+        "trigger": "arrival",
+        "containerNumber": "399",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 300,
+          "result": 700,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 700,
+          "result": 700,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 399",
+          "value": 1,
+          "result": 700,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Delivery Co., Ltd",
+      "currency": "USD",
+      "outstanding": 4000,
+      "overdue": 0,
+      "due30": 3000,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 4,
+      "itemCount": 4,
+      "nextDue": "2026-10-01",
+      "supplierRule": {
+       "depositPct": 0,
+       "balanceTrigger": "delivery",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "100% T/T 30 days after delivery",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "100% T/T 30 days after delivery",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Advance Co., Ltd",
+      "currency": "USD",
+      "outstanding": 2000,
+      "overdue": 2000,
+      "due30": 0,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 2,
+      "itemCount": 2,
+      "nextDue": "2026-09-01",
+      "supplierRule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "100% in advance",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "100% in advance",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Invoice Co., Ltd",
+      "currency": "USD",
+      "outstanding": 1500,
+      "overdue": 500,
+      "due30": 1000,
+      "unscheduled": 0,
+      "paid": 500,
+      "assumedPaid": 0,
+      "poCount": 2,
+      "itemCount": 3,
+      "nextDue": "2026-09-01",
+      "supplierRule": {
+       "depositPct": 50,
+       "balanceTrigger": "invoice",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "50% deposit, 50% 1 month after invoice date",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "50% deposit, 50% 1 month after invoice date",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Arrival Co., Ltd",
+      "currency": "USD",
+      "outstanding": 1400,
+      "overdue": 0,
+      "due30": 700,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 600,
+      "poCount": 2,
+      "itemCount": 2,
+      "nextDue": "2026-10-25",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "arrival",
+       "balanceOffsetDays": 45,
+       "source": "supplier",
+       "raw": "30% deposit, 70% 45 days after arrival at destination port",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% deposit, 70% 45 days after arrival at destination port",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Dispatch Co., Ltd",
+      "currency": "USD",
+      "outstanding": 1000,
+      "overdue": 1000,
+      "due30": 0,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": "2026-09-21",
+      "supplierRule": {
+       "depositPct": 0,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "payment before dispatch",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "payment before dispatch",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Bare Co., Ltd",
+      "currency": "USD",
+      "outstanding": 700,
+      "overdue": 0,
+      "due30": 700,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 300,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": "2026-09-29",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% at shipment",
+       "confidence": "partial",
+       "notes": [
+        "bare_keyword"
+       ]
+      },
+      "supplierTerms": "30% deposit, 70% at shipment",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "397",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-09-21",
+      "etd": "2026-09-21",
+      "eta": "2026-10-30",
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1910"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Dispatch Co., Ltd",
+        "amount": 1000,
+        "dueDate": "2026-09-21",
+        "poNumbers": [
+         "JF-PO-1910"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1910:397",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1910,
+          "poNumber": "JF-PO-1910",
+          "supplier": "Dispatch Co., Ltd",
+          "currency": "USD",
+          "amount": 1000,
+          "dueDate": "2026-09-21",
+          "contractualDate": "2026-09-21",
+          "trigger": "before_dispatch",
+          "containerNumber": "397",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1000,
+            "result": 1000,
+            "source": "100% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 397",
+            "value": 1,
+            "result": 1000,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "396",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-09-29",
+      "etd": null,
+      "eta": null,
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1909"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Bare Co., Ltd",
+        "amount": 700,
+        "dueDate": "2026-09-29",
+        "poNumbers": [
+         "JF-PO-1909"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1909:396",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1909,
+          "poNumber": "JF-PO-1909",
+          "supplier": "Bare Co., Ltd",
+          "currency": "USD",
+          "amount": 700,
+          "dueDate": "2026-09-29",
+          "contractualDate": "2026-09-29",
+          "trigger": "before_dispatch",
+          "containerNumber": "396",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "terms_partial",
+           "departed_no_date"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 300,
+            "result": 700,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 700,
+            "result": 700,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 396",
+            "value": 1,
+            "result": 700,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "393",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-10-01",
+      "etd": null,
+      "eta": null,
+      "landed": true,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1904"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Delivery Co., Ltd",
+        "amount": 1000,
+        "dueDate": "2026-10-01",
+        "poNumbers": [
+         "JF-PO-1904"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1904:393",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1904,
+          "poNumber": "JF-PO-1904",
+          "supplier": "Delivery Co., Ltd",
+          "currency": "USD",
+          "amount": 1000,
+          "dueDate": "2026-10-01",
+          "contractualDate": "2026-10-01",
+          "trigger": "delivery",
+          "containerNumber": "393",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1000,
+            "result": 1000,
+            "source": "100% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 393",
+            "value": 1,
+            "result": 1000,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "394",
+      "currency": "USD",
+      "amount": 500,
+      "dueDate": "2026-10-01",
+      "etd": "2026-10-05",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1907"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Invoice Co., Ltd",
+        "amount": 500,
+        "dueDate": "2026-10-01",
+        "poNumbers": [
+         "JF-PO-1907"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1907:394",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1907,
+          "poNumber": "JF-PO-1907",
+          "supplier": "Invoice Co., Ltd",
+          "currency": "USD",
+          "amount": 500,
+          "dueDate": "2026-10-01",
+          "contractualDate": "2026-10-01",
+          "trigger": "invoice",
+          "containerNumber": "394",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 50% of the PO",
+            "value": 500,
+            "result": 500,
+            "source": "still to pay — a payment of its own"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 500,
+            "result": 500,
+            "source": "50% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 394",
+            "value": 1,
+            "result": 500,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "390",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-10-20",
+      "etd": "2026-08-20",
+      "eta": "2026-09-20",
+      "landed": true,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1901"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Delivery Co., Ltd",
+        "amount": 1000,
+        "dueDate": "2026-10-20",
+        "poNumbers": [
+         "JF-PO-1901"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1901:390",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1901,
+          "poNumber": "JF-PO-1901",
+          "supplier": "Delivery Co., Ltd",
+          "currency": "USD",
+          "amount": 1000,
+          "dueDate": "2026-10-20",
+          "contractualDate": "2026-10-20",
+          "trigger": "delivery",
+          "containerNumber": "390",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1000,
+            "result": 1000,
+            "source": "100% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 390",
+            "value": 1,
+            "result": 1000,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "391",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-10-24",
+      "etd": "2026-08-22",
+      "eta": "2026-09-24",
+      "landed": true,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1902"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Delivery Co., Ltd",
+        "amount": 1000,
+        "dueDate": "2026-10-24",
+        "poNumbers": [
+         "JF-PO-1902"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1902:391",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1902,
+          "poNumber": "JF-PO-1902",
+          "supplier": "Delivery Co., Ltd",
+          "currency": "USD",
+          "amount": 1000,
+          "dueDate": "2026-10-24",
+          "contractualDate": "2026-10-24",
+          "trigger": "delivery",
+          "containerNumber": "391",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "derived_date"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1000,
+            "result": 1000,
+            "source": "100% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 391",
+            "value": 1,
+            "result": 1000,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "398",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-10-25",
+      "etd": null,
+      "eta": null,
+      "landed": true,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1911"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Arrival Co., Ltd",
+        "amount": 700,
+        "dueDate": "2026-10-25",
+        "poNumbers": [
+         "JF-PO-1911"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1911:398",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1911,
+          "poNumber": "JF-PO-1911",
+          "supplier": "Arrival Co., Ltd",
+          "currency": "USD",
+          "amount": 700,
+          "dueDate": "2026-10-25",
+          "contractualDate": "2026-10-25",
+          "trigger": "arrival",
+          "containerNumber": "398",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 300,
+            "result": 700,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 700,
+            "result": 700,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 398",
+            "value": 1,
+            "result": 700,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "392",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": "2026-11-24",
+      "etd": "2026-09-15",
+      "eta": "2026-10-25",
+      "landed": false,
+      "departed": true,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-1903"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Delivery Co., Ltd",
+        "amount": 1000,
+        "dueDate": "2026-11-24",
+        "poNumbers": [
+         "JF-PO-1903"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1903:392",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1903,
+          "poNumber": "JF-PO-1903",
+          "supplier": "Delivery Co., Ltd",
+          "currency": "USD",
+          "amount": 1000,
+          "dueDate": "2026-11-24",
+          "contractualDate": "2026-11-24",
+          "trigger": "delivery",
+          "containerNumber": "392",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "estimated"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1000,
+            "result": 1000,
+            "source": "100% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 392",
+            "value": 1,
+            "result": 1000,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "399",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-12-02",
+      "etd": "2026-09-05",
+      "eta": "2026-10-18",
+      "landed": false,
+      "departed": true,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-1912"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Arrival Co., Ltd",
+        "amount": 700,
+        "dueDate": "2026-12-02",
+        "poNumbers": [
+         "JF-PO-1912"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1912:399",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1912,
+          "poNumber": "JF-PO-1912",
+          "supplier": "Arrival Co., Ltd",
+          "currency": "USD",
+          "amount": 700,
+          "dueDate": "2026-12-02",
+          "contractualDate": "2026-12-02",
+          "trigger": "arrival",
+          "containerNumber": "399",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "estimated"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 300,
+            "result": 700,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 700,
+            "result": 700,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 399",
+            "value": 1,
+            "result": 700,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": [
+     {
+      "kind": "terms_partial",
+      "poId": 1909,
+      "poNumber": "JF-PO-1909",
+      "supplier": "Bare Co., Ltd",
+      "currency": "USD",
+      "detail": "30% deposit · 70% before dispatch — read from \"30% deposit, 70% at shipment\"",
+      "amount": null,
+      "shipmentReference": null
+     }
+    ]
+   },
+   {
+    "currency": "CNY",
+    "kpis": {
+     "overdue": 0,
+     "due7": 0,
+     "due30": 0,
+     "unscheduled": 0,
+     "outstanding": 0,
+     "later": 0,
+     "notPayable": 0,
+     "overdueCount": 0,
+     "itemCount": 0
+    },
+    "items": [],
+    "pos": [],
+    "bySupplier": [],
+    "byContainer": [
+     {
+      "containerNumber": "390",
+      "currency": "CNY",
+      "amount": 0,
+      "dueDate": null,
+      "etd": null,
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": false,
+      "poNumbers": [],
+      "itemCount": 0,
+      "payables": [
+       {
+        "supplier": "Nobody CNY Ltd",
+        "amount": 0,
+        "dueDate": null,
+        "poNumbers": [],
+        "items": [],
+        "payments": [
+         {
+          "id": 7901,
+          "shipmentId": 590,
+          "shipmentReference": "390",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Nobody CNY Ltd",
+          "supplierKey": "nobody cny ltd",
+          "kind": "balance",
+          "amount": 5000,
+          "currency": "cny",
+          "invoiceNumber": null,
+          "invoiceDate": null,
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "pending",
+          "paidOn": null,
+          "allocations": [],
+          "appliedTotal": 0,
+          "remaining": 5000,
+          "settledByPaymentId": null
+         }
+        ],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": [
+     {
+      "kind": "shipment_payment_unallocated",
+      "poId": 0,
+      "poNumber": "—",
+      "supplier": "Nobody CNY Ltd",
+      "currency": "CNY",
+      "shipmentReference": "390",
+      "detail": "5,000 invoiced for 390, but no purchase order for this supplier has lines in that container",
+      "amount": 5000
+     }
+    ]
+   }
+  ],
+  "poCount": 12
+ }
+}

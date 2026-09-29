@@ -1,0 +1,84 @@
+{
+  "description": "Transfers applied to obligations: two transfers part-pay a pending deposit PI; two po_deposit lines pay part of the deposit on a PO with no PI (earliest date wins); a transfer part-pays an open balance record on a landed box (the rest stays owed, not settled by landing); an arranged record on another box; a transfer that pays a PI in full; a transfer in another currency.",
+  "input": {
+    "today": "2026-09-29",
+    "orders": [
+      { "id": "100101", "status": "UNDER_PRODUCTION", "quantity": 2000, "unitPrice": 5, "purchaseOrderId": 1001, "poNumber": "JF-PO-1001", "supplier": "Guilin Yoho Co., Ltd", "estimatedReadyDate": "2026-10-25", "poDate": "2026-08-20" },
+      { "id": "100201", "status": "PO_SENT", "quantity": 1000, "unitPrice": 3, "purchaseOrderId": 1002, "poNumber": "JF-PO-1002", "supplier": "Guilin Yoho Co., Ltd", "poDate": "2026-09-01" },
+      { "id": "100301", "status": "ARRIVED_AT_WAREHOUSE", "quantity": 1000, "unitPrice": 6, "purchaseOrderId": 1003, "poNumber": "JF-PO-1003", "supplier": "Foreu Corporation", "containerNumber": "300", "shippedDate": "2026-08-10", "arrivedDate": "2026-09-18", "poDate": "2026-06-15" },
+      { "id": "100302", "status": "ON_SEA", "quantity": 500, "unitPrice": 4, "purchaseOrderId": 1003, "poNumber": "JF-PO-1003", "supplier": "Foreu Corporation", "containerNumber": "301", "shippedDate": "2026-09-12", "poDate": "2026-06-15" },
+      { "id": "100401", "status": "READY_AT_FACTORY", "quantity": 300, "unitPrice": 10, "purchaseOrderId": 1004, "poNumber": "JF-PO-1004", "supplier": "Foreu Corporation", "containerNumber": "302", "estimatedDepartureDate": "2026-10-06", "poDate": "2026-08-01" }
+    ],
+    "poBundles": {
+      "1001": {
+        "id": 1001, "poNumber": "JF-PO-1001", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2,
+        "createdAt": "2026-08-19 09:00:00", "updatedAt": "2026-08-22 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9201, "purchaseOrderId": 1001, "filename": "PI-1001.pdf", "uploadedAt": "2026-08-22 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1002": {
+        "id": 1002, "poNumber": "JF-PO-1002", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2,
+        "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-08-31 09:00:00", "documents": [], "signedPis": [], "payments": [], "invoices": []
+      },
+      "1003": {
+        "id": 1003, "poNumber": "JF-PO-1003", "supplier": "Foreu Corporation", "currency": "USD", "shippingTotal": 0, "companyId": 1,
+        "createdAt": "2026-06-14 09:00:00", "updatedAt": "2026-06-20 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9301, "purchaseOrderId": 1003, "filename": "PI-1003.pdf", "uploadedAt": "2026-06-16 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1004": {
+        "id": 1004, "poNumber": "JF-PO-1004", "supplier": "Foreu Corporation", "currency": "USD", "shippingTotal": 0, "companyId": 1,
+        "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-08-02 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [
+          { "id": 9401, "purchaseOrderId": 1004, "filename": "PI-1004-dep.pdf", "uploadedAt": "2026-08-02 09:00:00", "latestCheck": { "status": "succeeded" } },
+          { "id": 9402, "purchaseOrderId": 1004, "filename": "PI-1004-bal.pdf", "uploadedAt": "2026-09-20 09:00:00", "latestCheck": { "status": "succeeded" } }
+        ]
+      }
+    },
+    "invoicePayments": [
+      { "id": 201, "invoiceId": 9201, "purchaseOrderId": 1001, "paymentType": "deposit", "amountDue": 3000, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 10000, "dueDate": "2026-09-15", "dueTerms": "30D/70B BOL", "rawTermsText": null, "paymentStatus": "pending", "updatedAt": "2026-08-22 09:05:00" },
+      { "id": 301, "invoiceId": 9301, "purchaseOrderId": 1003, "paymentType": "deposit", "amountDue": 2400, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 8000, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-06-20 09:00:00" },
+      { "id": 401, "invoiceId": 9401, "purchaseOrderId": 1004, "paymentType": "deposit", "amountDue": 900, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 3000, "dueDate": "2026-08-05", "dueTerms": null, "rawTermsText": null, "paymentStatus": "arranged", "updatedAt": "2026-08-02 09:05:00" },
+      { "id": 402, "invoiceId": 9402, "purchaseOrderId": 1004, "paymentType": "balance", "amountDue": 2100, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": "2026-10-10", "dueTerms": null, "rawTermsText": null, "paymentStatus": "pending", "updatedAt": "2026-09-20 09:05:00" }
+    ],
+    "suppliers": [
+      { "supplierId": 2, "name": "Guilin Yoho Co., Ltd", "paymentTerms": "30D/70B BOL", "tags": [] },
+      { "supplierId": 3, "name": "Foreu Corporation", "paymentTerms": "30% deposit, balance 30 days after B/L", "tags": [] }
+    ],
+    "rules": null,
+    "shipmentPayments": [
+      {
+        "id": 7201, "shipmentId": 331, "shipmentReference": "300", "link": "ok", "mergedIntoId": null, "supplierName": "Foreu Corporation", "supplierKey": "foreu corporation", "kind": "balance",
+        "amount": 4200, "currency": "USD", "invoiceNumber": "FR-300", "invoiceDate": "2026-09-15", "dueDate": null, "invoiceTotal": 6000, "depositDeducted": null, "status": "pending", "paidOn": null,
+        "allocations": [{ "id": 11, "purchaseOrderId": 1003, "poRef": "JF-PO-1003", "poNumber": "JF-PO-1003", "amount": 4200, "source": "manual" }],
+        "appliedTotal": 1500, "remaining": 2700, "settledByPaymentId": null
+      },
+      {
+        "id": 7202, "shipmentId": 332, "shipmentReference": "301", "link": "ok", "mergedIntoId": null, "supplierName": "Foreu Corporation", "supplierKey": "foreu corporation", "kind": "balance",
+        "amount": 1400, "currency": "USD", "invoiceNumber": "FR-301", "invoiceDate": "2026-09-16", "dueDate": null, "invoiceTotal": null, "depositDeducted": null, "status": "arranged", "paidOn": null,
+        "allocations": [], "appliedTotal": 0, "remaining": 1400, "settledByPaymentId": null
+      }
+    ],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": [
+      { "id": 5001, "supplierName": "Guilin Yoho Co., Ltd", "supplierKey": "guilin yoho co., ltd", "amount": 1000, "currency": "USD", "paidOn": "2026-09-20", "bankRef": null, "note": null, "source": "manual",
+        "lines": [{ "id": 21, "kind": "pi", "targetId": 201, "amount": 1000, "label": "JF-PO-1001", "shipmentId": null, "shipmentReference": null, "purchaseOrderId": 1001, "poNumber": "JF-PO-1001" }] },
+      { "id": 5002, "supplierName": "Guilin Yoho Co., Ltd", "supplierKey": "guilin yoho co., ltd", "amount": 1100, "currency": "USD", "paidOn": "2026-09-25", "bankRef": null, "note": null, "source": "manual",
+        "lines": [
+          { "id": 22, "kind": "pi", "targetId": 201, "amount": 500, "label": "JF-PO-1001", "shipmentId": null, "shipmentReference": null, "purchaseOrderId": 1001, "poNumber": "JF-PO-1001" },
+          { "id": 23, "kind": "po_deposit", "targetId": 1002, "amount": 600, "label": "JF-PO-1002", "shipmentId": null, "shipmentReference": null, "purchaseOrderId": 1002, "poNumber": "JF-PO-1002" }
+        ] },
+      { "id": 5003, "supplierName": "Guilin Yoho Co., Ltd", "supplierKey": "guilin yoho co., ltd", "amount": 100, "currency": "USD", "paidOn": "2026-09-03 10:00:00", "bankRef": null, "note": null, "source": "manual",
+        "lines": [{ "id": 24, "kind": "po_deposit", "targetId": 1002, "amount": 100, "label": "JF-PO-1002", "shipmentId": null, "shipmentReference": null, "purchaseOrderId": 1002, "poNumber": "JF-PO-1002" }] },
+      { "id": 5004, "supplierName": "Foreu Corporation", "supplierKey": "foreu corporation", "amount": 1500, "currency": "USD", "paidOn": "2026-09-22", "bankRef": "TT-5004", "note": null, "source": "extracted",
+        "lines": [{ "id": 25, "kind": "balance", "targetId": 7201, "amount": 1500, "label": "300", "shipmentId": 331, "shipmentReference": "300", "purchaseOrderId": null, "poNumber": null }] },
+      { "id": 5005, "supplierName": "Foreu Corporation", "supplierKey": "foreu corporation", "amount": 900, "currency": "USD", "paidOn": "2026-08-06", "bankRef": null, "note": null, "source": "manual",
+        "lines": [{ "id": 26, "kind": "pi", "targetId": 401, "amount": 900, "label": "JF-PO-1004", "shipmentId": null, "shipmentReference": null, "purchaseOrderId": 1004, "poNumber": "JF-PO-1004" }] },
+      { "id": 5006, "supplierName": "Foreu Corporation", "supplierKey": "foreu corporation", "amount": 250, "currency": "EUR", "paidOn": "2026-09-26", "bankRef": null, "note": null, "source": "manual",
+        "lines": [{ "id": 27, "kind": "pi", "targetId": 402, "amount": 250, "label": "JF-PO-1004", "shipmentId": null, "shipmentReference": null, "purchaseOrderId": 1004, "poNumber": "JF-PO-1004" }] }
+    ]
+  },
+  "shipments": [
+    { "id": 331, "reference": "300", "stage": "ARRIVED", "mode": "SEA", "ata": "2026-09-17", "departedAt": "2026-08-10T01:00:00.000Z", "arrivedAt": "2026-09-18T08:00:00.000Z", "blNumber": "BL300" },
+    { "id": 332, "reference": "301", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-12T03:00:00.000Z", "arrivedAt": null, "blNumber": "BL301" },
+    { "id": 333, "reference": "302", "stage": "BOOKED", "mode": "SEA", "ata": null, "departedAt": null, "arrivedAt": null, "blNumber": null }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "description": "Balance triggers straight from the supplier's terms (no company rules), on booked and unbooked lines: after delivery (delivered, ATA, stage arrival, ETA estimate), with order (100% in advance), after the PI date (with and without a PI), a bare 'at shipment', before dispatch on a live actual departure, departed with no date on file (due today), arrival on landed lines and on a live ETA, and a balance record in a currency no PO uses.",
+  "input": {
+    "today": "2026-09-29",
+    "orders": [
+      { "id": "190101", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1901, "poNumber": "JF-PO-1901", "supplier": "Delivery Co., Ltd", "containerNumber": "390", "shippedDate": "2026-08-20", "poDate": "2026-07-01" },
+      { "id": "190201", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1902, "poNumber": "JF-PO-1902", "supplier": "Delivery Co., Ltd", "containerNumber": "391", "shippedDate": "2026-08-22", "poDate": "2026-07-01" },
+      { "id": "190301", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1903, "poNumber": "JF-PO-1903", "supplier": "Delivery Co., Ltd", "containerNumber": "392", "shippedDate": "2026-09-15", "eta": "2026-10-25", "poDate": "2026-07-01" },
+      { "id": "190401", "status": "RECEIVED", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1904, "poNumber": "JF-PO-1904", "supplier": "Delivery Co., Ltd", "containerNumber": "393", "deliveryDate": "2026-09-01", "poDate": "2026-07-01" },
+      { "id": "190501", "status": "UNDER_PRODUCTION", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1905, "poNumber": "JF-PO-1905", "supplier": "Advance Co., Ltd", "poDate": "2026-09-01" },
+      { "id": "190601", "status": "UNDER_PRODUCTION", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1906, "poNumber": "JF-PO-1906", "supplier": "Invoice Co., Ltd", "poDate": "2026-09-01" },
+      { "id": "190701", "status": "READY_AT_FACTORY", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1907, "poNumber": "JF-PO-1907", "supplier": "Invoice Co., Ltd", "containerNumber": "394", "estimatedDepartureDate": "2026-10-05", "poDate": "2026-09-01" },
+      { "id": "190801", "status": "READY_AT_FACTORY", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1908, "poNumber": "JF-PO-1908", "supplier": "Advance Co., Ltd", "containerNumber": "395", "poDate": "2026-09-03" },
+      { "id": "190901", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1909, "poNumber": "JF-PO-1909", "supplier": "Bare Co., Ltd", "containerNumber": "396", "poDate": "2026-07-01" },
+      { "id": "191001", "status": "CONSOLIDATED", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1910, "poNumber": "JF-PO-1910", "supplier": "Dispatch Co., Ltd", "containerNumber": "397", "externalContainerNumber": "CMAU3333333", "poDate": "2026-07-01" },
+      { "id": "191101", "status": "ARRIVED_AT_WAREHOUSE", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1911, "poNumber": "JF-PO-1911", "supplier": "Arrival Co., Ltd", "containerNumber": "398", "arrivedDate": "2026-09-10", "poDate": "2026-07-01" },
+      { "id": "191201", "status": "ON_SEA", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1912, "poNumber": "JF-PO-1912", "supplier": "Arrival Co., Ltd", "containerNumber": "399", "externalContainerNumber": "CMAU4444444", "shippedDate": "2026-09-05", "poDate": "2026-07-01" }
+    ],
+    "poBundles": {
+      "1901": { "id": 1901, "poNumber": "JF-PO-1901", "supplier": "Delivery Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1902": { "id": 1902, "poNumber": "JF-PO-1902", "supplier": "Delivery Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1903": { "id": 1903, "poNumber": "JF-PO-1903", "supplier": "Delivery Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1904": { "id": 1904, "poNumber": "JF-PO-1904", "supplier": "Delivery Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1905": { "id": 1905, "poNumber": "JF-PO-1905", "supplier": "Advance Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-08-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1906": {
+        "id": 1906, "poNumber": "JF-PO-1906", "supplier": "Invoice Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-09-04 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9196, "purchaseOrderId": 1906, "filename": "PI-1906.pdf", "uploadedAt": "2026-09-04 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "1907": { "id": 1907, "poNumber": "JF-PO-1907", "supplier": "Invoice Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-08-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1908": { "id": 1908, "poNumber": "JF-PO-1908", "supplier": "Advance Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-02 09:00:00", "updatedAt": "2026-09-02 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1909": { "id": 1909, "poNumber": "JF-PO-1909", "supplier": "Bare Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1910": { "id": 1910, "poNumber": "JF-PO-1910", "supplier": "Dispatch Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1911": { "id": 1911, "poNumber": "JF-PO-1911", "supplier": "Arrival Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1912": { "id": 1912, "poNumber": "JF-PO-1912", "supplier": "Arrival Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-06-30 09:00:00", "updatedAt": "2026-06-30 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] }
+    },
+    "invoicePayments": [
+      { "id": 196, "invoiceId": 9196, "purchaseOrderId": 1906, "paymentType": "deposit", "amountDue": 500, "currency": "USD", "depositPercentage": 50, "invoiceTotal": 1000, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-09-06 09:00:00" }
+    ],
+    "suppliers": [
+      { "supplierId": 51, "name": "Delivery Co., Ltd", "paymentTerms": "100% T/T 30 days after delivery", "tags": [] },
+      { "supplierId": 52, "name": "Advance Co., Ltd", "paymentTerms": "100% in advance", "tags": [] },
+      { "supplierId": 53, "name": "Invoice Co., Ltd", "paymentTerms": "50% deposit, 50% 1 month after invoice date", "tags": [] },
+      { "supplierId": 54, "name": "Bare Co., Ltd", "paymentTerms": "30% deposit, 70% at shipment", "tags": [] },
+      { "supplierId": 55, "name": "Dispatch Co., Ltd", "paymentTerms": "payment before dispatch", "tags": [] },
+      { "supplierId": 56, "name": "Arrival Co., Ltd", "paymentTerms": "30% deposit, 70% 45 days after arrival at destination port", "tags": [] }
+    ],
+    "containerIndex": {
+      "CMAU3333333": { "containerNumber": "CMAU3333333", "pol": { "name": "Xiamen", "locode": "CNXMN" }, "pod": { "name": "Felixstowe", "locode": "GBFXT" }, "times": { "departure": "2026-09-21 06:00:00", "departureIsActual": true, "eta": "2026-10-30", "ata": null } },
+      "CMAU4444444": { "containerNumber": "CMAU4444444", "pol": { "name": "Xiamen", "locode": "CNXMN" }, "pod": { "name": "Felixstowe", "locode": "GBFXT" }, "times": { "departure": "2026-09-06 06:00:00", "departureIsActual": true, "eta": "2026-10-18 12:00:00", "ata": null } }
+    },
+    "rules": [],
+    "shipmentPayments": [
+      {
+        "id": 7901, "shipmentId": 590, "shipmentReference": "390", "link": "ok", "mergedIntoId": null, "supplierName": "Nobody CNY Ltd", "supplierKey": "nobody cny ltd", "kind": "balance",
+        "amount": 5000, "currency": "cny", "invoiceNumber": null, "invoiceDate": null, "dueDate": null, "invoiceTotal": null, "depositDeducted": null, "status": "pending", "paidOn": null,
+        "allocations": [], "appliedTotal": 0, "remaining": 5000, "settledByPaymentId": null
+      }
+    ],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": []
+  },
+  "shipments": [
+    { "id": 590, "reference": "390", "stage": "ARRIVED", "mode": "SEA", "ata": "2026-09-20", "departedAt": "2026-08-20T03:00:00.000Z", "arrivedAt": null, "blNumber": null },
+    { "id": 591, "reference": "391", "stage": "ARRIVED", "mode": "SEA", "ata": null, "departedAt": "2026-08-22T03:00:00.000Z", "arrivedAt": "2026-09-24T07:30:00.000Z", "blNumber": null },
+    { "id": 592, "reference": "392", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-15T03:00:00.000Z", "arrivedAt": null, "blNumber": null },
+    { "id": 594, "reference": "394", "stage": "BOOKED", "mode": "SEA", "ata": null, "departedAt": null, "arrivedAt": null, "blNumber": null },
+    { "id": 595, "reference": "395", "stage": "BOOKED", "mode": "SEA", "ata": null, "departedAt": null, "arrivedAt": null, "blNumber": null }
+  ]
+}

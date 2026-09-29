@@ -28,6 +28,7 @@ const { apiError, isApiError, sendApiError, parseId } = require('../lib/shape');
 const { run, clampWindow, currenciesInScope, DEFAULT_WINDOW_DAYS, MAX_WINDOW_DAYS } = require('../lib/engine');
 const { loadEngineInput, loadScenario } = require('../services/forecastLoad');
 const { refreshIfStale } = require('../services/shippingRefresh');
+const { SHIPPING_REASONS } = require('../services/shipping');
 
 const GBP = 'GBP';          // D3: rate 1.000000, never an fx_rates row
 
@@ -92,9 +93,9 @@ function readSnapshot(fn) {
 
 const isoOrNull = (v) => (v == null ? null : v instanceof Date ? v.toISOString() : String(v));
 
-// The reasons SHIPPING_UNAVAILABLE carries (§6.10): unconfigured | timeout | unreachable |
-// http_401 | http_<status> | bad_response.
-const SHIPPING_REASON_RE = /^(unconfigured|timeout|unreachable|http_\d{3}|bad_response)$/;
+// The reasons SHIPPING_UNAVAILABLE carries (§6.10): services/shipping.js SHIPPING_REASONS,
+// source_schema | source_error | bad_response.
+const isShippingReason = (reason) => SHIPPING_REASONS.includes(reason);
 
 const unavailableWarning = (reason, sync) => ({
     code: 'SHIPPING_UNAVAILABLE', reason, lastSuccessAt: isoOrNull(sync ? sync.last_success_at : null),
@@ -110,7 +111,7 @@ const unavailableWarning = (reason, sync) => ({
  *                   the last attempt failed (external_sync.last_error, `<reason>: …`) that
  *                   failure is reported; a claim held by a run still in flight is not;
  *   a throw         (a database or programming error inside the refresh) is logged and
- *                   reported as `unreachable`: the feed could not be reached this time.
+ *                   reported as `source_error`: the feed could not be read this time.
  */
 async function refreshShipping(today) {
     let result;
@@ -118,12 +119,12 @@ async function refreshShipping(today) {
         result = await refreshIfStale({ today });
     } catch (err) {
         log.error('[forecast] shipping refresh failed:', err && err.message ? err.message : err);
-        return unavailableWarning(err && SHIPPING_REASON_RE.test(err.reason) ? err.reason : 'unreachable', null);
+        return unavailableWarning(err && isShippingReason(err.reason) ? err.reason : 'source_error', null);
     }
     if (result.status === 'failed') return unavailableWarning(result.reason, result.sync);
     if (result.status === 'skipped' && result.sync && result.sync.last_error) {
         const reason = String(result.sync.last_error).split(':')[0];
-        if (SHIPPING_REASON_RE.test(reason)) return unavailableWarning(reason, result.sync);
+        if (isShippingReason(reason)) return unavailableWarning(reason, result.sync);
     }
     return null;
 }

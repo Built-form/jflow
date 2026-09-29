@@ -1,0 +1,66 @@
+{
+  "description": "Draft containers and unbooked lines under company deposit rules and lead-time estimates: artwork-confirmed deposits (real and estimated), a signed-PI deposit (real and missing), a supplier back on 'with the PO' with its own offset, a passed ETD on a draft box (pulled to today), a passed ready date on unbooked lines (undated), a ready date estimated from the deposit (the chain reads the deposit's own date), an arrival balance estimated through transit, and grace days.",
+  "input": {
+    "today": "2026-09-29",
+    "orders": [
+      { "id": "130101", "status": "READY_AT_FACTORY", "quantity": 1000, "unitPrice": 2, "purchaseOrderId": 1301, "poNumber": "JF-PO-1301", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "DRAFT-SEA-260917-110203 - 268", "artworkConfirmedDate": "2026-08-10", "estimatedDepartureDate": "2026-09-20", "poDate": "2026-08-01" },
+      { "id": "130102", "status": "READY_AT_FACTORY", "quantity": 200, "unitPrice": 2.5, "purchaseOrderId": 1301, "poNumber": "JF-PO-1301", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "DRAFT-SEA-260917-110203 - 268", "artworkConfirmedDate": "2026-08-12", "estimatedDepartureDate": "2026-09-22", "poDate": "2026-08-01" },
+      { "id": "130201", "status": "UNDER_PRODUCTION", "quantity": 500, "unitPrice": 4, "purchaseOrderId": 1302, "poNumber": "JF-PO-1302", "supplier": "Suzhou Sunmed Co.,Ltd.", "poDate": "2026-09-20" },
+      { "id": "130202", "status": "UNDER_PRODUCTION", "quantity": 100, "unitPrice": 4, "purchaseOrderId": 1302, "poNumber": "JF-PO-1302", "supplier": "Suzhou Sunmed Co.,Ltd.", "artworkConfirmedDate": "2026-09-25", "poDate": "2026-09-20" },
+      { "id": "130301", "status": "CONSOLIDATED", "quantity": 300, "unitPrice": 5, "purchaseOrderId": 1303, "poNumber": "JF-PO-1303", "supplier": "Foreu Corporation", "containerNumber": "DRAFT-AIR-260920-091500 - 104", "estimatedDepartureDate": "2026-10-03", "poDate": "2026-08-20" },
+      { "id": "130401", "status": "PO_SENT", "quantity": 100, "unitPrice": 10, "purchaseOrderId": 1304, "poNumber": "JF-PO-1304", "supplier": "Foreu Corporation", "poDate": "2026-09-15" },
+      { "id": "130501", "status": "UNDER_PRODUCTION", "quantity": 400, "unitPrice": 3, "purchaseOrderId": 1305, "poNumber": "JF-PO-1305", "supplier": "Guilin Yoho Co., Ltd", "estimatedReadyDate": "2026-09-01", "poDate": "2026-07-20" },
+      { "id": "130601", "status": "UNDER_PRODUCTION", "quantity": 250, "unitPrice": 8, "purchaseOrderId": 1306, "poNumber": "JF-PO-1306", "supplier": "Shenzhen Arrival Co., Ltd", "estimatedDepartureDate": "2026-10-20", "artworkConfirmedDate": "2026-09-01", "poDate": "2026-08-25" },
+      { "id": "130701", "status": "SCHEDULED", "quantity": 100, "unitPrice": 6, "purchaseOrderId": 1307, "poNumber": "JF-PO-1307", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "DRAFT-SEA-260917-110203 - 268", "scheduledDate": "2026-10-01" }
+    ],
+    "poBundles": {
+      "1301": { "id": 1301, "poNumber": "JF-PO-1301", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1302": { "id": 1302, "poNumber": "JF-PO-1302", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-19 09:00:00", "updatedAt": "2026-09-19 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1303": {
+        "id": 1303, "poNumber": "JF-PO-1303", "supplier": "Foreu Corporation", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-19 09:00:00", "updatedAt": "2026-09-01 12:00:00", "documents": [], "invoices": [], "payments": [],
+        "signedPis": [
+          { "id": 61, "purchaseOrderId": 1303, "filename": "PI-1303-signed-v2.pdf", "uploadedAt": "2026-09-04 12:00:00" },
+          { "id": 60, "purchaseOrderId": 1303, "filename": "PI-1303-signed.pdf", "uploadedAt": "2026-09-01 12:00:00" }
+        ]
+      },
+      "1304": { "id": 1304, "poNumber": "JF-PO-1304", "supplier": "Foreu Corporation", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-14 09:00:00", "updatedAt": "2026-09-14 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1305": { "id": 1305, "poNumber": "JF-PO-1305", "supplier": "Guilin Yoho Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-07-19 09:00:00", "updatedAt": "2026-07-19 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1306": { "id": 1306, "poNumber": "JF-PO-1306", "supplier": "Shenzhen Arrival Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-24 09:00:00", "updatedAt": "2026-08-24 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "1307": { "id": 1307, "poNumber": "JF-PO-1307", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-24 09:00:00", "updatedAt": "2026-09-24 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] }
+    },
+    "invoicePayments": [],
+    "suppliers": [
+      { "supplierId": 1, "name": "Suzhou Sunmed Co.,Ltd.", "paymentTerms": "30% deposit, 70% B/L copy.", "tags": [] },
+      { "supplierId": 3, "name": "Foreu Corporation", "paymentTerms": "30% deposit, balance 30 days after B/L", "tags": [] },
+      { "supplierId": 2, "name": "Guilin Yoho Co., Ltd", "paymentTerms": "30D/70B BOL", "tags": [] },
+      { "supplierId": 18, "name": "Shenzhen Arrival Co., Ltd", "paymentTerms": "30% deposit, 70% 45 days after arrival at destination port", "tags": [] }
+    ],
+    "rules": [
+      {
+        "id": 1, "scope": "default", "supplierName": null, "supplierLabel": null, "depositPct": null, "depositTrigger": "artwork_confirmed", "depositGraceDays": 2,
+        "balanceTrigger": null, "balanceDocumentType": null, "balanceOffsetDays": null, "balanceGraceDays": 5, "depositOffsetDays": 3,
+        "estimates": { "artwork": { "from": "po", "days": 14 }, "pi": null, "piSigned": null, "ready": { "from": "deposit_paid", "days": 42 }, "telex": null, "document": null, "transit": { "sea": 35, "air": 5, "road": 3 } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 2, "scope": "supplier", "supplierName": "foreu corporation", "supplierLabel": "Foreu Corporation", "depositPct": null, "depositTrigger": "pi_signed", "depositGraceDays": 0,
+        "balanceTrigger": null, "balanceDocumentType": null, "balanceOffsetDays": null, "balanceGraceDays": 0, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": 6, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      },
+      {
+        "id": 3, "scope": "supplier", "supplierName": "guilin yoho co., ltd", "supplierLabel": "Guilin Yoho Co., Ltd", "depositPct": null, "depositTrigger": "po_sent", "depositGraceDays": 0,
+        "balanceTrigger": null, "balanceDocumentType": null, "balanceOffsetDays": null, "balanceGraceDays": 1, "depositOffsetDays": 5,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00"
+      }
+    ],
+    "shipmentPayments": [],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": []
+  },
+  "shipments": [
+    { "id": 401, "reference": "DRAFT-SEA-260917-110203 - 268", "stage": "DRAFT", "mode": "SEA", "ata": null, "departedAt": null, "arrivedAt": null, "blNumber": null },
+    { "id": 402, "reference": "DRAFT-AIR-260920-091500 - 104", "stage": "DRAFT", "mode": "AIR", "ata": null, "departedAt": null, "arrivedAt": null, "blNumber": null }
+  ]
+}

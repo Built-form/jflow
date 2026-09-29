@@ -1,0 +1,977 @@
+{
+ "source": {
+  "commit": "f9499bc",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 2786,
+    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "parse": [
+  [
+   "30% deposit on order confirmation, 70% balance before shipment",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit on order confirmation, 70% balance before shipment",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% before dispatch"
+  ],
+  [
+   "30% T/T in advance, 70% B/L copy.",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% T/T in advance, 70% B/L copy.",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% against B/L"
+  ],
+  [
+   "50% deposit, 50% before shipment",
+   {
+    "depositPct": 50,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "50% deposit, 50% before shipment",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "50% deposit · 50% before dispatch"
+  ],
+  [
+   "100% before dispatch",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "100% before dispatch",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% before dispatch"
+  ],
+  [
+   "30% deposit, balance 30 days after B/L",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "30% deposit, balance 30 days after B/L",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 30 d after B/L"
+  ],
+  [
+   "net 30",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "net 30",
+    "confidence": "partial",
+    "notes": [
+     "net_anchor_assumed"
+    ]
+   },
+   "100% 30 d after B/L"
+  ],
+  [
+   "T/T 60 days from BL date",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 60,
+    "source": "none",
+    "raw": "T/T 60 days from BL date",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% 60 d after B/L"
+  ],
+  [
+   "100% T/T 30 days after delivery",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "delivery",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "100% T/T 30 days after delivery",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% 30 d after delivery"
+  ],
+  [
+   "payment before dispatch",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "payment before dispatch",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% before dispatch"
+  ],
+  [
+   "Deposit 30% paid",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "Deposit 30% paid",
+    "confidence": "partial",
+    "notes": [
+     "deposit_only"
+    ]
+   },
+   "30% deposit · balance terms unclear"
+  ],
+  [
+   "",
+   {
+    "depositPct": null,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": null,
+    "confidence": "none",
+    "notes": []
+   },
+   "Terms not understood"
+  ],
+  [
+   "As per contract",
+   {
+    "depositPct": null,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "As per contract",
+    "confidence": "none",
+    "notes": []
+   },
+   "Terms not understood"
+  ],
+  [
+   "L/C at sight",
+   {
+    "depositPct": null,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "L/C at sight",
+    "confidence": "none",
+    "notes": [
+     "lc_terms"
+    ]
+   },
+   "Terms not understood"
+  ],
+  [
+   "30% deposit, 70% against copy of B/L within 5 days",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 5,
+    "source": "none",
+    "raw": "30% deposit, 70% against copy of B/L within 5 days",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 5 d after B/L"
+  ],
+  [
+   "40% deposit, 60% before delivery",
+   {
+    "depositPct": 40,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "40% deposit, 60% before delivery",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "40% deposit · 60% before dispatch"
+  ],
+  [
+   "30% deposit, 70% 45 days after arrival at destination port",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "arrival",
+    "balanceOffsetDays": 45,
+    "source": "none",
+    "raw": "30% deposit, 70% 45 days after arrival at destination port",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 45 d after arrival"
+  ],
+  [
+   "50% deposit 50% balance 7 days before shipment",
+   {
+    "depositPct": 50,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": -7,
+    "source": "none",
+    "raw": "50% deposit 50% balance 7 days before shipment",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "50% deposit · 50% 7 d before dispatch"
+  ],
+  [
+   "30% deposit, 40% before shipment, 30% 30 days after delivery",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit, 40% before shipment, 30% 30 days after delivery",
+    "confidence": "partial",
+    "notes": [
+     "multi_stage"
+    ]
+   },
+   "30% deposit · 70% before dispatch"
+  ],
+  [
+   "100% in advance",
+   {
+    "depositPct": 100,
+    "balanceTrigger": "order",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "100% in advance",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% with order"
+  ],
+  [
+   "30% deposit; balance after receiving B/L copy",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit; balance after receiving B/L copy",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% against B/L"
+  ],
+  [
+   "30% deposit, 70% before shipment. Deposit paid on 12/03",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit, 70% before shipment. Deposit paid on 12/03",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% before dispatch"
+  ],
+  [
+   "30% deposit, balance thirty days after B/L",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "30% deposit, balance thirty days after B/L",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 30 d after B/L"
+  ],
+  [
+   "30% deposit, 70% B/L copy, 30 days",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "30% deposit, 70% B/L copy, 30 days",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 30 d after B/L"
+  ],
+  [
+   "30D/70B BOL",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30D/70B BOL",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% against B/L"
+  ],
+  [
+   "100D",
+   {
+    "depositPct": 100,
+    "balanceTrigger": "order",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "100D",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% with order"
+  ],
+  [
+   "100B BOL",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "100B BOL",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% against B/L"
+  ],
+  [
+   "30D/70B 30 Days before BOL",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": -30,
+    "source": "none",
+    "raw": "30D/70B 30 Days before BOL",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 30 d before B/L"
+  ],
+  [
+   "50D/50B Before dispatch",
+   {
+    "depositPct": 50,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "50D/50B Before dispatch",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "50% deposit · 50% before dispatch"
+  ],
+  [
+   null,
+   {
+    "depositPct": null,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": null,
+    "confidence": "none",
+    "notes": []
+   },
+   "Terms not understood"
+  ],
+  [
+   "   ",
+   {
+    "depositPct": null,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": null,
+    "confidence": "none",
+    "notes": []
+   },
+   "Terms not understood"
+  ],
+  [
+   "T/T 30% before and 70% against B/L copy",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "T/T 30% before and 70% against B/L copy",
+    "confidence": "parsed",
+    "notes": [
+     "position_deposit"
+    ]
+   },
+   "30% deposit · 70% against B/L"
+  ],
+  [
+   "30% advanced payment, 70% within 7 days after the date of B/L",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 7,
+    "source": "none",
+    "raw": "30% advanced payment, 70% within 7 days after the date of B/L",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 7 d after B/L"
+  ],
+  [
+   "30% deposit, 70% before loading",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit, 70% before loading",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% before dispatch"
+  ],
+  [
+   "100% payment before shipment",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "100% payment before shipment",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% before dispatch"
+  ],
+  [
+   "Balance 70% upon receipt of goods",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "delivery",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "Balance 70% upon receipt of goods",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% on delivery"
+  ],
+  [
+   "30% down payment, remaining 70% 2 weeks after ETA",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "arrival",
+    "balanceOffsetDays": 14,
+    "source": "none",
+    "raw": "30% down payment, remaining 70% 2 weeks after ETA",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 14 d after arrival"
+  ],
+  [
+   "20% deposit + 80% against documents",
+   {
+    "depositPct": 20,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "20% deposit + 80% against documents",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "20% deposit · 80% against B/L"
+  ],
+  [
+   "net30",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "net30",
+    "confidence": "partial",
+    "notes": [
+     "net_anchor_assumed"
+    ]
+   },
+   "100% 30 d after B/L"
+  ],
+  [
+   "Net 60 days",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 60,
+    "source": "none",
+    "raw": "Net 60 days",
+    "confidence": "partial",
+    "notes": [
+     "net_anchor_assumed"
+    ]
+   },
+   "100% 60 d after B/L"
+  ],
+  [
+   "30% deposit, balance when goods are ready",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit, balance when goods are ready",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% before dispatch"
+  ],
+  [
+   "30D/70B",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30D/70B",
+    "confidence": "partial",
+    "notes": [
+     "deposit_only"
+    ]
+   },
+   "30% deposit · balance terms unclear"
+  ],
+  [
+   "70B",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "70B",
+    "confidence": "partial",
+    "notes": [
+     "deposit_only"
+    ]
+   },
+   "30% deposit · balance terms unclear"
+  ],
+  [
+   "0D/100B BOL",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "0D/100B BOL",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% against B/L"
+  ],
+  [
+   "D/P at sight",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "D/P at sight",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% against B/L"
+  ],
+  [
+   "CAD",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "CAD",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% against B/L"
+  ],
+  [
+   "50% deposit, 50% 1 month after invoice date",
+   {
+    "depositPct": 50,
+    "balanceTrigger": "invoice",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "50% deposit, 50% 1 month after invoice date",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "50% deposit · 50% 30 d after PI date"
+  ],
+  [
+   "Prepayment 100%",
+   {
+    "depositPct": 100,
+    "balanceTrigger": "order",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "Prepayment 100%",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% with order"
+  ],
+  [
+   "30% TT deposit, 60% before shipment, 10% after arrival",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% TT deposit, 60% before shipment, 10% after arrival",
+    "confidence": "partial",
+    "notes": [
+     "multi_stage"
+    ]
+   },
+   "30% deposit · 70% before dispatch"
+  ],
+  [
+   "150% deposit",
+   {
+    "depositPct": 100,
+    "balanceTrigger": "order",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "150% deposit",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% with order"
+  ],
+  [
+   "30% deposit with order, 70% fourteen days after B/L",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 14,
+    "source": "none",
+    "raw": "30% deposit with order, 70% fourteen days after B/L",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 14 d after B/L"
+  ],
+  [
+   "30 percent deposit, 70 per cent before shipment",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30 percent deposit, 70 per cent before shipment",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% before dispatch"
+  ],
+  [
+   "Payment: 30% deposit\n70% on telex release",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "Payment: 30% deposit\n70% on telex release",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% against B/L"
+  ],
+  [
+   "30% deposit, 70% 90 days after arrival",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "arrival",
+    "balanceOffsetDays": 90,
+    "source": "none",
+    "raw": "30% deposit, 70% 90 days after arrival",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% 90 d after arrival"
+  ],
+  [
+   "预付30%，出货前付清",
+   {
+    "depositPct": null,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "预付30%，出货前付清",
+    "confidence": "none",
+    "notes": []
+   },
+   "Terms not understood"
+  ],
+  [
+   "30% deposit, 70% at shipment",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit, 70% at shipment",
+    "confidence": "partial",
+    "notes": [
+     "bare_keyword"
+    ]
+   },
+   "30% deposit · 70% before dispatch"
+  ],
+  [
+   "20% deposit, 10% prepayment, 70% against B/L copy",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "20% deposit, 10% prepayment, 70% against B/L copy",
+    "confidence": "partial",
+    "notes": [
+     "multi_stage"
+    ]
+   },
+   "30% deposit · 70% against B/L"
+  ],
+  [
+   "30% deposit, 60% B/L copy",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit, 60% B/L copy",
+    "confidence": "partial",
+    "notes": [
+     "pct_mismatch"
+    ]
+   },
+   "30% deposit · 70% against B/L"
+  ]
+ ],
+ "resolve": [
+  {
+   "payments": [],
+   "supplierTerms": "30% deposit, 70% before shipment",
+   "rule": {
+    "depositPct": 30,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "supplier",
+    "raw": "30% deposit, 70% before shipment",
+    "confidence": "parsed",
+    "notes": []
+   }
+  },
+  {
+   "payments": [
+    {
+     "dueTerms": "50% deposit, 50% before shipment",
+     "rawTermsText": null,
+     "depositPercentage": 50
+    }
+   ],
+   "supplierTerms": "30D/70B BOL",
+   "rule": {
+    "depositPct": 50,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "invoice",
+    "raw": "50% deposit, 50% before shipment",
+    "confidence": "parsed",
+    "notes": []
+   }
+  },
+  {
+   "payments": [
+    {
+     "dueTerms": "As per contract",
+     "rawTermsText": "T/T 30% deposit, balance against copy of B/L",
+     "depositPercentage": 30
+    }
+   ],
+   "supplierTerms": null,
+   "rule": {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "invoice",
+    "raw": "T/T 30% deposit, balance against copy of B/L",
+    "confidence": "parsed",
+    "notes": []
+   }
+  },
+  {
+   "payments": [
+    {
+     "dueTerms": "Deposit 30% paid",
+     "rawTermsText": null,
+     "depositPercentage": 30
+    }
+   ],
+   "supplierTerms": "30% deposit, 70% B/L copy.",
+   "rule": {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "supplier",
+    "raw": "30% deposit, 70% B/L copy.",
+    "confidence": "parsed",
+    "notes": []
+   }
+  },
+  {
+   "payments": [
+    {
+     "dueTerms": null,
+     "rawTermsText": null,
+     "depositPercentage": 40
+    }
+   ],
+   "supplierTerms": "L/C at sight",
+   "rule": {
+    "depositPct": 40,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "invoice",
+    "raw": "L/C at sight",
+    "confidence": "partial",
+    "notes": [
+     "pct_backfilled"
+    ]
+   }
+  },
+  {
+   "payments": [
+    {
+     "dueTerms": "net 30",
+     "rawTermsText": null,
+     "depositPercentage": 30
+    }
+   ],
+   "supplierTerms": null,
+   "rule": {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 30,
+    "source": "invoice",
+    "raw": "net 30",
+    "confidence": "partial",
+    "notes": [
+     "net_anchor_assumed"
+    ]
+   }
+  },
+  {
+   "payments": [
+    {
+     "dueTerms": "balance before shipment",
+     "rawTermsText": null,
+     "depositPercentage": 25
+    }
+   ],
+   "supplierTerms": null,
+   "rule": {
+    "depositPct": 25,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "invoice",
+    "raw": "balance before shipment",
+    "confidence": "partial",
+    "notes": [
+     "split_unknown",
+     "pct_backfilled"
+    ]
+   }
+  },
+  {
+   "payments": [
+    {
+     "dueTerms": "payment against documents",
+     "rawTermsText": null,
+     "depositPercentage": 150
+    }
+   ],
+   "supplierTerms": "",
+   "rule": {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "invoice",
+    "raw": "payment against documents",
+    "confidence": "parsed",
+    "notes": []
+   }
+  },
+  {
+   "payments": [
+    {
+     "dueTerms": "",
+     "rawTermsText": "",
+     "depositPercentage": null
+    },
+    {
+     "dueTerms": "30% deposit, 70% before shipment",
+     "rawTermsText": null,
+     "depositPercentage": 30
+    }
+   ],
+   "supplierTerms": "As per contract",
+   "rule": {
+    "depositPct": null,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "",
+    "confidence": "none",
+    "notes": []
+   }
+  },
+  {
+   "payments": [],
+   "supplierTerms": null,
+   "rule": {
+    "depositPct": null,
+    "balanceTrigger": "unknown",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": null,
+    "confidence": "none",
+    "notes": []
+   }
+  }
+ ]
+}

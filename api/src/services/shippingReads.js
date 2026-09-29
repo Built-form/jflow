@@ -1,0 +1,416 @@
+// Copied from shipping/src/handlers/orders.js (GET /orders + loadPurchaseOrdersForOrders, GET /containers, GET /purchase-order-invoice-payments, GET /payment-rules, GET /shipment-payments + hydrateShipmentPayments, GET /supplier-payments + hydrateSupplierPayments + loadSupplierPaymentTargets), src/services/shipment-sync.js (shipmentSelect, selectShipments, loadShipmentsForOrders) and src/services/shipment-routes.js (GET /shipments/:id/documents, mergedInto) — changes: every table schema-qualified through `t()` (SHIPPING_DB_SCHEMA); explicit column lists, all named in SOURCE_COLUMNS for the schema check; trimmed to what the payments model and its feed read: no PO documents, sends, invoice checks or company objects, no balance-record documents, link verdicts, applied totals or settlements, no loose proofs, no shipment member aggregates beyond the effective stage and no shipment_lines, the orders' shipment side-map reads only id + reference; loadShipmentsForOrders no longer swallows errors; plus loadCompanies and loadPoDirectory (the feed's companies[] and the POs a payment names with no bundle)
+'use strict';
+
+// The reads behind ShipLine's Payments page, run against shipping's own tables
+// (docs/PLAN.md "Phase 2": same DB, different schema, read-only). Every query
+// here is the route's query for the columns it keeps: same WHERE, same JOINs,
+// same ORDER BY, same LIMIT. The rows go through the copied mappers
+// (lib/shippingCopy/*) and then one JSON round trip, which is what the page
+// receives over HTTP.
+//
+// `q` is anything with `query(sql, params) → [rows]` (services/shippingSource.js
+// wraps the read-only connection with a per-query timeout). `t(name)` returns
+// the schema-qualified, backquoted table name. Nothing here writes.
+
+const { rowToOrder } = require('../lib/shippingCopy/orderShape');
+const M = require('../lib/shippingCopy/ordersMappers');
+const { paymentRuleRowToJson } = require('../lib/shippingCopy/paymentRules');
+const S = require('../lib/shippingCopy/shipments');
+const page = require('../lib/shippingCopy/shiplinePage');
+
+/**
+ * Every column the queries below touch (select list, WHERE, JOIN, ORDER BY), per
+ * table. services/shippingSource.js checks each one exists in SHIPPING_DB_SCHEMA
+ * (information_schema.COLUMNS) before any read: a renamed or missing column is
+ * `source_schema`, never a silently wrong figure. `suppliers` is a view.
+ */
+const SOURCE_COLUMNS = Object.freeze({
+    orders: ['id', 'status', 'quantity', 'unit_price', 'purchase_order_id', 'po_number', 'supplier', 'container_number',
+        'external_container_number', 'awb_number', 'eta', 'po_date', 'ordered_date', 'artwork_confirmed_date',
+        'estimated_ready_date', 'shipped_date', 'estimated_departure_date', 'delivery_date', 'arrived_date', 'shipment_id',
+        'created_at', 'deleted_at'],
+    order_receipts: ['order_id', 'type', 'quantity'],
+    purchase_orders: ['id', 'po_number', 'supplier', 'currency', 'shipping_total', 'company_id', 'created_at', 'deleted_at'],
+    purchase_order_invoices: ['id', 'purchase_order_id', 'filename', 'uploaded_at', 'deleted_at'],
+    purchase_order_signed_pis: ['id', 'purchase_order_id', 'uploaded_at', 'deleted_at'],
+    purchase_order_payments: ['id', 'purchase_order_id', 'uploaded_at', 'deleted_at'],
+    purchase_order_invoice_payments: ['id', 'purchase_order_invoice_id', 'purchase_order_id', 'payment_type', 'amount_due',
+        'currency', 'deposit_percentage', 'invoice_total', 'due_date', 'due_terms', 'raw_terms_text', 'payment_status',
+        'updated_at'],
+    payment_rules: ['id', 'scope', 'supplier_name', 'supplier_label', 'deposit_pct', 'deposit_trigger', 'deposit_grace_days',
+        'balance_trigger', 'balance_document_type', 'balance_offset_days', 'balance_grace_days', 'deposit_offset_days',
+        'estimates_json', 'air_owed_from', 'air_limit_days'],
+    containers: ['container_number', 'departure_date', 'departure_is_actual', 'arrival_date', 'arrival_is_actual', 'eta', 'ata'],
+    shipments: ['id', 'reference', 'stage', 'mode', 'bl_number', 'ata', 'departed_at', 'arrived_at', 'booked_at', 'created_at',
+        'merged_into_id', 'deleted_at'],
+    shipment_payments: ['id', 'shipment_id', 'shipment_reference', 'supplier_name', 'amount', 'currency', 'deposit_deducted',
+        'status', 'paid_on', 'settled_by_payment_id', 'deleted_at'],
+    shipment_payment_allocations: ['id', 'payment_id', 'purchase_order_id', 'po_ref', 'amount'],
+    supplier_payments: ['id', 'supplier_name', 'amount', 'currency', 'paid_on', 'deleted_at'],
+    supplier_payment_lines: ['id', 'payment_id', 'target_kind', 'target_id', 'amount'],
+    suppliers: ['id', 'name', 'paymentTerms', 'is_deleted'],
+    companies: ['id', 'name'],
+    draft_container_documents: ['id', 'shipment_id', 'type', 'generated_at', 'deleted_at'],
+    quality_assurance_documents: ['id', 'shipment_id', 'generated_at', 'deleted_at'],
+});
+
+const ph = (list) => list.map(() => '?').join(',');
+const viaJson = (x) => JSON.parse(JSON.stringify(x));
+
+// shipment-sync.js intIds: distinct positive integers, ascending.
+function intIds(list) {
+    return [...new Set((list || []).map(Number).filter(n => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
+}
+
+// shipment-sync.js: the booked stages as an SQL list.
+const BOOKED_IN = `'BOOKED','IN_TRANSIT','ARRIVED','CLOSED'`;
+
+// ── GET /orders ─────────────────────────────────────────────────────────
+
+/** ORDER_SELECT … ORDER BY orders.created_at DESC, for the columns rowToOrder keeps. */
+async function loadOrders(q, t) {
+    const [rows] = await q.query(
+        `SELECT orders.id, orders.status, orders.quantity, orders.unit_price, orders.purchase_order_id, orders.po_number,
+                orders.supplier, orders.container_number, orders.external_container_number, orders.awb_number, orders.eta,
+                orders.po_date, orders.ordered_date, orders.artwork_confirmed_date, orders.estimated_ready_date,
+                orders.shipped_date, orders.estimated_departure_date, orders.delivery_date, orders.arrived_date,
+                orders.shipment_id,
+                COALESCE((SELECT SUM(quantity) FROM ${t('order_receipts')} WHERE order_id = orders.id AND type = 'received'), 0) AS received_quantity
+           FROM ${t('orders')} orders
+          WHERE orders.deleted_at IS NULL
+          ORDER BY orders.created_at DESC`
+    );
+    return rows.map(rowToOrder);
+}
+
+/**
+ * loadPurchaseOrdersForOrders: { [poId]: bundle } for every live PO the orders
+ * point at — the header plus its invoices, signed PIs and proof-of-payment
+ * files, each list in its query's order.
+ */
+async function loadPurchaseOrdersForOrders(q, t, orders) {
+    const poIds = [...new Set(orders.map(o => o.purchaseOrderId).filter(Boolean))];
+    if (!poIds.length) return {};
+
+    const [poRows] = await q.query(
+        `SELECT id, po_number, supplier, currency, shipping_total, company_id, created_at
+           FROM ${t('purchase_orders')} WHERE id IN (${ph(poIds)}) AND deleted_at IS NULL`,
+        poIds
+    );
+    if (!poRows.length) return {};
+    const pos = poRows.map(M.rowToPurchaseOrder);
+    const liveIds = pos.map(p => p.id);
+    const inPos = ph(liveIds);
+
+    const [invRows] = await q.query(
+        `SELECT id, purchase_order_id, filename, uploaded_at
+           FROM ${t('purchase_order_invoices')}
+          WHERE purchase_order_id IN (${inPos}) AND deleted_at IS NULL
+          ORDER BY uploaded_at DESC, id DESC`,
+        liveIds
+    );
+    const [piRows] = await q.query(
+        `SELECT id, purchase_order_id, uploaded_at
+           FROM ${t('purchase_order_signed_pis')}
+          WHERE purchase_order_id IN (${inPos}) AND deleted_at IS NULL
+          ORDER BY uploaded_at DESC, id DESC`,
+        liveIds
+    );
+    const [payRows] = await q.query(
+        `SELECT id, purchase_order_id, uploaded_at
+           FROM ${t('purchase_order_payments')}
+          WHERE purchase_order_id IN (${inPos}) AND deleted_at IS NULL
+          ORDER BY uploaded_at DESC, id DESC`,
+        liveIds
+    );
+
+    const bundles = {};
+    for (const po of pos) bundles[po.id] = { ...po, invoices: [], signedPis: [], payments: [] };
+    for (const r of invRows) bundles[r.purchase_order_id]?.invoices.push(M.invoiceRowToJson(r));
+    for (const r of piRows) bundles[r.purchase_order_id]?.signedPis.push(M.signedPiRowToJson(r));
+    for (const r of payRows) bundles[r.purchase_order_id]?.payments.push(M.paymentRowToJson(r));
+    return bundles;
+}
+
+/** loadShipmentsForOrders: the shipment each order travels in, id → {id, reference}. */
+async function loadShipmentsForOrders(q, t, orders) {
+    const ids = intIds(orders.map(o => o && o.shipmentId));
+    if (!ids.length) return {};
+    const [rows] = await q.query(`SELECT s.id, s.reference FROM ${t('shipments')} s WHERE s.id IN (${ph(ids)})`, ids);
+    const out = {};
+    for (const r of rows) out[r.id] = { id: r.id, reference: r.reference || null };
+    return out;
+}
+
+// ── GET /shipments?stage=BOOKED,IN_TRANSIT,ARRIVED,CLOSED&limit=2000 ────
+
+/**
+ * shipmentSelect + selectShipments({stages, limit}): live shipments (not deleted,
+ * not merged) whose EFFECTIVE stage — the later of the stored stage and the stage
+ * the live member orders justify — is one of `stages`, newest booking first.
+ */
+async function selectShipments(q, t, { stages, limit }) {
+    const [rows] = await q.query(
+        `SELECT z.* FROM (
+           SELECT y.*,
+                  CASE WHEN y.stage IN (${BOOKED_IN})
+                       THEN ELT(GREATEST(FIELD(y.stage, ${BOOKED_IN}),
+                                         FIELD(COALESCE(y.derived_stage, ''), ${BOOKED_IN})),
+                                ${BOOKED_IN})
+                       ELSE y.stage END AS effective_stage
+             FROM (
+               SELECT s.id, s.reference, s.stage, s.mode, s.bl_number, s.ata, s.departed_at, s.arrived_at,
+                      s.booked_at, s.created_at,
+                      CASE WHEN s.stage NOT IN (${BOOKED_IN}) OR COALESCE(m.member_count, 0) = 0 THEN NULL
+                           WHEN m.n_terminal = m.member_count THEN 'CLOSED'
+                           WHEN m.n_arrived + m.n_terminal > 0 THEN 'ARRIVED'
+                           WHEN m.n_transit > 0 THEN 'IN_TRANSIT'
+                           ELSE 'BOOKED' END AS derived_stage
+                 FROM ${t('shipments')} s
+                 LEFT JOIN (
+                     SELECT o.shipment_id,
+                            COUNT(*) AS member_count,
+                            SUM(o.status IN ('RECEIVED', 'PARTIALLY_RECEIVED', 'DESTROYED')) AS n_terminal,
+                            SUM(o.status = 'ARRIVED_AT_WAREHOUSE') AS n_arrived,
+                            SUM(o.status IN ('ON_SEA', 'ON_AIR')) AS n_transit
+                       FROM ${t('orders')} o
+                      WHERE o.deleted_at IS NULL AND o.shipment_id IS NOT NULL
+                      GROUP BY o.shipment_id
+                 ) m ON m.shipment_id = s.id
+                WHERE s.deleted_at IS NULL AND s.merged_into_id IS NULL
+             ) y
+         ) z
+         WHERE z.effective_stage IN (${ph(stages)})
+         ORDER BY COALESCE(z.booked_at, z.created_at) DESC, z.id DESC
+         LIMIT ${Number(limit)}`,
+        stages
+    );
+    return rows.map(S.rowToShipment);
+}
+
+// ── GET /shipments/:id/documents (only where a document rule applies) ───
+
+/** Shipments merged (directly or not) into `id`, five hops at most. */
+async function mergedInto(q, t, id) {
+    const out = [];
+    let frontier = [id];
+    for (let depth = 0; frontier.length && depth < 5; depth++) {
+        const [rows] = await q.query(`SELECT id FROM ${t('shipments')} WHERE merged_into_id IN (${ph(frontier)})`, frontier);
+        frontier = rows.map(r => r.id).filter(x => !out.includes(x));
+        out.push(...frontier);
+    }
+    return out;
+}
+
+/** Each target's documents as the route lists them, reduced to what the page keeps. */
+async function loadShipmentDocuments(q, t, ids) {
+    const out = {};
+    const at = (r) => r.generated_at?.toISOString?.() ?? r.generated_at;
+    for (const id of ids) {
+        const all = [id, ...(await mergedInto(q, t, id))];
+        const [docs] = await q.query(
+            `SELECT id, type, generated_at FROM ${t('draft_container_documents')}
+              WHERE shipment_id IN (${ph(all)}) AND deleted_at IS NULL
+              ORDER BY type ASC, generated_at DESC, id DESC`, all);
+        const [qa] = await q.query(
+            `SELECT id, generated_at FROM ${t('quality_assurance_documents')}
+              WHERE shipment_id IN (${ph(all)}) AND deleted_at IS NULL
+              ORDER BY generated_at DESC, id DESC`, all);
+        out[String(id)] = {
+            data: docs.map(r => ({ type: r.type || 'quote', generatedAt: at(r) })),
+            qaDocuments: qa.map(r => ({ generatedAt: at(r) })),
+        };
+    }
+    return viaJson(out);
+}
+
+// ── GET /shipment-payments (no filters) ─────────────────────────────────
+
+async function loadShipmentPayments(q, t) {
+    const [rows] = await q.query(
+        `SELECT p.id, p.shipment_id, p.shipment_reference, p.supplier_name, p.amount, p.currency, p.deposit_deducted,
+                p.status, p.paid_on, p.settled_by_payment_id
+           FROM ${t('shipment_payments')} p WHERE p.deleted_at IS NULL ORDER BY p.id DESC`
+    );
+    if (!rows.length) return [];
+    const ids = rows.map(r => r.id);
+    const [allocRows] = await q.query(
+        `SELECT a.id, a.payment_id, a.purchase_order_id, a.po_ref, a.amount, po.po_number
+           FROM ${t('shipment_payment_allocations')} a
+           LEFT JOIN ${t('purchase_orders')} po ON po.id = a.purchase_order_id
+          WHERE a.payment_id IN (${ph(ids)})
+          ORDER BY a.id`,
+        ids
+    );
+    const allocByPayment = new Map();
+    for (const a of allocRows) {
+        if (!allocByPayment.has(a.payment_id)) allocByPayment.set(a.payment_id, []);
+        allocByPayment.get(a.payment_id).push(M.shipmentPaymentAllocationRowToJson(a));
+    }
+    return rows.map(r => M.shipmentPaymentRowToJson(r, { allocations: allocByPayment.get(r.id) || [] }));
+}
+
+// ── GET /supplier-payments (no filters) ─────────────────────────────────
+
+/** loadSupplierPaymentTargets: what each line points at, keyed `${kind}:${id}`; missing = deleted since. */
+async function loadSupplierPaymentTargets(q, t, lines) {
+    const out = new Map();
+    const idsOf = kind => [...new Set(lines.filter(l => l.kind === kind).map(l => l.id))];
+    const balIds = idsOf('balance');
+    if (balIds.length) {
+        const [rows] = await q.query(
+            `SELECT p.id, p.shipment_id, p.shipment_reference
+               FROM ${t('shipment_payments')} p WHERE p.id IN (${ph(balIds)}) AND p.deleted_at IS NULL`, balIds
+        );
+        for (const r of rows) {
+            out.set(`balance:${r.id}`, {
+                kind: 'balance', id: r.id, shipmentId: r.shipment_id, shipmentReference: r.shipment_reference,
+                purchaseOrderId: null, poNumber: null, paymentType: null,
+            });
+        }
+    }
+    const piIds = idsOf('pi');
+    if (piIds.length) {
+        const [rows] = await q.query(
+            `SELECT p.id, p.purchase_order_id, p.payment_type, po.po_number
+               FROM ${t('purchase_order_invoice_payments')} p
+               JOIN ${t('purchase_orders')} po ON po.id = p.purchase_order_id AND po.deleted_at IS NULL
+               JOIN ${t('purchase_order_invoices')} i ON i.id = p.purchase_order_invoice_id AND i.deleted_at IS NULL
+              WHERE p.id IN (${ph(piIds)})`, piIds
+        );
+        for (const r of rows) {
+            out.set(`pi:${r.id}`, {
+                kind: 'pi', id: r.id, purchaseOrderId: r.purchase_order_id, poNumber: r.po_number,
+                paymentType: r.payment_type || null, shipmentId: null, shipmentReference: null,
+            });
+        }
+    }
+    const poIds = idsOf('po_deposit');
+    if (poIds.length) {
+        const [rows] = await q.query(
+            `SELECT po.id, po.po_number FROM ${t('purchase_orders')} po WHERE po.id IN (${ph(poIds)}) AND po.deleted_at IS NULL`, poIds
+        );
+        for (const r of rows) {
+            out.set(`po_deposit:${r.id}`, {
+                kind: 'po_deposit', id: r.id, purchaseOrderId: r.id, poNumber: r.po_number, paymentType: 'deposit',
+                shipmentId: null, shipmentReference: null,
+            });
+        }
+    }
+    return out;
+}
+
+async function loadSupplierPayments(q, t) {
+    const [rows] = await q.query(
+        `SELECT sp.id, sp.supplier_name, sp.amount, sp.currency, sp.paid_on
+           FROM ${t('supplier_payments')} sp WHERE sp.deleted_at IS NULL ORDER BY sp.paid_on DESC, sp.id DESC`
+    );
+    if (!rows.length) return [];
+    const ids = rows.map(r => r.id);
+    const [lineRows] = await q.query(
+        `SELECT id, payment_id, target_kind, target_id, amount
+           FROM ${t('supplier_payment_lines')} WHERE payment_id IN (${ph(ids)}) ORDER BY id`, ids
+    );
+    const targets = await loadSupplierPaymentTargets(q, t, lineRows.map(l => ({ kind: l.target_kind, id: l.target_id })));
+    const linesByPayment = new Map();
+    for (const l of lineRows) {
+        if (!linesByPayment.has(l.payment_id)) linesByPayment.set(l.payment_id, []);
+        linesByPayment.get(l.payment_id).push(M.supplierPaymentLineToJson(l, targets.get(`${l.target_kind}:${l.target_id}`) || null));
+    }
+    return rows.map(r => M.supplierPaymentRowToJson(r, { lines: linesByPayment.get(r.id) || [] }));
+}
+
+// ── The page's other feeds ──────────────────────────────────────────────
+
+async function loadContainers(q, t) {
+    const [rows] = await q.query(
+        `SELECT container_number, departure_date, departure_is_actual, arrival_date, arrival_is_actual, eta, ata
+           FROM ${t('containers')} ORDER BY COALESCE(eta, arrival_date, departure_date) DESC, container_number ASC`
+    );
+    return rows.map(M.rowToContainer);
+}
+
+async function loadInvoicePayments(q, t) {
+    const [rows] = await q.query(
+        `SELECT p.id, p.purchase_order_invoice_id, p.purchase_order_id, p.payment_type, p.amount_due, p.currency,
+                p.deposit_percentage, p.invoice_total, p.due_date, p.due_terms, p.raw_terms_text, p.payment_status,
+                p.updated_at
+           FROM ${t('purchase_order_invoice_payments')} p
+           JOIN ${t('purchase_order_invoices')} i ON i.id = p.purchase_order_invoice_id AND i.deleted_at IS NULL
+           JOIN ${t('purchase_orders')} po        ON po.id = p.purchase_order_id        AND po.deleted_at IS NULL
+          ORDER BY p.purchase_order_id, p.id`
+    );
+    return rows.map(M.invoicePaymentRowToJson);
+}
+
+async function loadPaymentRules(q, t) {
+    const [rows] = await q.query(
+        `SELECT id, scope, supplier_name, supplier_label, deposit_pct, deposit_trigger, deposit_grace_days, balance_trigger,
+                balance_document_type, balance_offset_days, balance_grace_days, deposit_offset_days, estimates_json,
+                air_owed_from, air_limit_days
+           FROM ${t('payment_rules')} ORDER BY scope = 'default' DESC, supplier_label, id`
+    );
+    return rows.map(paymentRuleRowToJson);
+}
+
+/** JFPRO GET /api/suppliers (live suppliers by name), through shipping's suppliers view; id breaks ties. */
+async function loadSuppliers(q, t) {
+    const [rows] = await q.query(
+        `SELECT id, name, paymentTerms FROM ${t('suppliers')} WHERE is_deleted = FALSE ORDER BY name ASC, id ASC`
+    );
+    return rows.map(page.supplierFromRow);
+}
+
+/**
+ * Every payload the page's model reads, as JSON. `shipmentDocuments` is filled by
+ * loadShipmentDocuments once the targets are known (shippingSource.js).
+ */
+async function loadSources(q, t) {
+    const orders = await loadOrders(q, t);
+    const purchaseOrders = await loadPurchaseOrdersForOrders(q, t, orders);
+    const shipmentsById = await loadShipmentsForOrders(q, t, orders);
+    const containers = await loadContainers(q, t);
+    const invoicePayments = await loadInvoicePayments(q, t);
+    const paymentRules = await loadPaymentRules(q, t);
+    const shipments = await selectShipments(q, t, { stages: page.PAGE_SHIPMENT_STAGES, limit: page.PAGE_SHIPMENT_LIMIT });
+    const shipmentPayments = await loadShipmentPayments(q, t);
+    const supplierPayments = await loadSupplierPayments(q, t);
+    const suppliers = await loadSuppliers(q, t);
+    return viaJson({
+        orders: { data: orders, purchaseOrders, shipments: shipmentsById },
+        containers: { data: containers },
+        invoicePayments: { data: invoicePayments },
+        paymentRules: { data: paymentRules },
+        shipments: { data: shipments },
+        shipmentPayments: { data: shipmentPayments },
+        supplierPayments: { data: supplierPayments },
+        suppliers,
+        shipmentDocuments: {},
+    });
+}
+
+/** The feed's companies[]: shipping's companies, id and name. */
+async function loadCompanies(q, t) {
+    const [rows] = await q.query(`SELECT id, name FROM ${t('companies')} ORDER BY id`);
+    return rows.map(r => ({ id: r.id, name: r.name }));
+}
+
+/** POs a payment names that have no bundle (no live order lines): id → {poNumber, supplier, companyId}. */
+async function loadPoDirectory(q, t, ids) {
+    const out = new Map();
+    const want = intIds(ids);
+    if (!want.length) return out;
+    const [rows] = await q.query(
+        `SELECT id, po_number, supplier, company_id FROM ${t('purchase_orders')} WHERE id IN (${ph(want)})`, want
+    );
+    for (const r of rows) out.set(r.id, { poNumber: r.po_number || `PO ${r.id}`, supplier: r.supplier || null, companyId: r.company_id ?? null });
+    return out;
+}
+
+module.exports = {
+    SOURCE_COLUMNS,
+    loadSources,
+    loadShipmentDocuments,
+    loadCompanies,
+    loadPoDirectory,
+};

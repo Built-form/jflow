@@ -1,0 +1,3040 @@
+{
+ "fixture": "unparseable-terms",
+ "source": {
+  "commit": "f9499bc",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 2786,
+    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-09-29",
+ "output": {
+  "today": "2026-09-29",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 1037.5,
+     "due7": 0,
+     "due30": 1837.5,
+     "unscheduled": 4140,
+     "outstanding": 7015,
+     "later": 0,
+     "notPayable": 3240,
+     "overdueCount": 4,
+     "itemCount": 15
+    },
+    "items": [
+     {
+      "id": "derived:dep:1105",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 1105,
+      "poNumber": "JF-PO-1105",
+      "supplier": "Dongguan Partial Co., Ltd",
+      "currency": "USD",
+      "amount": 187.5,
+      "dueDate": "2026-08-15",
+      "contractualDate": "2026-08-15",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_partial"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 625,
+        "result": 625,
+        "source": "1 priced line 600.00 + shipping 25.00"
+       },
+       {
+        "op": "×",
+        "label": "Deposit 30%",
+        "value": 0.3,
+        "result": 187.5,
+        "source": "the supplier's terms in JFPRO “30% deposit, 40% before shipment, 30% 30 days after delivery”"
+       }
+      ]
+     },
+     {
+      "kind": "deposit",
+      "basis": "stated",
+      "poId": 1108,
+      "poNumber": "JF-PO-1108",
+      "supplier": "Qingdao Pictures Co., Ltd",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9801,
+      "paymentId": 801,
+      "shipmentPaymentId": null,
+      "id": "stated:801",
+      "amount": 300,
+      "dueDate": "2026-09-03",
+      "contractualDate": "2026-09-03",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "blocked": null,
+      "flags": [
+       "derived_date"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Deposit PI",
+        "value": 300,
+        "result": 300,
+        "source": "PI-1108.pdf — what the PI asks for"
+       }
+      ]
+     },
+     {
+      "kind": "deposit",
+      "basis": "stated",
+      "poId": 1109,
+      "poNumber": "JF-PO-1109",
+      "supplier": "Qingdao Pictures Co., Ltd",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9901,
+      "paymentId": 901,
+      "shipmentPaymentId": null,
+      "id": "stated:901",
+      "amount": 400,
+      "dueDate": "2026-09-10",
+      "contractualDate": "2026-09-10",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "blocked": null,
+      "flags": [
+       "terms_partial"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Deposit PI",
+        "value": 400,
+        "result": 400,
+        "source": "PI-1109.pdf — what the PI asks for"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:1106",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 1106,
+      "poNumber": "JF-PO-1106",
+      "supplier": "Wenzhou Deposit Only Co., Ltd",
+      "currency": "USD",
+      "amount": 150,
+      "dueDate": "2026-09-20",
+      "contractualDate": "2026-09-20",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_partial"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 500,
+        "result": 500,
+        "source": "1 priced line 500.00"
+       },
+       {
+        "op": "×",
+        "label": "Deposit 30%",
+        "value": 0.3,
+        "result": 150,
+        "source": "the supplier's terms in JFPRO “Deposit 30% paid”"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1107:314",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1107,
+      "poNumber": "JF-PO-1107",
+      "supplier": "Yiwu Net Terms Co., Ltd",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-10-10",
+      "contractualDate": "2026-10-10",
+      "trigger": "bl",
+      "containerNumber": "314",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_partial"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 700,
+        "result": 700,
+        "source": "1 priced line 700.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 700,
+        "result": 700,
+        "source": "100% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 314",
+        "value": 1,
+        "result": 700,
+        "source": "goods on board 700.00 of 700.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1105:313",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1105,
+      "poNumber": "JF-PO-1105",
+      "supplier": "Dongguan Partial Co., Ltd",
+      "currency": "USD",
+      "amount": 437.5,
+      "dueDate": "2026-10-10",
+      "contractualDate": "2026-10-10",
+      "trigger": "before_dispatch",
+      "containerNumber": "313",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_partial",
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 625,
+        "result": 625,
+        "source": "1 priced line 600.00 + shipping 25.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 187.5,
+        "result": 437.5,
+        "source": "still to pay — a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 437.5,
+        "result": 437.5,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 313",
+        "value": 1,
+        "result": 437.5,
+        "source": "goods on board 600.00 of 600.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1108:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1108,
+      "poNumber": "JF-PO-1108",
+      "supplier": "Qingdao Pictures Co., Ltd",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-10-20",
+      "contractualDate": "2026-10-20",
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container",
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "PI total — PI-1108.pdf"
+       },
+       {
+        "op": "−",
+        "label": "Asked for on open PIs",
+        "value": 300,
+        "result": 700,
+        "source": "each open PI is a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 700,
+        "result": 700,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 700,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1101:310",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1101,
+      "poNumber": "JF-PO-1101",
+      "supplier": "Ningbo Tam Industrial Co., Ltd",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "unknown",
+      "containerNumber": "310",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_unclear"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1000,
+        "result": 1000
+       },
+       {
+        "op": "×",
+        "label": "Share in 310",
+        "value": 1,
+        "result": 1000,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1104:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1104,
+      "poNumber": "JF-PO-1104",
+      "supplier": "Xiamen Brightway Co., Ltd",
+      "currency": "USD",
+      "amount": 900,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "unknown",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_unclear",
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 900,
+        "result": 900,
+        "source": "1 priced line 900.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 900,
+        "result": 900
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 900,
+        "source": "goods on board 900.00 of 900.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1103:311",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1103,
+      "poNumber": "JF-PO-1103",
+      "supplier": "Hangzhou Oldco Trading",
+      "currency": "USD",
+      "amount": 600,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "unknown",
+      "containerNumber": "311",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_unclear"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 600,
+        "result": 600,
+        "source": "1 priced line 600.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 600,
+        "result": 600
+       },
+       {
+        "op": "×",
+        "label": "Share in 311",
+        "value": 1,
+        "result": 600,
+        "source": "goods on board 600.00 of 600.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1109:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1109,
+      "poNumber": "JF-PO-1109",
+      "supplier": "Qingdao Pictures Co., Ltd",
+      "currency": "USD",
+      "amount": 600,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "unknown",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_partial",
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 priced line 1,000.00"
+       },
+       {
+        "op": "−",
+        "label": "Asked for on open PIs",
+        "value": 400,
+        "result": 600,
+        "source": "each open PI is a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 600,
+        "result": 600,
+        "source": "60% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 600,
+        "source": "goods on board 1,000.00 of 1,000.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1102:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1102,
+      "poNumber": "JF-PO-1102",
+      "supplier": "Mystery Trading",
+      "currency": "USD",
+      "amount": 400,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "unknown",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_unclear",
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 400,
+        "result": 400,
+        "source": "1 priced line 400.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 400,
+        "result": 400
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 400,
+        "source": "goods on board 400.00 of 400.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1106:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1106,
+      "poNumber": "JF-PO-1106",
+      "supplier": "Wenzhou Deposit Only Co., Ltd",
+      "currency": "USD",
+      "amount": 350,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "unknown",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_partial",
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 500,
+        "result": 500,
+        "source": "1 priced line 500.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 150,
+        "result": 350,
+        "source": "still to pay — a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 350,
+        "result": 350,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 350,
+        "source": "goods on board 500.00 of 500.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1111:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1111,
+      "poNumber": "JF-PO-1111",
+      "supplier": "Ningbo Tam Industrial Co., Ltd",
+      "currency": "USD",
+      "amount": 200,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "unknown",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_unclear",
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 200,
+        "result": 200,
+        "source": "1 priced line 200.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 200,
+        "result": 200
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 200,
+        "source": "goods on board 200.00 of 200.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:1110:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 1110,
+      "poNumber": "PO 1110",
+      "supplier": null,
+      "currency": "USD",
+      "amount": 90,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "unknown",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "terms_unclear",
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 90,
+        "result": 90,
+        "source": "1 priced line 90.00"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 90,
+        "result": 90
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 90,
+        "source": "goods on board 90.00 of 90.00"
+       }
+      ]
+     }
+    ],
+    "pos": [
+     {
+      "poId": 1101,
+      "poNumber": "JF-PO-1101",
+      "supplier": "Ningbo Tam Industrial Co., Ltd",
+      "supplierRaw": "Ningbo Tam Industrial Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 0,
+      "derivedBalance": 1000,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "L/C at sight",
+       "confidence": "none",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "310",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 1000,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-15",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_unclear"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1101:310",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1101,
+        "poNumber": "JF-PO-1101",
+        "supplier": "Ningbo Tam Industrial Co., Ltd",
+        "currency": "USD",
+        "amount": 1000,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "unknown",
+        "containerNumber": "310",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_unclear"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1000,
+          "result": 1000
+         },
+         {
+          "op": "×",
+          "label": "Share in 310",
+          "value": 1,
+          "result": 1000,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1102,
+      "poNumber": "JF-PO-1102",
+      "supplier": "Mystery Trading",
+      "supplierRaw": "Mystery Trading",
+      "currency": "USD",
+      "poTotal": 400,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 400,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 400,
+      "derivedDeposit": 0,
+      "derivedBalance": 400,
+      "outstanding": 400,
+      "rule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": null,
+       "confidence": "none",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 50,
+        "value": 400,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_unclear"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1102:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1102,
+        "poNumber": "JF-PO-1102",
+        "supplier": "Mystery Trading",
+        "currency": "USD",
+        "amount": 400,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "unknown",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_unclear",
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 400,
+          "result": 400,
+          "source": "1 priced line 400.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 400,
+          "result": 400
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 400,
+          "source": "goods on board 400.00 of 400.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1103,
+      "poNumber": "JF-PO-1103",
+      "supplier": "Hangzhou Oldco Trading",
+      "supplierRaw": "Hangzhou Oldco Trading",
+      "currency": "USD",
+      "poTotal": 600,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 600,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 600,
+      "derivedDeposit": 0,
+      "derivedBalance": 600,
+      "outstanding": 600,
+      "rule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "",
+       "confidence": "none",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "311",
+        "share": 1,
+        "lineCount": 1,
+        "units": 20,
+        "value": 600,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-10-02",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_unclear"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1103:311",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1103,
+        "poNumber": "JF-PO-1103",
+        "supplier": "Hangzhou Oldco Trading",
+        "currency": "USD",
+        "amount": 600,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "unknown",
+        "containerNumber": "311",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_unclear"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 600,
+          "result": 600,
+          "source": "1 priced line 600.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 600,
+          "result": 600
+         },
+         {
+          "op": "×",
+          "label": "Share in 311",
+          "value": 1,
+          "result": 600,
+          "source": "goods on board 600.00 of 600.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1104,
+      "poNumber": "JF-PO-1104",
+      "supplier": "Xiamen Brightway Co., Ltd",
+      "supplierRaw": "Xiamen Brightway Co., Ltd",
+      "currency": "USD",
+      "poTotal": 900,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 900,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 900,
+      "derivedDeposit": 0,
+      "derivedBalance": 900,
+      "outstanding": 900,
+      "rule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": null,
+       "confidence": "none",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 60,
+        "value": 900,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_unclear"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1104:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1104,
+        "poNumber": "JF-PO-1104",
+        "supplier": "Xiamen Brightway Co., Ltd",
+        "currency": "USD",
+        "amount": 900,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "unknown",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_unclear",
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 900,
+          "result": 900,
+          "source": "1 priced line 900.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 900,
+          "result": 900
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 900,
+          "source": "goods on board 900.00 of 900.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1105,
+      "poNumber": "JF-PO-1105",
+      "supplier": "Dongguan Partial Co., Ltd",
+      "supplierRaw": "Dongguan Partial Co., Ltd",
+      "currency": "USD",
+      "poTotal": 625,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 600,
+      "shippingTotal": 25,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 625,
+      "derivedDeposit": 187.5,
+      "derivedBalance": 437.5,
+      "outstanding": 625,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 40% before shipment, 30% 30 days after delivery",
+       "confidence": "partial",
+       "notes": [
+        "multi_stage"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "313",
+        "share": 1,
+        "lineCount": 1,
+        "units": 300,
+        "value": 600,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-10",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_partial"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:1105",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 1105,
+        "poNumber": "JF-PO-1105",
+        "supplier": "Dongguan Partial Co., Ltd",
+        "currency": "USD",
+        "amount": 187.5,
+        "dueDate": "2026-08-15",
+        "contractualDate": "2026-08-15",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_partial"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 625,
+          "result": 625,
+          "source": "1 priced line 600.00 + shipping 25.00"
+         },
+         {
+          "op": "×",
+          "label": "Deposit 30%",
+          "value": 0.3,
+          "result": 187.5,
+          "source": "the supplier's terms in JFPRO “30% deposit, 40% before shipment, 30% 30 days after delivery”"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:1105:313",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1105,
+        "poNumber": "JF-PO-1105",
+        "supplier": "Dongguan Partial Co., Ltd",
+        "currency": "USD",
+        "amount": 437.5,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "trigger": "before_dispatch",
+        "containerNumber": "313",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_partial",
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 625,
+          "result": 625,
+          "source": "1 priced line 600.00 + shipping 25.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 187.5,
+          "result": 437.5,
+          "source": "still to pay — a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 437.5,
+          "result": 437.5,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 313",
+          "value": 1,
+          "result": 437.5,
+          "source": "goods on board 600.00 of 600.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1106,
+      "poNumber": "JF-PO-1106",
+      "supplier": "Wenzhou Deposit Only Co., Ltd",
+      "supplierRaw": "Wenzhou Deposit Only Co., Ltd",
+      "currency": "USD",
+      "poTotal": 500,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 500,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 500,
+      "derivedDeposit": 150,
+      "derivedBalance": 350,
+      "outstanding": 500,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "Deposit 30% paid",
+       "confidence": "partial",
+       "notes": [
+        "deposit_only"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 500,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_partial"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:1106",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 1106,
+        "poNumber": "JF-PO-1106",
+        "supplier": "Wenzhou Deposit Only Co., Ltd",
+        "currency": "USD",
+        "amount": 150,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_partial"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 500,
+          "result": 500,
+          "source": "1 priced line 500.00"
+         },
+         {
+          "op": "×",
+          "label": "Deposit 30%",
+          "value": 0.3,
+          "result": 150,
+          "source": "the supplier's terms in JFPRO “Deposit 30% paid”"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:1106:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1106,
+        "poNumber": "JF-PO-1106",
+        "supplier": "Wenzhou Deposit Only Co., Ltd",
+        "currency": "USD",
+        "amount": 350,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "unknown",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_partial",
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 500,
+          "result": 500,
+          "source": "1 priced line 500.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 150,
+          "result": 350,
+          "source": "still to pay — a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 350,
+          "result": 350,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 350,
+          "source": "goods on board 500.00 of 500.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1107,
+      "poNumber": "JF-PO-1107",
+      "supplier": "Yiwu Net Terms Co., Ltd",
+      "supplierRaw": "Yiwu Net Terms Co., Ltd",
+      "currency": "USD",
+      "poTotal": 700,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 700,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 700,
+      "derivedDeposit": 0,
+      "derivedBalance": 700,
+      "outstanding": 700,
+      "rule": {
+       "depositPct": 0,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "net 30",
+       "confidence": "partial",
+       "notes": [
+        "net_anchor_assumed"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "314",
+        "share": 1,
+        "lineCount": 1,
+        "units": 100,
+        "value": 700,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-10",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_partial"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1107:314",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1107,
+        "poNumber": "JF-PO-1107",
+        "supplier": "Yiwu Net Terms Co., Ltd",
+        "currency": "USD",
+        "amount": 700,
+        "dueDate": "2026-10-10",
+        "contractualDate": "2026-10-10",
+        "trigger": "bl",
+        "containerNumber": "314",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_partial"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 700,
+          "result": 700,
+          "source": "1 priced line 700.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 700,
+          "result": 700,
+          "source": "100% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 314",
+          "value": 1,
+          "result": 700,
+          "source": "goods on board 700.00 of 700.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1108,
+      "poNumber": "JF-PO-1108",
+      "supplier": "Qingdao Pictures Co., Ltd",
+      "supplierRaw": "Qingdao Pictures Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9801,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 300,
+      "remainder": 700,
+      "derivedDeposit": 0,
+      "derivedBalance": 700,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "invoice",
+       "raw": "T/T 30% deposit, balance against copy of B/L",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 250,
+        "value": 1000,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": "shipment",
+        "flags": [
+         "no_container",
+         "estimated"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "invoice_total_used"
+      ],
+      "items": [
+       {
+        "kind": "deposit",
+        "basis": "stated",
+        "poId": 1108,
+        "poNumber": "JF-PO-1108",
+        "supplier": "Qingdao Pictures Co., Ltd",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9801,
+        "paymentId": 801,
+        "shipmentPaymentId": null,
+        "id": "stated:801",
+        "amount": 300,
+        "dueDate": "2026-09-03",
+        "contractualDate": "2026-09-03",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "blocked": null,
+        "flags": [
+         "derived_date"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Deposit PI",
+          "value": 300,
+          "result": 300,
+          "source": "PI-1108.pdf — what the PI asks for"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:1108:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1108,
+        "poNumber": "JF-PO-1108",
+        "supplier": "Qingdao Pictures Co., Ltd",
+        "currency": "USD",
+        "amount": 700,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container",
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "PI total — PI-1108.pdf"
+         },
+         {
+          "op": "−",
+          "label": "Asked for on open PIs",
+          "value": 300,
+          "result": 700,
+          "source": "each open PI is a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 700,
+          "result": 700,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 700,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1109,
+      "poNumber": "JF-PO-1109",
+      "supplier": "Qingdao Pictures Co., Ltd",
+      "supplierRaw": "Qingdao Pictures Co., Ltd",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 400,
+      "remainder": 600,
+      "derivedDeposit": 0,
+      "derivedBalance": 600,
+      "outstanding": 1000,
+      "rule": {
+       "depositPct": 40,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "invoice",
+       "raw": "As per contract",
+       "confidence": "partial",
+       "notes": [
+        "pct_backfilled"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 250,
+        "value": 1000,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_partial"
+      ],
+      "items": [
+       {
+        "kind": "deposit",
+        "basis": "stated",
+        "poId": 1109,
+        "poNumber": "JF-PO-1109",
+        "supplier": "Qingdao Pictures Co., Ltd",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9901,
+        "paymentId": 901,
+        "shipmentPaymentId": null,
+        "id": "stated:901",
+        "amount": 400,
+        "dueDate": "2026-09-10",
+        "contractualDate": "2026-09-10",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "blocked": null,
+        "flags": [
+         "terms_partial"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Deposit PI",
+          "value": 400,
+          "result": 400,
+          "source": "PI-1109.pdf — what the PI asks for"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:1109:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1109,
+        "poNumber": "JF-PO-1109",
+        "supplier": "Qingdao Pictures Co., Ltd",
+        "currency": "USD",
+        "amount": 600,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "unknown",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_partial",
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 priced line 1,000.00"
+         },
+         {
+          "op": "−",
+          "label": "Asked for on open PIs",
+          "value": 400,
+          "result": 600,
+          "source": "each open PI is a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 600,
+          "result": 600,
+          "source": "60% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 600,
+          "source": "goods on board 1,000.00 of 1,000.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1110,
+      "poNumber": "PO 1110",
+      "supplier": null,
+      "supplierRaw": null,
+      "currency": "USD",
+      "poTotal": 90,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 90,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 90,
+      "derivedDeposit": 0,
+      "derivedBalance": 90,
+      "outstanding": 90,
+      "rule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": null,
+       "confidence": "none",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 10,
+        "value": 90,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_unclear"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1110:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1110,
+        "poNumber": "PO 1110",
+        "supplier": null,
+        "currency": "USD",
+        "amount": 90,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "unknown",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_unclear",
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 90,
+          "result": 90,
+          "source": "1 priced line 90.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 90,
+          "result": 90
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 90,
+          "source": "goods on board 90.00 of 90.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 1111,
+      "poNumber": "JF-PO-1111",
+      "supplier": "Ningbo Tam Industrial Co., Ltd",
+      "supplierRaw": "Ningbo Tam Industrial Co., Ltd",
+      "currency": "USD",
+      "poTotal": 200,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 200,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 200,
+      "derivedDeposit": 0,
+      "derivedBalance": 200,
+      "outstanding": 200,
+      "rule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "L/C at sight",
+       "confidence": "none",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 80,
+        "value": 200,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "terms_unclear"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:1111:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 1111,
+        "poNumber": "JF-PO-1111",
+        "supplier": "Ningbo Tam Industrial Co., Ltd",
+        "currency": "USD",
+        "amount": 200,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "unknown",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "terms_unclear",
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 200,
+          "result": 200,
+          "source": "1 priced line 200.00"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 200,
+          "result": 200
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 200,
+          "source": "goods on board 200.00 of 200.00"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Qingdao Pictures Co., Ltd",
+      "currency": "USD",
+      "outstanding": 2000,
+      "overdue": 700,
+      "due30": 700,
+      "unscheduled": 600,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 2,
+      "itemCount": 4,
+      "nextDue": "2026-09-03",
+      "supplierRule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "As per contract",
+       "confidence": "none",
+       "notes": []
+      },
+      "supplierTerms": "As per contract",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Ningbo Tam Industrial Co., Ltd",
+      "currency": "USD",
+      "outstanding": 1200,
+      "overdue": 0,
+      "due30": 0,
+      "unscheduled": 1200,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 2,
+      "itemCount": 2,
+      "nextDue": null,
+      "supplierRule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "L/C at sight",
+       "confidence": "none",
+       "notes": [
+        "lc_terms"
+       ]
+      },
+      "supplierTerms": "L/C at sight",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Xiamen Brightway Co., Ltd",
+      "currency": "USD",
+      "outstanding": 900,
+      "overdue": 0,
+      "due30": 0,
+      "unscheduled": 900,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": null,
+      "supplierRule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": null,
+       "confidence": "none",
+       "notes": []
+      },
+      "supplierTerms": null,
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Yiwu Net Terms Co., Ltd",
+      "currency": "USD",
+      "outstanding": 700,
+      "overdue": 0,
+      "due30": 700,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": "2026-10-10",
+      "supplierRule": {
+       "depositPct": 0,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "net 30",
+       "confidence": "partial",
+       "notes": [
+        "net_anchor_assumed"
+       ]
+      },
+      "supplierTerms": "net 30",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Dongguan Partial Co., Ltd",
+      "currency": "USD",
+      "outstanding": 625,
+      "overdue": 187.5,
+      "due30": 437.5,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 2,
+      "nextDue": "2026-08-15",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 40% before shipment, 30% 30 days after delivery",
+       "confidence": "partial",
+       "notes": [
+        "multi_stage"
+       ]
+      },
+      "supplierTerms": "30% deposit, 40% before shipment, 30% 30 days after delivery",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Hangzhou Oldco Trading",
+      "currency": "USD",
+      "outstanding": 600,
+      "overdue": 0,
+      "due30": 0,
+      "unscheduled": 600,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": null,
+      "supplierRule": {
+       "depositPct": null,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": null,
+       "confidence": "none",
+       "notes": []
+      },
+      "supplierTerms": "",
+      "jfproName": null,
+      "matchHow": "legacy",
+      "aliases": []
+     },
+     {
+      "supplier": "Wenzhou Deposit Only Co., Ltd",
+      "currency": "USD",
+      "outstanding": 500,
+      "overdue": 150,
+      "due30": 0,
+      "unscheduled": 350,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 2,
+      "nextDue": "2026-09-20",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "unknown",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "Deposit 30% paid",
+       "confidence": "partial",
+       "notes": [
+        "deposit_only"
+       ]
+      },
+      "supplierTerms": "Deposit 30% paid",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Mystery Trading",
+      "currency": "USD",
+      "outstanding": 400,
+      "overdue": 0,
+      "due30": 0,
+      "unscheduled": 400,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": null,
+      "supplierRule": null,
+      "supplierTerms": null,
+      "jfproName": null,
+      "matchHow": null,
+      "aliases": []
+     },
+     {
+      "supplier": "(no supplier)",
+      "currency": "USD",
+      "outstanding": 90,
+      "overdue": 0,
+      "due30": 0,
+      "unscheduled": 90,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": null,
+      "supplierRule": null,
+      "supplierTerms": null,
+      "jfproName": null,
+      "matchHow": null,
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "314",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-10-10",
+      "etd": "2026-09-10",
+      "eta": null,
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1107"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Yiwu Net Terms Co., Ltd",
+        "amount": 700,
+        "dueDate": "2026-10-10",
+        "poNumbers": [
+         "JF-PO-1107"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1107:314",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1107,
+          "poNumber": "JF-PO-1107",
+          "supplier": "Yiwu Net Terms Co., Ltd",
+          "currency": "USD",
+          "amount": 700,
+          "dueDate": "2026-10-10",
+          "contractualDate": "2026-10-10",
+          "trigger": "bl",
+          "containerNumber": "314",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "terms_partial"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 700,
+            "result": 700,
+            "source": "1 priced line 700.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 700,
+            "result": 700,
+            "source": "100% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 314",
+            "value": 1,
+            "result": 700,
+            "source": "goods on board 700.00 of 700.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "313",
+      "currency": "USD",
+      "amount": 437.5,
+      "dueDate": "2026-10-10",
+      "etd": "2026-10-10",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-1105"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Dongguan Partial Co., Ltd",
+        "amount": 437.5,
+        "dueDate": "2026-10-10",
+        "poNumbers": [
+         "JF-PO-1105"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1105:313",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1105,
+          "poNumber": "JF-PO-1105",
+          "supplier": "Dongguan Partial Co., Ltd",
+          "currency": "USD",
+          "amount": 437.5,
+          "dueDate": "2026-10-10",
+          "contractualDate": "2026-10-10",
+          "trigger": "before_dispatch",
+          "containerNumber": "313",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "terms_partial",
+           "estimated"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 625,
+            "result": 625,
+            "source": "1 priced line 600.00 + shipping 25.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 187.5,
+            "result": 437.5,
+            "source": "still to pay — a payment of its own"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 437.5,
+            "result": 437.5,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 313",
+            "value": 1,
+            "result": 437.5,
+            "source": "goods on board 600.00 of 600.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "310",
+      "currency": "USD",
+      "amount": 1000,
+      "dueDate": null,
+      "etd": "2026-09-15",
+      "eta": null,
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1101"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Ningbo Tam Industrial Co., Ltd",
+        "amount": 1000,
+        "dueDate": null,
+        "poNumbers": [
+         "JF-PO-1101"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1101:310",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1101,
+          "poNumber": "JF-PO-1101",
+          "supplier": "Ningbo Tam Industrial Co., Ltd",
+          "currency": "USD",
+          "amount": 1000,
+          "dueDate": null,
+          "contractualDate": null,
+          "trigger": "unknown",
+          "containerNumber": "310",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "terms_unclear"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 priced line 1,000.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1000,
+            "result": 1000
+           },
+           {
+            "op": "×",
+            "label": "Share in 310",
+            "value": 1,
+            "result": 1000,
+            "source": "goods on board 1,000.00 of 1,000.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "311",
+      "currency": "USD",
+      "amount": 600,
+      "dueDate": null,
+      "etd": "2026-10-02",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-1103"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Hangzhou Oldco Trading",
+        "amount": 600,
+        "dueDate": null,
+        "poNumbers": [
+         "JF-PO-1103"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:1103:311",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 1103,
+          "poNumber": "JF-PO-1103",
+          "supplier": "Hangzhou Oldco Trading",
+          "currency": "USD",
+          "amount": 600,
+          "dueDate": null,
+          "contractualDate": null,
+          "trigger": "unknown",
+          "containerNumber": "311",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "terms_unclear"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 600,
+            "result": 600,
+            "source": "1 priced line 600.00"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 600,
+            "result": 600
+           },
+           {
+            "op": "×",
+            "label": "Share in 311",
+            "value": 1,
+            "result": 600,
+            "source": "goods on board 600.00 of 600.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": [
+     {
+      "kind": "terms_unclear",
+      "poId": 1101,
+      "poNumber": "JF-PO-1101",
+      "supplier": "Ningbo Tam Industrial Co., Ltd",
+      "currency": "USD",
+      "detail": "Terms not understood: \"L/C at sight\"",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_unclear",
+      "poId": 1102,
+      "poNumber": "JF-PO-1102",
+      "supplier": "Mystery Trading",
+      "currency": "USD",
+      "detail": "\"Mystery Trading\" is not in JFPRO — add the supplier there or fix the name on the PO",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_unclear",
+      "poId": 1103,
+      "poNumber": "JF-PO-1103",
+      "supplier": "Hangzhou Oldco Trading",
+      "currency": "USD",
+      "detail": "Only a Shipsline-legacy JFPRO record (\"Hangzhou Oldco Trading\") with blank terms — add terms to it or merge it into the native supplier",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_unclear",
+      "poId": 1104,
+      "poNumber": "JF-PO-1104",
+      "supplier": "Xiamen Brightway Co., Ltd",
+      "currency": "USD",
+      "detail": "No payment terms on the JFPRO supplier \"Xiamen Brightway Co., Ltd\" — add them in JFPRO",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_unclear",
+      "poId": 1111,
+      "poNumber": "JF-PO-1111",
+      "supplier": "Ningbo Tam Industrial Co., Ltd",
+      "currency": "USD",
+      "detail": "Terms not understood: \"L/C at sight\"",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_unclear",
+      "poId": 1110,
+      "poNumber": "PO 1110",
+      "supplier": null,
+      "currency": "USD",
+      "detail": "\"—\" is not in JFPRO — add the supplier there or fix the name on the PO",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_partial",
+      "poId": 1105,
+      "poNumber": "JF-PO-1105",
+      "supplier": "Dongguan Partial Co., Ltd",
+      "currency": "USD",
+      "detail": "30% deposit · 70% before dispatch — read from \"30% deposit, 40% before shipment, 30% 30 days after delivery\"",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_partial",
+      "poId": 1106,
+      "poNumber": "JF-PO-1106",
+      "supplier": "Wenzhou Deposit Only Co., Ltd",
+      "currency": "USD",
+      "detail": "30% deposit · balance terms unclear — read from \"Deposit 30% paid\"",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_partial",
+      "poId": 1107,
+      "poNumber": "JF-PO-1107",
+      "supplier": "Yiwu Net Terms Co., Ltd",
+      "currency": "USD",
+      "detail": "100% 30 d after B/L — read from \"net 30\"",
+      "amount": null,
+      "shipmentReference": null
+     },
+     {
+      "kind": "terms_partial",
+      "poId": 1109,
+      "poNumber": "JF-PO-1109",
+      "supplier": "Qingdao Pictures Co., Ltd",
+      "currency": "USD",
+      "detail": "40% deposit · balance terms unclear — read from \"As per contract\"",
+      "amount": null,
+      "shipmentReference": null
+     }
+    ]
+   }
+  ],
+  "poCount": 11
+ }
+}

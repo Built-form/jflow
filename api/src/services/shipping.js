@@ -1,43 +1,37 @@
 'use strict';
 
-// Shipping's payments feed — the ONE file that talks to the shipping API and the only one
-// that knows SHIPPING_API_BASE / SHIPPING_API_KEY (CONTRACT §2.1, §10.12; docs/PHASE2.md
-// §3, §4.1).
+// Shipping's payments feed — what the refresh (services/shippingRefresh.js) reads and
+// how it is checked (CONTRACT §2.1, §10.12; docs/PLAN.md "Phase 2").
 //
-// Modelled on workflows/api/src/services/jfpro.js (read, not copied): the key travels only
-// in X-Api-Key against shipping's /api/internal/* route, which sits before its Google-JWT
-// middleware; configuration is read per call; the call is bounded by an AbortController;
-// every failure is one `unavailable(reason)` the caller degrades on. Two differences from
-// that model:
-//   · the timeout covers the BODY as well as the headers — a feed that sends headers and
-//     then stalls must not hold a /forecast request past 5 s;
-//   · an unconfigured client is a failure with a reason, never a silent pass: there is
-//     no "validation off" mode here, the caller just keeps its last snapshot.
+// Dev, 2026-09-29: JFlow reads shipping's own tables directly — same DB instance,
+// schema SHIPPING_DB_SCHEMA (default `jfa`), read-only — and runs the ported ShipLine
+// payment math itself. There is no shipping HTTP route and no API key:
+// fetchPaymentsForecast delegates to services/shippingSource.js, which returns the
+// body such a route would have ({meta, companies, items}). This file keeps the feed's
+// vocabularies, validateFeed and the one failure shape.
 //
-// `reason` is one of SHIPPING_REASONS: unconfigured | timeout | unreachable | http_401 |
-// http_<status> | bad_response. It is what `SHIPPING_UNAVAILABLE.details.reason` carries.
+// `reason` is one of SHIPPING_REASONS — what `SHIPPING_UNAVAILABLE.details.reason`
+// carries:
+//   source_schema  SHIPPING_DB_SCHEMA is not a valid name, or the schema lacks a column
+//                  JFlow reads (or JFlow's DB user cannot read it — e.g. no grant);
+//   source_error   any other failure reading shipping's data or computing the feed;
+//   bad_response   a feed body with no items array.
 //
-// No DB here, and no network I/O may run inside a transaction: shippingRefresh.js calls
-// fetchPaymentsForecast with no connection held.
+// Nothing here runs inside a JFlow transaction: shippingRefresh.js calls
+// fetchPaymentsForecast with no connection of its own held.
 
-const log = require('../lib/logger');
 const { parseMinor, formatMinor } = require('../lib/money');
 const { isValidDate } = require('../lib/dates');
 const { buildShipKey } = require('../lib/keys');
 
-// Bounded like the secret fetch: the Lambda has a 29 s budget, and /forecast runs a due
-// refresh before it answers (P4) — an unreachable shipping must cost at most this.
-const SHIPPING_TIMEOUT_MS = 5000;
-const FEED_PATH = '/api/internal/payments-forecast';
-
 // The feed's vocabularies (PHASE2 §3), enforced by validateFeed below; the handler serves
-// the first four through /meta/enums (CONTRACT §7).
+// them through /meta/enums (CONTRACT §7).
 const FEED_KINDS = ['deposit', 'balance'];
 const FEED_STATUSES = ['open', 'paid'];
 const DATE_BASES = ['firm', 'estimated', 'undated'];
 const AMOUNT_BASES = ['stated', 'derived'];
 const BLOCKED_REASONS = ['shipment', 'artwork', 'pi', 'pi_signed'];
-const SHIPPING_REASONS = ['unconfigured', 'timeout', 'unreachable', 'http_401', 'http_<status>', 'bad_response'];
+const SHIPPING_REASONS = ['source_schema', 'source_error', 'bad_response'];
 
 const CURRENCY_RE = /^[A-Z]{3}$/;
 const DECIMAL_ID_RE = /^[1-9][0-9]{0,17}$/;
@@ -56,105 +50,28 @@ function unavailable(reason, message) {
 
 const isUnavailable = (err) => Boolean(err && err.isShippingUnavailable);
 
-/**
- * Base URL without a trailing slash, or null when unset. Read per call: lib/secrets.js
- * overlays the runtime secret onto process.env at the first invocation, after this file
- * is required, so a value captured at load time could be stale.
- */
-function baseUrl() {
-    const raw = String(process.env.SHIPPING_API_BASE || '').trim();
-    return raw ? raw.replace(/\/+$/, '') : null;
-}
+// shippingSource.js requires this module, so this one requires it lazily (at call time,
+// when both are loaded). The e2e suites replace its readPaymentsForecast
+// (test/helpers/shippingSourceStub.js), which works because it is looked up per call.
+const source = () => require('./shippingSource');
 
-function apiKey() {
-    return String(process.env.SHIPPING_API_KEY || '').trim() || null;
-}
-
-/** True when both halves of the config are present. False → fetchPaymentsForecast makes no call. */
-const isConfigured = () => Boolean(baseUrl() && apiKey());
+/** True when SHIPPING_DB_SCHEMA (default `jfa`) is a valid schema name. Read per call. */
+const isConfigured = () => source().sourceSchema() !== null;
 
 /**
- * GET shipping's payments forecast and return the parsed body: an object whose `items` is
- * an array (rows are checked by validateFeed, not here). Throws only `unavailable(reason)`.
- * `timeoutMs` exists for the tests; callers take the default.
+ * The feed body — an object whose `items` is an array (rows are checked by
+ * validateFeed, not here) — for `today` (the route's Europe/London date) and
+ * `paidSince`. Throws only `unavailable(reason)` (or a TypeError for bad arguments).
  */
-async function fetchPaymentsForecast({ today, paidSince } = {}, { timeoutMs = SHIPPING_TIMEOUT_MS } = {}) {
-    const base = baseUrl();
-    const key = apiKey();
-    if (!base || !key) {
-        throw unavailable('unconfigured', 'Shipping is not configured (SHIPPING_API_BASE / SHIPPING_API_KEY).');
-    }
-    let url;
-    try {
-        url = new URL(base + FEED_PATH);
-    } catch {
-        throw unavailable('unconfigured', 'SHIPPING_API_BASE is not a valid URL.');
-    }
-    if (today) url.searchParams.set('today', today);
-    if (paidSince) url.searchParams.set('paidSince', paidSince);
-
-    // AbortController rather than Promise.race: on timeout the SOCKET must close, not just
-    // the wait. The timer stays armed until the body is read, so a stalled body aborts too.
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const lost = (err, stage) => {
-        if (controller.signal.aborted) {
-            log.warn(`[shipping] GET ${FEED_PATH} timed out after ${timeoutMs}ms (${stage})`);
-            return unavailable('timeout', `Shipping did not answer within ${timeoutMs}ms.`);
-        }
-        // The URL is safe to log: the key travels in a header, never the query string.
-        log.warn(`[shipping] GET ${FEED_PATH} failed (${stage}):`, err && err.message);
-        return unavailable('unreachable', 'Shipping could not be reached.');
-    };
-    try {
-        let response;
-        try {
-            response = await fetch(url, {
-                method: 'GET',
-                headers: { 'X-Api-Key': key, Accept: 'application/json' },
-                signal: controller.signal,
-            });
-        } catch (err) {
-            throw lost(err, 'request');
-        }
-
-        if (!response.ok) {
-            try { await response.body?.cancel(); } catch { /* nothing to release */ }
-            // A 401 has two causes that need different fixes, so name both (as jfpro.js does):
-            // the key is wrong, or the path is missing from shipping's gateway route table and
-            // fell through to its JWT authorizer.
-            const detail = response.status === 401
-                ? 'refused the request (401): either SHIPPING_API_KEY is wrong, or '
-                    + `${FEED_PATH} is not in shipping's gateway route table and fell through to its JWT authorizer`
-                : `returned HTTP ${response.status}`;
-            log.warn(`[shipping] GET ${FEED_PATH}: shipping ${detail}.`);
-            throw unavailable(`http_${response.status}`, `Shipping ${detail}.`);
-        }
-
-        let text;
-        try {
-            text = await response.text();
-        } catch (err) {
-            throw lost(err, 'body');
-        }
-        let body;
-        try {
-            body = JSON.parse(text);
-        } catch (err) {
-            log.warn(`[shipping] GET ${FEED_PATH}: the response was not JSON:`, err.message);
-            throw unavailable('bad_response', 'Shipping returned a response that is not JSON.');
-        }
-        assertFeedShape(body);
-        return body;
-    } finally {
-        clearTimeout(timer);
-    }
+async function fetchPaymentsForecast({ today, paidSince } = {}) {
+    const body = await source().readPaymentsForecast({ today, paidSince });
+    assertFeedShape(body);
+    return body;
 }
 
 function assertFeedShape(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body) || !Array.isArray(body.items)) {
-        log.warn(`[shipping] GET ${FEED_PATH}: the response has no items array.`);
-        throw unavailable('bad_response', 'Shipping returned a feed with no items array.');
+        throw unavailable('bad_response', 'The shipping feed has no items array.');
     }
 }
 
@@ -322,7 +239,6 @@ function validateFeed(body) {
 }
 
 module.exports = {
-    SHIPPING_TIMEOUT_MS,
     FEED_KINDS,
     FEED_STATUSES,
     DATE_BASES,

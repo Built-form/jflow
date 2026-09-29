@@ -1,0 +1,2150 @@
+{
+ "fixture": "multi-container",
+ "source": {
+  "commit": "f9499bc",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 2786,
+    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-09-29",
+ "output": {
+  "today": "2026-09-29",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 4704.13,
+     "due7": 0,
+     "due30": 2278.55,
+     "unscheduled": 0,
+     "outstanding": 8687.5,
+     "later": 1704.82,
+     "notPayable": 1704.82,
+     "overdueCount": 4,
+     "itemCount": 10
+    },
+    "items": [
+     {
+      "id": "derived:bal:813:268",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 813,
+      "poNumber": "JF-PO-813",
+      "supplier": "Guilin Yoho Co., Ltd",
+      "currency": "USD",
+      "amount": 1120,
+      "dueDate": "2026-09-02",
+      "contractualDate": "2026-09-02",
+      "trigger": "bl",
+      "containerNumber": "268",
+      "containerShare": 0.6808510638297872,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 2350,
+        "result": 2350,
+        "source": "2 priced lines 2,350.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 705,
+        "result": 1645,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1645,
+        "result": 1645,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 268",
+        "value": 0.6808510638297872,
+        "result": 1120,
+        "source": "goods on board 1,600.00 of 2,350.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:812:268",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "amount": 1053.02,
+      "dueDate": "2026-09-03",
+      "contractualDate": "2026-09-03",
+      "trigger": "bl",
+      "containerNumber": "268",
+      "containerShare": 0.5155555555555555,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 5775,
+        "result": 5775,
+        "source": "PI total — PI-812-deposit.pdf"
+       },
+       {
+        "op": "−",
+        "label": "Deposit paid",
+        "value": 1732.5,
+        "result": 4042.5,
+        "source": "deposit PI marked paid 1,732.50"
+       },
+       {
+        "op": "−",
+        "label": "Asked for on open PIs",
+        "value": 2000,
+        "result": 2042.5,
+        "source": "each open PI is a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 2042.5,
+        "result": 2042.5
+       },
+       {
+        "op": "×",
+        "label": "Share in 268",
+        "value": 0.5155555555555555,
+        "result": 1053.02,
+        "source": "goods on board 2,900.00 of 5,625.00"
+       }
+      ]
+     },
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9002,
+      "paymentId": 56,
+      "shipmentPaymentId": null,
+      "id": "stated:56:268",
+      "amount": 1031.11,
+      "dueDate": "2026-09-03",
+      "contractualDate": "2026-09-03",
+      "trigger": "bl",
+      "containerNumber": "268",
+      "containerShare": 0.5155555555555555,
+      "blocked": null,
+      "flags": [
+       "derived_date",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Balance PI",
+        "value": 2000,
+        "result": 2000,
+        "source": "PI-812-balance.pdf — what the PI asks for"
+       },
+       {
+        "op": "×",
+        "label": "Share in 268",
+        "value": 0.5155555555555555,
+        "result": 1031.11,
+        "source": "goods on board 2,900.00 of 5,625.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:814",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 814,
+      "poNumber": "JF-PO-814",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "amount": 1500,
+      "dueDate": "2026-09-10",
+      "contractualDate": "2026-09-10",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 3000,
+        "result": 3000,
+        "source": "2 priced lines 3,000.00"
+       },
+       {
+        "op": "×",
+        "label": "Deposit 50%",
+        "value": 0.5,
+        "result": 1500,
+        "source": "the supplier's terms in JFPRO “50% deposit, 50% before shipment”"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:812:271",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "amount": 885.99,
+      "dueDate": "2026-10-08",
+      "contractualDate": "2026-10-08",
+      "trigger": "bl",
+      "containerNumber": "271",
+      "containerShare": 0.43377777777777776,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 5775,
+        "result": 5775,
+        "source": "PI total — PI-812-deposit.pdf"
+       },
+       {
+        "op": "−",
+        "label": "Deposit paid",
+        "value": 1732.5,
+        "result": 4042.5,
+        "source": "deposit PI marked paid 1,732.50"
+       },
+       {
+        "op": "−",
+        "label": "Asked for on open PIs",
+        "value": 2000,
+        "result": 2042.5,
+        "source": "each open PI is a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 2042.5,
+        "result": 2042.5
+       },
+       {
+        "op": "×",
+        "label": "Share in 271",
+        "value": 0.43377777777777776,
+        "result": 885.99,
+        "source": "goods on board 2,440.00 of 5,625.00"
+       }
+      ]
+     },
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9002,
+      "paymentId": 56,
+      "shipmentPaymentId": null,
+      "id": "stated:56:271",
+      "amount": 867.56,
+      "dueDate": "2026-10-08",
+      "contractualDate": "2026-10-08",
+      "trigger": "bl",
+      "containerNumber": "271",
+      "containerShare": 0.43377777777777776,
+      "blocked": null,
+      "flags": [
+       "derived_date",
+       "estimated",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Balance PI",
+        "value": 2000,
+        "result": 2000,
+        "source": "PI-812-balance.pdf — what the PI asks for"
+       },
+       {
+        "op": "×",
+        "label": "Share in 271",
+        "value": 0.43377777777777776,
+        "result": 867.56,
+        "source": "goods on board 2,440.00 of 5,625.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:813:271",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 813,
+      "poNumber": "JF-PO-813",
+      "supplier": "Guilin Yoho Co., Ltd",
+      "currency": "USD",
+      "amount": 525,
+      "dueDate": "2026-10-08",
+      "contractualDate": "2026-10-08",
+      "trigger": "bl",
+      "containerNumber": "271",
+      "containerShare": 0.3191489361702128,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 2350,
+        "result": 2350,
+        "source": "2 priced lines 2,350.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 705,
+        "result": 1645,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1645,
+        "result": 1645,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 271",
+        "value": 0.3191489361702128,
+        "result": 525,
+        "source": "goods on board 750.00 of 2,350.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:812:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "amount": 103.49,
+      "dueDate": "2026-11-02",
+      "contractualDate": "2026-11-02",
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 0.050666666666666665,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container",
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 5775,
+        "result": 5775,
+        "source": "PI total — PI-812-deposit.pdf"
+       },
+       {
+        "op": "−",
+        "label": "Deposit paid",
+        "value": 1732.5,
+        "result": 4042.5,
+        "source": "deposit PI marked paid 1,732.50"
+       },
+       {
+        "op": "−",
+        "label": "Asked for on open PIs",
+        "value": 2000,
+        "result": 2042.5,
+        "source": "each open PI is a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 2042.5,
+        "result": 2042.5
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 0.050666666666666665,
+        "result": 103.49,
+        "source": "goods on board 285.00 of 5,625.00"
+       }
+      ]
+     },
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9002,
+      "paymentId": 56,
+      "shipmentPaymentId": null,
+      "id": "stated:56:none",
+      "amount": 101.33,
+      "dueDate": "2026-11-02",
+      "contractualDate": "2026-11-02",
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 0.050666666666666665,
+      "blocked": "shipment",
+      "flags": [
+       "derived_date",
+       "no_container",
+       "estimated",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Balance PI",
+        "value": 2000,
+        "result": 2000,
+        "source": "PI-812-balance.pdf — what the PI asks for"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 0.050666666666666665,
+        "result": 101.33,
+        "source": "goods on board 285.00 of 5,625.00"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:814:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 814,
+      "poNumber": "JF-PO-814",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "amount": 1500,
+      "dueDate": "2026-11-20",
+      "contractualDate": "2026-11-20",
+      "trigger": "before_dispatch",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container",
+       "estimated"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 3000,
+        "result": 3000,
+        "source": "2 priced lines 3,000.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 50% of the PO",
+        "value": 1500,
+        "result": 1500,
+        "source": "still to pay — a payment of its own"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1500,
+        "result": 1500,
+        "source": "50% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share not yet in a container",
+        "value": 1,
+        "result": 1500,
+        "source": "goods on board 3,000.00 of 3,000.00"
+       }
+      ]
+     }
+    ],
+    "pos": [
+     {
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "supplierRaw": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "poTotal": 5775,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9001,
+      "linesValue": 5625,
+      "shippingTotal": 150,
+      "lineCount": 4,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 1732.5,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 2000,
+      "remainder": 2042.5,
+      "derivedDeposit": 0,
+      "derivedBalance": 2042.5,
+      "outstanding": 4042.5,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "268",
+        "share": 0.5155555555555555,
+        "lineCount": 2,
+        "units": 1500,
+        "value": 2900,
+        "dueDate": "2026-09-03",
+        "contractualDate": "2026-09-03",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-02",
+        "eta": "2026-10-14",
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": "271",
+        "share": 0.43377777777777776,
+        "lineCount": 1,
+        "units": 800,
+        "value": 2440,
+        "dueDate": "2026-10-08",
+        "contractualDate": "2026-10-08",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-08",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": null,
+        "share": 0.050666666666666665,
+        "lineCount": 1,
+        "units": 300,
+        "value": 285,
+        "dueDate": "2026-11-02",
+        "contractualDate": "2026-11-02",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": "shipment",
+        "flags": [
+         "no_container",
+         "estimated"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "invoice_total_used"
+      ],
+      "items": [
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 812,
+        "poNumber": "JF-PO-812",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9002,
+        "paymentId": 56,
+        "shipmentPaymentId": null,
+        "id": "stated:56:268",
+        "amount": 1031.11,
+        "dueDate": "2026-09-03",
+        "contractualDate": "2026-09-03",
+        "trigger": "bl",
+        "containerNumber": "268",
+        "containerShare": 0.5155555555555555,
+        "blocked": null,
+        "flags": [
+         "derived_date",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Balance PI",
+          "value": 2000,
+          "result": 2000,
+          "source": "PI-812-balance.pdf — what the PI asks for"
+         },
+         {
+          "op": "×",
+          "label": "Share in 268",
+          "value": 0.5155555555555555,
+          "result": 1031.11,
+          "source": "goods on board 2,900.00 of 5,625.00"
+         }
+        ]
+       },
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 812,
+        "poNumber": "JF-PO-812",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9002,
+        "paymentId": 56,
+        "shipmentPaymentId": null,
+        "id": "stated:56:271",
+        "amount": 867.56,
+        "dueDate": "2026-10-08",
+        "contractualDate": "2026-10-08",
+        "trigger": "bl",
+        "containerNumber": "271",
+        "containerShare": 0.43377777777777776,
+        "blocked": null,
+        "flags": [
+         "derived_date",
+         "estimated",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Balance PI",
+          "value": 2000,
+          "result": 2000,
+          "source": "PI-812-balance.pdf — what the PI asks for"
+         },
+         {
+          "op": "×",
+          "label": "Share in 271",
+          "value": 0.43377777777777776,
+          "result": 867.56,
+          "source": "goods on board 2,440.00 of 5,625.00"
+         }
+        ]
+       },
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 812,
+        "poNumber": "JF-PO-812",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9002,
+        "paymentId": 56,
+        "shipmentPaymentId": null,
+        "id": "stated:56:none",
+        "amount": 101.33,
+        "dueDate": "2026-11-02",
+        "contractualDate": "2026-11-02",
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 0.050666666666666665,
+        "blocked": "shipment",
+        "flags": [
+         "derived_date",
+         "no_container",
+         "estimated",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Balance PI",
+          "value": 2000,
+          "result": 2000,
+          "source": "PI-812-balance.pdf — what the PI asks for"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 0.050666666666666665,
+          "result": 101.33,
+          "source": "goods on board 285.00 of 5,625.00"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:812:268",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 812,
+        "poNumber": "JF-PO-812",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "USD",
+        "amount": 1053.02,
+        "dueDate": "2026-09-03",
+        "contractualDate": "2026-09-03",
+        "trigger": "bl",
+        "containerNumber": "268",
+        "containerShare": 0.5155555555555555,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 5775,
+          "result": 5775,
+          "source": "PI total — PI-812-deposit.pdf"
+         },
+         {
+          "op": "−",
+          "label": "Deposit paid",
+          "value": 1732.5,
+          "result": 4042.5,
+          "source": "deposit PI marked paid 1,732.50"
+         },
+         {
+          "op": "−",
+          "label": "Asked for on open PIs",
+          "value": 2000,
+          "result": 2042.5,
+          "source": "each open PI is a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 2042.5,
+          "result": 2042.5
+         },
+         {
+          "op": "×",
+          "label": "Share in 268",
+          "value": 0.5155555555555555,
+          "result": 1053.02,
+          "source": "goods on board 2,900.00 of 5,625.00"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:812:271",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 812,
+        "poNumber": "JF-PO-812",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "USD",
+        "amount": 885.99,
+        "dueDate": "2026-10-08",
+        "contractualDate": "2026-10-08",
+        "trigger": "bl",
+        "containerNumber": "271",
+        "containerShare": 0.43377777777777776,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 5775,
+          "result": 5775,
+          "source": "PI total — PI-812-deposit.pdf"
+         },
+         {
+          "op": "−",
+          "label": "Deposit paid",
+          "value": 1732.5,
+          "result": 4042.5,
+          "source": "deposit PI marked paid 1,732.50"
+         },
+         {
+          "op": "−",
+          "label": "Asked for on open PIs",
+          "value": 2000,
+          "result": 2042.5,
+          "source": "each open PI is a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 2042.5,
+          "result": 2042.5
+         },
+         {
+          "op": "×",
+          "label": "Share in 271",
+          "value": 0.43377777777777776,
+          "result": 885.99,
+          "source": "goods on board 2,440.00 of 5,625.00"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:812:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 812,
+        "poNumber": "JF-PO-812",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "USD",
+        "amount": 103.49,
+        "dueDate": "2026-11-02",
+        "contractualDate": "2026-11-02",
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 0.050666666666666665,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container",
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 5775,
+          "result": 5775,
+          "source": "PI total — PI-812-deposit.pdf"
+         },
+         {
+          "op": "−",
+          "label": "Deposit paid",
+          "value": 1732.5,
+          "result": 4042.5,
+          "source": "deposit PI marked paid 1,732.50"
+         },
+         {
+          "op": "−",
+          "label": "Asked for on open PIs",
+          "value": 2000,
+          "result": 2042.5,
+          "source": "each open PI is a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 2042.5,
+          "result": 2042.5
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 0.050666666666666665,
+          "result": 103.49,
+          "source": "goods on board 285.00 of 5,625.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 813,
+      "poNumber": "JF-PO-813",
+      "supplier": "Guilin Yoho Co., Ltd",
+      "supplierRaw": "Guilin Yoho Co., Ltd",
+      "currency": "USD",
+      "poTotal": 2350,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 2350,
+      "shippingTotal": 0,
+      "lineCount": 2,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 705,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 2350,
+      "derivedDeposit": 705,
+      "derivedBalance": 1645,
+      "outstanding": 1645,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30D/70B BOL",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "268",
+        "share": 0.6808510638297872,
+        "lineCount": 1,
+        "units": 2000,
+        "value": 1600,
+        "dueDate": "2026-09-02",
+        "contractualDate": "2026-09-02",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-02",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       },
+       {
+        "containerNumber": "271",
+        "share": 0.3191489361702128,
+        "lineCount": 1,
+        "units": 600,
+        "value": 750,
+        "dueDate": "2026-10-08",
+        "contractualDate": "2026-10-08",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-10-08",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:813:268",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 813,
+        "poNumber": "JF-PO-813",
+        "supplier": "Guilin Yoho Co., Ltd",
+        "currency": "USD",
+        "amount": 1120,
+        "dueDate": "2026-09-02",
+        "contractualDate": "2026-09-02",
+        "trigger": "bl",
+        "containerNumber": "268",
+        "containerShare": 0.6808510638297872,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 2350,
+          "result": 2350,
+          "source": "2 priced lines 2,350.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 705,
+          "result": 1645,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1645,
+          "result": 1645,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 268",
+          "value": 0.6808510638297872,
+          "result": 1120,
+          "source": "goods on board 1,600.00 of 2,350.00"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:813:271",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 813,
+        "poNumber": "JF-PO-813",
+        "supplier": "Guilin Yoho Co., Ltd",
+        "currency": "USD",
+        "amount": 525,
+        "dueDate": "2026-10-08",
+        "contractualDate": "2026-10-08",
+        "trigger": "bl",
+        "containerNumber": "271",
+        "containerShare": 0.3191489361702128,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 2350,
+          "result": 2350,
+          "source": "2 priced lines 2,350.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 705,
+          "result": 1645,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1645,
+          "result": 1645,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 271",
+          "value": 0.3191489361702128,
+          "result": 525,
+          "source": "goods on board 750.00 of 2,350.00"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 814,
+      "poNumber": "JF-PO-814",
+      "supplier": "Foreu Corporation",
+      "supplierRaw": "Foreu Corporation",
+      "currency": "USD",
+      "poTotal": 3000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 3000,
+      "shippingTotal": 0,
+      "lineCount": 2,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 3000,
+      "derivedDeposit": 1500,
+      "derivedBalance": 1500,
+      "outstanding": 3000,
+      "rule": {
+       "depositPct": 50,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "50% deposit, 50% before shipment",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 2,
+        "units": 500,
+        "value": 3000,
+        "dueDate": "2026-11-20",
+        "contractualDate": "2026-11-20",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": "shipment",
+        "flags": [
+         "no_container",
+         "estimated"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [],
+      "items": [
+       {
+        "id": "derived:dep:814",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 814,
+        "poNumber": "JF-PO-814",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "amount": 1500,
+        "dueDate": "2026-09-10",
+        "contractualDate": "2026-09-10",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 3000,
+          "result": 3000,
+          "source": "2 priced lines 3,000.00"
+         },
+         {
+          "op": "×",
+          "label": "Deposit 50%",
+          "value": 0.5,
+          "result": 1500,
+          "source": "the supplier's terms in JFPRO “50% deposit, 50% before shipment”"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:814:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 814,
+        "poNumber": "JF-PO-814",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "amount": 1500,
+        "dueDate": "2026-11-20",
+        "contractualDate": "2026-11-20",
+        "trigger": "before_dispatch",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container",
+         "estimated"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 3000,
+          "result": 3000,
+          "source": "2 priced lines 3,000.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 50% of the PO",
+          "value": 1500,
+          "result": 1500,
+          "source": "still to pay — a payment of its own"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1500,
+          "result": 1500,
+          "source": "50% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share not yet in a container",
+          "value": 1,
+          "result": 1500,
+          "source": "goods on board 3,000.00 of 3,000.00"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "outstanding": 4042.5,
+      "overdue": 2084.13,
+      "due30": 1753.55,
+      "unscheduled": 0,
+      "paid": 1732.5,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 6,
+      "nextDue": "2026-09-03",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% deposit, 70% B/L copy.",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "outstanding": 3000,
+      "overdue": 1500,
+      "due30": 0,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 2,
+      "nextDue": "2026-09-10",
+      "supplierRule": {
+       "depositPct": 50,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "50% deposit, 50% before shipment",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "50% deposit, 50% before shipment",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Guilin Yoho Co., Ltd",
+      "currency": "USD",
+      "outstanding": 1645,
+      "overdue": 1120,
+      "due30": 525,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 705,
+      "poCount": 1,
+      "itemCount": 2,
+      "nextDue": "2026-09-02",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30D/70B BOL",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30D/70B BOL",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "268",
+      "currency": "USD",
+      "amount": 3204.13,
+      "dueDate": "2026-09-02",
+      "etd": "2026-09-02",
+      "eta": "2026-10-14",
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-813",
+       "JF-PO-812"
+      ],
+      "itemCount": 3,
+      "payables": [
+       {
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "amount": 2084.13,
+        "dueDate": "2026-09-03",
+        "poNumbers": [
+         "JF-PO-812"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:812:268",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 812,
+          "poNumber": "JF-PO-812",
+          "supplier": "Suzhou Sunmed Co.,Ltd.",
+          "currency": "USD",
+          "amount": 1053.02,
+          "dueDate": "2026-09-03",
+          "contractualDate": "2026-09-03",
+          "trigger": "bl",
+          "containerNumber": "268",
+          "containerShare": 0.5155555555555555,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 5775,
+            "result": 5775,
+            "source": "PI total — PI-812-deposit.pdf"
+           },
+           {
+            "op": "−",
+            "label": "Deposit paid",
+            "value": 1732.5,
+            "result": 4042.5,
+            "source": "deposit PI marked paid 1,732.50"
+           },
+           {
+            "op": "−",
+            "label": "Asked for on open PIs",
+            "value": 2000,
+            "result": 2042.5,
+            "source": "each open PI is a payment of its own"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 2042.5,
+            "result": 2042.5
+           },
+           {
+            "op": "×",
+            "label": "Share in 268",
+            "value": 0.5155555555555555,
+            "result": 1053.02,
+            "source": "goods on board 2,900.00 of 5,625.00"
+           }
+          ]
+         },
+         {
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 812,
+          "poNumber": "JF-PO-812",
+          "supplier": "Suzhou Sunmed Co.,Ltd.",
+          "currency": "USD",
+          "status": "pending",
+          "invoiceId": 9002,
+          "paymentId": 56,
+          "shipmentPaymentId": null,
+          "id": "stated:56:268",
+          "amount": 1031.11,
+          "dueDate": "2026-09-03",
+          "contractualDate": "2026-09-03",
+          "trigger": "bl",
+          "containerNumber": "268",
+          "containerShare": 0.5155555555555555,
+          "blocked": null,
+          "flags": [
+           "derived_date",
+           "multi_container"
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Balance PI",
+            "value": 2000,
+            "result": 2000,
+            "source": "PI-812-balance.pdf — what the PI asks for"
+           },
+           {
+            "op": "×",
+            "label": "Share in 268",
+            "value": 0.5155555555555555,
+            "result": 1031.11,
+            "source": "goods on board 2,900.00 of 5,625.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       },
+       {
+        "supplier": "Guilin Yoho Co., Ltd",
+        "amount": 1120,
+        "dueDate": "2026-09-02",
+        "poNumbers": [
+         "JF-PO-813"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:813:268",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 813,
+          "poNumber": "JF-PO-813",
+          "supplier": "Guilin Yoho Co., Ltd",
+          "currency": "USD",
+          "amount": 1120,
+          "dueDate": "2026-09-02",
+          "contractualDate": "2026-09-02",
+          "trigger": "bl",
+          "containerNumber": "268",
+          "containerShare": 0.6808510638297872,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 2350,
+            "result": 2350,
+            "source": "2 priced lines 2,350.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 705,
+            "result": 1645,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1645,
+            "result": 1645,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 268",
+            "value": 0.6808510638297872,
+            "result": 1120,
+            "source": "goods on board 1,600.00 of 2,350.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "271",
+      "currency": "USD",
+      "amount": 2278.55,
+      "dueDate": "2026-10-08",
+      "etd": "2026-10-08",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "JF-PO-812",
+       "JF-PO-813"
+      ],
+      "itemCount": 3,
+      "payables": [
+       {
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "amount": 1753.55,
+        "dueDate": "2026-10-08",
+        "poNumbers": [
+         "JF-PO-812"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:812:271",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 812,
+          "poNumber": "JF-PO-812",
+          "supplier": "Suzhou Sunmed Co.,Ltd.",
+          "currency": "USD",
+          "amount": 885.99,
+          "dueDate": "2026-10-08",
+          "contractualDate": "2026-10-08",
+          "trigger": "bl",
+          "containerNumber": "271",
+          "containerShare": 0.43377777777777776,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "estimated"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 5775,
+            "result": 5775,
+            "source": "PI total — PI-812-deposit.pdf"
+           },
+           {
+            "op": "−",
+            "label": "Deposit paid",
+            "value": 1732.5,
+            "result": 4042.5,
+            "source": "deposit PI marked paid 1,732.50"
+           },
+           {
+            "op": "−",
+            "label": "Asked for on open PIs",
+            "value": 2000,
+            "result": 2042.5,
+            "source": "each open PI is a payment of its own"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 2042.5,
+            "result": 2042.5
+           },
+           {
+            "op": "×",
+            "label": "Share in 271",
+            "value": 0.43377777777777776,
+            "result": 885.99,
+            "source": "goods on board 2,440.00 of 5,625.00"
+           }
+          ]
+         },
+         {
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 812,
+          "poNumber": "JF-PO-812",
+          "supplier": "Suzhou Sunmed Co.,Ltd.",
+          "currency": "USD",
+          "status": "pending",
+          "invoiceId": 9002,
+          "paymentId": 56,
+          "shipmentPaymentId": null,
+          "id": "stated:56:271",
+          "amount": 867.56,
+          "dueDate": "2026-10-08",
+          "contractualDate": "2026-10-08",
+          "trigger": "bl",
+          "containerNumber": "271",
+          "containerShare": 0.43377777777777776,
+          "blocked": null,
+          "flags": [
+           "derived_date",
+           "estimated",
+           "multi_container"
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Balance PI",
+            "value": 2000,
+            "result": 2000,
+            "source": "PI-812-balance.pdf — what the PI asks for"
+           },
+           {
+            "op": "×",
+            "label": "Share in 271",
+            "value": 0.43377777777777776,
+            "result": 867.56,
+            "source": "goods on board 2,440.00 of 5,625.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       },
+       {
+        "supplier": "Guilin Yoho Co., Ltd",
+        "amount": 525,
+        "dueDate": "2026-10-08",
+        "poNumbers": [
+         "JF-PO-813"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:813:271",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 813,
+          "poNumber": "JF-PO-813",
+          "supplier": "Guilin Yoho Co., Ltd",
+          "currency": "USD",
+          "amount": 525,
+          "dueDate": "2026-10-08",
+          "contractualDate": "2026-10-08",
+          "trigger": "bl",
+          "containerNumber": "271",
+          "containerShare": 0.3191489361702128,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "estimated"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 2350,
+            "result": 2350,
+            "source": "2 priced lines 2,350.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 705,
+            "result": 1645,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1645,
+            "result": 1645,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 271",
+            "value": 0.3191489361702128,
+            "result": 525,
+            "source": "goods on board 750.00 of 2,350.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": []
+   },
+   {
+    "currency": "EUR",
+    "kpis": {
+     "overdue": 1750,
+     "due7": 0,
+     "due30": 0,
+     "unscheduled": 0,
+     "outstanding": 1750,
+     "later": 0,
+     "notPayable": 0,
+     "overdueCount": 1,
+     "itemCount": 1
+    },
+    "items": [
+     {
+      "id": "derived:bal:815:272",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 815,
+      "poNumber": "JF-PO-815",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "EUR",
+      "amount": 1750,
+      "dueDate": "2026-09-20",
+      "contractualDate": "2026-09-20",
+      "trigger": "bl",
+      "containerNumber": "272",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "PO value",
+        "value": 2500,
+        "result": 2500,
+        "source": "2 priced lines 2,500.00"
+       },
+       {
+        "op": "−",
+        "label": "Deposit, 30% of the PO",
+        "value": 750,
+        "result": 1750,
+        "source": "treated as paid — the goods have shipped"
+       },
+       {
+        "op": "=",
+        "label": "Balance for the PO",
+        "value": 1750,
+        "result": 1750,
+        "source": "70% of the PO"
+       },
+       {
+        "op": "×",
+        "label": "Share in 272",
+        "value": 1,
+        "result": 1750,
+        "source": "goods on board 2,500.00 of 2,500.00"
+       }
+      ]
+     }
+    ],
+    "pos": [
+     {
+      "poId": 815,
+      "poNumber": "JF-PO-815",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "supplierRaw": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "EUR",
+      "poTotal": 2500,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 2500,
+      "shippingTotal": 0,
+      "lineCount": 2,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 750,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 2500,
+      "derivedDeposit": 750,
+      "derivedBalance": 1750,
+      "outstanding": 1750,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "272",
+        "share": 1,
+        "lineCount": 2,
+        "units": 140,
+        "value": 2500,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-20",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:815:272",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 815,
+        "poNumber": "JF-PO-815",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "EUR",
+        "amount": 1750,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "trigger": "bl",
+        "containerNumber": "272",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "PO value",
+          "value": 2500,
+          "result": 2500,
+          "source": "2 priced lines 2,500.00"
+         },
+         {
+          "op": "−",
+          "label": "Deposit, 30% of the PO",
+          "value": 750,
+          "result": 1750,
+          "source": "treated as paid — the goods have shipped"
+         },
+         {
+          "op": "=",
+          "label": "Balance for the PO",
+          "value": 1750,
+          "result": 1750,
+          "source": "70% of the PO"
+         },
+         {
+          "op": "×",
+          "label": "Share in 272",
+          "value": 1,
+          "result": 1750,
+          "source": "goods on board 2,500.00 of 2,500.00"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "EUR",
+      "outstanding": 1750,
+      "overdue": 1750,
+      "due30": 0,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 750,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": "2026-09-20",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% deposit, 70% B/L copy.",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "272",
+      "currency": "EUR",
+      "amount": 1750,
+      "dueDate": "2026-09-20",
+      "etd": "2026-09-20",
+      "eta": null,
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-815"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "amount": 1750,
+        "dueDate": "2026-09-20",
+        "poNumbers": [
+         "JF-PO-815"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:815:272",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 815,
+          "poNumber": "JF-PO-815",
+          "supplier": "Suzhou Sunmed Co.,Ltd.",
+          "currency": "EUR",
+          "amount": 1750,
+          "dueDate": "2026-09-20",
+          "contractualDate": "2026-09-20",
+          "trigger": "bl",
+          "containerNumber": "272",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "PO value",
+            "value": 2500,
+            "result": 2500,
+            "source": "2 priced lines 2,500.00"
+           },
+           {
+            "op": "−",
+            "label": "Deposit, 30% of the PO",
+            "value": 750,
+            "result": 1750,
+            "source": "treated as paid — the goods have shipped"
+           },
+           {
+            "op": "=",
+            "label": "Balance for the PO",
+            "value": 1750,
+            "result": 1750,
+            "source": "70% of the PO"
+           },
+           {
+            "op": "×",
+            "label": "Share in 272",
+            "value": 1,
+            "result": 1750,
+            "source": "goods on board 2,500.00 of 2,500.00"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": []
+   }
+  ],
+  "poCount": 4
+ }
+}

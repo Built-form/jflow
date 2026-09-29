@@ -1,0 +1,71 @@
+{
+  "description": "Float money, so the port must round exactly as the TS does (Math.round(n*100)/100, EPS 0.01, MIN_DERIVED 0.50): a line worth 1.115 (1.12 by the TS, 1.11 by toFixed), awkward unit prices over three boxes, a PI split in thirds, a remainder of exactly 0.50, POs paid to within 0.015 (rounds to fully paid) and 0.02 (not, by EPS 0.01) of their value, a 33% deposit of an odd total, and a balance invoice of 1000.005 shared by value between two POs.",
+  "input": {
+    "today": "2026-09-29",
+    "orders": [
+      { "id": "200101", "status": "READY_AT_FACTORY", "quantity": 3, "unitPrice": 1.115, "purchaseOrderId": 2001, "poNumber": "JF-PO-2001", "supplier": "Float Co., Ltd", "containerNumber": "300", "estimatedDepartureDate": "2026-10-10", "poDate": "2026-09-01" },
+      { "id": "200102", "status": "READY_AT_FACTORY", "quantity": 7, "unitPrice": 0.1, "purchaseOrderId": 2001, "poNumber": "JF-PO-2001", "supplier": "Float Co., Ltd", "containerNumber": "300", "estimatedDepartureDate": "2026-10-10", "poDate": "2026-09-01" },
+      { "id": "200103", "status": "READY_AT_FACTORY", "quantity": 1, "unitPrice": 2.675, "purchaseOrderId": 2001, "poNumber": "JF-PO-2001", "supplier": "Float Co., Ltd", "containerNumber": "301", "estimatedDepartureDate": "2026-10-12", "poDate": "2026-09-01" },
+      { "id": "200104", "status": "READY_AT_FACTORY", "quantity": 13, "unitPrice": 0.285, "purchaseOrderId": 2001, "poNumber": "JF-PO-2001", "supplier": "Float Co., Ltd", "containerNumber": "302", "estimatedDepartureDate": "2026-10-14", "poDate": "2026-09-01" },
+      { "id": "200201", "status": "UNDER_PRODUCTION", "quantity": 1, "unitPrice": 1.115, "purchaseOrderId": 2002, "poNumber": "JF-PO-2002", "supplier": "Float Co., Ltd", "poDate": "2026-09-01" },
+      { "id": "200301", "status": "ON_SEA", "quantity": 201, "unitPrice": 0.5, "purchaseOrderId": 2003, "poNumber": "JF-PO-2003", "supplier": "Float Co., Ltd", "containerNumber": "303", "shippedDate": "2026-09-20", "poDate": "2026-08-01" },
+      { "id": "200401", "status": "UNDER_PRODUCTION", "quantity": 100, "unitPrice": 1, "purchaseOrderId": 2004, "poNumber": "JF-PO-2004", "supplier": "Float Co., Ltd", "poDate": "2026-08-01" },
+      { "id": "200901", "status": "UNDER_PRODUCTION", "quantity": 100, "unitPrice": 1, "purchaseOrderId": 2009, "poNumber": "JF-PO-2009", "supplier": "Float Co., Ltd", "poDate": "2026-08-01" },
+      { "id": "200501", "status": "READY_AT_FACTORY", "quantity": 1, "unitPrice": 100, "purchaseOrderId": 2005, "poNumber": "JF-PO-2005", "supplier": "Float Co., Ltd", "containerNumber": "304", "estimatedDepartureDate": "2026-10-20", "poDate": "2026-08-01" },
+      { "id": "200502", "status": "READY_AT_FACTORY", "quantity": 1, "unitPrice": 100, "purchaseOrderId": 2005, "poNumber": "JF-PO-2005", "supplier": "Float Co., Ltd", "containerNumber": "305", "estimatedDepartureDate": "2026-10-21", "poDate": "2026-08-01" },
+      { "id": "200503", "status": "READY_AT_FACTORY", "quantity": 1, "unitPrice": 100, "purchaseOrderId": 2005, "poNumber": "JF-PO-2005", "supplier": "Float Co., Ltd", "containerNumber": "306", "estimatedDepartureDate": "2026-10-22", "poDate": "2026-08-01" },
+      { "id": "200601", "status": "UNDER_PRODUCTION", "quantity": 17, "unitPrice": 72.6212, "purchaseOrderId": 2006, "poNumber": "JF-PO-2006", "supplier": "Float Co., Ltd", "poDate": "2026-09-10" },
+      { "id": "200701", "status": "ON_SEA", "quantity": 333, "unitPrice": 1.01, "purchaseOrderId": 2007, "poNumber": "JF-PO-2007", "supplier": "Float Co., Ltd", "containerNumber": "307", "shippedDate": "2026-09-18", "poDate": "2026-08-01" },
+      { "id": "200801", "status": "ON_SEA", "quantity": 667, "unitPrice": 1.01, "purchaseOrderId": 2008, "poNumber": "JF-PO-2008", "supplier": "Float Co., Ltd", "containerNumber": "307", "shippedDate": "2026-09-18", "poDate": "2026-08-01" }
+    ],
+    "poBundles": {
+      "2001": { "id": 2001, "poNumber": "JF-PO-2001", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 0.3, "companyId": 1, "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-08-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "2002": { "id": 2002, "poNumber": "JF-PO-2002", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-08-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "2003": {
+        "id": 2003, "poNumber": "JF-PO-2003", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-08-03 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9203, "purchaseOrderId": 2003, "filename": "PI-2003.pdf", "uploadedAt": "2026-08-03 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "2004": {
+        "id": 2004, "poNumber": "JF-PO-2004", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-08-03 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9204, "purchaseOrderId": 2004, "filename": "PI-2004.pdf", "uploadedAt": "2026-08-03 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "2009": {
+        "id": 2009, "poNumber": "JF-PO-2009", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-08-03 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9209, "purchaseOrderId": 2009, "filename": "PI-2009.pdf", "uploadedAt": "2026-08-03 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      },
+      "2005": {
+        "id": 2005, "poNumber": "JF-PO-2005", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-09-03 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [
+          { "id": 9205, "purchaseOrderId": 2005, "filename": "PI-2005-dep.pdf", "uploadedAt": "2026-08-03 09:00:00", "latestCheck": { "status": "succeeded" } },
+          { "id": 9206, "purchaseOrderId": 2005, "filename": "PI-2005-bal.pdf", "uploadedAt": "2026-09-03 09:00:00", "latestCheck": { "status": "succeeded" } }
+        ]
+      },
+      "2006": { "id": 2006, "poNumber": "JF-PO-2006", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 17.17, "companyId": 1, "createdAt": "2026-09-09 09:00:00", "updatedAt": "2026-09-09 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "2007": { "id": 2007, "poNumber": "JF-PO-2007", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] },
+      "2008": { "id": 2008, "poNumber": "JF-PO-2008", "supplier": "Float Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-07-31 09:00:00", "updatedAt": "2026-07-31 09:00:00", "documents": [], "invoices": [], "signedPis": [], "payments": [] }
+    },
+    "invoicePayments": [
+      { "id": 2031, "invoiceId": 9203, "purchaseOrderId": 2003, "paymentType": "deposit", "amountDue": 100, "currency": "USD", "depositPercentage": 33, "invoiceTotal": null, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-08-05 09:00:00" },
+      { "id": 2041, "invoiceId": 9204, "purchaseOrderId": 2004, "paymentType": "full", "amountDue": 99.985, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-08-05 09:00:00" },
+      { "id": 2091, "invoiceId": 9209, "purchaseOrderId": 2009, "paymentType": "full", "amountDue": 99.98, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-08-05 09:00:00" },
+      { "id": 2051, "invoiceId": 9205, "purchaseOrderId": 2005, "paymentType": "deposit", "amountDue": 99, "currency": "USD", "depositPercentage": 33, "invoiceTotal": 300, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-08-05 09:00:00" },
+      { "id": 2052, "invoiceId": 9206, "purchaseOrderId": 2005, "paymentType": "balance", "amountDue": 200, "currency": "USD", "depositPercentage": null, "invoiceTotal": null, "dueDate": null, "dueTerms": null, "rawTermsText": null, "paymentStatus": "pending", "updatedAt": "2026-09-03 09:05:00" }
+    ],
+    "suppliers": [
+      { "supplierId": 60, "name": "Float Co., Ltd", "paymentTerms": "33% deposit, 67% B/L copy.", "tags": [] }
+    ],
+    "rules": [],
+    "shipmentPayments": [
+      {
+        "id": 7601, "shipmentId": 607, "shipmentReference": "307", "link": "ok", "mergedIntoId": null, "supplierName": "Float Co., Ltd", "supplierKey": "float co., ltd", "kind": "balance",
+        "amount": 1000.005, "currency": "USD", "invoiceNumber": "FL-307", "invoiceDate": "2026-09-19", "dueDate": null, "invoiceTotal": null, "depositDeducted": null, "status": "pending", "paidOn": null,
+        "allocations": [], "appliedTotal": 0, "remaining": 1000.005, "settledByPaymentId": null
+      }
+    ],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": [
+      { "id": 6001, "supplierName": "Float Co., Ltd", "supplierKey": "float co., ltd", "amount": 333.335, "currency": "USD", "paidOn": "2026-09-25", "bankRef": null, "note": null, "source": "manual",
+        "lines": [{ "id": 61, "kind": "balance", "targetId": 7601, "amount": 333.335, "label": "307", "shipmentId": 607, "shipmentReference": "307", "purchaseOrderId": null, "poNumber": null }] }
+    ]
+  }
+}

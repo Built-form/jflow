@@ -1,8 +1,9 @@
 'use strict';
 
 // The shipping snapshot (CONTRACT §3.5, §6.12, §10.12; docs/PHASE2.md §4.2–4.3; step 19),
-// end to end against a per-run jflow_test_<runid> schema and a stub shipping server
-// (test/helpers/shippingStub.js). No real shipping call is ever made.
+// end to end against a per-run jflow_test_<runid> schema, with shipping's data served by
+// an in-process stand-in for services/shippingSource.js (test/helpers/shippingSourceStub.js).
+// The real source runs against a shadow schema in shipping-source.test.js.
 //
 // Pinned here:
 //   · the migration's tables, seed rows and guarded columns;
@@ -10,17 +11,16 @@
 //   · the diff: insert, unchanged, change, gone, back — never a delete, no audit (P8);
 //   · an overlay survives a refresh that changes every feed column;
 //   · the 60-second claim (a second run does not run; two at once → one runs);
-//   · a failed fetch records last_error and nothing else;
+//   · a failed read records last_error and nothing else;
 //   · paidSince, refreshIfStale's TTL, and a row lock → the row waits for the next run.
 
 const mysql = require('mysql2/promise');
 const { startHarness } = require('./harness');
-const { startShippingStub, feedItem, feedBody } = require('../helpers/shippingStub');
+const { stubShippingSource, feedItem, feedBody } = require('../helpers/shippingSourceStub');
 const { FEED_COLUMNS } = require('../../src/services/shippingRefresh');
 
 jest.setTimeout(120000);
 
-const KEY = 'e2e-shipping-key';
 const TODAY = '2026-09-29';
 const OVERLAY_COLUMNS = [
     'planned_date', 'planned_amount', 'planned_skipped', 'planned_base_amount', 'planned_note',
@@ -37,15 +37,11 @@ let warnSpy;
 
 beforeAll(async () => {
     h = await startHarness();
-    stub = await startShippingStub();
-    process.env.SHIPPING_API_BASE = stub.url;
-    process.env.SHIPPING_API_KEY = KEY;
+    stub = stubShippingSource();
 });
 
 afterAll(async () => {
-    delete process.env.SHIPPING_API_BASE;
-    delete process.env.SHIPPING_API_KEY;
-    if (stub) await stub.close();
+    if (stub) stub.restore();
     if (h) await h.stop();
 });
 
@@ -67,7 +63,7 @@ const auditCount = async () => Number((await h.sql('SELECT COUNT(*) AS n FROM au
 async function refreshWith(items, opts) {
     await releaseClaim();
     stub.reset();
-    stub.respondJson(200, feedBody(items, opts));
+    stub.respond(feedBody(items, opts));
     const res = await refresh().expect(200);
     expect(res.body.ran).toBe(true);
     return res.body.status;
@@ -77,7 +73,7 @@ async function refreshWith(items, opts) {
 async function runWith(items) {
     await releaseClaim();
     stub.reset();
-    stub.respondJson(200, feedBody(items));
+    stub.respond(feedBody(items));
     const result = await service().runRefresh({ today: TODAY });
     expect(result).toMatchObject({ status: 'ok', ran: true });
     return result.counts;
@@ -127,7 +123,7 @@ describe('the migration (CONTRACT §3.5)', () => {
     });
 });
 
-describe('GET /external/status and the unconfigured refresh', () => {
+describe('GET /external/status and an unusable source schema', () => {
     test('status before any run: the sync row, companies [] and configured', async () => {
         const res = await status().expect(200);
         expect(Object.keys(res.body).sort()).toEqual(STATUS_KEYS);
@@ -137,28 +133,31 @@ describe('GET /external/status and the unconfigured refresh', () => {
         });
     });
 
-    test('unconfigured: 503 SHIPPING_UNAVAILABLE, no request made, last_error the only record', async () => {
-        delete process.env.SHIPPING_API_KEY;
+    test('an invalid SHIPPING_DB_SCHEMA: 503 SHIPPING_UNAVAILABLE source_schema, last_error the only record', async () => {
+        const saved = process.env.SHIPPING_DB_SCHEMA;
+        process.env.SHIPPING_DB_SCHEMA = 'Not-A-Schema';
         try {
             stub.reset();
+            stub.passThrough();          // the real source: it refuses the name before connecting
             const before = await syncRow();
             const res = await refresh().expect(503);
             expect(res.body).toMatchObject({
-                code: 'SHIPPING_UNAVAILABLE', details: { reason: 'unconfigured', lastSuccessAt: null },
+                code: 'SHIPPING_UNAVAILABLE', details: { reason: 'source_schema', lastSuccessAt: null },
             });
             expect(typeof res.body.error).toBe('string');
-            expect(stub.requests).toHaveLength(0);
+            expect(stub.requests).toHaveLength(1);
             const after = await syncRow();
-            expect(after.last_error).toMatch(/^unconfigured: /);
+            expect(after.last_error).toMatch(/^source_schema: SHIPPING_DB_SCHEMA is not a valid schema name/);
             for (const c of ['last_success_at', 'feed_today', 'item_count', 'rejected_count', 'companies_json']) {
                 expect({ c, v: after[c] }).toEqual({ c, v: before[c] });
             }
             const st = (await status().expect(200)).body;
             expect(st).toMatchObject({ configured: false, lastSuccessAt: null });
-            expect(st.lastError).toMatch(/^unconfigured: /);
+            expect(st.lastError).toMatch(/^source_schema: /);
             expect(await itemRows()).toEqual([]);
         } finally {
-            process.env.SHIPPING_API_KEY = KEY;
+            process.env.SHIPPING_DB_SCHEMA = saved;
+            await releaseClaim();
         }
     });
 });
@@ -177,8 +176,7 @@ describe('the refresh diff (CONTRACT §10.12)', () => {
 
         // No anchors yet: paidSince = today − 60.
         expect(stub.requests).toHaveLength(1);
-        expect(stub.requests[0].query).toEqual({ today: TODAY, paidSince: '2026-07-31' });
-        expect(stub.requests[0].headers['x-api-key']).toBe(KEY);
+        expect(stub.requests[0]).toEqual({ today: TODAY, paidSince: '2026-07-31' });
 
         const rows = await itemRows();
         expect(rows.map((r) => r.ext_id)).toEqual(['bal-812-s311', 'dep-812', 'pi-77-s311']);
@@ -202,7 +200,7 @@ describe('the refresh diff (CONTRACT §10.12)', () => {
 
     test('inside the 60-second claim: 200 {ran: false, status}, no request, nothing written', async () => {
         stub.reset();
-        stub.respondJson(200, feedBody([A]));
+        stub.respond(feedBody([A]));
         const before = await itemRows();
         const res = await refresh().expect(200);
         expect(Object.keys(res.body).sort()).toEqual(['ran', 'status']);
@@ -287,19 +285,19 @@ describe('the refresh diff (CONTRACT §10.12)', () => {
 });
 
 describe('failure and the claim', () => {
-    test('a failed fetch records last_error only: 503, the snapshot and every other sync column kept', async () => {
+    test('a failed read records last_error only: 503, the snapshot and every other sync column kept', async () => {
         await releaseClaim();
         const syncBefore = await syncRow();
         const itemsBefore = await itemRows();
         stub.reset();
-        stub.respondJson(500, { error: 'An internal error occurred.' });
+        stub.fail('source_error');
         const res = await refresh().expect(503);
         expect(res.body).toMatchObject({
             code: 'SHIPPING_UNAVAILABLE',
-            details: { reason: 'http_500', lastSuccessAt: syncBefore.last_success_at.toISOString() },
+            details: { reason: 'source_error', lastSuccessAt: syncBefore.last_success_at.toISOString() },
         });
         const syncAfter = await syncRow();
-        expect(syncAfter.last_error).toMatch(/^http_500: /);
+        expect(syncAfter.last_error).toMatch(/^source_error: /);
         expect(syncAfter.last_attempt_at).toBeInstanceOf(Date);
         for (const c of ['last_success_at', 'feed_today', 'item_count', 'rejected_count', 'companies_json']) {
             expect({ c, v: syncAfter[c] }).toEqual({ c, v: syncBefore[c] });
@@ -307,13 +305,13 @@ describe('failure and the claim', () => {
         expect(await itemRows()).toEqual(itemsBefore);
 
         const st = (await status().expect(200)).body;
-        expect(st.lastError).toMatch(/^http_500: /);
+        expect(st.lastError).toMatch(/^source_error: /);
         expect(st.lastSuccessAt).toBe(syncBefore.last_success_at.toISOString());
     });
 
     test.each([
-        ['a 401', (s) => s.respondJson(401, { error: 'Unauthorized' }), 'http_401'],
-        ['a body that is not JSON', (s) => s.respondText(200, '<html></html>'), 'bad_response'],
+        ['a column the source cannot read', (s) => s.fail('source_schema'), 'source_schema'],
+        ['a body with no items array', (s) => s.respondWith(() => ({ meta: {}, companies: [] })), 'bad_response'],
     ])('%s → 503 with reason %s', async (_label, arrange, reason) => {
         await releaseClaim();
         stub.reset();
@@ -332,7 +330,7 @@ describe('failure and the claim', () => {
     test('the claim blocks a concurrent run: two refreshes at once → one runs, one does not', async () => {
         await releaseClaim();
         stub.reset();
-        stub.respondJson(200, feedBody([A, { ...B, amount: '5200.00' }, C]), { delayMs: 400 });
+        stub.respond(feedBody([A, { ...B, amount: '5200.00' }, C]), { delayMs: 400 });
         const [r1, r2] = await Promise.all([refresh().expect(200), refresh().expect(200)]);
         expect([r1.body.ran, r2.body.ran].sort()).toEqual([false, true]);
         expect(stub.requests).toHaveLength(1);
@@ -363,14 +361,14 @@ describe('paidSince, refreshIfStale, and a locked row', () => {
         await h.sql('UPDATE bank_accounts SET deleted_at = UTC_TIMESTAMP() WHERE id = ?', [closed.id]);
 
         await refreshWith([A, B3, C]);
-        expect(stub.requests[0].query).toEqual({ today: TODAY, paidSince: '2026-09-20' });
+        expect(stub.requests[0]).toEqual({ today: TODAY, paidSince: '2026-09-20' });
     });
 
     test('refreshIfStale: fresh for the same today inside 10 minutes; due when today moves or the TTL passes', async () => {
         const { refreshIfStale } = service();
         await releaseClaim();
         stub.reset();
-        stub.respondJson(200, feedBody([A, B3, C]));
+        stub.respond(feedBody([A, B3, C]));
 
         const fresh = await refreshIfStale({ today: TODAY });
         expect(fresh).toMatchObject({ status: 'fresh', ran: false });
@@ -379,7 +377,7 @@ describe('paidSince, refreshIfStale, and a locked row', () => {
 
         const moved = await refreshIfStale({ today: '2026-09-30' });
         expect(moved).toMatchObject({ status: 'ok', ran: true });
-        expect(stub.requests.map((r) => r.query.today)).toEqual(['2026-09-30']);
+        expect(stub.requests.map((r) => r.today)).toEqual(['2026-09-30']);
         expect((await syncRow()).feed_today).toBe('2026-09-30');
 
         await releaseClaim();
@@ -397,9 +395,9 @@ describe('paidSince, refreshIfStale, and a locked row', () => {
         // A failed run reports its reason and the snapshot's age for /forecast's warning (step 20).
         await releaseClaim();
         stub.reset();
-        stub.respondJson(502, { error: 'Bad gateway' });
+        stub.fail('source_error');
         const failed = await refreshIfStale({ today: '2026-09-30' });
-        expect(failed).toMatchObject({ status: 'failed', ran: true, reason: 'http_502' });
+        expect(failed).toMatchObject({ status: 'failed', ran: true, reason: 'source_error' });
         expect(failed.sync.last_success_at).toBeInstanceOf(Date);
     });
 
