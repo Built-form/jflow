@@ -331,7 +331,9 @@ The plan is `docs/PHASE2.md` (decisions P1–P12, steps 13–23, risks); the con
 `api/docs/CONTRACT.md` (§1.1, §3.5, §6.12, §8 rule 11, §9.3.1, §10.11–10.12, §11). This
 section states only what PLAN fixes; where the three disagree, this file wins.
 
-- **Phase 2 must end with ONE implementation of the payment math, not two.** Of the two
+- **Dev, 2026-09-29: ShipLine is read-only.** This work never changes ShipLine; steps 16 (shadow) and 17 (cut-over) are dropped, and shipping's JWT `GET /api/v1/payments-flow` (whose only consumer was ShipLine) is not built. Consequence: there are **two copies** of the payment math — ShipLine's TS in the browser and shipping's JS port serving JFlow's feed. They are kept equal by **re-syncing**: when ShipLine's `paymentsFlowMath.ts` changes, re-run `tools/payments-flow-oracle.mjs` against the new ShipLine commit, update the port until the golden tests deep-equal again, and record the new commit here.
+- **Phase 2 was planned to end with ONE implementation of the payment math** (superseded by
+  the note above). Of the two
   routes considered (a shared package built to CJS + ESM, or moving the math into the
   shipping API), **route 2 is chosen (P1)**: `buildPaymentsFlow` and its callees move to
   `shipping/src/lib/payments-flow/` (CommonJS), ShipLine's Payments page reads shipping's
@@ -360,7 +362,8 @@ section states only what PLAN fixes; where the three disagree, this file wins.
   to a line (P9). No engine rewrite.
 - **Source of truth**: ShipLine commit `f9499bc` (GitHub main/test, 2026-09-29);
   `paymentsFlowMath.ts` there is 2,786 lines, last changed 2026-09-28 (`ec1cd76`), and is
-  **frozen until step 17**. PHASE2.md's line numbers refer to an older 2,470-line copy.
+  the port matches it exactly. ShipLine is not frozen; its later changes are picked up by a
+  re-sync (above). PHASE2.md's line numbers refer to an older 2,470-line copy.
 - **Deferred by Dev: supplier tags on the server (Q5).** The server assembler passes
   suppliers with `tags: []`. Consequence: Golden A is unaffected (the port and the frozen
   TS see the same input), Golden B must compare with tags stripped from the page-built

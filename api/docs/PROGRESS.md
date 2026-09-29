@@ -25,10 +25,10 @@ step's "Done when" holds and its commit is made.
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
 | 13 | Phase 2: adopt the plan — STOP (Dev) | done (signed off 2026-09-29) |
 | 14 | Phase 2: shipping — port the math (tests first) | done (shipping `phase2-payments-flow` @ `14e6115`) |
-| 15 | Phase 2: shipping — input assembler + `/payments-flow` — STOP before deploy | not started |
-| 16 | Phase 2: ShipLine shadow — STOP before each deploy | not started |
-| 17 | Phase 2: ShipLine cut over — STOP | not started |
-| 18 | Phase 2: shipping `/api/internal/payments-forecast` — STOP (secret, deploy) | not started |
+| 15 | Phase 2: shipping — input assembler (no JWT route: ShipLine read-only) | in progress |
+| 16 | Phase 2: ShipLine shadow | **dropped by Dev (ShipLine read-only)** |
+| 17 | Phase 2: ShipLine cut over | **dropped by Dev (ShipLine read-only)** |
+| 18 | Phase 2: shipping `/api/internal/payments-forecast` — STOP (secret, deploy) | code in progress |
 | 19 | Phase 2: JFlow schema, client, refresh | done |
 | 20 | Phase 2: JFlow loader, engine, `/forecast` | done |
 | 21 | Phase 2: JFlow overlay routes + `ship.` scenarios | not started |
@@ -776,3 +776,11 @@ the coordinator or an agent. It applied `2026-09-29_jflow_ship.sql` to the share
 explorer-test `jflow` schema at 11:18 UTC; the applied checksum matches the committed file.
 It packaged the working tree as it was then, with steps 19–20 half-built. **The test stage
 should be redeployed from a committed state.**
+
+## Phase 2 — Dev decision: ShipLine read-only (2026-09-29)
+
+"Do not change ShipLine, just use it as read only." Steps 16–17 are dropped, and shipping's
+JWT `/api/v1/payments-flow` is not built. Shipping serves JFlow's feed from a port of the
+math. ShipLine keeps its own copy, so there are two implementations. They are kept equal by
+re-syncing the port with `tools/payments-flow-oracle.mjs` whenever ShipLine's math
+changes. Recorded in PLAN.md (Phase 2), PHASE2.md (top and steps 16–17) and CONTRACT §1.1 P1.

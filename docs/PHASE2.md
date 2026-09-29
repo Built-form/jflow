@@ -1,5 +1,7 @@
 # JFlow — Phase 2 plan: stock payments
 
+**Dev, 2026-09-29: ShipLine is read-only.** This work never changes ShipLine; steps 16 (shadow) and 17 (cut-over) are dropped, and shipping's JWT `GET /api/v1/payments-flow` (whose only consumer was ShipLine) is not built. Consequence: there are **two copies** of the payment math — ShipLine's TS in the browser and shipping's JS port serving JFlow's feed. They are kept equal by **re-syncing**: when ShipLine's `paymentsFlowMath.ts` changes, re-run `tools/payments-flow-oracle.mjs` against the new ShipLine commit, update the port until the golden tests deep-equal again, and record the new commit here.
+
 **Adopted 2026-09-29 (step 13, Dev).** P1–P12 adopted as written, with the recommended
 answers to §7's questions: Q1 — source of truth is ShipLine commit **`f9499bc`** (GitHub
 main/test, 2026-09-29), where `paymentsFlowMath.ts` is **2,786 lines**, last changed
@@ -367,13 +369,13 @@ Tests: assembler units; Golden B.
 Done when: Golden B finds zero diffs on 3 snapshots from different days.
 **STOP**: Dev runs `bash deploy.sh test`.
 
-### Step 16 — ShipLine: shadow — **STOP** before each deploy
+### Step 16 — ShipLine: shadow — **DROPPED by Dev 2026-09-29 (ShipLine read-only)**
 Do: the page also fetches `/payments-flow`, keeps rendering its own model, and shows admins a diff
 count.
 **STOP** for each deploy, in order: ShipLine test (Vercel), shipping prod, ShipLine prod.
 Done when: zero diffs in prod for 5 working days.
 
-### Step 17 — ShipLine: cut over and delete — **STOP** (ShipLine prod)
+### Step 17 — ShipLine: cut over and delete — **DROPPED by Dev 2026-09-29 (ShipLine read-only)**
 Do: render the server model and refetch after writes. `PaymentRulesPanel` previews via shipping's
 `POST /api/v1/payment-terms/preview`. Keep only types (`paymentsFlowTypes.ts`); delete the math.
 Tests: `npm run lint` (tsc); walk the page on test against the same day in prod.
