@@ -199,6 +199,32 @@ export function flagTags(flags: ItemFlag[]): FlagTag[] {
   return out;
 }
 
+export interface AttentionTag extends FlagTag {
+  count: number;
+}
+
+/**
+ * What a collapsed category must still say: each warn or fail tag its lines wear (their own
+ * flags plus `marks` from `warnings[]`), with how many lines wear it. Fail comes before
+ * warn; the informational tags (PAID, TUNED, PROJECTED…) are left to the open category.
+ */
+export function attentionTags(
+  lines: ReadonlyArray<{ key: string; flags: readonly string[] }>,
+  marks?: ReadonlyMap<string, FlagTag[]>,
+): AttentionTag[] {
+  const byFlag = new Map<string, AttentionTag>();
+  for (const line of lines) {
+    for (const tag of [...flagTags(line.flags as ItemFlag[]), ...(marks?.get(line.key) ?? [])]) {
+      if (tag.tone !== 'fail' && tag.tone !== 'warn') continue;
+      const seen = byFlag.get(tag.flag);
+      if (seen) seen.count += 1;
+      else byFlag.set(tag.flag, { ...tag, count: 1 });
+    }
+  }
+  const all = [...byFlag.values()];
+  return [...all.filter((t) => t.tone === 'fail'), ...all.filter((t) => t.tone === 'warn')];
+}
+
 /* ---------- money in cells ---------- */
 
 export function isNegative(value: number | bigint): boolean {

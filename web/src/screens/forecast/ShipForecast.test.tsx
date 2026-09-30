@@ -80,12 +80,19 @@ function renderForecast(store: ScenarioStore = createScenarioStore()) {
   );
 }
 
+/** Categories start collapsed; open them all so the tests can reach the lines. */
+async function expandGrid() {
+  const grid = await screen.findByTestId('forecast-grid');
+  fireEvent.click(within(grid).getByRole('button', { name: 'Expand all' }));
+}
+
 const forecastReads = (calls: Call[]) => calls.filter((c) => c.method === 'GET' && c.path.startsWith('/forecast'));
 
 describe('ship lines in the grid', () => {
   it('render from the server flags: estimated hatched and italic, blocked, planned and projected marked, the name as sent', async () => {
     stubApi({ forecast: () => forecastFixture({ ship: true, shipping: SHIPPING }) });
     renderForecast();
+    await expandGrid();
     const grid = await screen.findByTestId('forecast-grid');
     expect(within(grid).getByTestId('category-90').textContent).toContain('Stock payments');
 
@@ -122,6 +129,7 @@ describe('ship lines in the grid', () => {
         }),
     });
     renderForecast();
+    await expandGrid();
     const balance = await screen.findByTestId('line-ship.bal-812-s311');
     expect(balance.querySelector('[data-flag="planStale"]')?.textContent).toBe('PLAN IGNORED');
     expect(screen.getByTestId('line-ship.dep-812').querySelector('[data-flag="planStale"]')).toBeNull();
@@ -156,6 +164,7 @@ describe('ship lines in the grid', () => {
         }),
     });
     renderForecast();
+    await expandGrid();
     const [noCompany, noAccount, notLinked] = await screen.findAllByTestId('ship-unmapped');
 
     expect(noCompany.textContent).toBe('SHIP_UNMAPPED1 stock payment has no company in shipping.');
@@ -183,6 +192,7 @@ describe('ship lines in the grid', () => {
     ];
     stubApi({ forecast: () => res });
     renderForecast();
+    await expandGrid();
     const banner = await screen.findByTestId('unresolved-banner');
     fireEvent.click(within(banner).getByRole('button', { name: 'Show them' }));
     expect(within(banner).getByRole('link', { name: 'Stock payments' }).getAttribute('href')).toBe('/stock-payments');
@@ -193,6 +203,7 @@ describe('the shipping status line and Refresh now', () => {
   it('shows the last sync, open, undated with its £ total, and unmapped counts', async () => {
     stubApi({ forecast: () => forecastFixture({ shipping: SHIPPING }) });
     renderForecast();
+    await expandGrid();
     const line = await screen.findByTestId('shipping-status-line');
     expect(line.textContent).toMatch(/^Last synced 29 Sep 2026, \d\d:\d\d · 12 open · 3 undated \(£4,500\.00\) · 2 unmapped$/);
   });
@@ -200,6 +211,7 @@ describe('the shipping status line and Refresh now', () => {
   it('says a feed that has never succeeded has never synced', async () => {
     stubApi({ forecast: () => forecastFixture({ shipping: null }) });
     renderForecast();
+    await expandGrid();
     expect((await screen.findByTestId('shipping-status-line')).textContent).toBe('Never synced');
   });
 
@@ -212,6 +224,7 @@ describe('the shipping status line and Refresh now', () => {
       },
     });
     renderForecast();
+    await expandGrid();
     const status = await screen.findByTestId('shipping-status');
     expect(within(status).getByTestId('shipping-status-line').textContent).toBe('Never synced');
     fireEvent.click(within(status).getByRole('button', { name: 'Refresh now' }));
@@ -224,6 +237,7 @@ describe('the shipping status line and Refresh now', () => {
   it('says so when another refresh was already running (ran: false), and still reads again', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ shipping: SHIPPING }), refresh: () => ({ ran: false, status: STATUS }) });
     renderForecast();
+    await expandGrid();
     fireEvent.click(await screen.findByRole('button', { name: 'Refresh now' }));
     expect((await screen.findByRole('status')).textContent).toMatch(/already running/);
     await waitFor(() => expect(forecastReads(calls)).toHaveLength(2));
@@ -240,6 +254,7 @@ describe('the shipping status line and Refresh now', () => {
         }),
     });
     renderForecast();
+    await expandGrid();
     fireEvent.click(await screen.findByRole('button', { name: 'Refresh now' }));
     const error = await screen.findByTestId('refresh-error');
     expect(error.textContent).toMatch(/Not refreshed: shipping did not answer in time\. The snapshot from 29 Sep 2026, \d\d:\d\d is still in use\./);
@@ -260,6 +275,7 @@ describe('the SHIPPING_UNAVAILABLE banner', () => {
         }),
     });
     renderForecast();
+    await expandGrid();
     const banner = await screen.findByTestId('shipping-unavailable');
     expect(banner.textContent).toMatch(/Stock payments could not be refreshed: shipping refused JFlow's key\. The forecast uses the snapshot from 28 Sep 2026, \d\d:\d\d\./);
     expect(banner.textContent).toContain('SHIPPING_UNAVAILABLE · http_401');
@@ -273,6 +289,7 @@ describe('the SHIPPING_UNAVAILABLE banner', () => {
       forecast: () => forecastFixture({ warnings: [{ code: 'SHIPPING_UNAVAILABLE', reason: 'unconfigured', lastSuccessAt: null }] }),
     });
     renderForecast();
+    await expandGrid();
     const banner = await screen.findByTestId('shipping-unavailable');
     expect(banner.textContent).toContain('the shipping feed is not set up for this environment');
     expect(banner.textContent).toContain('The feed has never synced, so no stock payments are in the forecast.');
@@ -281,6 +298,7 @@ describe('the SHIPPING_UNAVAILABLE banner', () => {
   it('is absent when the refresh was fine', async () => {
     stubApi({ forecast: () => forecastFixture({ ship: true, shipping: SHIPPING }) });
     renderForecast();
+    await expandGrid();
     await screen.findByTestId('forecast-grid');
     expect(screen.queryByTestId('shipping-unavailable')).toBeNull();
   });
@@ -298,6 +316,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   it("reads the row on open, and shows shipping's date and amount next to the planned ones, with the note", async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     expect(calls.filter((c) => c.method === 'GET' && c.path === '/external-items/ship.dep-812')).toHaveLength(1);
     expect(within(dialog).getByTestId('ship-feed').textContent).toBe('Shipping says $5,000.00 on Fri 2 Oct 2026.');
@@ -312,6 +331,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   it('writes PUT /external-items/:key with only what changed and the row version, then reads the forecast again', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     fireEvent.change(within(dialog).getByLabelText('Amount'), { target: { value: '4800' } });
     fireEvent.change(within(dialog).getByLabelText('Note'), { target: { value: 'Agreed a discount' } });
@@ -330,6 +350,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   it('clears the existing note with null', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     fireEvent.change(within(dialog).getByLabelText('Note'), { target: { value: '' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save the plan' }));
@@ -340,6 +361,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   it("\"Use shipping's\" date clears the pinned date, so the line follows shipping again", async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     fireEvent.click(within(dialog).getByRole('button', { name: "Use shipping's (2 Oct)" }));
     expect(within(dialog).getByTestId('ship-date-mode').textContent).toMatch(/^Follows shipping's date/);
@@ -351,6 +373,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   it("pins a date equal to shipping's when the row already has a plan", async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-10-02' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save the plan' }));
@@ -364,6 +387,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
       row: (key) => (key === 'ship.bal-812-s311' ? externalRow({ plannedNote: 'Check with QC' }) : depositRow()),
     });
     renderForecast();
+    await expandGrid();
     fireEvent.click(await screen.findByRole('button', { name: /Edit Acme Textiles · PO-812 · balance/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Pin 13 Oct' }));
     const dialog = screen.getByRole('dialog');
@@ -380,6 +404,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   it('skips a line', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     fireEvent.click(within(dialog).getByRole('switch', { name: /Skip it/ }));
     expect(within(dialog).queryByLabelText('Amount')).toBeNull();
@@ -391,6 +416,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   it('reverts to the feed with DELETE and the row version, offered only on a planned row', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();
+    await expandGrid();
     fireEvent.click(await screen.findByRole('button', { name: /Edit Acme Textiles · PO-812 · balance/ }));
     await screen.findByLabelText('Amount');
     expect(within(screen.getByRole('dialog')).queryByRole('button', { name: 'Revert to feed' })).toBeNull();
@@ -410,6 +436,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   it('refuses a planned date before today, and an amount that is not a DECIMAL above zero, before the click', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     const save = within(dialog).getByRole('button', { name: 'Save the plan' }) as HTMLButtonElement;
     fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-09-28' } });
@@ -438,6 +465,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
       },
     });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     fireEvent.change(within(dialog).getByLabelText('Amount'), { target: { value: '4800' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save the plan' }));
@@ -470,6 +498,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
       row: () => new ApiError(404, { error: 'Target missing.', code: 'TARGET_MISSING', details: { key: 'ship.dep-812' } }),
     });
     renderForecast();
+    await expandGrid();
     fireEvent.click(await screen.findByRole('button', { name: /Edit Acme Textiles · PO-812 · deposit/ }));
     const dialog = screen.getByRole('dialog');
     const error = await within(dialog).findByTestId('ship-load-error');
@@ -506,6 +535,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   ])('shows a %s refusal in words, and keeps the dialog open', async (_label, error, text, reload) => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }), plan: () => error });
     renderForecast();
+    await expandGrid();
     const dialog = await openDeposit();
     fireEvent.change(within(dialog).getByLabelText('Amount'), { target: { value: '4800' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save the plan' }));
@@ -528,6 +558,7 @@ describe('editing a ship line inside a scenario', () => {
   it('writes an adjustment like any other line, and still shows what shipping says', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true, scenario: true }) });
     renderForecast(createScenarioStore({ id: 9, name: 'Delay the rent' }));
+    await expandGrid();
     fireEvent.click(await screen.findByRole('button', { name: /Edit Acme Textiles · PO-812 · balance/ }));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByTestId('edit-ship-feed').textContent).toBe('Shipping says $1,500.00 on Tue 13 Oct 2026.');

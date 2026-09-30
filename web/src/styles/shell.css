@@ -39,9 +39,9 @@
   border-radius: var(--radius);
   background: #ffffff;
   color: var(--side-bg);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 750;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   display: flex;
   align-items: center;
   justify-content: center;

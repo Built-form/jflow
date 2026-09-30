@@ -7,6 +7,7 @@ import {
   bucketIndexOf,
   bucketLabel,
   cellMoney,
+  attentionTags,
   flagTags,
   groupLines,
   isClipped,
@@ -118,10 +119,13 @@ export function ForecastGrid({
   lineMarks?: LineMarks;
   onEdit: (item: ForecastItem, row: ForecastRow) => void;
 }) {
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+  // Categories open collapsed (Dev, 2026-09-30): the totals read first, and a category's
+  // lines are one click away. This set holds the ones opened since.
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const allOpen = rows.length > 0 && rows.every((r) => expanded.has(r.categoryId));
   const lowest = bucketIndexOf(summary.minDate, buckets);
   const toggle = (categoryId: number) =>
-    setCollapsed((prev) => {
+    setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(categoryId)) next.delete(categoryId);
       else next.add(categoryId);
@@ -138,7 +142,19 @@ export function ForecastGrid({
         <thead>
           <tr style={{ background: 'var(--panel2)' }}>
             <th scope="col" style={{ ...stickyLabel, background: 'var(--panel2)', verticalAlign: 'bottom', borderBottom: '1px solid var(--line2)' }}>
-              <span className="kicker">GBP · ALL ACCOUNTS</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                <span className="kicker">GBP · ALL ACCOUNTS</span>
+                {rows.length > 0 && (
+                  <button
+                    type="button"
+                    className="link-btn"
+                    style={{ fontSize: 12, fontWeight: 500 }}
+                    onClick={() => setExpanded(allOpen ? new Set() : new Set(rows.map((r) => r.categoryId)))}
+                  >
+                    {allOpen ? 'Collapse all' : 'Expand all'}
+                  </button>
+                )}
+              </div>
             </th>
             {buckets.map((b, i) => (
               <th
@@ -221,7 +237,7 @@ export function ForecastGrid({
           )}
 
           {rows.map((row) => {
-            const open = !collapsed.has(row.categoryId);
+            const open = expanded.has(row.categoryId);
             const groups = groupLines(row.items, buckets.length);
             return (
               <CategoryBlock
@@ -268,7 +284,7 @@ function CategoryBlock({
             className="btn-quiet"
             aria-expanded={open}
             onClick={onToggle}
-            style={{ color: 'var(--text)', fontWeight: 600, fontSize: 13.5, display: 'flex', gap: 8, alignItems: 'center' }}
+            style={{ color: 'var(--text)', fontWeight: 600, fontSize: 13.5, display: 'flex', gap: 8, alignItems: 'baseline', textAlign: 'left' }}
           >
             <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10 }}>
               {open ? '▾' : '▸'}
@@ -278,6 +294,7 @@ function CategoryBlock({
               {row.direction === 'in' ? 'IN' : 'OUT'}
             </span>
           </button>
+          {!open && <AttentionMarker categoryId={row.categoryId} tags={attentionTags(row.items, lineMarks)} />}
         </th>
         {Array.from({ length: bucketCount }, (_, i) => (
           <td key={i} style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}>
@@ -314,6 +331,40 @@ function CategoryBlock({
           );
         })}
     </>
+  );
+}
+
+/**
+ * On a collapsed category: each warn or fail tag its hidden lines wear, with a count, so an
+ * OVERDUE or STALE line is not lost behind the fold. Open, the lines show their own tags.
+ */
+function AttentionMarker({ categoryId, tags }: { categoryId: number; tags: ReturnType<typeof attentionTags> }) {
+  if (tags.length === 0) return null;
+  return (
+    <span data-testid={`attention-${categoryId}`} style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4, paddingLeft: 18 }}>
+      {tags.map((t) => {
+        const s = toneStyle(t.tone);
+        return (
+          <span
+            key={t.flag}
+            data-flag={t.flag}
+            title={`${t.count} ${t.count === 1 ? 'line' : 'lines'} ${t.label.toLowerCase()} — open the category to see which`}
+            style={{
+              fontSize: 9.5,
+              fontWeight: 600,
+              letterSpacing: '.06em',
+              border: `1px solid ${s.borderColor}`,
+              background: s.background,
+              color: s.color,
+              borderRadius: 4,
+              padding: '0 4px',
+            }}
+          >
+            {t.label} {t.count}
+          </span>
+        );
+      })}
+    </span>
   );
 }
 

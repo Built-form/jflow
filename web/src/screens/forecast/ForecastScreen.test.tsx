@@ -51,12 +51,19 @@ function renderForecast(store: ScenarioStore = createScenarioStore(), path = '/f
   );
 }
 
+/** Categories start collapsed; open them all so the tests can reach the lines. */
+async function expandGrid() {
+  const grid = await screen.findByTestId('forecast-grid');
+  fireEvent.click(within(grid).getByRole('button', { name: 'Expand all' }));
+}
+
 const forecastCalls = (calls: Call[]) => calls.filter((c) => c.method === 'GET' && c.path.startsWith('/forecast'));
 
 describe('Forecast', () => {
   it('asks for the grid, every company, week buckets — and draws one line without a scenario', async () => {
     const calls = stubApi(() => forecastFixture());
     renderForecast();
+    await expandGrid();
     await screen.findByTestId('forecast-grid');
     const [call] = forecastCalls(calls);
     expect(call.path).toMatch(/companyId=all/);
@@ -73,12 +80,14 @@ describe('Forecast', () => {
     two.accounts = [...two.accounts, { ...two.accounts[0], accountId: 2, name: 'Lloyds' }];
     stubApi(() => two);
     renderForecast();
+    await expandGrid();
     expect(await screen.findByText('STARTING POINT · 2 ACCOUNTS')).toBeTruthy();
   });
 
   it('takes the company from the URL', async () => {
     const calls = stubApi(() => forecastFixture());
     renderForecast(createScenarioStore(), '/forecast?company=2&bucket=month');
+    await expandGrid();
     await screen.findByTestId('forecast-grid');
     expect(forecastCalls(calls)[0].path).toMatch(/companyId=2/);
     expect(forecastCalls(calls)[0].path).toMatch(/bucket=month/);
@@ -87,6 +96,7 @@ describe('Forecast', () => {
   it('flags negative cells: a closing below zero, and one whose bucket dips below zero', async () => {
     stubApi(() => forecastFixture());
     renderForecast();
+    await expandGrid();
     const grid = await screen.findByTestId('forecast-grid');
     const closing = within(grid).getByRole('row', { name: /^Closing/ });
     const cells = within(closing).getAllByRole('cell');
@@ -100,9 +110,26 @@ describe('Forecast', () => {
     expect(within(screen.getByTestId('summary')).getAllByLabelText('below zero').length).toBeGreaterThan(0);
   });
 
+  it('opens with categories collapsed, and a collapsed category says which of its lines need attention', async () => {
+    stubApi(() => forecastFixture());
+    renderForecast();
+    const grid = await screen.findByTestId('forecast-grid');
+    expect(screen.queryByTestId('line-item.88')).toBeNull();
+    // Suppliers holds a REMAINDER and an OVERDUE line; Sales and Rent hold nothing to flag.
+    const marker = within(grid).getByTestId('attention-3');
+    expect(marker.textContent).toContain('REMAINDER 1');
+    expect(marker.textContent).toContain('OVERDUE 1');
+    expect(within(grid).queryByTestId('attention-1')).toBeNull();
+    // Open, the lines wear their own tags, so the marker goes.
+    fireEvent.click(within(within(grid).getByTestId('category-3')).getByRole('button'));
+    expect(await screen.findByTestId('line-item.88')).toBeTruthy();
+    expect(within(grid).queryByTestId('attention-3')).toBeNull();
+  });
+
   it('renders every line of a key that appears several times — the payment and the remainder', async () => {
     stubApi(() => forecastFixture());
     renderForecast();
+    await expandGrid();
     const row = await screen.findByTestId('line-item.77');
     // One row for the key, both lines in it, in their own buckets.
     const cells = within(row).getAllByRole('cell');
@@ -121,6 +148,7 @@ describe('Forecast', () => {
   it('shows the unresolved banner from the summary, listing unresolved[]', async () => {
     stubApi(() => forecastFixture({ unresolved: true }));
     renderForecast();
+    await expandGrid();
     const banner = await screen.findByTestId('unresolved-banner');
     expect(banner.textContent).toContain('2 lines');
     expect(banner.textContent).toContain('£830.00');
@@ -140,6 +168,7 @@ describe('Forecast', () => {
       }),
     );
     renderForecast();
+    await expandGrid();
     const warnings = await screen.findByTestId('forecast-warnings');
     await waitFor(() => expect(warnings.textContent).toContain('Lloyds has no recorded balance'));
     expect(warnings.textContent).toContain('Schedule #45');
@@ -157,6 +186,7 @@ describe('Forecast', () => {
   it('with no scenario, an edit changes the real one-off and the forecast is read again', async () => {
     const calls = stubApi(() => forecastFixture());
     renderForecast();
+    await expandGrid();
     fireEvent.click(await screen.findByRole('button', { name: /Edit Invoice 1041/ }));
     const dialog = screen.getByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: /\+7 days/ }));
@@ -172,6 +202,7 @@ describe('Forecast', () => {
   it('with no scenario, an instance is tuned by its schedule id and natural date', async () => {
     const calls = stubApi(() => forecastFixture());
     renderForecast();
+    await expandGrid();
     fireEvent.click(await screen.findByRole('button', { name: /Edit Office rent/ }));
     const dialog = screen.getByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Amount'), { target: { value: '1250' } });
@@ -190,6 +221,7 @@ describe('Forecast', () => {
     it('draws the scenario and the baseline, shows the banner, and the delta row', async () => {
       const calls = stubApi(() => forecastFixture({ scenario: true }));
       renderForecast(openStore());
+      await expandGrid();
       await screen.findByTestId('forecast-grid');
       expect(forecastCalls(calls)[0].path).toMatch(/scenarioId=9/);
       expect(screen.getByTestId('chart-line-scenario')).toBeTruthy();
@@ -204,6 +236,7 @@ describe('Forecast', () => {
     it('writes an adjustment instead of real data — the whole change against the baseline', async () => {
       const calls = stubApi(() => forecastFixture({ scenario: true }));
       renderForecast(openStore());
+      await expandGrid();
       fireEvent.click(await screen.findByRole('button', { name: /Edit Office rent/ }));
       const dialog = screen.getByRole('dialog');
       expect(within(dialog).getByTestId('edit-baseline').textContent).toContain('Thu 24 Sep 2026');
@@ -222,6 +255,7 @@ describe('Forecast', () => {
     it('refuses a date before today in the dialog, and shows the server refusal when one comes', async () => {
       stubApi(() => forecastFixture({ scenario: true }));
       renderForecast(openStore());
+      await expandGrid();
       fireEvent.click(await screen.findByRole('button', { name: /Edit Invoice 1041/ }));
       const dialog = screen.getByRole('dialog');
       fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-09-28' } });
@@ -233,6 +267,7 @@ describe('Forecast', () => {
       const store = openStore();
       const calls = stubApi(() => forecastFixture({ scenario: store.get() !== null }));
       renderForecast(store);
+      await expandGrid();
       await screen.findByTestId('chart-line-scenario');
       fireEvent.click(screen.getByRole('button', { name: 'Close scenario' }));
       await screen.findByTestId('chart-line-closing');

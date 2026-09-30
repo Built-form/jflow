@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rows } from '../screens/forecast/fixtures';
 import {
+  attentionTags,
   balanceFlag,
   bucketIndexOf,
   bucketLabel,
@@ -106,6 +107,35 @@ describe('flags as words', () => {
 
   it('still shows a flag it does not know', () => {
     expect(flagTags(['somethingNew']).map((t) => t.label)).toEqual(['SOMETHINGNEW']);
+  });
+});
+
+describe('a collapsed category says what needs attention', () => {
+  const line = (key: string, flags: string[]) => ({ key, flags });
+
+  it('counts each warn or fail tag across the lines, and ignores the informational ones', () => {
+    const tags = attentionTags([
+      line('item.1', ['overdue']),
+      line('item.2', ['overdue', 'tuned']),
+      line('ship.a', ['projected', 'estimated']),
+      line('item.3', ['paid']),
+    ]);
+    expect(tags.map((t) => [t.label, t.count])).toEqual([['OVERDUE', 2]]);
+  });
+
+  it('puts fail before warn, and counts the marks that come from warnings', () => {
+    const marks = new Map([['ship.b', [{ flag: 'planStale', label: 'PLAN STALE', tone: 'fail' as const }]]]);
+    const tags = attentionTags([line('ship.a', ['blocked']), line('ship.b', ['projected']), line('item.9', ['stale'])], marks);
+    expect(tags.map((t) => [t.label, t.tone, t.count])).toEqual([
+      ['PLAN STALE', 'fail', 1],
+      ['STALE', 'fail', 1],
+      ['BLOCKED', 'warn', 1],
+    ]);
+  });
+
+  it('is empty when nothing needs attention', () => {
+    expect(attentionTags([line('item.1', ['tuned'])])).toEqual([]);
+    expect(attentionTags([])).toEqual([]);
   });
 });
 

@@ -63,7 +63,7 @@ export function Shell() {
     <div className="shell">
       <div className="sidebar">
         <div className="sidebar-brand">
-          <div className="mark">J</div>
+          <div className="mark">JF</div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="name">JFlow</div>
             <div className="who">{shortEmail(me?.email)}</div>
