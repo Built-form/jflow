@@ -21,7 +21,7 @@ step's "Done when" holds and its commit is made.
 | 8 | Web shell, settings, cash at bank | done |
 | 9 | Web forecast, items, schedules, scenarios | done |
 | 10 | Mobileweb | **parked by Dev (2026-09-29): web only for now** |
-| 11 | First deploy — STOP (Dev) | **test deployed by Dev** (API `d3votdaxd9…/api/v1`); prod not yet |
+| 11 | First deploy — STOP (Dev) | **test and prod deployed by Dev** (test `d3votdaxd9…/api/v1`, prod `jfwzm52aj0…/api/v1` on 2026-09-30); web `env.ts` names `jflow.built-form.co.uk` as production |
 | 12 | Phase 2 plan (write, do not build) | done (written early; no code) |
 | 13 | Phase 2: adopt the plan — STOP (Dev) | done (signed off 2026-09-29) |
 | 14 | Phase 2: port the math (tests first) | done — **moved into JFlow** (`api/src/lib/payments-flow/`) |

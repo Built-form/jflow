@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/config/env.ts — changes: PRODUCTION_HOSTS is empty and PRODUCTION_API_BASE null until prod is deployed, so every host runs on the test stack; `resolveApiBase` takes a nullable test URL and answers '' (not configured) for it too; window title JFlow; the "both stages exist" note rewritten for "only test exists"
+// Copied from workflows/web/src/config/env.ts — changes: JFlow's host and gateway URLs; `resolveApiBase` takes nullable stage URLs and answers '' (not configured) for a missing one; window title JFlow; the "both stages exist" note rewritten with JFlow's deploy dates
 // ─────────────────────────────────────────────────────────────────────────────
 // Deployment environment + the ONE place the API address is written down
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,15 +22,10 @@
 // done by the time anyone notices. So TEST is the default and PRODUCTION must be
 // named explicitly.
 //
-// ── Only test is deployed ────────────────────────────────────────────────────
-// `test` went up on 2026-09-29 (BUILD_PLAN step 11); `prod` has not. Until it
-// does, PRODUCTION_HOSTS is empty, so every host, jflow.built-form.co.uk
-// included, IS test: it reads the test stack and says so (banner, tab title).
-// That is deliberate. The alternative, pointing PRODUCTION_API_BASE at the test
-// URL, would put test data on a screen that claims to be production, and a
-// production screen full of test data looks exactly like a working app. When
-// prod is deployed, put jflow.built-form.co.uk back in PRODUCTION_HOSTS and its
-// gateway URL in PRODUCTION_API_BASE, together. A null address still means
+// ── Both stages are deployed ─────────────────────────────────────────────────
+// `test` went up on 2026-09-29 and `prod` on 2026-09-30 (BUILD_PLAN step 11).
+// jflow.built-form.co.uk is production; every other host is test. Change
+// PRODUCTION_HOSTS and PRODUCTION_API_BASE together. A null address still means
 // REFUSE (the not-configured screen), never the other stack.
 //
 // The catch is the override. `VITE_API_BASE_URL` beats the hostname, so an
@@ -47,14 +42,14 @@ export type AppEnv = 'production' | 'test';
  * cookie lives on that domain, so on any other host the estate-wide SSO cannot
  * be read.
  */
-// Empty until prod is deployed: jflow.built-form.co.uk runs on test (see above).
-const PRODUCTION_HOSTS: readonly string[] = [];
+// mjflow.built-form.co.uk is mobileweb's, which carries its own env.ts (step 10).
+const PRODUCTION_HOSTS: readonly string[] = ['jflow.built-form.co.uk'];
 
 /** serverless stage `test` (`jflow-test-jflowApi`, eu-north-1). */
 const TEST_API_BASE: string | null = 'https://d3votdaxd9.execute-api.eu-north-1.amazonaws.com/api/v1';
 
-/** serverless stage `prod` — not deployed yet; its gateway URL goes here when it is. */
-const PRODUCTION_API_BASE: string | null = null;
+/** serverless stage `prod` (`jflow-prod-jflowApi`, eu-north-1). */
+const PRODUCTION_API_BASE: string | null = 'https://jfwzm52aj0.execute-api.eu-north-1.amazonaws.com/api/v1';
 
 /** Trailing slashes would produce `…v1//companies`, which the API 404s. */
 const trimSlash = (url: string): string => url.trim().replace(/\/+$/, '');
