@@ -1,0 +1,242 @@
+/* The sign-in screen (screens/SignInScreen.tsx). The one place JFlow performs a little:
+   the JF tile expands into the JFlow wordmark, the strapline rises word by word, and a
+   growth line draws itself across the backdrop. Everything is transform, opacity and
+   stroke-dashoffset, and reduced motion lands straight on the final frame.
+
+   The backdrop is the sidebar's navy in both themes, so signing in and the app behind it
+   read as the same place. The line is blue, never green: green means settled. */
+
+.signin {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  padding: 48px 16px;
+  background:
+    radial-gradient(1200px 600px at 50% 18%, color-mix(in srgb, var(--side-acc) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--side-bg) 0%, #0a1830 100%);
+  color: var(--side-text);
+}
+
+/* A faint ledger grid behind everything. */
+.signin::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 30%, #000 70%, transparent 100%);
+  pointer-events: none;
+}
+
+/* ---------- the growth line ---------- */
+
+.signin-chart {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 58vh;
+  width: 100%;
+  pointer-events: none;
+}
+.signin-chart .line {
+  fill: none;
+  stroke: var(--side-acc);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  /* Non-scaling strokes measure dashes in screen pixels (pathLength is ignored), so the dash
+     is longer than the line can ever be on screen. */
+  stroke-dasharray: 5000;
+  stroke-dashoffset: 5000;
+  animation: signin-draw 2.4s cubic-bezier(0.65, 0, 0.35, 1) 0.3s forwards;
+}
+.signin-chart .area {
+  opacity: 0;
+  animation: signin-fade 1.4s ease-out 1.4s forwards;
+}
+.signin-head {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  margin-bottom: -5px;
+  border-radius: 999px;
+  background: var(--side-acc);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--side-acc) 25%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  animation: signin-fade 0.3s ease-out 2.6s forwards, signin-pulse 2.4s ease-in-out 3s infinite;
+}
+
+/* ---------- the wordmark ---------- */
+
+.signin-brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+/* The JF tile from the sidebar, grown up. Its width follows the letters, so as "low"
+   opens the white plate widens with it. */
+.signin-mark {
+  display: inline-flex;
+  align-items: center;
+  height: 1.32em;
+  padding: 0 0.3em;
+  border-radius: 0.22em;
+  background: #ffffff;
+  color: var(--side-bg);
+  font-size: clamp(46px, 9vw, 76px);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  transform: scale(0.72);
+  animation: signin-pop 0.6s cubic-bezier(0.23, 1, 0.32, 1) 0.1s forwards;
+}
+.signin-mark .expand {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  animation: signin-expand 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.75s forwards;
+}
+
+.signin-tagline {
+  margin: 0;
+  font-size: clamp(20px, 3.2vw, 28px);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--side-text);
+  display: flex;
+  gap: 0.3em;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.signin-tagline span {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: signin-rise 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+.signin-tagline span:nth-child(1) { animation-delay: 1.35s; }
+.signin-tagline span:nth-child(2) { animation-delay: 1.47s; }
+.signin-tagline span:nth-child(3) { animation-delay: 1.59s; }
+.signin-tagline span:nth-child(4) { animation-delay: 1.71s; }
+.signin-tagline .grow {
+  color: var(--side-acc);
+  font-weight: 650;
+}
+.signin-tagline .grow::after {
+  content: '↗';
+  display: inline-block;
+  margin-left: 0.12em;
+  font-size: 0.8em;
+}
+
+.signin-kicker {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--side-dim);
+  opacity: 0;
+  animation: signin-fade 0.6s ease-out 1.9s forwards;
+}
+
+/* ---------- the card ---------- */
+
+.signin-card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  padding: 26px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  opacity: 0;
+  transform: translateY(16px);
+  animation: signin-rise 0.7s cubic-bezier(0.23, 1, 0.32, 1) 2s forwards;
+}
+.signin-card p {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--mut);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.signin-foot {
+  max-width: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
+  position: relative;
+  font-size: 11.5px;
+  color: var(--side-dim);
+  letter-spacing: 0.04em;
+  opacity: 0;
+  animation: signin-fade 0.6s ease-out 2.3s forwards;
+}
+
+/* ---------- keyframes ---------- */
+
+@keyframes signin-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes signin-fade {
+  to { opacity: 1; }
+}
+@keyframes signin-pop {
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes signin-expand {
+  0% { max-width: 0; opacity: 0; }
+  40% { opacity: 1; }
+  100% { max-width: 1.9em; opacity: 1; }
+}
+@keyframes signin-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes signin-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.55; }
+}
+
+/* Reduced motion: the finished picture, at once. */
+@media (prefers-reduced-motion: reduce) {
+  .signin-chart .line,
+  .signin-chart .area,
+  .signin-head,
+  .signin-mark,
+  .signin-mark .expand,
+  .signin-tagline span,
+  .signin-kicker,
+  .signin-card,
+  .signin-foot {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    stroke-dashoffset: 0;
+  }
+  .signin-mark .expand {
+    max-width: none;
+  }
+}

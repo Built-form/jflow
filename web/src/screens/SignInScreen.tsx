@@ -1,8 +1,9 @@
-// Copied from workflows/web/src/screens/SignInScreen.tsx — changes: JFlow's name and strapline; the not-configured example is the local API (JFlow's stacks are deployed in step 11); dropped `ReviewersOnlyScreen` and `NotForYouScreen` (JFlow has no role-gated screens, CONTRACT D5) and their roles/PageHeader/router imports; inline radii use the --radius token
+// Copied from workflows/web/src/screens/SignInScreen.tsx — changes: JFlow's name and strapline; the not-configured example is the local API (JFlow's stacks are deployed in step 11); dropped `ReviewersOnlyScreen` and `NotForYouScreen` (JFlow has no role-gated screens, CONTRACT D5) and their roles/PageHeader/router imports; inline radii use the --radius token; SignInScreen redesigned — navy backdrop with a self-drawing growth line, the JF tile expanding into the JFlow wordmark, strapline "Help your money grow" (styles/signin.css)
 import { GoogleLogin } from '@react-oauth/google';
 import { useState } from 'react';
 import { apiBaseUrl } from '../api/client';
 import { writeSharedToken } from '../auth/sharedSession';
+import '../styles/signin.css';
 
 /**
  * The first screen, whenever there is no usable credential.
@@ -12,7 +13,8 @@ import { writeSharedToken } from '../auth/sharedSession';
  * ShipLine, JFPRO, DispatchLine, Workflows and the rest as well — and a sign-in there
  * means this screen is skipped entirely.
  *
- * Nothing here is green. Green means settled, everywhere in this app.
+ * Nothing here is green. Green means settled, everywhere in this app. The animation lives in
+ * styles/signin.css.
  */
 export function SignInScreen({
   expired,
@@ -25,55 +27,29 @@ export function SignInScreen({
   const [refused, setRefused] = useState<string | null>(null);
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 26,
-        padding: 24,
-        background: 'var(--bg)',
-        color: 'var(--text)',
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7 }}>
-        <div style={{ fontSize: 27, fontWeight: 600, letterSpacing: '-0.02em' }}>JFlow</div>
-        <div
-          className="mono"
-          style={{ fontSize: 11, letterSpacing: '.16em', color: 'var(--dim)' }}
-        >
-          CASHFLOW FORECAST
-        </div>
+    <div className="signin">
+      <GrowthLine />
+
+      <div className="signin-brand">
+        {/* The sidebar's JF tile, expanding into the name. Read as one word throughout. */}
+        <h1 className="signin-mark" aria-label="JFlow" style={{ margin: 0 }}>
+          <span aria-hidden="true">JF</span>
+          <span className="expand" aria-hidden="true">
+            low
+          </span>
+        </h1>
+        <p className="signin-tagline">
+          <span>Help</span> <span>your</span> <span>money</span> <span className="grow">grow</span>
+        </p>
+        <div className="signin-kicker">Cashflow forecast</div>
       </div>
 
-      <div
-        style={{
-          border: '1px solid var(--line)',
-          borderRadius: 'var(--radius)',
-          background: 'var(--panel)',
-          boxShadow: 'var(--shadow)',
-          padding: '26px 28px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 17,
-          maxWidth: 380,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 14.5,
-            color: 'var(--mut)',
-            lineHeight: 1.6,
-            textAlign: 'center',
-          }}
-        >
+      <div className="signin-card">
+        <p>
           {expired
             ? 'Your session ran out. Sign in again and you will land back where you were — nothing you recorded is lost.'
             : 'Sign in with your work Google account. The same sign-in covers every Built Form app.'}
-        </div>
+        </p>
 
         <GoogleLogin
           onSuccess={(response) => {
@@ -117,10 +93,42 @@ export function SignInScreen({
         )}
       </div>
 
-      <div className="mono" style={{ fontSize: 11, color: 'var(--dim)', letterSpacing: '.08em' }}>
-        {apiBaseUrl()}
-      </div>
+      <div className="signin-foot mono">{apiBaseUrl()}</div>
     </div>
+  );
+}
+
+/**
+ * The backdrop's balance line: a fixed, made-up shape (a dip, a recovery, a climb) that
+ * draws itself left to right. Decoration only — no figure on this screen is real.
+ */
+const GROWTH_POINTS: Array<[number, number]> = [
+  [0, 250], [60, 238], [120, 246], [180, 222], [240, 228], [300, 204], [360, 214], [420, 236],
+  [480, 226], [540, 190], [600, 198], [660, 168], [720, 176], [780, 136], [840, 120], [900, 84],
+  [960, 58], [985, 46],
+];
+
+function GrowthLine() {
+  const line = GROWTH_POINTS.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x},${y}`).join(' ');
+  const [lastX, lastY] = GROWTH_POINTS[GROWTH_POINTS.length - 1];
+  return (
+    <>
+      <svg className="signin-chart" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="signin-area" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" style={{ stopColor: 'var(--side-acc)', stopOpacity: 0.22 }} />
+            <stop offset="100%" style={{ stopColor: 'var(--side-acc)', stopOpacity: 0 }} />
+          </linearGradient>
+        </defs>
+        <path className="area" d={`${line} L${lastX},300 L0,300 Z`} fill="url(#signin-area)" />
+        <path className="line" d={line} />
+      </svg>
+      {/* The line's head, outside the stretched SVG so it stays round. */}
+      <span
+        className="signin-head"
+        style={{ right: `calc(${(1000 - lastX) / 10}% - 5px)`, bottom: `calc(58vh * ${(300 - lastY) / 300})` }}
+      />
+    </>
   );
 }
 
