@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/screens/SignInScreen.tsx — changes: JFlow's name and strapline; the not-configured example is the local API (JFlow's stacks are deployed in step 11); dropped `ReviewersOnlyScreen` and `NotForYouScreen` (JFlow has no role-gated screens, CONTRACT D5) and their roles/PageHeader/router imports
+// Copied from workflows/web/src/screens/SignInScreen.tsx — changes: JFlow's name and strapline; the not-configured example is the local API (JFlow's stacks are deployed in step 11); dropped `ReviewersOnlyScreen` and `NotForYouScreen` (JFlow has no role-gated screens, CONTRACT D5) and their roles/PageHeader/router imports; inline radii use the --radius token
 import { GoogleLogin } from '@react-oauth/google';
 import { useState } from 'react';
 import { apiBaseUrl } from '../api/client';
@@ -51,7 +51,7 @@ export function SignInScreen({
       <div
         style={{
           border: '1px solid var(--line)',
-          borderRadius: 13,
+          borderRadius: 'var(--radius)',
           background: 'var(--panel)',
           boxShadow: 'var(--shadow)',
           padding: '26px 28px',
@@ -144,7 +144,7 @@ export function NotConfiguredScreen() {
       <div
         style={{
           border: '1px solid var(--line)',
-          borderRadius: 13,
+          borderRadius: 'var(--radius)',
           background: 'var(--panel)',
           padding: '26px 28px',
           maxWidth: 560,
@@ -214,7 +214,7 @@ export function NotAllowedScreen({ onSignOut }: { onSignOut: () => void }) {
       <div
         style={{
           border: '1px solid var(--line)',
-          borderRadius: 13,
+          borderRadius: 'var(--radius)',
           background: 'var(--panel)',
           padding: '26px 28px',
           maxWidth: 460,

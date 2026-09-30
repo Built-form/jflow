@@ -109,7 +109,7 @@ export function ScenarioBanner() {
         padding: '10px 16px',
         border: '1px solid var(--waivedBd)',
         background: 'var(--waivedBg)',
-        borderRadius: 11,
+        borderRadius: 'var(--radius)',
         margin: '14px 26px 0',
         fontSize: 14,
         lineHeight: 1.5,

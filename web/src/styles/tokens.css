@@ -1,75 +1,108 @@
-/* Copied from workflows/web/src/styles/tokens.css — changes: none */
+/* Copied from workflows/web/src/styles/tokens.css — changes: restyled for a finance desk — navy/slate palette, light is the default theme, sidebar tokens (--side-*), font tokens (--font-sans, --font-num, --font-code), smaller radii (--radius, --radius-sm) */
 /* Design tokens. Both themes carry the same names; the whole set switches at once on
-   `<html data-theme>`. Values are final — see docs README "Design tokens".
+   `<html data-theme>`.
 
-   ORDER IS LOAD-BEARING. `:root` and `[data-theme='light']` have the same specificity and
-   both match the html element once a theme is chosen, so the later block wins. Dark is
-   the bare-`:root` default (no light flash on first paint) and therefore comes FIRST;
-   the light block follows so a chosen light theme can override it. */
+   ORDER IS LOAD-BEARING. `:root` and `[data-theme='dark']` have the same specificity and
+   both match the html element once a theme is chosen, so the later block wins. Light is
+   the bare-`:root` default (session.tsx) and therefore comes FIRST; the dark block
+   follows so a chosen dark theme can override it.
 
-:root,
-[data-theme='dark'] {
-  color-scheme: dark;
-  --bg: #0f1216;
-  --panel: #131820;
-  --panel2: #171d26;
-  --raise: #1b222c;
-  --line: #212832;
-  --line2: #2e3742;
-  --text: #e9edf2;
-  --mut: #93a1b0;
-  --dim: #5d6b7a;
-  --acc: #4dd0f2;
-  --accBg: #0e2a33;
-  --accBd: #1d4d5c;
-  --accInk: #08181d;
-  --pass: #7ee08f;
-  --passBg: #16241a;
-  --passBd: #2c4a34;
-  --fail: #ff7d73;
-  --failBg: #1d1418;
-  --failBd: #4a2429;
-  --warn: #e8b23d;
-  --warnBg: #1b1a14;
-  --warnBd: #4a3f1c;
-  /* A workflow a reviewer waived: blue, so it reads as neither passed nor abandoned. */
-  --waived: #7fa6ff;
-  --waivedBg: #141a2b;
-  --waivedBd: #2a3a5e;
-  --shadow: none;
-  --onSolid: #0f1216;
+   The look is a ledger, not a console: white paper, slate rules, one navy ink for
+   actions, and red/green kept strictly for money below/above the line. */
+
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Figures use the sans face with tabular, lining digits, so columns of money align
+     without the typewriter look of a monospace. */
+  --font-num: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* True monospace only where the text is machine output (test logs, ids). */
+  --font-code: 'IBM Plex Mono', ui-monospace, monospace;
+  --radius: 6px;
+  --radius-sm: 4px;
 }
 
+:root,
 [data-theme='light'] {
   color-scheme: light;
-  --bg: #f4f7fa;
+  --bg: #f3f5f8;
   --panel: #ffffff;
-  --panel2: #f8fafc;
+  --panel2: #f7f9fb;
   --raise: #ffffff;
-  --line: #e4e9ef;
-  --line2: #cfd8e1;
-  --text: #141a21;
-  --mut: #55636f;
-  /* Darkened 2026-09-17 for WCAG AA: every token below that is used as text reaches 4.5:1
-     on --panel and its own tint (--dim was 2.8:1 on --bg, --warn 3.7:1 on --warnBg). */
-  --dim: #66737f;
-  --acc: #0b7590;
-  --accBg: #e3f6fb;
-  --accBd: #b9e6f2;
+  --line: #e2e7ee;
+  --line2: #c9d2dd;
+  --text: #0f1b2d;
+  --mut: #4a5a6e;
+  /* Every token used as text reaches WCAG AA (4.5:1) on --panel and its own tint. */
+  --dim: #5f6d7e;
+  --acc: #1f4e8c;
+  --accBg: #e8eef7;
+  --accBd: #c3d2e8;
   --accInk: #ffffff;
-  --pass: #127552;
-  --passBg: #e4f5ec;
-  --passBd: #bce3d1;
-  --fail: #c0362d;
-  --failBg: #fdeceb;
-  --failBd: #f6cdc9;
-  --warn: #8f6000;
-  --warnBg: #fdf3e0;
-  --warnBd: #f0dcb4;
-  --waived: #2f5fd0;
-  --waivedBg: #e8eefc;
-  --waivedBd: #c3d2f4;
-  --shadow: 0 1px 2px rgba(20, 26, 33, 0.06);
-  /* Ink that sits on a solid pass/fail fill (the status box tick, checklist marks). */
+  --pass: #0f6b45;
+  --passBg: #e6f4ec;
+  --passBd: #b9dfc9;
+  --fail: #b42318;
+  --failBg: #fdeeec;
+  --failBd: #f5c8c2;
+  --warn: #8a5a00;
+  --warnBg: #fdf4e1;
+  --warnBd: #efd9a8;
+  --waived: #3d5a99;
+  --waivedBg: #eaeff9;
+  --waivedBd: #c6d2ec;
+  --shadow: 0 1px 2px rgba(15, 27, 45, 0.05), 0 1px 3px rgba(15, 27, 45, 0.04);
+  --shadow-lg: 0 12px 32px rgba(15, 27, 45, 0.16);
+  /* Ink that sits on a solid pass/fail fill. */
   --onSolid: #ffffff;
+
+  /* The sidebar is deep navy in both themes — the fixed frame the ledger sits in. */
+  --side-bg: #0f2242;
+  --side-line: #1d3459;
+  --side-hover: #162c52;
+  --side-active: #21406f;
+  --side-text: #e6ecf5;
+  --side-mut: #9fb0c8;
+  --side-dim: #7589a6;
+  --side-acc: #8fb8ff;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b1320;
+  --panel: #111b2b;
+  --panel2: #152134;
+  --raise: #1a273c;
+  --line: #213047;
+  --line2: #2d3f5a;
+  --text: #e7ecf3;
+  --mut: #a2b0c3;
+  --dim: #7788a0;
+  --acc: #7eaaf0;
+  --accBg: #16284a;
+  --accBd: #274271;
+  --accInk: #0b1320;
+  --pass: #5cc98e;
+  --passBg: #11271d;
+  --passBd: #1f4a33;
+  --fail: #f2857a;
+  --failBg: #2a1518;
+  --failBd: #57262a;
+  --warn: #e3b453;
+  --warnBg: #261f10;
+  --warnBd: #4f3f1b;
+  --waived: #93acec;
+  --waivedBg: #172039;
+  --waivedBd: #2c3c66;
+  --shadow: none;
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --onSolid: #0b1320;
+
+  --side-bg: #08101c;
+  --side-line: #182438;
+  --side-hover: #111c2e;
+  --side-active: #1a2b47;
+  --side-text: #e7ecf3;
+  --side-mut: #97a6bb;
+  --side-dim: #6d7e96;
+  --side-acc: #8fb8ff;
 }

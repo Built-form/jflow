@@ -173,7 +173,7 @@ export function BalanceChart({
                 dominantBaseline="middle"
                 fontSize="11"
                 fill="var(--dim)"
-                fontFamily="'IBM Plex Mono', ui-monospace, monospace"
+                fontFamily="var(--font-num)"
               >
                 {compactMoney(BigInt(Math.round(t)))}
               </text>
@@ -187,7 +187,7 @@ export function BalanceChart({
               textAnchor={i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle'}
               fontSize="11"
               fill="var(--dim)"
-              fontFamily="'IBM Plex Mono', ui-monospace, monospace"
+              fontFamily="var(--font-num)"
             >
               {shortDay(days[i].date)}
             </text>

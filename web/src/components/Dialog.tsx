@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/components/Dialog.tsx — changes: none
+// Copied from workflows/web/src/components/Dialog.tsx — changes: panel radius and shadow from the --radius / --shadow-lg tokens
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { Tone } from '../lib/tone';
@@ -76,7 +76,8 @@ export function Dialog({
         style={{
           background: 'var(--panel)',
           border: '1px solid var(--line2)',
-          borderRadius: 14,
+          borderRadius: 'var(--radius)',
+          boxShadow: 'var(--shadow-lg)',
           width,
           maxWidth: '100%',
           maxHeight: '100%',

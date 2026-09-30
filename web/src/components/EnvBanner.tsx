@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/components/EnvBanner.tsx — changes: none
+// Copied from workflows/web/src/components/EnvBanner.tsx — changes: ticker font IBM Plex Mono → the --font-num token
 import { IS_TEST } from '../config/env';
 import { useLayoutEffect } from 'react';
 
@@ -59,7 +59,8 @@ export function EnvBanner() {
             fontWeight: 700,
             letterSpacing: '0.24em',
             textTransform: 'uppercase',
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+            fontFamily: 'var(--font-num)',
+  fontVariantNumeric: 'tabular-nums lining-nums',
           }}
         >
           Test

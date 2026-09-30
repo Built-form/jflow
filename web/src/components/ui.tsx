@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/components/ui.tsx — changes: dropped `PassedAnyway` (a workflows review badge); `ErrorNote`'s detail lines read JFlow's refusal details (CONTRACT §7: bulk-balance `details.entries`, `STALE_WRITE` `currentVersion`, the `*_IN_USE` counts) instead of workflows' step/section/failure details
+// Copied from workflows/web/src/components/ui.tsx — changes: dropped `PassedAnyway` (a workflows review badge); `ErrorNote`'s detail lines read JFlow's refusal details (CONTRACT §7: bulk-balance `details.entries`, `STALE_WRITE` `currentVersion`, the `*_IN_USE` counts) instead of workflows' step/section/failure details; inline radii use the --radius token
 import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Tone } from '../lib/tone';
@@ -201,7 +201,7 @@ export function ChoiceButton({
       onClick={onClick}
       style={{
         border: `1.5px solid ${accent}`,
-        borderRadius: 10,
+        borderRadius: 'var(--radius)',
         background: selected ? (s?.background ?? 'var(--accBg)') : 'transparent',
         color: selected ? (s?.color ?? 'var(--acc)') : disabled ? 'var(--dim)' : 'var(--text)',
         padding: size === 'lg' ? '17px 16px' : '13px 20px',

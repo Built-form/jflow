@@ -332,7 +332,7 @@ export function Warnings({ warnings, accountName }: { warnings: ForecastWarning[
       style={{
         border: '1px solid var(--warnBd)',
         background: 'var(--warnBg)',
-        borderRadius: 11,
+        borderRadius: 'var(--radius)',
         padding: '12px 15px',
         display: 'flex',
         flexDirection: 'column',
@@ -398,7 +398,7 @@ export function UnresolvedBanner({
       style={{
         border: '1px solid var(--failBd)',
         background: 'var(--failBg)',
-        borderRadius: 11,
+        borderRadius: 'var(--radius)',
         padding: '12px 15px',
         display: 'flex',
         flexDirection: 'column',

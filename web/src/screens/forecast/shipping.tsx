@@ -155,7 +155,7 @@ export function ShipNotes({
       style={{
         border: '1px solid var(--warnBd)',
         background: 'var(--warnBg)',
-        borderRadius: 11,
+        borderRadius: 'var(--radius)',
         padding: '12px 15px',
         display: 'flex',
         flexDirection: 'column',

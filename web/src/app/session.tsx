@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/app/session.tsx — changes: theme storage key workflows.theme → jflow.theme (its boot reads — /me, /meta/enums, /users — all exist in JFlow, so none were dropped)
+// Copied from workflows/web/src/app/session.tsx — changes: theme storage key workflows.theme → jflow.theme; default theme light, not dark (its boot reads — /me, /meta/enums, /users — all exist in JFlow, so none were dropped)
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api';
@@ -40,9 +40,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(THEME_KEY) : null;
     return stored === 'dark' || stored === 'light' ? stored : null;
   });
-  // Dark by default (user decision, 2026-08-21): the app no longer follows the
-  // device preference — dark unless the person picked Light with the toggle.
-  const theme = themeChoice ?? 'dark';
+  // Light by default for JFlow's finance restyle (2026-09-30; workflows chose dark on
+  // 2026-08-21). The app does not follow the device preference — light unless the
+  // person picked Dark with the toggle.
+  const theme = themeChoice ?? 'light';
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

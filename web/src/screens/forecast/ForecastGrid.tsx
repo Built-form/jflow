@@ -53,7 +53,8 @@ const cell: CSSProperties = {
   textAlign: 'right',
   verticalAlign: 'top',
   borderTop: '1px solid var(--line)',
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-num)',
+  fontVariantNumeric: 'tabular-nums lining-nums',
   fontSize: 12.5,
   whiteSpace: 'nowrap',
 };
@@ -126,7 +127,7 @@ export function ForecastGrid({
     });
 
   return (
-    <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 12, background: 'var(--panel)' }}>
+    <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--panel)', boxShadow: 'var(--shadow)' }}>
       <table
         data-testid="forecast-grid"
         style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%', fontSize: 13.5 }}
