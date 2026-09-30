@@ -204,11 +204,26 @@ export function BalanceChart({
               data-testid="chart-line-baseline"
             />
           )}
+          {/* A faint wash under the balance line, fading to nothing at the axis: it gives the
+              line weight without competing with the overdraft tint. */}
+          <defs>
+            <linearGradient id="balance-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" style={{ stopColor: 'var(--acc)', stopOpacity: 0.14 }} />
+              <stop offset="100%" style={{ stopColor: 'var(--acc)', stopOpacity: 0 }} />
+            </linearGradient>
+          </defs>
+          {closing.length > 1 && (
+            <path
+              d={`${linePath(closing, g)} L${g.x(closing.length - 1).toFixed(1)},${g.y(g.min).toFixed(1)} L${g.x(0).toFixed(1)},${g.y(g.min).toFixed(1)} Z`}
+              fill="url(#balance-area)"
+              stroke="none"
+            />
+          )}
           <path
             d={linePath(closing, g)}
             fill="none"
             stroke="var(--acc)"
-            strokeWidth={2}
+            strokeWidth={2.25}
             strokeLinejoin="round"
             data-testid={withBaseline ? 'chart-line-scenario' : 'chart-line-closing'}
           />

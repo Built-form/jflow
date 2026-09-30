@@ -452,9 +452,23 @@ function Tile({
   flagged?: boolean;
 }) {
   return (
-    <div className="panel" style={{ gap: 4, flex: '1 1 170px', borderColor: flagged ? 'var(--failBd)' : undefined }}>
+    <div
+      className="panel"
+      style={{
+        gap: 6,
+        flex: '1 1 170px',
+        padding: '14px 16px',
+        borderColor: flagged ? 'var(--failBd)' : undefined,
+        // A figure below zero is marked on the tile's edge as well as in red ink.
+        borderTop: flagged ? '3px solid var(--fail)' : '3px solid var(--acc)',
+      }}
+    >
       <div className="kicker">{label}</div>
-      <div className="mono" style={{ fontSize: 19, color: flagged ? 'var(--fail)' : undefined }} data-flag={flagged ? 'negative' : undefined}>
+      <div
+        className="mono"
+        style={{ fontSize: 23, fontWeight: 650, letterSpacing: '-0.015em', color: flagged ? 'var(--fail)' : undefined }}
+        data-flag={flagged ? 'negative' : undefined}
+      >
         {flagged && <span aria-label="below zero">▼ </span>}
         {formatMoney(value, 'GBP')}
       </div>

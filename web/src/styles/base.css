@@ -1,4 +1,4 @@
-/* Copied from workflows/web/src/styles/base.css — changes: finance restyle — Inter with tabular figures replaces Space Grotesk/IBM Plex Mono (font tokens), sans uppercase kickers and table heads, radius tokens, navy primary button, quieter pills, denser page padding */
+/* Copied from workflows/web/src/styles/base.css — changes: finance restyle — Inter with tabular figures replaces Space Grotesk/IBM Plex Mono (font tokens), sans uppercase kickers and table heads, radius tokens, navy primary button, quieter pills, denser page padding, ledger table rules (.ledger, .ledger-total, .ledger-edit) */
 /* Base element styles and the small set of primitives every screen reuses.
    Figures are load-bearing: every number, date, amount and count is set in tabular,
    lining digits (`.mono`) so columns of money align; prose is Inter. */
@@ -913,4 +913,35 @@ h1.page-title {
   /* Never wider than what holds it — in a narrow rail 320px ran past the edge. */
   max-width: min(320px, 100%);
   margin-left: 8px;
+}
+
+/* ---------- ledger tables (the forecast grid) ----------
+   Statement conventions: one ink for every figure, a period's total ruled above and
+   double-ruled below, and the row under the pointer lit across its full width so a figure
+   can be traced back to its label. The grid sets its cells' borders and the sticky label's
+   background inline, so these rules need !important to win. */
+
+.ledger tbody tr:hover > td,
+.ledger tbody tr:hover > th {
+  background-color: var(--accBg) !important;
+}
+
+.ledger tr.ledger-total > td,
+.ledger tr.ledger-total > th {
+  border-top: 1px solid var(--mut) !important;
+  border-bottom: 3px double var(--mut);
+  font-weight: 650;
+}
+
+/* An editable figure reads as a figure; hover and focus show it is a control. */
+.ledger-edit {
+  color: var(--text);
+  background: transparent;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.ledger-edit:hover,
+.ledger-edit:focus-visible {
+  color: var(--acc);
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--accBd);
 }

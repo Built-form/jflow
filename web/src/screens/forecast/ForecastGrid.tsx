@@ -87,8 +87,10 @@ function BalanceCell({ value, minClosing, minDate }: { value: number; minClosing
 }
 
 function HeaderRow({ label, children, strong }: { label: string; children: ReactNode; strong?: boolean }) {
+  // The strong row is the period's total: ruled above and double-ruled below, as on a
+  // statement (styles/base.css `.ledger-total`).
   return (
-    <tr>
+    <tr className={strong ? 'ledger-total' : undefined}>
       <th scope="row" style={{ ...stickyLabel, fontWeight: strong ? 600 : 400, fontSize: 13.5, borderTop: '1px solid var(--line)' }}>
         {label}
       </th>
@@ -129,12 +131,13 @@ export function ForecastGrid({
   return (
     <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--panel)', boxShadow: 'var(--shadow)' }}>
       <table
+        className="ledger"
         data-testid="forecast-grid"
         style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%', fontSize: 13.5 }}
       >
         <thead>
           <tr style={{ background: 'var(--panel2)' }}>
-            <th scope="col" style={{ ...stickyLabel, background: 'var(--panel2)' }}>
+            <th scope="col" style={{ ...stickyLabel, background: 'var(--panel2)', verticalAlign: 'bottom', borderBottom: '1px solid var(--line2)' }}>
               <span className="kicker">GBP · ALL ACCOUNTS</span>
             </th>
             {buckets.map((b, i) => (
@@ -145,23 +148,27 @@ export function ForecastGrid({
                 style={{
                   ...cell,
                   borderTop: 0,
-                  fontSize: 11.5,
-                  letterSpacing: '.04em',
+                  borderBottom: '1px solid var(--line2)',
+                  verticalAlign: 'bottom',
+                  fontSize: 12,
                   color: 'var(--mut)',
-                  fontWeight: 500,
+                  fontWeight: 600,
                   boxShadow: i === lowest ? 'inset 0 -2px 0 var(--acc)' : undefined,
                 }}
               >
                 {bucketLabel(b, kind)}
                 {i === lowest && (
                   <div style={{ fontSize: 10.5, color: 'var(--acc)' }} data-testid="lowest-bucket">
-                    LOWEST {shortDay(summary.minDate)}
+                    Lowest {shortDay(summary.minDate)}
                   </div>
                 )}
               </th>
             ))}
-            <th scope="col" style={{ ...cell, borderTop: 0, fontSize: 11.5, color: 'var(--mut)', fontWeight: 500 }}>
-              WINDOW
+            <th
+              scope="col"
+              style={{ ...cell, borderTop: 0, borderBottom: '1px solid var(--line2)', verticalAlign: 'bottom', fontSize: 12, color: 'var(--mut)', fontWeight: 600 }}
+            >
+              Window
             </th>
           </tr>
         </thead>
@@ -400,13 +407,13 @@ function LineCell({
       aria-label={`Edit ${describe}`}
       title={title}
       onClick={() => onEdit(line)}
-      className="pressable"
+      // Ink, not link-blue: a ledger's figures are all one colour. `.ledger-edit` shows the
+      // figure is editable on hover and focus instead.
+      className="pressable ledger-edit"
       style={{
         ...box,
         border: 0,
-        background: 'transparent',
         font: 'inherit',
-        color: 'var(--acc)',
         cursor: 'pointer',
         textAlign: 'right',
       }}

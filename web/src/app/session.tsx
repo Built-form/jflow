@@ -40,7 +40,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(THEME_KEY) : null;
     return stored === 'dark' || stored === 'light' ? stored : null;
   });
-  // Light by default for JFlow's finance restyle (2026-09-30; workflows chose dark on
+  // Light by default (Dev's decision for JFlow, 2026-09-30; workflows chose dark on
   // 2026-08-21). The app does not follow the device preference — light unless the
   // person picked Dark with the toggle.
   const theme = themeChoice ?? 'light';
