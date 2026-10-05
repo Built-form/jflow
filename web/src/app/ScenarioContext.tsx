@@ -90,42 +90,21 @@ export function useScenario(): ScenarioControls {
 
 /**
  * The banner every screen shows while a scenario is open. The Shell renders it once
- * (`<ScenarioBanner />`, its one line for this), above the screen; on the real plan it
- * renders nothing.
+ * (`<ScenarioBanner />`), pinned above the scrolling screen; on the real plan it renders
+ * nothing. Styled in shell.css (`.scenario-banner`) with the rest of scenario mode's frame.
  */
 export function ScenarioBanner() {
   const { active, close } = useScenario();
   if (!active) return null;
   return (
-    <div
-      role="status"
-      aria-label="Scenario open"
-      data-testid="scenario-banner"
-      style={{
-        display: 'flex',
-        gap: 12,
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        padding: '10px 16px',
-        border: '1px solid var(--waivedBd)',
-        background: 'var(--waivedBg)',
-        borderRadius: 'var(--radius)',
-        margin: '14px 26px 0',
-        fontSize: 14,
-        lineHeight: 1.5,
-      }}
-    >
-      <span className="mono" style={{ fontSize: 11.5, letterSpacing: '.1em', color: 'var(--waived)' }}>
-        SCENARIO OPEN
-      </span>
-      <span style={{ fontWeight: 600 }}>{active.name}</span>
-      <span style={{ color: 'var(--mut)', flex: 1, minWidth: 220 }}>
-        Edits on the Forecast change this what-if, not the real plan.
-      </span>
-      <Link className="btn" to={`/scenarios/${active.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+    <div role="status" aria-label="Scenario open" data-testid="scenario-banner" className="scenario-banner">
+      <span className="scenario-banner-tag">SCENARIO MODE</span>
+      <span className="scenario-banner-name">{active.name}</span>
+      <span className="scenario-banner-note">Edits on the Forecast change this what-if, not the real plan.</span>
+      <Link className="btn" to={`/scenarios/${active.id}`}>
         View scenario
       </Link>
-      <button type="button" className="btn" onClick={close}>
+      <button type="button" className="btn scenario-banner-close" onClick={close}>
         Close scenario
       </button>
     </div>

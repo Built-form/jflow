@@ -1,4 +1,4 @@
-/* Copied from workflows/web/src/styles/shell.css — changes: finance restyle — deep navy sidebar in both themes (--side-* tokens) with its own kicker, nav, theme switch and sign-out styling; brand mark and caption restyled; 232px width */
+/* Copied from workflows/web/src/styles/shell.css — changes: finance restyle — deep navy sidebar in both themes (--side-* tokens) with its own kicker, nav, theme switch and sign-out styling; brand mark and caption restyled; 232px width; `.main` column wrapping `.content`; scenario mode (`.scenario-banner`, `.shell.scenario-mode`, `.sidebar-scenario`) */
 /* App shell: fixed 232px sidebar, independently scrolling content area.
    This is a desk app with a phone view for the floor — screens carry a min-width and
    the content area scrolls horizontally below it rather than reflowing. */
@@ -166,10 +166,113 @@
   border-color: var(--side-mut);
 }
 
+/* The column beside the sidebar: the scenario banner (when one is open) pinned on top, the
+   scrolling screen below it. */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .content {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   overflow: auto;
+}
+
+/* Scenario mode (app/ScenarioContext.tsx). A what-if must never look like the real plan, so
+   an open scenario takes over the frame: a solid bar pinned above the screen, a rule round
+   the whole content area, and a chip in the sidebar. Fixed violet in both themes — the one
+   colour nothing else here uses (navy is the app, red/green are money, yellow is TEST). */
+.shell {
+  --scenario: #6d28d9;
+  --scenario-deep: #4c1d95;
+  --scenario-soft: #c4b5fd;
+}
+.scenario-banner {
+  flex: none;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 26px;
+  background: var(--scenario);
+  border-bottom: 1px solid var(--scenario-deep);
+  color: #ffffff;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.scenario-banner-tag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--scenario-deep);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+.scenario-banner-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.scenario-banner-note {
+  flex: 1;
+  min-width: 220px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.scenario-banner .btn {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+  box-shadow: none;
+  text-decoration: none;
+}
+.scenario-banner .btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #ffffff;
+}
+.scenario-banner .btn.scenario-banner-close {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: var(--scenario-deep);
+  font-weight: 600;
+}
+.scenario-banner .btn.scenario-banner-close:hover:not(:disabled) {
+  background: #ede9fe;
+  border-color: #ede9fe;
+}
+.scenario-banner :focus-visible {
+  outline-color: #ffffff;
+}
+.shell.scenario-mode .content {
+  border: 4px solid var(--scenario);
+  border-top: 0;
+}
+.shell.scenario-mode .sidebar-brand .mark {
+  background: var(--scenario-soft);
+  color: var(--scenario-deep);
+}
+.sidebar-scenario {
+  margin-top: -6px;
+  padding: 9px 12px 10px;
+  border-radius: var(--radius);
+  background: var(--scenario);
+  color: #ffffff;
+}
+.sidebar-scenario .tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--scenario-soft);
+}
+.sidebar-scenario .name {
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 /* Numbers line up in every table and stat tile — codes, counts, dates, percentages. */
