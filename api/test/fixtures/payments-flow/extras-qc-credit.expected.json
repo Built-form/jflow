@@ -1,0 +1,894 @@
+{
+ "fixture": "extras-qc-credit",
+ "source": {
+  "commit": "77577a1",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 4118,
+    "sha256": "120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 196,
+    "sha256": "c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-10-06",
+ "output": {
+  "today": "2026-10-06",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 2645,
+     "due7": 32.9,
+     "due30": 32.9,
+     "unscheduled": 0,
+     "outstanding": 2677.9,
+     "later": 0,
+     "notPayable": 0,
+     "overdueCount": 3,
+     "itemCount": 3,
+     "qc": 32.9,
+     "qcCount": 1,
+     "credit": 150
+    },
+    "items": [
+     {
+      "id": "derived:bal:812:268",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "amount": 1645,
+      "dueDate": "2026-09-20",
+      "contractualDate": "2026-09-20",
+      "trigger": "bl",
+      "containerNumber": "268",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Goods on board in 268",
+        "value": 2350,
+        "result": 2350,
+        "source": "1 line"
+       },
+       {
+        "op": "×",
+        "label": "Balance 70%",
+        "value": 0.7,
+        "result": 1645,
+        "source": "the PI's terms “30% deposit, 70% B/L copy.”"
+       }
+      ],
+      "creditForecast": 150
+     },
+     {
+      "id": "derived:bal:901:268",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Roosin Medical Co., Ltd.",
+      "currency": "USD",
+      "amount": 700,
+      "dueDate": "2026-09-20",
+      "contractualDate": "2026-09-20",
+      "trigger": "bl",
+      "containerNumber": "268",
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Goods on board in 268",
+        "value": 1000,
+        "result": 1000,
+        "source": "1 line"
+       },
+       {
+        "op": "×",
+        "label": "Balance 70%",
+        "value": 0.7,
+        "result": 700,
+        "source": "the supplier's terms in JFPRO “30% deposit, 70% against B/L”"
+       }
+      ]
+     },
+     {
+      "id": "extra:44",
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "amount": 300,
+      "dueDate": "2026-09-20",
+      "contractualDate": "2026-09-20",
+      "trigger": "bl",
+      "containerNumber": "268",
+      "containerShare": null,
+      "status": "pending",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "extra_charge"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "extraId": 44,
+      "extraKind": "mould",
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Mould cost",
+        "value": 300,
+        "result": 300,
+        "source": "“steel mould” — added by ops@example.com"
+       }
+      ]
+     }
+    ],
+    "qcItems": [
+     {
+      "id": "qc:81202",
+      "kind": "qc",
+      "basis": "derived",
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "qcOrderId": "81202",
+      "qcCode": "JF-ABC_FQC",
+      "qcProduct": "JF-ABC",
+      "quantity": 20,
+      "unitPrice": 2.35,
+      "qcValue": 47,
+      "amount": 32.9,
+      "qcProductBox": "268",
+      "qcInvoice": null,
+      "dueDate": "2026-09-20",
+      "contractualDate": "2026-09-20",
+      "blocked": null,
+      "status": "projected",
+      "invoiceId": null,
+      "paymentId": null,
+      "flags": [
+       "qc_unit"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "QC units JF-ABC",
+        "value": 47,
+        "result": 47,
+        "source": "20 × 2.35 — product in 268"
+       },
+       {
+        "op": "×",
+        "label": "Balance 70%",
+        "value": 0.7,
+        "result": 32.9,
+        "source": "the PI's terms “30% deposit, 70% B/L copy.”"
+       }
+      ]
+     }
+    ],
+    "qcClosed": [],
+    "pos": [
+     {
+      "poId": 812,
+      "poNumber": "JF-PO-812",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "supplierRaw": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "poTotal": 2397,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9001,
+      "linesValue": 2397,
+      "shippingTotal": 0,
+      "lineCount": 2,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 719.1,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1677.9,
+      "derivedDeposit": 0,
+      "derivedBalance": 1645,
+      "outstanding": 1645,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "invoice",
+       "raw": "30% deposit, 70% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "268",
+        "share": 1,
+        "lineCount": 1,
+        "units": 1000,
+        "value": 2350,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-20",
+        "eta": "2026-10-28",
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null,
+        "open": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "invoice_total_used"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:812:268",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 812,
+        "poNumber": "JF-PO-812",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "USD",
+        "amount": 1645,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "trigger": "bl",
+        "containerNumber": "268",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Goods on board in 268",
+          "value": 2350,
+          "result": 2350,
+          "source": "1 line"
+         },
+         {
+          "op": "×",
+          "label": "Balance 70%",
+          "value": 0.7,
+          "result": 1645,
+          "source": "the PI's terms “30% deposit, 70% B/L copy.”"
+         }
+        ],
+        "creditForecast": 150
+       }
+      ],
+      "qcItems": [
+       {
+        "id": "qc:81202",
+        "kind": "qc",
+        "basis": "derived",
+        "poId": 812,
+        "poNumber": "JF-PO-812",
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "currency": "USD",
+        "qcOrderId": "81202",
+        "qcCode": "JF-ABC_FQC",
+        "qcProduct": "JF-ABC",
+        "quantity": 20,
+        "unitPrice": 2.35,
+        "qcValue": 47,
+        "amount": 32.9,
+        "qcProductBox": "268",
+        "qcInvoice": null,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "blocked": null,
+        "status": "projected",
+        "invoiceId": null,
+        "paymentId": null,
+        "flags": [
+         "qc_unit"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "QC units JF-ABC",
+          "value": 47,
+          "result": 47,
+          "source": "20 × 2.35 — product in 268"
+         },
+         {
+          "op": "×",
+          "label": "Balance 70%",
+          "value": 0.7,
+          "result": 32.9,
+          "source": "the PI's terms “30% deposit, 70% B/L copy.”"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Roosin Medical Co., Ltd.",
+      "supplierRaw": "Roosin Medical Co., Ltd.",
+      "currency": "USD",
+      "poTotal": 1000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 1000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 300,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 1000,
+      "derivedDeposit": 300,
+      "derivedBalance": 700,
+      "outstanding": 700,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% against B/L",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "268",
+        "share": 1,
+        "lineCount": 1,
+        "units": 200,
+        "value": 1000,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-09-20",
+        "eta": "2026-10-28",
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null,
+        "open": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:901:268",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 901,
+        "poNumber": "JF-PO-901",
+        "supplier": "Roosin Medical Co., Ltd.",
+        "currency": "USD",
+        "amount": 700,
+        "dueDate": "2026-09-20",
+        "contractualDate": "2026-09-20",
+        "trigger": "bl",
+        "containerNumber": "268",
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Goods on board in 268",
+          "value": 1000,
+          "result": 1000,
+          "source": "1 line"
+         },
+         {
+          "op": "×",
+          "label": "Balance 70%",
+          "value": 0.7,
+          "result": 700,
+          "source": "the supplier's terms in JFPRO “30% deposit, 70% against B/L”"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "outstanding": 1945,
+      "overdue": 1945,
+      "due30": 0,
+      "unscheduled": 0,
+      "paid": 719.1,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 2,
+      "nextDue": "2026-09-20",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% deposit, 70% B/L copy.",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     },
+     {
+      "supplier": "Roosin Medical Co., Ltd.",
+      "currency": "USD",
+      "outstanding": 700,
+      "overdue": 700,
+      "due30": 0,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 300,
+      "poCount": 1,
+      "itemCount": 1,
+      "nextDue": "2026-09-20",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% against B/L",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% deposit, 70% against B/L",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "268",
+      "currency": "USD",
+      "amount": 2645,
+      "dueDate": "2026-09-20",
+      "etd": "2026-09-20",
+      "eta": "2026-10-28",
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "JF-PO-812",
+       "JF-PO-901"
+      ],
+      "itemCount": 3,
+      "payables": [
+       {
+        "supplier": "Suzhou Sunmed Co.,Ltd.",
+        "amount": 1945,
+        "dueDate": "2026-09-20",
+        "poNumbers": [
+         "JF-PO-812"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:812:268",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 812,
+          "poNumber": "JF-PO-812",
+          "supplier": "Suzhou Sunmed Co.,Ltd.",
+          "currency": "USD",
+          "amount": 1645,
+          "dueDate": "2026-09-20",
+          "contractualDate": "2026-09-20",
+          "trigger": "bl",
+          "containerNumber": "268",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Goods on board in 268",
+            "value": 2350,
+            "result": 2350,
+            "source": "1 line"
+           },
+           {
+            "op": "×",
+            "label": "Balance 70%",
+            "value": 0.7,
+            "result": 1645,
+            "source": "the PI's terms “30% deposit, 70% B/L copy.”"
+           }
+          ],
+          "creditForecast": 150
+         },
+         {
+          "id": "extra:44",
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 812,
+          "poNumber": "JF-PO-812",
+          "supplier": "Suzhou Sunmed Co.,Ltd.",
+          "currency": "USD",
+          "amount": 300,
+          "dueDate": "2026-09-20",
+          "contractualDate": "2026-09-20",
+          "trigger": "bl",
+          "containerNumber": "268",
+          "containerShare": null,
+          "status": "pending",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "extra_charge"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "extraId": 44,
+          "extraKind": "mould",
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Mould cost",
+            "value": 300,
+            "result": 300,
+            "source": "“steel mould” — added by ops@example.com"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       },
+       {
+        "supplier": "Roosin Medical Co., Ltd.",
+        "amount": 700,
+        "dueDate": "2026-09-20",
+        "poNumbers": [
+         "JF-PO-901"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:901:268",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 901,
+          "poNumber": "JF-PO-901",
+          "supplier": "Roosin Medical Co., Ltd.",
+          "currency": "USD",
+          "amount": 700,
+          "dueDate": "2026-09-20",
+          "contractualDate": "2026-09-20",
+          "trigger": "bl",
+          "containerNumber": "268",
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Goods on board in 268",
+            "value": 1000,
+            "result": 1000,
+            "source": "1 line"
+           },
+           {
+            "op": "×",
+            "label": "Balance 70%",
+            "value": 0.7,
+            "result": 700,
+            "source": "the supplier's terms in JFPRO “30% deposit, 70% against B/L”"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ],
+      "otherCurrencies": [
+       {
+        "currency": "GBP",
+        "amount": 1200,
+        "payees": [
+         "Fast Forwarders Ltd"
+        ]
+       }
+      ]
+     }
+    ],
+    "dataQuality": [
+     {
+      "kind": "credit_on_account",
+      "poId": 0,
+      "poNumber": "",
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "amount": -150,
+      "shipmentReference": null,
+      "detail": "Credit note (“short shipment on PO 700”): 150.00 of credit with Suzhou Sunmed Co.,Ltd., not used yet — tick it in Record payment"
+     }
+    ],
+    "credits": [
+     {
+      "extraId": 46,
+      "supplier": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "amount": -150,
+      "label": "Credit note",
+      "description": "short shipment on PO 700"
+     }
+    ]
+   },
+   {
+    "currency": "GBP",
+    "kpis": {
+     "overdue": 0,
+     "due7": 0,
+     "due30": 1200,
+     "unscheduled": 0,
+     "outstanding": 1200,
+     "later": 0,
+     "notPayable": 0,
+     "overdueCount": 0,
+     "itemCount": 1,
+     "qc": 0,
+     "qcCount": 0,
+     "credit": 0
+    },
+    "items": [
+     {
+      "id": "extra:45",
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 0,
+      "poNumber": "",
+      "supplier": "Fast Forwarders Ltd",
+      "currency": "GBP",
+      "amount": 1200,
+      "dueDate": "2026-10-20",
+      "contractualDate": "2026-10-20",
+      "trigger": "bl",
+      "containerNumber": "268",
+      "containerShare": null,
+      "status": "pending",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "shipment_cost"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "extraId": 45,
+      "extraKind": "freight",
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Freight",
+        "value": 1200,
+        "result": 1200,
+        "source": "added by ops@example.com, read off an uploaded invoice"
+       }
+      ]
+     }
+    ],
+    "qcItems": [],
+    "qcClosed": [],
+    "pos": [],
+    "bySupplier": [
+     {
+      "supplier": "Fast Forwarders Ltd",
+      "currency": "GBP",
+      "outstanding": 1200,
+      "overdue": 0,
+      "due30": 1200,
+      "unscheduled": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "poCount": 0,
+      "itemCount": 1,
+      "nextDue": "2026-10-20",
+      "supplierRule": null,
+      "supplierTerms": null,
+      "jfproName": null,
+      "matchHow": null,
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "268",
+      "currency": "GBP",
+      "amount": 1200,
+      "dueDate": "2026-10-20",
+      "etd": "2026-09-20",
+      "eta": "2026-10-28",
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Fast Forwarders Ltd",
+        "amount": 1200,
+        "dueDate": "2026-10-20",
+        "poNumbers": [],
+        "items": [
+         {
+          "id": "extra:45",
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 0,
+          "poNumber": "",
+          "supplier": "Fast Forwarders Ltd",
+          "currency": "GBP",
+          "amount": 1200,
+          "dueDate": "2026-10-20",
+          "contractualDate": "2026-10-20",
+          "trigger": "bl",
+          "containerNumber": "268",
+          "containerShare": null,
+          "status": "pending",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "shipment_cost"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "extraId": 45,
+          "extraKind": "freight",
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Freight",
+            "value": 1200,
+            "result": 1200,
+            "source": "added by ops@example.com, read off an uploaded invoice"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ],
+      "otherCurrencies": [
+       {
+        "currency": "USD",
+        "amount": 2645,
+        "payees": [
+         "Suzhou Sunmed Co.,Ltd.",
+         "Roosin Medical Co., Ltd."
+        ]
+       }
+      ]
+     }
+    ],
+    "dataQuality": [],
+    "credits": []
+   }
+  ],
+  "poCount": 2
+ }
+}

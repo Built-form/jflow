@@ -327,7 +327,7 @@ describe('ship lines in /forecast (step 20)', () => {
         const byId = Object.fromEntries(body.data.map((r) => [r.extId, r]));
         expect(Object.keys(byId['bal-812-s311'])).toEqual([
             'key', 'id', 'source', 'extId', 'feedKind', 'feedStatus', 'supplier', 'shippingCompanyId', 'companyId',
-            'accountId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'currency', 'amount', 'dueDate', 'paidOn',
+            'accountId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'label', 'currency', 'amount', 'dueDate', 'paidOn',
             'settles', 'dateBasis', 'amountBasis', 'blocked', 'flags', 'dueSet', 'dueDatePrev', 'dueDateMovedAt', 'goneAt',
             'plannedDate', 'plannedAmount',
             'plannedSkipped', 'plannedBaseAmount', 'plannedNote', 'sourceScenarioId', 'plannedBy', 'plannedAt',

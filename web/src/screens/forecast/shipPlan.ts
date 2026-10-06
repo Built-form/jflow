@@ -69,9 +69,14 @@ export function hasOverlay(row: Pick<ExternalItem, 'plannedDate' | 'plannedAmoun
   return row.plannedDate != null || row.plannedAmount != null || row.plannedSkipped || (row.plannedNote ?? '') !== '';
 }
 
-/** The row's name as `/forecast` sends it: `<supplier> · <poNumber> · deposit|balance`. */
-export function shipRowName(row: Pick<ExternalItem, 'supplier' | 'poNumber' | 'feedKind' | 'extId'>): string {
-  return [row.supplier, row.poNumber, row.feedKind].filter((p) => p != null && p !== '').join(' · ') || row.extId;
+/**
+ * The row's name as `/forecast` sends it: `<supplier> · <poNumber> · deposit|balance`, or what
+ * the row is when it is not goods (`label`): `Fast Forwarders · Freight`, `… · Mould cost`,
+ * `… · QC units X`.
+ */
+export function shipRowName(row: Pick<ExternalItem, 'supplier' | 'poNumber' | 'feedKind' | 'extId'> & { label?: string | null }): string {
+  const what = row.label || (row.feedKind === 'qc' ? 'QC units' : row.feedKind);
+  return [row.supplier, row.poNumber, what].filter((p) => p != null && p !== '').join(' · ') || row.extId;
 }
 
 export function targetFromRow(row: ExternalItem): ShipPlanTarget {

@@ -388,7 +388,7 @@ describe('externalItemToJson (Phase 2, CONTRACT §6.12)', () => {
         const out = shape.externalItemToJson(row, { derivedStatus: 'expected' });
         expect(Object.keys(out)).toEqual([
             'key', 'id', 'source', 'extId', 'feedKind', 'feedStatus', 'supplier', 'shippingCompanyId', 'companyId',
-            'accountId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'currency', 'amount', 'dueDate', 'paidOn',
+            'accountId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'label', 'currency', 'amount', 'dueDate', 'paidOn',
             'settles', 'dateBasis', 'amountBasis', 'blocked', 'flags', 'dueSet', 'dueDatePrev', 'dueDateMovedAt', 'goneAt', 'plannedDate', 'plannedAmount',
             'plannedSkipped', 'plannedBaseAmount', 'plannedNote', 'sourceScenarioId', 'plannedBy', 'plannedAt',
             'effectiveDate', 'effectiveAmount', 'planStale', 'derivedStatus', 'rowVersion', 'createdBy', 'createdAt',

@@ -1,0 +1,77 @@
+{
+  "description": "Re-pin 77577a1: unbooked goods under the departure rule. One PO's lines are not booked; 600 of 1000 units sit in a dated DRAFT (its ETD dates them, flag in_draft), the rest are dated from today by the default rule's departure estimate (flag from_today, split row @none); a second PO's lines sit in a PLANNED container with no dates yet (in_plan, still dated from today); a third PO's lines are in no container at all; a top-up: a PO whose container balance was paid before more lines were added.",
+  "input": {
+    "today": "2026-10-06",
+    "orders": [
+      {
+        "id": "81401", "jfCode": "JF-DRF", "status": "UNDER_PRODUCTION", "quantity": 1000, "unitPrice": 3,
+        "purchaseOrderId": 814, "poNumber": "JF-PO-814", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": null,
+        "poDate": "2026-08-01", "estimatedReadyDate": "2026-10-20"
+      },
+      {
+        "id": "81501", "jfCode": "JF-PLN", "status": "READY_AT_FACTORY", "quantity": 400, "unitPrice": 2.5,
+        "purchaseOrderId": 815, "poNumber": "JF-PO-815", "supplier": "Roosin Medical Co., Ltd.", "containerNumber": null,
+        "poDate": "2026-08-05", "estimatedReadyDate": "2026-09-25"
+      },
+      {
+        "id": "81601", "jfCode": "JF-NOB", "status": "SCHEDULED", "quantity": 300, "unitPrice": 4,
+        "purchaseOrderId": 816, "poNumber": "JF-PO-816", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": null,
+        "poDate": "2026-09-01", "estimatedReadyDate": "2026-11-15"
+      },
+      {
+        "id": "81701", "jfCode": "JF-TOP", "status": "ON_SEA", "quantity": 1000, "unitPrice": 2,
+        "purchaseOrderId": 817, "poNumber": "JF-PO-817", "supplier": "Roosin Medical Co., Ltd.", "containerNumber": "270",
+        "shippedDate": "2026-09-10", "poDate": "2026-06-01", "estimatedDepartureDate": "2026-09-08", "eta": "2026-10-20"
+      },
+      {
+        "id": "81702", "jfCode": "JF-TOP2", "status": "ON_SEA", "quantity": 500, "unitPrice": 2,
+        "purchaseOrderId": 817, "poNumber": "JF-PO-817", "supplier": "Roosin Medical Co., Ltd.", "containerNumber": "270",
+        "shippedDate": "2026-09-10", "poDate": "2026-06-01", "estimatedDepartureDate": "2026-09-08", "eta": "2026-10-20"
+      }
+    ],
+    "poBundles": {
+      "814": { "id": 814, "poNumber": "JF-PO-814", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-08-01 10:00:00", "updatedAt": "2026-08-01 10:00:00", "documents": [], "signedPis": [], "payments": [], "invoices": [] },
+      "815": { "id": 815, "poNumber": "JF-PO-815", "supplier": "Roosin Medical Co., Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 2, "createdAt": "2026-08-05 10:00:00", "updatedAt": "2026-08-05 10:00:00", "documents": [], "signedPis": [], "payments": [], "invoices": [] },
+      "816": { "id": 816, "poNumber": "JF-PO-816", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00", "documents": [], "signedPis": [], "payments": [], "invoices": [] },
+      "817": {
+        "id": 817, "poNumber": "JF-PO-817", "supplier": "Roosin Medical Co., Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 2,
+        "createdAt": "2026-06-01 10:00:00", "updatedAt": "2026-09-20 10:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [ { "id": 9017, "purchaseOrderId": 817, "filename": "PI-817.pdf", "uploadedAt": "2026-06-03 09:30:00", "latestCheck": { "status": "succeeded" } } ]
+      }
+    },
+    "invoicePayments": [
+      {
+        "id": 57, "invoiceId": 9017, "purchaseOrderId": 817, "paymentType": "deposit", "amountDue": 600, "currency": "USD",
+        "depositPercentage": 30, "invoiceTotal": 2000, "dueDate": null, "dueTerms": "30% deposit, 70% against B/L", "rawTermsText": null,
+        "paymentStatus": "paid", "updatedAt": "2026-06-10 09:12:00"
+      }
+    ],
+    "suppliers": [
+      { "supplierId": 1, "name": "Suzhou Sunmed Co.,Ltd.", "paymentTerms": "30% deposit, 70% B/L copy.", "tags": [] },
+      { "supplierId": 2, "name": "Roosin Medical Co., Ltd.", "paymentTerms": "30% deposit, 70% against B/L", "tags": [] }
+    ],
+    "rules": [
+      {
+        "id": 1, "scope": "default", "supplierName": null, "depositPct": null, "depositTrigger": null, "depositGraceDays": null,
+        "balanceTrigger": null, "balanceDocumentType": null, "balanceOffsetDays": null, "balanceGraceDays": null, "depositOffsetDays": null,
+        "airOwedFrom": null, "airLimitDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "departure": { "from": "ready", "days": 30 }, "transit": { "sea": 35, "air": 7, "road": 10 } }
+      }
+    ],
+    "containerIndex": {},
+    "openContainers": [
+      { "id": 901, "name": "Draft Nov sailing", "stage": "DRAFT", "mode": "SEA", "etd": "2026-11-05", "eta": null, "lines": [ { "orderId": "81401", "quantity": 600 } ] },
+      { "id": 902, "name": "Plan Dec", "stage": "PLANNED", "mode": "SEA", "etd": null, "eta": null, "lines": [ { "orderId": "81501", "quantity": 400 } ] }
+    ],
+    "shipmentPayments": [
+      {
+        "id": 7700, "shipmentId": 322, "shipmentReference": "270", "supplierName": "Roosin Medical Co., Ltd.", "amount": 1400, "currency": "USD",
+        "depositDeducted": true, "status": "paid", "paidOn": "2026-09-25", "settledByPaymentId": null, "allocations": []
+      }
+    ],
+    "supplierPayments": []
+  },
+  "shipments": [
+    { "id": 322, "reference": "270", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-10T06:00:00.000Z", "arrivedAt": null, "blNumber": "MEDUBL0270" }
+  ]
+}

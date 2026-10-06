@@ -15,6 +15,7 @@
 const { rowToOrder } = require('../lib/shippingCopy/orderShape');
 const M = require('../lib/shippingCopy/ordersMappers');
 const D = require('../lib/shippingCopy/paymentDueDates');
+const X = require('../lib/shippingCopy/paymentExtras');
 const { paymentRuleRowToJson } = require('../lib/shippingCopy/paymentRules');
 const S = require('../lib/shippingCopy/shipments');
 const page = require('../lib/shippingCopy/shiplinePage');
@@ -65,6 +66,14 @@ const SOURCE_COLUMNS = Object.freeze({
 const OPTIONAL_COLUMNS = Object.freeze({
     payment_due_dates: ['id', 'target_key', 'due_date', 'note', 'set_by_email', 'updated_at'],
     shipping_allowed_emails: ['email', 'display_name'],
+    // The re-pin to ShipLine 77577a1 (2026-10-06): extra charges and credits (2026-09-29),
+    // and drafts / plans dating their goods (2026-10-05: `shipments.name`, `etd`, `eta`
+    // beyond SOURCE_COLUMNS.shipments, with their `shipment_lines`).
+    payment_extras: ['id', 'supplier_name', 'supplier_key', 'currency', 'amount', 'kind', 'description', 'rides_with',
+        'purchase_order_id', 'shipment_id', 'shipment_reference', 'due_date', 'source_kind', 'source_id', 'status', 'paid_on',
+        'settled_by_payment_id', 'note', 'created_by_email', 'created_at', 'updated_by_email', 'updated_at', 'deleted_at'],
+    shipments: ['name', 'etd', 'eta'],
+    shipment_lines: ['shipment_id', 'order_id', 'quantity'],
 });
 
 const ph = (list) => list.map(() => '?').join(',');
@@ -266,7 +275,7 @@ async function loadShipmentPayments(q, t) {
 // ── GET /supplier-payments (no filters) ─────────────────────────────────
 
 /** loadSupplierPaymentTargets: what each line points at, keyed `${kind}:${id}`; missing = deleted since. */
-async function loadSupplierPaymentTargets(q, t, lines) {
+async function loadSupplierPaymentTargets(q, t, lines, optional = {}) {
     const out = new Map();
     const idsOf = kind => [...new Set(lines.filter(l => l.kind === kind).map(l => l.id))];
     const balIds = idsOf('balance');
@@ -310,10 +319,40 @@ async function loadSupplierPaymentTargets(q, t, lines) {
             });
         }
     }
+    // Lines on an extra (payment_extras.id) and on a QC unit (orders.id of an _FQC line),
+    // since 2026-09-30 / 10-02; read only when the extras table is there (`optional`).
+    const extraIds = optional.payment_extras ? idsOf('extra') : [];
+    if (extraIds.length) {
+        const [rows] = await q.query(
+            `SELECT e.id, e.purchase_order_id, e.shipment_id, e.shipment_reference, po.po_number
+               FROM ${t('payment_extras')} e LEFT JOIN ${t('purchase_orders')} po ON po.id = e.purchase_order_id
+              WHERE e.id IN (${ph(extraIds)}) AND e.deleted_at IS NULL`, extraIds
+        );
+        for (const r of rows) {
+            out.set(`extra:${r.id}`, {
+                kind: 'extra', id: r.id, purchaseOrderId: r.purchase_order_id ?? null, poNumber: r.po_number || null, paymentType: null,
+                shipmentId: r.shipment_id ?? null, shipmentReference: r.shipment_reference || null,
+            });
+        }
+    }
+    const qcIds = idsOf('qc');
+    if (qcIds.length) {
+        const [rows] = await q.query(
+            `SELECT o.id, o.purchase_order_id, po.po_number
+               FROM ${t('orders')} o JOIN ${t('purchase_orders')} po ON po.id = o.purchase_order_id AND po.deleted_at IS NULL
+              WHERE o.id IN (${ph(qcIds)}) AND o.deleted_at IS NULL`, qcIds
+        );
+        for (const r of rows) {
+            out.set(`qc:${r.id}`, {
+                kind: 'qc', id: r.id, purchaseOrderId: r.purchase_order_id, poNumber: r.po_number, paymentType: null,
+                shipmentId: null, shipmentReference: null,
+            });
+        }
+    }
     return out;
 }
 
-async function loadSupplierPayments(q, t) {
+async function loadSupplierPayments(q, t, optional = {}) {
     const [rows] = await q.query(
         `SELECT sp.id, sp.supplier_name, sp.amount, sp.currency, sp.paid_on
            FROM ${t('supplier_payments')} sp WHERE sp.deleted_at IS NULL ORDER BY sp.paid_on DESC, sp.id DESC`
@@ -324,7 +363,7 @@ async function loadSupplierPayments(q, t) {
         `SELECT id, payment_id, target_kind, target_id, amount
            FROM ${t('supplier_payment_lines')} WHERE payment_id IN (${ph(ids)}) ORDER BY id`, ids
     );
-    const targets = await loadSupplierPaymentTargets(q, t, lineRows.map(l => ({ kind: l.target_kind, id: l.target_id })));
+    const targets = await loadSupplierPaymentTargets(q, t, lineRows.map(l => ({ kind: l.target_kind, id: l.target_id })), optional);
     const linesByPayment = new Map();
     for (const l of lineRows) {
         if (!linesByPayment.has(l.payment_id)) linesByPayment.set(l.payment_id, []);
@@ -374,6 +413,70 @@ async function loadSuppliers(q, t) {
     return rows.map(page.supplierFromRow);
 }
 
+// ── GET /api/v1/payment-extras (payment-extra-routes.js: EXTRA_SELECT + hydrate) ──
+
+/**
+ * Every live extra (open and paid) with what live transfers have applied to it, as
+ * the route sends them (lib/shippingCopy/paymentExtras.js extraRowToJson). The
+ * model reads applied / remaining to know what is left of each.
+ */
+async function loadPaymentExtras(q, t) {
+    const [rows] = await q.query(
+        `SELECT e.id, e.supplier_name, e.supplier_key, e.currency, e.amount, e.kind, e.description, e.rides_with,
+                e.purchase_order_id, e.shipment_id, e.shipment_reference, e.due_date, e.source_kind, e.source_id, e.status,
+                e.paid_on, e.settled_by_payment_id, e.note, e.created_by_email, e.created_at, e.updated_by_email, e.updated_at,
+                po.po_number
+           FROM ${t('payment_extras')} e
+           LEFT JOIN ${t('purchase_orders')} po ON po.id = e.purchase_order_id
+          WHERE e.deleted_at IS NULL
+          ORDER BY e.id`
+    );
+    if (!rows.length) return [];
+    const ids = rows.map(r => r.id);
+    const [appliedRows] = await q.query(
+        `SELECT l.target_id, SUM(l.amount) AS applied
+           FROM ${t('supplier_payment_lines')} l
+           JOIN ${t('supplier_payments')} sp ON sp.id = l.payment_id AND sp.deleted_at IS NULL
+          WHERE l.target_kind = 'extra' AND l.target_id IN (${ph(ids)})
+          GROUP BY l.target_id`, ids
+    );
+    const applied = new Map(appliedRows.map(r => [r.target_id, Number(r.applied) || 0]));
+    return rows.map(r => X.extraRowToJson(r, { applied: applied.get(r.id) || 0 }));
+}
+
+// ── GET /api/v1/shipments?stage=DRAFT,PLANNED&include=lines&limit=2000 ──────
+
+/**
+ * The open shipments (drafts and plans) with the fields the page's openContainers
+ * memo reads — id, reference, name, stage, mode, etd, eta — and their lines as
+ * {orderId, quantity} (shipment-routes.js GET /shipments + shipment-sync.js
+ * loadLinesFor, trimmed: lines of deleted orders are left out as there).
+ */
+async function loadOpenShipments(q, t) {
+    const [rows] = await q.query(
+        `SELECT s.id, s.reference, s.name, s.stage, s.mode, s.etd, s.eta
+           FROM ${t('shipments')} s
+          WHERE s.deleted_at IS NULL AND s.merged_into_id IS NULL AND s.stage IN ('DRAFT', 'PLANNED')
+          ORDER BY s.created_at DESC, s.id DESC
+          LIMIT ${Number(page.PAGE_SHIPMENT_LIMIT)}`
+    );
+    const out = rows.map(r => ({
+        id: r.id, reference: r.reference || null, name: r.name || null, stage: r.stage, mode: r.mode || null,
+        etd: S.dateOnly(r.etd), eta: S.dateOnly(r.eta), lines: [],
+    }));
+    if (!out.length) return out;
+    const byId = new Map(out.map(s => [s.id, s]));
+    const [lines] = await q.query(
+        `SELECT sl.shipment_id, sl.order_id, sl.quantity
+           FROM ${t('shipment_lines')} sl
+           INNER JOIN ${t('orders')} o ON o.id = sl.order_id AND o.deleted_at IS NULL
+          WHERE sl.shipment_id IN (${ph(out.map(s => s.id))})
+          ORDER BY sl.shipment_id ASC, sl.id ASC`, out.map(s => s.id)
+    );
+    for (const l of lines) byId.get(l.shipment_id)?.lines.push({ orderId: l.order_id, quantity: Number(l.quantity) || 0 });
+    return out;
+}
+
 // ── GET /api/v1/payment-due-dates (payment-due-date-routes.js: SELECT d.*, setter) ──
 
 /**
@@ -412,12 +515,16 @@ async function loadSources(q, t, { optional = {} } = {}) {
     const paymentRules = await loadPaymentRules(q, t);
     const shipments = await selectShipments(q, t, { stages: page.PAGE_SHIPMENT_STAGES, limit: page.PAGE_SHIPMENT_LIMIT });
     const shipmentPayments = await loadShipmentPayments(q, t);
-    const supplierPayments = await loadSupplierPayments(q, t);
+    const supplierPayments = await loadSupplierPayments(q, t, optional);
     const suppliers = await loadSuppliers(q, t);
     const readDueDates = Boolean(optional.payment_due_dates);
     const paymentDueDates = readDueDates
         ? await loadPaymentDueDates(q, t, { withNames: Boolean(optional.shipping_allowed_emails) })
         : [];
+    const readExtras = Boolean(optional.payment_extras);
+    const paymentExtras = readExtras ? await loadPaymentExtras(q, t) : [];
+    const readOpen = Boolean(optional.shipments && optional.shipment_lines);
+    const openShipments = readOpen ? await loadOpenShipments(q, t) : [];
     return viaJson({
         orders: { data: orders, purchaseOrders, shipments: shipmentsById },
         containers: { data: containers },
@@ -429,6 +536,8 @@ async function loadSources(q, t, { optional = {} } = {}) {
         suppliers,
         shipmentDocuments: {},
         paymentDueDates: { data: paymentDueDates, read: readDueDates },
+        paymentExtras: { data: paymentExtras, read: readExtras },
+        openShipments: { data: openShipments, read: readOpen },
     });
 }
 
@@ -455,6 +564,8 @@ module.exports = {
     OPTIONAL_COLUMNS,
     loadSources,
     loadPaymentDueDates,
+    loadPaymentExtras,
+    loadOpenShipments,
     loadShipmentDocuments,
     loadCompanies,
     loadPoDirectory,

@@ -503,6 +503,9 @@ function externalItemToJson(r, extras = {}) {
         poNumber: r.po_number,
         shipmentId: id(r.shipment_id),
         containerRef: r.container_ref,
+        // What the row is when it is not a PO's goods (an extra's kind, "PO charges",
+        // "Top-up", "QC units <code>"); null for goods. Since the re-pin (2026-10-06).
+        label: r.label ?? null,
         currency: r.currency,
         amount: r.amount,
         dueDate: r.due_date,

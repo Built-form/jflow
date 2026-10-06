@@ -82,9 +82,15 @@ const SHIP_SETTLE_MODE = 'manual';
 
 /**
  * §6.10: a ship line's name, `<supplier> · <poNumber> · deposit|balance`, leaving out what
- * the feed does not know. The engine's lines and a `ship.` adjustment's `current.name`.
+ * the feed does not know. A row that is not a PO's goods says what it is instead of its
+ * kind: `<payee> · Freight` for a forwarder's cost, `<supplier> · PO-9 · Mould cost`,
+ * `… · PO charges`, `… · Top-up`, `… · QC units X` (the feed's `label`, since 2026-10-06).
+ * The engine's lines and a `ship.` adjustment's `current.name`.
  */
-const shipName = (row) => [row.supplier, row.poNumber, row.feedKind].filter((p) => p != null && p !== '').join(' · ');
+const shipName = (row) => {
+    const what = row.label || (row.feedKind === 'qc' ? 'QC units' : row.feedKind);
+    return [row.supplier, row.poNumber, what].filter((p) => p != null && p !== '').join(' · ');
+};
 
 // The "date moved" mark (handover doc "Dates set by hand", 2026-10-06): how long a row
 // says its feed date moved — from a set, a clear, or a derived date that changed.

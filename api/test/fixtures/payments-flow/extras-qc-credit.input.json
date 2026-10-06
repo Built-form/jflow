@@ -1,0 +1,85 @@
+{
+  "description": "Re-pin 77577a1: one PO in a booked box with a paid deposit PI and a derived balance; a _FQC line (QC units owed on their own, dated from the product's box); a mould cost riding the balance; a forwarder's freight cost riding the shipment in its own currency with its own due date; a supplier credit note on account, forecast against the supplier's most urgent payment (netted in the feed); an extra already paid (no item); a second supplier in the same box so the forwarder cost names no supplier of goods.",
+  "input": {
+    "today": "2026-10-06",
+    "orders": [
+      {
+        "id": "81201", "jfCode": "JF-ABC", "status": "ON_SEA", "quantity": 1000, "unitPrice": 2.35,
+        "purchaseOrderId": 812, "poNumber": "JF-PO-812", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": "268",
+        "shippedDate": "2026-09-20", "poDate": "2026-07-01", "estimatedDepartureDate": "2026-09-18", "eta": "2026-10-28"
+      },
+      {
+        "id": "81202", "jfCode": "JF-ABC_FQC", "status": "UNDER_PRODUCTION", "quantity": 20, "unitPrice": 2.35,
+        "purchaseOrderId": 812, "poNumber": "JF-PO-812", "supplier": "Suzhou Sunmed Co.,Ltd.", "containerNumber": null,
+        "poDate": "2026-07-01"
+      },
+      {
+        "id": "90101", "jfCode": "JF-XYZ", "status": "ON_SEA", "quantity": 200, "unitPrice": 5,
+        "purchaseOrderId": 901, "poNumber": "JF-PO-901", "supplier": "Roosin Medical Co., Ltd.", "containerNumber": "268",
+        "shippedDate": "2026-09-20", "poDate": "2026-07-10", "estimatedDepartureDate": "2026-09-18", "eta": "2026-10-28"
+      }
+    ],
+    "poBundles": {
+      "812": {
+        "id": 812, "poNumber": "JF-PO-812", "supplier": "Suzhou Sunmed Co.,Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 1,
+        "createdAt": "2026-06-28 10:00:00", "updatedAt": "2026-09-05 11:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [
+          { "id": 9001, "purchaseOrderId": 812, "filename": "PI-812-deposit.pdf", "uploadedAt": "2026-07-03 09:30:00", "latestCheck": { "status": "succeeded" } }
+        ]
+      },
+      "901": {
+        "id": 901, "poNumber": "JF-PO-901", "supplier": "Roosin Medical Co., Ltd.", "currency": "USD", "shippingTotal": 0, "companyId": 2,
+        "createdAt": "2026-07-10 10:00:00", "updatedAt": "2026-09-05 11:00:00", "documents": [], "signedPis": [], "payments": [], "invoices": []
+      }
+    },
+    "invoicePayments": [
+      {
+        "id": 55, "invoiceId": 9001, "purchaseOrderId": 812, "paymentType": "deposit", "amountDue": 719.1, "currency": "USD",
+        "depositPercentage": 30, "invoiceTotal": 2397, "dueDate": null, "dueTerms": "30% deposit, 70% B/L copy.", "rawTermsText": null,
+        "paymentStatus": "paid", "updatedAt": "2026-07-10 09:12:00"
+      }
+    ],
+    "suppliers": [
+      { "supplierId": 1, "name": "Suzhou Sunmed Co.,Ltd.", "paymentTerms": "30% deposit, 70% B/L copy.", "tags": [] },
+      { "supplierId": 2, "name": "Roosin Medical Co., Ltd.", "paymentTerms": "30% deposit, 70% against B/L", "tags": [] }
+    ],
+    "rules": [],
+    "containerIndex": {},
+    "shipmentPayments": [],
+    "supplierPayments": [
+      {
+        "id": 7001, "supplierName": "Suzhou Sunmed Co.,Ltd.", "amount": 80, "currency": "USD", "paidOn": "2026-10-01",
+        "lines": [ { "id": 1, "kind": "extra", "targetId": 47, "amount": 80, "purchaseOrderId": 812, "poNumber": "JF-PO-812", "shipmentReference": "268" } ]
+      }
+    ],
+    "paymentExtras": [
+      {
+        "id": 44, "supplierName": "Suzhou Sunmed Co.,Ltd.", "supplierKey": "suzhou sunmed co.,ltd.", "currency": "USD", "amount": 300, "kind": "mould",
+        "label": "JF-PO-812 mould cost", "description": "steel mould", "ridesWith": "balance", "purchaseOrderId": 812, "poNumber": "JF-PO-812",
+        "shipmentId": 311, "shipmentReference": "268", "dueDate": null, "sourceKind": null, "sourceId": null, "status": "open", "paidOn": null,
+        "settledByPaymentId": null, "applied": 0, "remaining": 300, "note": null, "createdByEmail": "ops@example.com", "createdAt": "2026-09-30T09:00:00.000Z"
+      },
+      {
+        "id": 45, "supplierName": "Fast Forwarders Ltd", "supplierKey": "fast forwarders ltd", "currency": "GBP", "amount": 1200, "kind": "freight",
+        "label": "268 freight", "description": null, "ridesWith": "shipment", "purchaseOrderId": null, "poNumber": null,
+        "shipmentId": 311, "shipmentReference": "268", "dueDate": "2026-10-20", "sourceKind": "shipment_document", "sourceId": 12, "status": "open", "paidOn": null,
+        "settledByPaymentId": null, "applied": 0, "remaining": 1200, "note": null, "createdByEmail": "ops@example.com", "createdAt": "2026-10-01T09:00:00.000Z"
+      },
+      {
+        "id": 46, "supplierName": "Suzhou Sunmed Co.,Ltd.", "supplierKey": "suzhou sunmed co.,ltd.", "currency": "USD", "amount": -150, "kind": "credit_note",
+        "label": "Credit note", "description": "short shipment on PO 700", "ridesWith": "account", "purchaseOrderId": null, "poNumber": null,
+        "shipmentId": null, "shipmentReference": null, "dueDate": null, "sourceKind": null, "sourceId": null, "status": "open", "paidOn": null,
+        "settledByPaymentId": null, "applied": 0, "remaining": -150, "note": null, "createdByEmail": "ops@example.com", "createdAt": "2026-10-01T10:00:00.000Z"
+      },
+      {
+        "id": 47, "supplierName": "Suzhou Sunmed Co.,Ltd.", "supplierKey": "suzhou sunmed co.,ltd.", "currency": "USD", "amount": 80, "kind": "samples",
+        "label": "JF-PO-812 samples", "description": null, "ridesWith": "balance", "purchaseOrderId": 812, "poNumber": "JF-PO-812",
+        "shipmentId": 311, "shipmentReference": "268", "dueDate": null, "sourceKind": null, "sourceId": null, "status": "paid", "paidOn": "2026-10-01",
+        "settledByPaymentId": 7001, "applied": 80, "remaining": 0, "note": null, "createdByEmail": "ops@example.com", "createdAt": "2026-09-29T09:00:00.000Z"
+      }
+    ]
+  },
+  "shipments": [
+    { "id": 311, "reference": "268", "stage": "IN_TRANSIT", "mode": "SEA", "ata": null, "departedAt": "2026-09-20T06:00:00.000Z", "arrivedAt": null, "blNumber": "MEDUBL0268" }
+  ]
+}

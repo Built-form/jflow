@@ -388,11 +388,16 @@ async function loadShipTargets(conn, extIds, accountIds) {
     });
 }
 
-/** The live systemKey 'ship' category ("Stock payments", P10) → [category] or []. */
+/**
+ * The live system categories ship lines sit in: systemKey 'ship' ("Stock payments", P10)
+ * and, since the 2026-10-06 re-pin, 'freight' ("Freight and forwarders", a forwarder's
+ * shipment costs) → [category…] (0–2 rows). The engine falls back to 'ship' when 'freight'
+ * is missing.
+ */
 async function loadShipCategory(conn) {
     const [rows] = await conn.query(
         `SELECT id, name, direction, sort_order, system_key FROM categories
-          WHERE system_key = 'ship' AND deleted_at IS NULL ORDER BY id ASC LIMIT 1`
+          WHERE system_key IN ('ship', 'freight') AND deleted_at IS NULL ORDER BY id ASC`
     );
     return rows.map(engineCategory);
 }

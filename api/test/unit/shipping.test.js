@@ -107,7 +107,15 @@ describe('configuration', () => {
 });
 
 describe('the schema check', () => {
-    const ALL_OPTIONAL = { payment_due_dates: true, shipping_allowed_emails: true };
+    const ALL_OPTIONAL = { payment_due_dates: true, shipping_allowed_emails: true, payment_extras: true, shipments: true, shipment_lines: true };
+    /** Every column per table, required and optional together (a table may be in both lists). */
+    const allColumns = () => {
+        const out = {};
+        for (const list of [SOURCE_COLUMNS, OPTIONAL_COLUMNS]) {
+            for (const [table, columns] of Object.entries(list)) out[table] = [...(out[table] ?? []), ...columns];
+        }
+        return out;
+    };
     /** information_schema rows for every column the reads use (optional tables included unless `without`), minus `drop`. */
     const columnsQuery = ({ drop = [], upper = false, without = [] } = {}) => {
         const calls = [];
@@ -116,7 +124,7 @@ describe('the schema check', () => {
             async query(sql, params) {
                 calls.push({ sql, params });
                 const rows = [];
-                for (const [table, columns] of Object.entries({ ...SOURCE_COLUMNS, ...OPTIONAL_COLUMNS })) {
+                for (const [table, columns] of Object.entries(allColumns())) {
                     if (without.includes(table)) continue;
                     for (const column of columns) {
                         if (drop.includes(`${table}.${column}`)) continue;
@@ -142,17 +150,27 @@ describe('the schema check', () => {
 
     test('an optional table missing, or short of a column, is reported — never source_schema', async () => {
         await expect(source.checkSchema(columnsQuery({ without: ['payment_due_dates'] }), 'jfa'))
-            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: true } });
+            .resolves.toEqual({ optional: { ...ALL_OPTIONAL, payment_due_dates: false } });
         await expect(source.checkSchema(columnsQuery({ drop: ['shipping_allowed_emails.display_name'] }), 'jfa'))
-            .resolves.toEqual({ optional: { payment_due_dates: true, shipping_allowed_emails: false } });
-        await expect(source.checkSchema(columnsQuery({ without: ['payment_due_dates', 'shipping_allowed_emails'] }), 'jfa'))
-            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: false } });
+            .resolves.toEqual({ optional: { ...ALL_OPTIONAL, shipping_allowed_emails: false } });
+        await expect(source.checkSchema(columnsQuery({ without: ['payment_due_dates', 'shipping_allowed_emails', 'payment_extras', 'shipment_lines'] }), 'jfa'))
+            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: false, payment_extras: false, shipments: true, shipment_lines: false } });
+        // shipments is in both lists: its required columns still fail the check, its optional ones (name, etd, eta) only turn the flag off.
+        await expect(source.checkSchema(columnsQuery({ drop: ['shipments.etd'] }), 'jfa'))
+            .resolves.toEqual({ optional: { ...ALL_OPTIONAL, shipments: false } });
+        const err = await rejectionOf(source.checkSchema(columnsQuery({ drop: ['shipments.stage'] }), 'jfa'));
+        expect(err.reason).toBe('source_schema');
     });
 
-    test("OPTIONAL_COLUMNS: shipping's due dates set by hand and the users table that names the setter", () => {
+    test("OPTIONAL_COLUMNS: due dates set by hand and the users table that names the setter; extras; drafts and plans with their lines", () => {
         expect(OPTIONAL_COLUMNS).toEqual({
             payment_due_dates: ['id', 'target_key', 'due_date', 'note', 'set_by_email', 'updated_at'],
             shipping_allowed_emails: ['email', 'display_name'],
+            payment_extras: ['id', 'supplier_name', 'supplier_key', 'currency', 'amount', 'kind', 'description', 'rides_with',
+                'purchase_order_id', 'shipment_id', 'shipment_reference', 'due_date', 'source_kind', 'source_id', 'status', 'paid_on',
+                'settled_by_payment_id', 'note', 'created_by_email', 'created_at', 'updated_by_email', 'updated_at', 'deleted_at'],
+            shipments: ['name', 'etd', 'eta'],
+            shipment_lines: ['shipment_id', 'order_id', 'quantity'],
         });
     });
 
@@ -230,7 +248,7 @@ describe('validateFeed', () => {
             id: 'bal-812-s311', kind: 'balance', status: 'open', supplier: 'Acme Textiles', companyId: 1,
             poId: 812, poNumber: 'PO-812', shipmentId: 311, containerRef: 'MSKU1234567', currency: 'USD',
             amount: '12.50', dueDate: '2026-10-15', paidOn: null, settles: null, dateBasis: 'estimated',
-            amountBasis: 'stated', blocked: null, flags: ['estimated', 'projected'], dueSet: null,
+            amountBasis: 'stated', blocked: null, flags: ['estimated', 'projected'], dueSet: null, label: null,
         });
         expect(out.items[1]).toMatchObject({ id: 'dep-900', dueDate: null, dateBasis: 'undated', flags: [] });
         expect(out.items[2]).toMatchObject({ status: 'paid', paidOn: '2026-09-20', settles: 'bal-812-s311' });

@@ -26,7 +26,9 @@ const { buildShipKey } = require('../lib/keys');
 
 // The feed's vocabularies (PHASE2 §3), enforced by validateFeed below; the handler serves
 // them through /meta/enums (CONTRACT §7).
-const FEED_KINDS = ['deposit', 'balance'];
+// `extra` (an extra charge or credit, or a forwarder's shipment cost) and `qc` (a QC unit
+// owed on its own) joined with the re-pin to ShipLine 77577a1 (2026-10-06).
+const FEED_KINDS = ['deposit', 'balance', 'extra', 'qc'];
 const FEED_STATUSES = ['open', 'paid'];
 const DATE_BASES = ['firm', 'estimated', 'undated'];
 const AMOUNT_BASES = ['stated', 'derived'];
@@ -36,7 +38,9 @@ const SHIPPING_REASONS = ['source_schema', 'source_error', 'bad_response'];
 const CURRENCY_RE = /^[A-Z]{3}$/;
 const DECIMAL_ID_RE = /^[1-9][0-9]{0,17}$/;
 // external_items column widths, in characters (MySQL counts characters, not bytes).
-const TEXT_LIMITS = { supplier: 255, poNumber: 64, containerRef: 100 };
+// `label` (2026-10-06): what a row is when it is not a PO's goods — an extra's kind, "PO
+// charges", "Top-up", "QC units <code>"; null for goods.
+const TEXT_LIMITS = { supplier: 255, poNumber: 64, containerRef: 100, label: 255 };
 const FLAG_MAX_LENGTH = 64;
 const PROBLEMS_KEPT = 20;
 // `dueSet` (a date set by hand in ShipLine; external_items.due_set_json): the setter's
@@ -165,6 +169,7 @@ function checkRow(row) {
         poNumber: null,
         shipmentId: null,
         containerRef: null,
+        label: null,
         currency: row.currency,
         amount: formatMinor(minor),
         dueDate: null,

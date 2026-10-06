@@ -1,15 +1,19 @@
 {
  "fixture": "float-money",
  "source": {
-  "commit": "f9499bc",
+  "commit": "77577a1",
   "files": {
    "src/components/payments/paymentsFlowMath.ts": {
-    "lines": 2786,
-    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+    "lines": 4118,
+    "sha256": "120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07"
    },
    "src/components/shared/containerHelpers.ts": {
     "lines": 340,
     "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 196,
+    "sha256": "c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5"
    }
   }
  },
@@ -23,13 +27,16 @@
     "kpis": {
      "overdue": 760.47,
      "due7": 0,
-     "due30": 207.2,
+     "due30": 206.99,
      "unscheduled": 839.41,
-     "outstanding": 1807.08,
+     "outstanding": 1806.87,
      "later": 0,
      "notPayable": 839.41,
      "overdueCount": 5,
-     "itemCount": 13
+     "itemCount": 14,
+     "qc": 0,
+     "qcCount": 0,
+     "credit": 0
     },
     "items": [
      {
@@ -133,31 +140,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 307",
         "value": 673.67,
         "result": 673.67,
-        "source": "1 priced line 673.67"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 33% of the PO",
-        "value": 222.31,
-        "result": 451.36,
-        "source": "treated as paid — the goods have shipped"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 451.36,
-        "result": 451.36,
-        "source": "67% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 307",
-        "value": 1,
+        "label": "Balance 67%",
+        "value": 0.67,
         "result": 451.36,
-        "source": "goods on board 673.67 of 673.67"
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
        },
        {
         "op": "−",
@@ -195,31 +188,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 307",
         "value": 336.33,
         "result": 336.33,
-        "source": "1 priced line 336.33"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 33% of the PO",
-        "value": 110.99,
-        "result": 225.34,
-        "source": "treated as paid — the goods have shipped"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 225.34,
-        "result": 225.34,
-        "source": "67% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 307",
-        "value": 1,
+        "label": "Balance 67%",
+        "value": 0.67,
         "result": 225.34,
-        "source": "goods on board 336.33 of 336.33"
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
        },
        {
         "op": "−",
@@ -276,7 +255,7 @@
         "label": "Share in 303",
         "value": 1,
         "result": 0.5,
-        "source": "goods on board 100.50 of 100.50"
+        "source": "goods on board 100.50 of 100.50 left to pay on"
        }
       ]
      },
@@ -288,7 +267,7 @@
       "poNumber": "JF-PO-2001",
       "supplier": "Float Co., Ltd",
       "currency": "USD",
-      "amount": 2.79,
+      "amount": 2.71,
       "dueDate": "2026-10-10",
       "contractualDate": "2026-10-10",
       "trigger": "bl",
@@ -305,31 +284,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
-        "value": 10.73,
-        "result": 10.73,
-        "source": "4 priced lines 10.43 + shipping 0.30"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 33% of the PO",
-        "value": 3.54,
-        "result": 7.19,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 7.19,
-        "result": 7.19,
-        "source": "67% of the PO"
+        "label": "Goods on board in 300",
+        "value": 4.05,
+        "result": 4.05,
+        "source": "2 lines"
        },
        {
         "op": "×",
-        "label": "Share in 300",
-        "value": 0.38800959232613913,
-        "result": 2.79,
-        "source": "goods on board 4.05 of 10.43"
+        "label": "Balance 67%",
+        "value": 0.67,
+        "result": 2.71,
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
        }
       ]
      },
@@ -341,7 +306,7 @@
       "poNumber": "JF-PO-2001",
       "supplier": "Float Co., Ltd",
       "currency": "USD",
-      "amount": 1.84,
+      "amount": 1.79,
       "dueDate": "2026-10-12",
       "contractualDate": "2026-10-12",
       "trigger": "bl",
@@ -358,31 +323,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
-        "value": 10.73,
-        "result": 10.73,
-        "source": "4 priced lines 10.43 + shipping 0.30"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 33% of the PO",
-        "value": 3.54,
-        "result": 7.19,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 7.19,
-        "result": 7.19,
-        "source": "67% of the PO"
+        "label": "Goods on board in 301",
+        "value": 2.68,
+        "result": 2.68,
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 301",
-        "value": 0.2565947242206235,
-        "result": 1.84,
-        "source": "goods on board 2.68 of 10.43"
+        "label": "Balance 67%",
+        "value": 0.67,
+        "result": 1.8,
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
        }
       ]
      },
@@ -394,7 +345,7 @@
       "poNumber": "JF-PO-2001",
       "supplier": "Float Co., Ltd",
       "currency": "USD",
-      "amount": 2.56,
+      "amount": 2.48,
       "dueDate": "2026-10-14",
       "contractualDate": "2026-10-14",
       "trigger": "bl",
@@ -411,31 +362,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
-        "value": 10.73,
-        "result": 10.73,
-        "source": "4 priced lines 10.43 + shipping 0.30"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 33% of the PO",
-        "value": 3.54,
-        "result": 7.19,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 7.19,
-        "result": 7.19,
-        "source": "67% of the PO"
+        "label": "Goods on board in 302",
+        "value": 3.7,
+        "result": 3.7,
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 302",
-        "value": 0.3553956834532374,
-        "result": 2.56,
-        "source": "goods on board 3.70 of 10.43"
+        "label": "Balance 67%",
+        "value": 0.67,
+        "result": 2.48,
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
        }
       ]
      },
@@ -476,7 +413,7 @@
         "label": "Share in 304",
         "value": 0.3333333333333333,
         "result": 66.67,
-        "source": "goods on board 100.00 of 300.00"
+        "source": "goods on board 100.00 of 300.00 left to pay on"
        }
       ]
      },
@@ -517,7 +454,7 @@
         "label": "Share in 305",
         "value": 0.3333333333333333,
         "result": 66.67,
-        "source": "goods on board 100.00 of 300.00"
+        "source": "goods on board 100.00 of 300.00 left to pay on"
        }
       ]
      },
@@ -558,7 +495,7 @@
         "label": "Share in 306",
         "value": 0.3333333333333333,
         "result": 66.67,
-        "source": "goods on board 100.00 of 300.00"
+        "source": "goods on board 100.00 of 300.00 left to pay on"
        }
       ]
      },
@@ -570,7 +507,7 @@
       "poNumber": "JF-PO-2006",
       "supplier": "Float Co., Ltd",
       "currency": "USD",
-      "amount": 838.66,
+      "amount": 827.16,
       "dueDate": null,
       "contractualDate": null,
       "trigger": "bl",
@@ -587,31 +524,60 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
-        "value": 1251.73,
-        "result": 1251.73,
-        "source": "1 priced line 1,234.56 + shipping 17.17"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 33% of the PO",
-        "value": 413.07,
-        "result": 838.66,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 838.66,
-        "result": 838.66,
-        "source": "67% of the PO"
+        "label": "Goods not yet in a container",
+        "value": 1234.56,
+        "result": 1234.56,
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share not yet in a container",
-        "value": 1,
-        "result": 838.66,
-        "source": "goods on board 1,234.56 of 1,234.56"
+        "label": "Balance 67%",
+        "value": 0.67,
+        "result": 827.16,
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
+       }
+      ]
+     },
+     {
+      "id": "derived:charges:2006:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 2006,
+      "poNumber": "JF-PO-2006",
+      "supplier": "Float Co., Ltd",
+      "currency": "USD",
+      "amount": 11.5,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container",
+       "po_charges"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "balanceOf": "charges",
+      "chargesValue": 17.17,
+      "chargesFrom": "shipping",
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Shipping on the PO",
+        "value": 17.17,
+        "result": 17.17,
+        "source": "the PO's shipping total — paid with its first container"
+       },
+       {
+        "op": "×",
+        "label": "Balance 67%",
+        "value": 0.67,
+        "result": 11.5,
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
        }
       ]
      },
@@ -640,35 +606,23 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods not yet in a container",
         "value": 1.12,
         "result": 1.12,
-        "source": "1 priced line 1.12"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 33% of the PO",
-        "value": 0.37,
-        "result": 0.75,
-        "source": "under 0.50 — left out"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 0.75,
-        "result": 0.75,
-        "source": "67% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share not yet in a container",
-        "value": 1,
+        "label": "Balance 67%",
+        "value": 0.67,
         "result": 0.75,
-        "source": "goods on board 1.12 of 1.12"
+        "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
        }
       ]
      }
     ],
+    "qcItems": [],
+    "qcClosed": [],
     "pos": [
      {
       "poId": 2001,
@@ -691,8 +645,8 @@
       "stated": 0,
       "remainder": 10.73,
       "derivedDeposit": 3.54,
-      "derivedBalance": 7.19,
-      "outstanding": 10.73,
+      "derivedBalance": 6.98,
+      "outstanding": 10.52,
       "rule": {
        "depositPct": 33,
        "balanceTrigger": "bl",
@@ -718,6 +672,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -749,7 +704,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        },
        {
         "containerNumber": "301",
@@ -770,7 +726,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        },
        {
         "containerNumber": "302",
@@ -791,7 +748,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -844,7 +802,7 @@
         "poNumber": "JF-PO-2001",
         "supplier": "Float Co., Ltd",
         "currency": "USD",
-        "amount": 2.79,
+        "amount": 2.71,
         "dueDate": "2026-10-10",
         "contractualDate": "2026-10-10",
         "trigger": "bl",
@@ -861,31 +819,17 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
-          "value": 10.73,
-          "result": 10.73,
-          "source": "4 priced lines 10.43 + shipping 0.30"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 33% of the PO",
-          "value": 3.54,
-          "result": 7.19,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 7.19,
-          "result": 7.19,
-          "source": "67% of the PO"
+          "label": "Goods on board in 300",
+          "value": 4.05,
+          "result": 4.05,
+          "source": "2 lines"
          },
          {
           "op": "×",
-          "label": "Share in 300",
-          "value": 0.38800959232613913,
-          "result": 2.79,
-          "source": "goods on board 4.05 of 10.43"
+          "label": "Balance 67%",
+          "value": 0.67,
+          "result": 2.71,
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
          }
         ]
        },
@@ -897,7 +841,7 @@
         "poNumber": "JF-PO-2001",
         "supplier": "Float Co., Ltd",
         "currency": "USD",
-        "amount": 1.84,
+        "amount": 1.79,
         "dueDate": "2026-10-12",
         "contractualDate": "2026-10-12",
         "trigger": "bl",
@@ -914,31 +858,17 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
-          "value": 10.73,
-          "result": 10.73,
-          "source": "4 priced lines 10.43 + shipping 0.30"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 33% of the PO",
-          "value": 3.54,
-          "result": 7.19,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 7.19,
-          "result": 7.19,
-          "source": "67% of the PO"
+          "label": "Goods on board in 301",
+          "value": 2.68,
+          "result": 2.68,
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 301",
-          "value": 0.2565947242206235,
-          "result": 1.84,
-          "source": "goods on board 2.68 of 10.43"
+          "label": "Balance 67%",
+          "value": 0.67,
+          "result": 1.8,
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
          }
         ]
        },
@@ -950,7 +880,7 @@
         "poNumber": "JF-PO-2001",
         "supplier": "Float Co., Ltd",
         "currency": "USD",
-        "amount": 2.56,
+        "amount": 2.48,
         "dueDate": "2026-10-14",
         "contractualDate": "2026-10-14",
         "trigger": "bl",
@@ -967,35 +897,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
-          "value": 10.73,
-          "result": 10.73,
-          "source": "4 priced lines 10.43 + shipping 0.30"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 33% of the PO",
-          "value": 3.54,
-          "result": 7.19,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 7.19,
-          "result": 7.19,
-          "source": "67% of the PO"
+          "label": "Goods on board in 302",
+          "value": 3.7,
+          "result": 3.7,
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 302",
-          "value": 0.3553956834532374,
-          "result": 2.56,
-          "source": "goods on board 3.70 of 10.43"
+          "label": "Balance 67%",
+          "value": 0.67,
+          "result": 2.48,
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 2002,
@@ -1045,6 +962,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -1076,7 +994,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1109,35 +1028,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods not yet in a container",
           "value": 1.12,
           "result": 1.12,
-          "source": "1 priced line 1.12"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 33% of the PO",
-          "value": 0.37,
-          "result": 0.75,
-          "source": "under 0.50 — left out"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 0.75,
-          "result": 0.75,
-          "source": "67% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share not yet in a container",
-          "value": 1,
+          "label": "Balance 67%",
+          "value": 0.67,
           "result": 0.75,
-          "source": "goods on board 1.12 of 1.12"
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 2003,
@@ -1187,6 +1093,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -1216,7 +1123,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1270,11 +1178,12 @@
           "label": "Share in 303",
           "value": 1,
           "result": 0.5,
-          "source": "goods on board 100.50 of 100.50"
+          "source": "goods on board 100.50 of 100.50 left to pay on"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 2009,
@@ -1324,6 +1233,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -1355,14 +1265,16 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
       "proofsMatched": 0,
       "excluded": null,
       "flags": [],
-      "items": []
+      "items": [],
+      "qcItems": []
      },
      {
       "poId": 2005,
@@ -1412,6 +1324,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -1443,7 +1356,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        },
        {
         "containerNumber": "305",
@@ -1464,7 +1378,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        },
        {
         "containerNumber": "306",
@@ -1485,7 +1400,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1532,7 +1448,7 @@
           "label": "Share in 304",
           "value": 0.3333333333333333,
           "result": 66.67,
-          "source": "goods on board 100.00 of 300.00"
+          "source": "goods on board 100.00 of 300.00 left to pay on"
          }
         ]
        },
@@ -1573,7 +1489,7 @@
           "label": "Share in 305",
           "value": 0.3333333333333333,
           "result": 66.67,
-          "source": "goods on board 100.00 of 300.00"
+          "source": "goods on board 100.00 of 300.00 left to pay on"
          }
         ]
        },
@@ -1614,11 +1530,12 @@
           "label": "Share in 306",
           "value": 0.3333333333333333,
           "result": 66.67,
-          "source": "goods on board 100.00 of 300.00"
+          "source": "goods on board 100.00 of 300.00 left to pay on"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 2006,
@@ -1668,6 +1585,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -1699,7 +1617,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1752,7 +1671,7 @@
         "poNumber": "JF-PO-2006",
         "supplier": "Float Co., Ltd",
         "currency": "USD",
-        "amount": 838.66,
+        "amount": 827.16,
         "dueDate": null,
         "contractualDate": null,
         "trigger": "bl",
@@ -1769,35 +1688,65 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
-          "value": 1251.73,
-          "result": 1251.73,
-          "source": "1 priced line 1,234.56 + shipping 17.17"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 33% of the PO",
-          "value": 413.07,
-          "result": 838.66,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 838.66,
-          "result": 838.66,
-          "source": "67% of the PO"
+          "label": "Goods not yet in a container",
+          "value": 1234.56,
+          "result": 1234.56,
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share not yet in a container",
-          "value": 1,
-          "result": 838.66,
-          "source": "goods on board 1,234.56 of 1,234.56"
+          "label": "Balance 67%",
+          "value": 0.67,
+          "result": 827.16,
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
+         }
+        ]
+       },
+       {
+        "id": "derived:charges:2006:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 2006,
+        "poNumber": "JF-PO-2006",
+        "supplier": "Float Co., Ltd",
+        "currency": "USD",
+        "amount": 11.5,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container",
+         "po_charges"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "balanceOf": "charges",
+        "chargesValue": 17.17,
+        "chargesFrom": "shipping",
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Shipping on the PO",
+          "value": 17.17,
+          "result": 17.17,
+          "source": "the PO's shipping total — paid with its first container"
+         },
+         {
+          "op": "×",
+          "label": "Balance 67%",
+          "value": 0.67,
+          "result": 11.5,
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 2007,
@@ -1847,6 +1796,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -1876,7 +1826,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1913,31 +1864,17 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 307",
           "value": 336.33,
           "result": 336.33,
-          "source": "1 priced line 336.33"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 33% of the PO",
-          "value": 110.99,
-          "result": 225.34,
-          "source": "treated as paid — the goods have shipped"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 225.34,
-          "result": 225.34,
-          "source": "67% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 307",
-          "value": 1,
+          "label": "Balance 67%",
+          "value": 0.67,
           "result": 225.34,
-          "source": "goods on board 336.33 of 336.33"
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
          },
          {
           "op": "−",
@@ -1948,7 +1885,8 @@
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 2008,
@@ -1998,6 +1936,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -2027,7 +1966,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -2064,31 +2004,17 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 307",
           "value": 673.67,
           "result": 673.67,
-          "source": "1 priced line 673.67"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 33% of the PO",
-          "value": 222.31,
-          "result": 451.36,
-          "source": "treated as paid — the goods have shipped"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 451.36,
-          "result": 451.36,
-          "source": "67% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 307",
-          "value": 1,
+          "label": "Balance 67%",
+          "value": 0.67,
           "result": 451.36,
-          "source": "goods on board 673.67 of 673.67"
+          "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
          },
          {
           "op": "−",
@@ -2099,21 +2025,22 @@
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      }
     ],
     "bySupplier": [
      {
       "supplier": "Float Co., Ltd",
       "currency": "USD",
-      "outstanding": 1807.08,
+      "outstanding": 1806.87,
       "overdue": 760.47,
-      "due30": 207.2,
+      "due30": 206.99,
       "unscheduled": 839.41,
       "paid": 632.32,
       "assumedPaid": 333.3,
       "poCount": 8,
-      "itemCount": 13,
+      "itemCount": 14,
       "nextDue": "2026-09-01",
       "supplierRule": {
        "depositPct": 33,
@@ -2183,31 +2110,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 307",
             "value": 673.67,
             "result": 673.67,
-            "source": "1 priced line 673.67"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 33% of the PO",
-            "value": 222.31,
-            "result": 451.36,
-            "source": "treated as paid — the goods have shipped"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 451.36,
-            "result": 451.36,
-            "source": "67% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 307",
-            "value": 1,
+            "label": "Balance 67%",
+            "value": 0.67,
             "result": 451.36,
-            "source": "goods on board 673.67 of 673.67"
+            "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
            },
            {
             "op": "−",
@@ -2245,31 +2158,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 307",
             "value": 336.33,
             "result": 336.33,
-            "source": "1 priced line 336.33"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 33% of the PO",
-            "value": 110.99,
-            "result": 225.34,
-            "source": "treated as paid — the goods have shipped"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 225.34,
-            "result": 225.34,
-            "source": "67% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 307",
-            "value": 1,
+            "label": "Balance 67%",
+            "value": 0.67,
             "result": 225.34,
-            "source": "goods on board 336.33 of 336.33"
+            "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
            },
            {
             "op": "−",
@@ -2379,7 +2278,7 @@
             "label": "Share in 303",
             "value": 1,
             "result": 0.5,
-            "source": "goods on board 100.50 of 100.50"
+            "source": "goods on board 100.50 of 100.50 left to pay on"
            }
           ]
          }
@@ -2392,7 +2291,7 @@
      {
       "containerNumber": "300",
       "currency": "USD",
-      "amount": 2.79,
+      "amount": 2.71,
       "dueDate": "2026-10-10",
       "etd": "2026-10-10",
       "eta": null,
@@ -2406,7 +2305,7 @@
       "payables": [
        {
         "supplier": "Float Co., Ltd",
-        "amount": 2.79,
+        "amount": 2.71,
         "dueDate": "2026-10-10",
         "poNumbers": [
          "JF-PO-2001"
@@ -2420,7 +2319,7 @@
           "poNumber": "JF-PO-2001",
           "supplier": "Float Co., Ltd",
           "currency": "USD",
-          "amount": 2.79,
+          "amount": 2.71,
           "dueDate": "2026-10-10",
           "contractualDate": "2026-10-10",
           "trigger": "bl",
@@ -2437,31 +2336,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
-            "value": 10.73,
-            "result": 10.73,
-            "source": "4 priced lines 10.43 + shipping 0.30"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 33% of the PO",
-            "value": 3.54,
-            "result": 7.19,
-            "source": "still to pay — a payment of its own"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 7.19,
-            "result": 7.19,
-            "source": "67% of the PO"
+            "label": "Goods on board in 300",
+            "value": 4.05,
+            "result": 4.05,
+            "source": "2 lines"
            },
            {
             "op": "×",
-            "label": "Share in 300",
-            "value": 0.38800959232613913,
-            "result": 2.79,
-            "source": "goods on board 4.05 of 10.43"
+            "label": "Balance 67%",
+            "value": 0.67,
+            "result": 2.71,
+            "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
            }
           ]
          }
@@ -2474,7 +2359,7 @@
      {
       "containerNumber": "301",
       "currency": "USD",
-      "amount": 1.84,
+      "amount": 1.79,
       "dueDate": "2026-10-12",
       "etd": "2026-10-12",
       "eta": null,
@@ -2488,7 +2373,7 @@
       "payables": [
        {
         "supplier": "Float Co., Ltd",
-        "amount": 1.84,
+        "amount": 1.79,
         "dueDate": "2026-10-12",
         "poNumbers": [
          "JF-PO-2001"
@@ -2502,7 +2387,7 @@
           "poNumber": "JF-PO-2001",
           "supplier": "Float Co., Ltd",
           "currency": "USD",
-          "amount": 1.84,
+          "amount": 1.79,
           "dueDate": "2026-10-12",
           "contractualDate": "2026-10-12",
           "trigger": "bl",
@@ -2519,31 +2404,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
-            "value": 10.73,
-            "result": 10.73,
-            "source": "4 priced lines 10.43 + shipping 0.30"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 33% of the PO",
-            "value": 3.54,
-            "result": 7.19,
-            "source": "still to pay — a payment of its own"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 7.19,
-            "result": 7.19,
-            "source": "67% of the PO"
+            "label": "Goods on board in 301",
+            "value": 2.68,
+            "result": 2.68,
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 301",
-            "value": 0.2565947242206235,
-            "result": 1.84,
-            "source": "goods on board 2.68 of 10.43"
+            "label": "Balance 67%",
+            "value": 0.67,
+            "result": 1.8,
+            "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
            }
           ]
          }
@@ -2556,7 +2427,7 @@
      {
       "containerNumber": "302",
       "currency": "USD",
-      "amount": 2.56,
+      "amount": 2.48,
       "dueDate": "2026-10-14",
       "etd": "2026-10-14",
       "eta": null,
@@ -2570,7 +2441,7 @@
       "payables": [
        {
         "supplier": "Float Co., Ltd",
-        "amount": 2.56,
+        "amount": 2.48,
         "dueDate": "2026-10-14",
         "poNumbers": [
          "JF-PO-2001"
@@ -2584,7 +2455,7 @@
           "poNumber": "JF-PO-2001",
           "supplier": "Float Co., Ltd",
           "currency": "USD",
-          "amount": 2.56,
+          "amount": 2.48,
           "dueDate": "2026-10-14",
           "contractualDate": "2026-10-14",
           "trigger": "bl",
@@ -2601,31 +2472,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
-            "value": 10.73,
-            "result": 10.73,
-            "source": "4 priced lines 10.43 + shipping 0.30"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 33% of the PO",
-            "value": 3.54,
-            "result": 7.19,
-            "source": "still to pay — a payment of its own"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 7.19,
-            "result": 7.19,
-            "source": "67% of the PO"
+            "label": "Goods on board in 302",
+            "value": 3.7,
+            "result": 3.7,
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 302",
-            "value": 0.3553956834532374,
-            "result": 2.56,
-            "source": "goods on board 3.70 of 10.43"
+            "label": "Balance 67%",
+            "value": 0.67,
+            "result": 2.48,
+            "source": "the supplier's terms in JFPRO “33% deposit, 67% B/L copy.”"
            }
           ]
          }
@@ -2695,7 +2552,7 @@
             "label": "Share in 304",
             "value": 0.3333333333333333,
             "result": 66.67,
-            "source": "goods on board 100.00 of 300.00"
+            "source": "goods on board 100.00 of 300.00 left to pay on"
            }
           ]
          }
@@ -2765,7 +2622,7 @@
             "label": "Share in 305",
             "value": 0.3333333333333333,
             "result": 66.67,
-            "source": "goods on board 100.00 of 300.00"
+            "source": "goods on board 100.00 of 300.00 left to pay on"
            }
           ]
          }
@@ -2835,7 +2692,7 @@
             "label": "Share in 306",
             "value": 0.3333333333333333,
             "result": 66.67,
-            "source": "goods on board 100.00 of 300.00"
+            "source": "goods on board 100.00 of 300.00 left to pay on"
            }
           ]
          }
@@ -2877,7 +2734,8 @@
       "amount": 1000.01,
       "shipmentReference": "307"
      }
-    ]
+    ],
+    "credits": []
    }
   ],
   "poCount": 9

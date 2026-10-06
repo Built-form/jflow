@@ -9,7 +9,7 @@ const lib = require('../../src/lib/payments-flow');
 const { validateFeed } = require('../../src/services/shipping');
 const H = require('../helpers/paymentsFlow');
 
-const FEED_KEYS = ['id', 'kind', 'status', 'supplier', 'companyId', 'poId', 'poNumber', 'shipmentId', 'containerRef',
+const FEED_KEYS = ['id', 'kind', 'status', 'supplier', 'companyId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'label',
     'currency', 'amount', 'dueDate', 'dateBasis', 'amountBasis', 'blocked', 'arranged', 'paidOn', 'settles', 'flags', 'dueSet'];
 const cents = (s) => Math.round(Number(s) * 100);
 
@@ -44,22 +44,24 @@ describe('the model\'s balanceClaims', () => {
 });
 
 describe.each(H.listFixtures())('%s', (name) => {
-    test('open rows: one per item — ids, 2-dp amounts, dateBasis, one company, Σ = kpis.outstanding, JFlow accepts all', () => {
+    test('open rows: one per item and QC unit — ids, 2-dp amounts (credit netted), dateBasis, one company, Σ = kpis.outstanding − credit netted, JFlow accepts all', () => {
         const { flow, rows, input, shipmentIdByRef } = fixtureFeed(name);
         const open = rows.filter((r) => r.status === 'open');
-        const items = flow.currencies.flatMap((c) => c.items);
+        // Items first, then the currency's QC units, as toForecastRows emits them.
+        const items = flow.currencies.flatMap((c) => [...c.items, ...(c.qcItems ?? [])]).filter((it) => Math.round((it.amount - (it.creditForecast ?? 0)) * 100) > 0);
         expect(open).toHaveLength(items.length);
         open.forEach((r, i) => {
             const it = items[i];
             expect(Object.keys(r)).toEqual(FEED_KEYS);
             expect(r).toMatchObject({
                 id: lib.itemFeedId(it, { shipmentIdByRef }),
-                kind: it.kind,
-                amount: it.amount.toFixed(2),
+                kind: it.extraId != null ? 'extra' : it.kind,
+                amount: (Math.round((it.amount - (it.creditForecast ?? 0)) * 100) / 100).toFixed(2),
                 dueDate: it.dueDate,
                 dateBasis: it.dueDate == null ? 'undated' : it.flags.includes('estimated') ? 'estimated' : 'firm',
                 amountBasis: it.basis,
-                poId: it.poId,
+                // An extra naming no PO (a forwarder's cost) has poId 0 in the model: no PO on the row.
+                poId: Number.isSafeInteger(it.poId) && it.poId > 0 ? it.poId : null,
                 arranged: it.status === 'arranged',
                 paidOn: null,
                 settles: null,
@@ -70,7 +72,10 @@ describe.each(H.listFixtures())('%s', (name) => {
         });
         for (const c of flow.currencies) {
             const sum = open.filter((r) => r.currency === c.currency).reduce((a, r) => a + cents(r.amount), 0);
-            expect({ currency: c.currency, sum }).toEqual({ currency: c.currency, sum: Math.round(c.kpis.outstanding * 100) });
+            // outstanding (goods, charges, top-ups, extras, QC units) less the credit the model
+            // forecasts against this currency's items, which the rows carry netted.
+            const netted = c.items.reduce((a, it) => a + Math.round((it.creditForecast ?? 0) * 100), 0);
+            expect({ currency: c.currency, sum }).toEqual({ currency: c.currency, sum: Math.round(c.kpis.outstanding * 100) - netted });
         }
         expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
     });
@@ -83,7 +88,7 @@ describe.each(H.listFixtures())('%s', (name) => {
         for (const r of paidRows) {
             expect(r).toMatchObject({ dueDate: null, dateBasis: 'firm', amountBasis: 'stated', blocked: null, arranged: false });
             expect(r.paidOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-            expect(r.id).toMatch(/^(pay-\d+-(pi|dep)\d+|pay-\d+-bal\d+(-\d+)?|spd-\d+(-\d+)?)$/);
+            expect(r.id).toMatch(/^(pay-\d+-(pi|dep|ext|qc)\d+|pay-\d+-bal\d+(-\d+)?|spd-\d+(-\d+)?)$/);
         }
         expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
     });
@@ -128,5 +133,43 @@ describe('splitting and formatting', () => {
         expect(rows[0].supplier).toHaveLength(255);
         expect(rows[0].poNumber).toHaveLength(64);
         expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
+    });
+});
+
+describe('the re-pin (77577a1): extras, QC units, split parts, credits', () => {
+    const F = require('../../src/lib/payments-flow/forecast');
+
+    test('extras-qc-credit: the mould cost rides as kind extra with its label; the forwarder cost names the forwarder, keeps its own currency and date, and has no company while the box holds two companies\' goods; the QC unit is a qc row; the credit is netted', () => {
+        const { rows, flow } = fixtureFeed('extras-qc-credit');
+        const open = rows.filter((r) => r.status === 'open');
+        const byId = Object.fromEntries(open.map((r) => [r.id, r]));
+        expect(Object.keys(byId).sort()).toEqual(['bal-812-s311', 'bal-901-s311', 'ext-44', 'ext-45', 'qc-81202']);
+        expect(byId['ext-44']).toMatchObject({ kind: 'extra', label: 'Mould cost', supplier: 'Suzhou Sunmed Co.,Ltd.', poId: 812, companyId: 1, containerRef: '268', shipmentId: 311, currency: 'USD', amount: '300.00', flags: ['extra_charge'] });
+        expect(byId['ext-45']).toMatchObject({ kind: 'extra', label: 'Freight', supplier: 'Fast Forwarders Ltd', poId: null, poNumber: null, companyId: null, containerRef: '268', currency: 'GBP', amount: '1200.00', dueDate: '2026-10-20', flags: ['shipment_cost'] });
+        expect(byId['qc-81202']).toMatchObject({ kind: 'qc', label: 'QC units JF-ABC', poId: 812, companyId: 1, containerRef: '268', shipmentId: 311, amount: '32.90', dueDate: '2026-09-20', flags: ['qc_unit'] });
+        // The 150 credit note is forecast against Sunmed's most urgent payment and netted into it.
+        expect(byId['bal-812-s311']).toMatchObject({ amount: '1495.00', flags: ['credit_netted'] });
+        expect(flow.currencies.find((c) => c.currency === 'USD').kpis.credit).toBe(150);
+        // The paid extra (settled by transfer 7001) makes no open row, and its transfer line a paid row.
+        const paid = rows.filter((r) => r.status === 'paid');
+        expect(paid.map((r) => [r.id, r.kind, r.settles, r.amount])).toEqual([['pay-7001-ext47', 'extra', 'ext-47', '80.00']]);
+        expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
+    });
+
+    test('a forwarder cost on a box whose goods are all one company\'s takes that company', () => {
+        const pos = new Map([[812, { poNumber: 'PO-812', supplier: 'Acme', companyId: 1 }], [813, { poNumber: 'PO-813', supplier: 'Acme', companyId: 1 }], [901, { poNumber: 'PO-901', supplier: 'Other', companyId: 2 }]]);
+        const item = (id, poId, box, extra = {}) => ({ id, kind: 'balance', basis: 'derived', poId, poNumber: pos.get(poId)?.poNumber ?? '', supplier: 'Acme', currency: 'USD', amount: 100, dueDate: '2026-10-20', contractualDate: '2026-10-20', trigger: 'bl', containerNumber: box, containerShare: 1, status: 'projected', blocked: null, shipmentPaymentId: null, flags: [], invoiceId: null, paymentId: null, ...extra });
+        const flow = { today: '2026-10-06', balanceClaims: [], currencies: [{ currency: 'USD', items: [
+            item('derived:bal:812:300', 812, '300'), item('derived:bal:813:300', 813, ' 300 '),
+            item('derived:bal:812:301', 812, '301'), item('derived:bal:901:301', 901, '301'),
+            item('extra:1', 0, '300', { basis: 'stated', kind: 'balance', extraId: 1, extraKind: 'freight', supplier: 'Fwd', flags: ['shipment_cost'] }),
+            item('extra:2', 0, '301', { basis: 'stated', kind: 'balance', extraId: 2, extraKind: 'freight', supplier: 'Fwd', flags: ['shipment_cost'] }),
+            item('extra:3', 0, '999', { basis: 'stated', kind: 'balance', extraId: 3, extraKind: 'freight', supplier: 'Fwd', flags: ['shipment_cost'] }),
+        ], qcItems: [] }] };
+        expect([...F.companiesByBox(flow, { pos })]).toEqual([['300', 1], ['301', null]]);
+        const rows = lib.toForecastRows(flow, [], { pos });
+        const co = Object.fromEntries(rows.map((r) => [r.id, r.companyId]));
+        // <g> for '300' and '301' is the hash of the ref as spelt (no shipment maps them).
+        expect(co).toEqual({ 'bal-812-r983bd614bb': 1, 'bal-813-r983bd614bb': 1, 'bal-812-rc3ea99f86b': 1, 'bal-901-rc3ea99f86b': 2, 'ext-1': 1, 'ext-2': null, 'ext-3': null });
     });
 });

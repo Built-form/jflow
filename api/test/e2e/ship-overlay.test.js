@@ -37,7 +37,7 @@ const ER_LOCK_NOWAIT = 3572;
 
 const ROW_KEYS = [
     'key', 'id', 'source', 'extId', 'feedKind', 'feedStatus', 'supplier', 'shippingCompanyId', 'companyId',
-    'accountId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'currency', 'amount', 'dueDate', 'paidOn',
+    'accountId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'label', 'currency', 'amount', 'dueDate', 'paidOn',
     'settles', 'dateBasis', 'amountBasis', 'blocked', 'flags', 'dueSet', 'dueDatePrev', 'dueDateMovedAt', 'goneAt',
     'plannedDate', 'plannedAmount',
     'plannedSkipped', 'plannedBaseAmount', 'plannedNote', 'sourceScenarioId', 'plannedBy', 'plannedAt',

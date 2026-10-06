@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; new, not in the TS: JFlow feed rows (toForecastRows), taken from the shipping step-18 draft with its route-only filterForecastRows dropped; a row's `dueSet` (the story of a date set by hand, from PaymentItem.dueOverride — overrides.js, 2026-10-06)
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 77577a1 — changes: new, not in the TS: JFlow feed rows (toForecastRows), taken from the shipping step-18 draft with its route-only filterForecastRows dropped; a row's `dueSet` (the story of a date set by hand, from PaymentItem.dueOverride); since the 2026-10-06 re-pin: QC units, extras (incl. a forwarder's shipment cost), the PO's charges and top-up rows, split parts in a draft or plan, credits netted into the payment they offset, a `label`, and paid rows for `extra` and `qc` transfer lines
 'use strict';
 
 // The JFlow feed — the `items` of the body services/shippingSource.js returns
@@ -6,9 +6,19 @@
 // validateFeed. Not part of the ShipLine TS: this projects the model's output for
 // JFlow, and adds the payments made.
 //
-//   open rows  the model's PaymentItems (flow.currencies[].items), one row each.
+//   open rows  the model's PaymentItems (flow.currencies[].items), one row each:
+//              a PO's deposit and balances, its charges row, a top-up, an extra
+//              charge (kind 'extra'; a forwarder's shipment cost carries flag
+//              shipment_cost and names the forwarder as its supplier), and its
+//              QC units (flow.currencies[].qcItems, kind 'qc'). A supplier credit
+//              the model forecasts against an item (creditForecast) is NETTED
+//              into that row (Dev, 2026-10-06): JFlow refuses a negative row and
+//              has no incoming stock category; the row says so (flag
+//              credit_netted) and a row netted to nothing is left out. Credits
+//              with nothing to ride (flow.currencies[].credits) make no row.
 //   paid rows  what left the account since `paidSince`:
-//              - each transfer line (supplier_payments + supplier_payment_lines);
+//              - each transfer line (supplier_payments + supplier_payment_lines),
+//                of every kind: balance, pi, po_deposit, extra, qc;
 //              - each balance record marked paid with no transfer
 //                (settledByPaymentId null), for what no transfer covered.
 //              A balance record can span several POs, so its payments are
@@ -20,24 +30,27 @@
 // cent-rounded figure for open rows; exact cents for a split paid row (largest
 // remainder, so the parts add up to the payment). `dateBasis` is undated with
 // no due date, estimated when the item is flagged so, else firm; a paid row is
-// dated by its payment, so firm. Pure: no database, no clock.
+// dated by its payment, so firm. `label` says what a row is when it is not a
+// PO's goods. Pure: no database, no clock.
 
 const { dateOf } = require('./dates');
-const { money } = require('./money');
+const { money, EPS } = require('./money');
+const { EXTRA_KIND_LABEL } = require('./model');
 const { feedId, groupToken, itemFeedId } = require('./ids');
 
 /** @typedef {import('./types').FeedRow} FeedRow */
 /** @typedef {import('./types').PaidFact} PaidFact */
 /** @typedef {import('./types').PaymentsFlow} PaymentsFlow */
 /** @typedef {import('./types').PaymentItem} PaymentItem */
+/** @typedef {import('./types').QcItem} QcItem */
 /** @typedef {{ poNumber: string, supplier: string|null, companyId: number|null }} PoEntry */
 /** @typedef {{ pos?: Map<number, PoEntry>, shipmentIdByRef?: Map<string, number>|null }} FeedContext */
 
 // JFlow's external_items widths (services/shipping.js TEXT_LIMITS,
 // in characters): JFlow rejects a longer value, and with it the whole row, so
 // display text is clipped to fit. No id depends on these fields.
-const TEXT_LIMITS = { supplier: 255, poNumber: 64, containerRef: 100 };
-const LINE_KINDS = new Set(['balance', 'pi', 'po_deposit']);
+const TEXT_LIMITS = { supplier: 255, poNumber: 64, containerRef: 100, label: 255 };
+const LINE_KINDS = new Set(['balance', 'pi', 'po_deposit', 'extra', 'qc']);
 
 function clip(s, max) {
     if (s == null) return null;
@@ -189,6 +202,55 @@ function dueSetOf(item) {
     };
 }
 
+/** The feed's kind for a model item: an extra is 'extra' whatever payment it rides with. */
+const feedKindOf = (item) => (item.extraId != null ? 'extra' : item.kind);
+
+/**
+ * What a row is when it is not a PO's goods — the feed's `label` (TEXT_LIMITS.label):
+ * an extra's kind ("Mould cost", "Freight"), the PO's charges row, a top-up, QC
+ * units carried on a balance. Null for goods, and for a QC unit (qcRow labels it).
+ * @param {PaymentItem} item
+ * @returns {string|null}
+ */
+function rowLabel(item) {
+    if (item.extraId != null) return EXTRA_KIND_LABEL[item.extraKind] ?? 'Extra charge';
+    if (item.balanceOf === 'charges') return 'PO charges';
+    if (item.balanceOf === 'fqc') return 'QC units';
+    if (/^derived:topup:/.test(item.id)) return 'Top-up';
+    return null;
+}
+
+/** The credit the model forecasts against an item, netted into its row (Dev, 2026-10-06). */
+const creditOn = (item) => (item.creditForecast != null && item.creditForecast > EPS ? money(item.creditForecast) : 0);
+
+const boxKey = (ref) => (ref == null ? '' : String(ref).trim().toUpperCase());
+
+/**
+ * Container ref (upper-cased, as the model matches a shipment cost to its box) → the one
+ * company whose POs have goods in it, or null when none or several do. Built from every
+ * item of every currency that names a PO with a company.
+ * @param {PaymentsFlow} flow
+ * @param {FeedContext} ctx
+ * @returns {Map<string, number|null>}
+ */
+function companiesByBox(flow, ctx) {
+    const out = new Map();
+    for (const c of flow.currencies ?? []) {
+        for (const item of c.items) {
+            const key = boxKey(item.containerNumber);
+            if (!key || !isId(item.poId)) continue;
+            const companyId = ctx.pos?.get(item.poId)?.companyId ?? null;
+            if (companyId == null) continue;
+            const seen = out.get(key);
+            if (seen === undefined) out.set(key, companyId);
+            else if (seen !== companyId) out.set(key, null);
+        }
+    }
+    return out;
+}
+
+const companyOfBox = (ref, ctx) => ctx.companiesByBox?.get(boxKey(ref)) ?? null;
+
 /**
  * @param {PaymentItem} item
  * @param {FeedContext} ctx
@@ -196,18 +258,24 @@ function dueSetOf(item) {
  */
 function openRow(item, ctx) {
     const po = ctx.pos?.get(item.poId) ?? null;
+    const credit = creditOn(item);
+    const net = money(item.amount - credit);
+    // A forwarder's shipment cost names no PO (poId 0): its company is the company of the
+    // goods in that container, when they are all one company's (Dev, 2026-10-06).
+    const companyId = po?.companyId ?? (item.poId ? null : companyOfBox(item.containerNumber, ctx));
     return {
         id: itemFeedId(item, { shipmentIdByRef: ctx.shipmentIdByRef ?? null }),
-        kind: item.kind,
+        kind: feedKindOf(item),
         status: 'open',
         supplier: clip(item.supplier, TEXT_LIMITS.supplier),
-        companyId: po?.companyId ?? null,
-        poId: item.poId,
-        poNumber: clip(item.poNumber, TEXT_LIMITS.poNumber),
+        companyId,
+        poId: isId(item.poId) ? item.poId : null,
+        poNumber: clip(item.poNumber || null, TEXT_LIMITS.poNumber),
         shipmentId: shipmentIdOf(item.containerNumber, ctx.shipmentIdByRef),
         containerRef: clip(item.containerNumber ?? null, TEXT_LIMITS.containerRef),
+        label: clip(rowLabel(item), TEXT_LIMITS.label),
         currency: item.currency,
-        amount: item.amount.toFixed(2),
+        amount: net.toFixed(2),
         dueDate: item.dueDate ?? null,
         dateBasis: item.dueDate == null ? 'undated' : item.flags.includes('estimated') ? 'estimated' : 'firm',
         amountBasis: item.basis,
@@ -215,12 +283,46 @@ function openRow(item, ctx) {
         arranged: item.status === 'arranged',
         paidOn: null,
         settles: null,
-        flags: [...item.flags],
+        flags: credit > 0 ? [...item.flags, 'credit_netted'] : [...item.flags],
         dueSet: dueSetOf(item),
     };
 }
 
-function paidRow(fact, { id, kind, poId, cents, settles, containerRef, shipmentId }, ctx) {
+/**
+ * A QC unit owed on its own (flow.currencies[].qcItems; ShipLine 2026-10-02):
+ * one _FQC line, dated from its product's container, paid when the user chooses.
+ * @param {QcItem} qc
+ * @param {FeedContext} ctx
+ * @returns {FeedRow}
+ */
+function qcRow(qc, ctx) {
+    const po = ctx.pos?.get(qc.poId) ?? null;
+    return {
+        id: itemFeedId(qc, { shipmentIdByRef: ctx.shipmentIdByRef ?? null }),
+        kind: 'qc',
+        status: 'open',
+        supplier: clip(qc.supplier, TEXT_LIMITS.supplier),
+        companyId: po?.companyId ?? null,
+        poId: isId(qc.poId) ? qc.poId : null,
+        poNumber: clip(qc.poNumber || null, TEXT_LIMITS.poNumber),
+        shipmentId: shipmentIdOf(qc.qcProductBox, ctx.shipmentIdByRef),
+        containerRef: clip(qc.qcProductBox ?? null, TEXT_LIMITS.containerRef),
+        label: clip(`QC units${qc.qcCode ? ` ${qc.qcCode.replace(/_FQC$/i, '')}` : ''}`, TEXT_LIMITS.label),
+        currency: qc.currency,
+        amount: money(qc.amount).toFixed(2),
+        dueDate: qc.dueDate ?? null,
+        dateBasis: qc.dueDate == null ? 'undated' : qc.flags.includes('estimated') ? 'estimated' : 'firm',
+        amountBasis: qc.basis,
+        blocked: qc.blocked ?? null,
+        arranged: qc.status === 'arranged',
+        paidOn: null,
+        settles: null,
+        flags: [...qc.flags],
+        dueSet: null,
+    };
+}
+
+function paidRow(fact, { id, kind, poId, cents, settles, containerRef, shipmentId, label = null }, ctx) {
     const po = poId != null ? ctx.pos?.get(poId) ?? null : null;
     return {
         id,
@@ -232,6 +334,7 @@ function paidRow(fact, { id, kind, poId, cents, settles, containerRef, shipmentI
         poNumber: clip(po?.poNumber ?? fact.poNumber ?? null, TEXT_LIMITS.poNumber),
         shipmentId: shipmentId ?? null,
         containerRef: clip(containerRef ?? null, TEXT_LIMITS.containerRef),
+        label: clip(label, TEXT_LIMITS.label),
         currency: fact.currency,
         amount: formatCents(cents),
         dueDate: null,
@@ -273,7 +376,9 @@ function balanceRows(fact, recordId, claimsByRecord, ctx) {
 }
 
 /**
- * The feed rows: every open item of the model, then every payment made.
+ * The feed rows: every open item of the model (goods, charges, top-ups,
+ * extras, QC units; a row netted to nothing by a credit is left out), then
+ * every payment made.
  * @param {PaymentsFlow} flow  buildPaymentsFlow(input, { claims: true })
  * @param {PaidFact[]} paidRows  collectPaidRows(input, { paidSince })
  * @param {FeedContext} [ctx]  pos: poDirectory(input.poBundles) (plus any PO a
@@ -281,11 +386,16 @@ function balanceRows(fact, recordId, claimsByRecord, ctx) {
  * @returns {FeedRow[]}
  */
 function toForecastRows(flow, paidRows, ctx = {}) {
+    ctx = { ...ctx, companiesByBox: companiesByBox(flow, ctx) };
     const rows = [];
     for (const c of flow.currencies ?? []) {
         for (const item of c.items) {
             // Never 0 in practice (the model emits nothing under a cent); JFlow refuses ≤ 0.
-            if (centsOf(item.amount) > 0) rows.push(openRow(item, ctx));
+            // A credit that covers the whole item nets it to nothing: no row.
+            if (centsOf(item.amount - creditOn(item)) > 0) rows.push(openRow(item, ctx));
+        }
+        for (const qc of c.qcItems ?? []) {
+            if (centsOf(qc.amount) > 0) rows.push(qcRow(qc, ctx));
         }
     }
     const needsClaims = (paidRows ?? []).some(f => f.source === 'record' || f.lineKind === 'balance');
@@ -315,16 +425,27 @@ function toForecastRows(flow, paidRows, ctx = {}) {
         }
         const cents = centsOf(f.amount);
         if (cents <= 0) continue;
+        const payId = feedId({ form: 'pay', supplierPaymentId: f.supplierPaymentId, lineKind: f.lineKind, targetId: f.targetId });
         if (f.lineKind === 'pi') {
             paid.push(paidRow(f, {
-                id: feedId({ form: 'pay', supplierPaymentId: f.supplierPaymentId, lineKind: 'pi', targetId: f.targetId }),
-                kind: f.paymentType === 'deposit' ? 'deposit' : 'balance', poId: f.purchaseOrderId, cents,
+                id: payId, kind: f.paymentType === 'deposit' ? 'deposit' : 'balance', poId: f.purchaseOrderId, cents,
                 settles: feedId({ form: 'pi', invoicePaymentId: f.targetId }), containerRef: null, shipmentId: null,
+            }, ctx));
+        } else if (f.lineKind === 'extra') {
+            // An extra charge, or a forwarder's shipment cost, paid: the row it settles is ext-<id>.
+            paid.push(paidRow(f, {
+                id: payId, kind: 'extra', poId: f.purchaseOrderId, cents,
+                settles: feedId({ form: 'ext', extraId: f.targetId }),
+                containerRef: f.shipmentReference ?? null, shipmentId: f.shipmentId ?? shipmentIdOf(f.shipmentReference, ctx.shipmentIdByRef),
+            }, ctx));
+        } else if (f.lineKind === 'qc') {
+            paid.push(paidRow(f, {
+                id: payId, kind: 'qc', poId: f.purchaseOrderId, cents,
+                settles: feedId({ form: 'qc', orderId: f.targetId }), containerRef: null, shipmentId: null, label: 'QC units',
             }, ctx));
         } else {
             paid.push(paidRow(f, {
-                id: feedId({ form: 'pay', supplierPaymentId: f.supplierPaymentId, lineKind: 'po_deposit', targetId: f.targetId }),
-                kind: 'deposit', poId: f.targetId, cents,
+                id: payId, kind: 'deposit', poId: f.targetId, cents,
                 settles: feedId({ form: 'dep', poId: f.targetId }), containerRef: null, shipmentId: null,
             }, ctx));
         }
@@ -334,5 +455,5 @@ function toForecastRows(flow, paidRows, ctx = {}) {
 }
 
 module.exports = {
-    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, dueSetOf, toForecastRows,
+    TEXT_LIMITS, LINE_KINDS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, dueSetOf, rowLabel, companiesByBox, toForecastRows,
 };

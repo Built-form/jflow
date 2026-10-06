@@ -1,15 +1,19 @@
 {
  "fixture": "part-paid-transfer",
  "source": {
-  "commit": "f9499bc",
+  "commit": "77577a1",
   "files": {
    "src/components/payments/paymentsFlowMath.ts": {
-    "lines": 2786,
-    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+    "lines": 4118,
+    "sha256": "120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07"
    },
    "src/components/shared/containerHelpers.ts": {
     "lines": 340,
     "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 196,
+    "sha256": "c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5"
    }
   }
  },
@@ -29,7 +33,10 @@
      "later": 0,
      "notPayable": 9100,
      "overdueCount": 3,
-     "itemCount": 7
+     "itemCount": 7,
+     "qc": 0,
+     "qcCount": 0,
+     "credit": 0
     },
     "items": [
      {
@@ -104,31 +111,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
-        "value": 8000,
-        "result": 8000,
-        "source": "PI total — PI-1003.pdf"
-       },
-       {
-        "op": "−",
-        "label": "Deposit paid",
-        "value": 2400,
-        "result": 5600,
-        "source": "deposit PI marked paid 2,400.00"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 5600,
-        "result": 5600,
-        "source": "70% of the PO"
+        "label": "Goods on board in 300",
+        "value": 6000,
+        "result": 6000,
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 300",
-        "value": 0.75,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 4200,
-        "source": "goods on board 6,000.00 of 8,000.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
        },
        {
         "op": "−",
@@ -242,31 +235,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
-        "value": 8000,
-        "result": 8000,
-        "source": "PI total — PI-1003.pdf"
-       },
-       {
-        "op": "−",
-        "label": "Deposit paid",
-        "value": 2400,
-        "result": 5600,
-        "source": "deposit PI marked paid 2,400.00"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 5600,
-        "result": 5600,
-        "source": "70% of the PO"
+        "label": "Goods on board in 301",
+        "value": 2000,
+        "result": 2000,
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 301",
-        "value": 0.25,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 1400,
-        "source": "goods on board 2,000.00 of 8,000.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
        }
       ]
      },
@@ -296,38 +275,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods not yet in a container",
         "value": 10000,
         "result": 10000,
-        "source": "PI total — PI-1001.pdf"
-       },
-       {
-        "op": "−",
-        "label": "Deposit paid",
-        "value": 1500,
-        "result": 8500,
-        "source": "transfer on the open deposit PI 1,500.00"
-       },
-       {
-        "op": "−",
-        "label": "Asked for on open PIs",
-        "value": 1500,
-        "result": 7000,
-        "source": "each open PI is a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 7000,
-        "result": 7000,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share not yet in a container",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 7000,
-        "source": "goods on board 10,000.00 of 10,000.00"
+        "source": "the PI's terms “30D/70B BOL”"
        }
       ]
      },
@@ -356,48 +314,23 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods not yet in a container",
         "value": 3000,
         "result": 3000,
-        "source": "1 priced line 3,000.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit paid",
-        "value": 700,
-        "result": 2300,
-        "source": "deposit paid by transfer 700.00"
-       },
-       {
-        "op": "=",
-        "label": "Left to pay on the PO",
-        "value": 2300,
-        "result": 2300
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 200,
-        "result": 2100,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 2100,
-        "result": 2100,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share not yet in a container",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 2100,
-        "source": "goods on board 3,000.00 of 3,000.00"
+        "source": "the supplier's terms in JFPRO “30D/70B BOL”"
        }
       ]
      }
     ],
+    "qcItems": [],
+    "qcClosed": [],
     "pos": [
      {
       "poId": 1001,
@@ -447,6 +380,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -479,7 +413,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -554,42 +489,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods not yet in a container",
           "value": 10000,
           "result": 10000,
-          "source": "PI total — PI-1001.pdf"
-         },
-         {
-          "op": "−",
-          "label": "Deposit paid",
-          "value": 1500,
-          "result": 8500,
-          "source": "transfer on the open deposit PI 1,500.00"
-         },
-         {
-          "op": "−",
-          "label": "Asked for on open PIs",
-          "value": 1500,
-          "result": 7000,
-          "source": "each open PI is a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 7000,
-          "result": 7000,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share not yet in a container",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 7000,
-          "source": "goods on board 10,000.00 of 10,000.00"
+          "source": "the PI's terms “30D/70B BOL”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1002,
@@ -639,6 +554,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -670,7 +586,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -749,48 +666,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods not yet in a container",
           "value": 3000,
           "result": 3000,
-          "source": "1 priced line 3,000.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit paid",
-          "value": 700,
-          "result": 2300,
-          "source": "deposit paid by transfer 700.00"
-         },
-         {
-          "op": "=",
-          "label": "Left to pay on the PO",
-          "value": 2300,
-          "result": 2300
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 200,
-          "result": 2100,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 2100,
-          "result": 2100,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share not yet in a container",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 2100,
-          "source": "goods on board 3,000.00 of 3,000.00"
+          "source": "the supplier's terms in JFPRO “30D/70B BOL”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1003,
@@ -840,6 +731,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -869,7 +761,8 @@
         "eta": "2026-09-17",
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": "2026-09-18"
+        "deliveredOn": "2026-09-18",
+        "open": null
        },
        {
         "containerNumber": "301",
@@ -888,7 +781,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -924,31 +818,17 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
-          "value": 8000,
-          "result": 8000,
-          "source": "PI total — PI-1003.pdf"
-         },
-         {
-          "op": "−",
-          "label": "Deposit paid",
-          "value": 2400,
-          "result": 5600,
-          "source": "deposit PI marked paid 2,400.00"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 5600,
-          "result": 5600,
-          "source": "70% of the PO"
+          "label": "Goods on board in 300",
+          "value": 6000,
+          "result": 6000,
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 300",
-          "value": 0.75,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 4200,
-          "source": "goods on board 6,000.00 of 8,000.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
          },
          {
           "op": "−",
@@ -984,35 +864,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
-          "value": 8000,
-          "result": 8000,
-          "source": "PI total — PI-1003.pdf"
-         },
-         {
-          "op": "−",
-          "label": "Deposit paid",
-          "value": 2400,
-          "result": 5600,
-          "source": "deposit PI marked paid 2,400.00"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 5600,
-          "result": 5600,
-          "source": "70% of the PO"
+          "label": "Goods on board in 301",
+          "value": 2000,
+          "result": 2000,
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 301",
-          "value": 0.25,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 1400,
-          "source": "goods on board 2,000.00 of 8,000.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1004,
@@ -1062,6 +929,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": null,
          "air": null,
@@ -1093,7 +961,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1142,7 +1011,8 @@
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      }
     ],
     "bySupplier": [
@@ -1249,31 +1119,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
-            "value": 8000,
-            "result": 8000,
-            "source": "PI total — PI-1003.pdf"
-           },
-           {
-            "op": "−",
-            "label": "Deposit paid",
-            "value": 2400,
-            "result": 5600,
-            "source": "deposit PI marked paid 2,400.00"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 5600,
-            "result": 5600,
-            "source": "70% of the PO"
+            "label": "Goods on board in 300",
+            "value": 6000,
+            "result": 6000,
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 300",
-            "value": 0.75,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 4200,
-            "source": "goods on board 6,000.00 of 8,000.00"
+            "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
            },
            {
             "op": "−",
@@ -1439,31 +1295,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
-            "value": 8000,
-            "result": 8000,
-            "source": "PI total — PI-1003.pdf"
-           },
-           {
-            "op": "−",
-            "label": "Deposit paid",
-            "value": 2400,
-            "result": 5600,
-            "source": "deposit PI marked paid 2,400.00"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 5600,
-            "result": 5600,
-            "source": "70% of the PO"
+            "label": "Goods on board in 301",
+            "value": 2000,
+            "result": 2000,
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 301",
-            "value": 0.25,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 1400,
-            "source": "goods on board 2,000.00 of 8,000.00"
+            "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
            }
           ]
          }
@@ -1498,7 +1340,8 @@
       ]
      }
     ],
-    "dataQuality": []
+    "dataQuality": [],
+    "credits": []
    }
   ],
   "poCount": 4

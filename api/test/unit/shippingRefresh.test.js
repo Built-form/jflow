@@ -23,7 +23,7 @@ describe('feed columns', () => {
         expect(FEED_COLUMNS).toEqual([
             'feed_kind', 'feed_status', 'supplier', 'shipping_company_id', 'po_id', 'po_number', 'shipment_id',
             'container_ref', 'currency', 'amount', 'due_date', 'paid_on', 'settles', 'date_basis', 'amount_basis',
-            'blocked', 'flags_json', 'due_set_json',
+            'blocked', 'flags_json', 'due_set_json', 'label',
         ]);
     });
 
@@ -34,7 +34,7 @@ describe('feed columns', () => {
             feed_kind: 'balance', feed_status: 'open', supplier: 'Acme Textiles', shipping_company_id: 1,
             po_id: 812, po_number: 'PO-812', shipment_id: 311, container_ref: 'MSKU1234567', currency: 'USD',
             amount: '12345.67', due_date: '2026-10-15', paid_on: null, settles: null, date_basis: 'firm',
-            amount_basis: 'stated', blocked: null, flags_json: '["estimated"]', due_set_json: null,
+            amount_basis: 'stated', blocked: null, flags_json: '["estimated"]', due_set_json: null, label: null,
         });
     });
 
@@ -78,6 +78,7 @@ describe('feedHash', () => {
         ['flags', { flags: ['estimated'] }],
         ['due set', { dueSet: DUE_SET }],
         ['due set note', { dueSet: { ...DUE_SET, note: 'later' } }],
+        ['label', { label: 'Mould cost' }],
     ])('changes when the %s changes', (_label, over) => {
         expect(feedHash(feedRow(normalised(over)))).not.toBe(feedHash(feedRow(normalised())));
     });

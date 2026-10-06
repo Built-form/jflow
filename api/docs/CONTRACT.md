@@ -82,7 +82,7 @@ rule.
 
 | # | Decision | Consequence here |
 |---|---|---|
-| P1 | **Amended by Dev 2026-09-29 (direct `jfa` read):** the payment math is ported into **`src/lib/payments-flow/`** (CommonJS, from ShipLine `f9499bc`, golden-tested against the frozen TS oracle `tools/payments-flow-oracle.mjs` under both `TZ=Europe/London` and `TZ=UTC`). `services/shippingSource.js` assembles the input from `jfa` tables (mappers copied from shipping's `src/handlers/orders.js`, each with the estate's copied-file header), runs the math and produces the same feed rows the shipping route would have (P2 ids, P3 paid rows). **ShipLine is read-only and unchanged** — it keeps its own copy; the two copies are kept equal by re-syncing the port against the oracle when ShipLine's math changes (PLAN.md "Phase 2"). *(Superseded: the port in `shipping/src/lib/payments-flow/` serving JFlow through `GET /api/internal/payments-forecast` with `X-Api-Key`.)* | JFlow now holds the payment math and the source read (§2.1, §10.12) as well as the feed snapshot (`external_items`) and the overlay. The snapshot, overlay, loader, engine and lock rules are unchanged by the source swap. |
+| P1 | **Amended by Dev 2026-09-29 (direct `jfa` read):** the payment math is ported into **`src/lib/payments-flow/`** (CommonJS, from ShipLine `77577a1` — re-pinned 2026-10-06 from `f9499bc`: `model.js` is the TS transpiled whole, the modules by concern re-export it — golden-tested against the frozen TS oracle `tools/payments-flow-oracle.mjs` under both `TZ=Europe/London` and `TZ=UTC`). `services/shippingSource.js` assembles the input from `jfa` tables (mappers copied from shipping's `src/handlers/orders.js`, each with the estate's copied-file header), runs the math and produces the same feed rows the shipping route would have (P2 ids, P3 paid rows). **ShipLine is read-only and unchanged** — it keeps its own copy; the two copies are kept equal by re-syncing the port against the oracle when ShipLine's math changes (PLAN.md "Phase 2"). *(Superseded: the port in `shipping/src/lib/payments-flow/` serving JFlow through `GET /api/internal/payments-forecast` with `X-Api-Key`.)* | JFlow now holds the payment math and the source read (§2.1, §10.12) as well as the feed snapshot (`external_items`) and the overlay. The snapshot, overlay, loader, engine and lock rules are unchanged by the source swap. |
 | P2 | Feed id grammar is exactly §4's `[A-Za-z0-9_-]{1,64}` (`dep-<po>`, `pi-<ip>[-<g>]`, `bal-<po>-<g>`, `inv-<sp>-<po>-a` or `-s`, `pay-<sp>-…`, `spd-<sp>-<po>`; `<g>` = `s<shipmentId>`, `r<10 hex>` or `n`). Ids survive date drift, amount changes, part payments and a draft becoming real; **a stage change mints a new id** (a PI replacing a derived deposit, lines booked, an invoice recorded). | `ship.<ext_id>` needs no escaping (§4). An overlay or adjustment does not follow a stage change: the old row goes `gone` and reads `SHIP_PLAN_ORPHANED` / `TARGET_MISSING`. D8 retired. |
 | P3 | Paid rows = transfer lines with `paid_on >= paidSince` plus balance records marked paid without a transfer; split per PO so each has one company. A PI marked paid with no transfer has no date and emits nothing. | A paid feed row is one payment line (§9.3.1); assumed-paid money leaves the feed with no paid row and reads as settled before the anchor. |
 | P4 | Refresh on demand: `/forecast` runs it first when `last_success_at` is over 10 minutes old or `feed_today ≠ today`; `POST /external/refresh` forces one. No schedule. | §6.12, §10.12. A failed refresh never fails `/forecast` (`SHIPPING_UNAVAILABLE`, last snapshot kept). |
@@ -97,7 +97,7 @@ rule.
 
 Open questions answered at sign-off that are not a P-row: **Q4** — a ship currency with no
 rate is 422 `FX_RATE_MISSING`, one rule for every currency (§3.4 currencies in scope).
-**Q1** — the source of truth is ShipLine commit **`f9499bc`** (GitHub main/test,
+**Q1** — the source of truth is ShipLine commit **`77577a1`** (2026-10-06; `f9499bc` until the re-pin that day) (GitHub main/test,
 2026-09-29); `paymentsFlowMath.ts` there is 2,786 lines, last changed 2026-09-28 (`ec1cd76`,
 "balance number dupe in pop up"); the port is golden-tested against that commit (it was
 "frozen until step 17"; step 17 is dropped, so ShipLine is not frozen and later changes are
@@ -229,7 +229,7 @@ rule.
 
 | # | Decision | Consequence here |
 |---|---|---|
-| P1 | **Amended by Dev 2026-09-29 (direct `jfa` read):** the payment math is ported into **`src/lib/payments-flow/`** (CommonJS, from ShipLine `f9499bc`, golden-tested against the frozen TS oracle `tools/payments-flow-oracle.mjs` under both `TZ=Europe/London` and `TZ=UTC`). `services/shippingSource.js` assembles the input from `jfa` tables (mappers copied from shipping's `src/handlers/orders.js`, each with the estate's copied-file header), runs the math and produces the same feed rows the shipping route would have (P2 ids, P3 paid rows). **ShipLine is read-only and unchanged** — it keeps its own copy; the two copies are kept equal by re-syncing the port against the oracle when ShipLine's math changes (PLAN.md "Phase 2"). *(Superseded: the port in `shipping/src/lib/payments-flow/` serving JFlow through `GET /api/internal/payments-forecast` with `X-Api-Key`.)* | JFlow now holds the payment math and the source read (§2.1, §10.12) as well as the feed snapshot (`external_items`) and the overlay. The snapshot, overlay, loader, engine and lock rules are unchanged by the source swap. |
+| P1 | **Amended by Dev 2026-09-29 (direct `jfa` read):** the payment math is ported into **`src/lib/payments-flow/`** (CommonJS, from ShipLine `77577a1` — re-pinned 2026-10-06 from `f9499bc`: `model.js` is the TS transpiled whole, the modules by concern re-export it — golden-tested against the frozen TS oracle `tools/payments-flow-oracle.mjs` under both `TZ=Europe/London` and `TZ=UTC`). `services/shippingSource.js` assembles the input from `jfa` tables (mappers copied from shipping's `src/handlers/orders.js`, each with the estate's copied-file header), runs the math and produces the same feed rows the shipping route would have (P2 ids, P3 paid rows). **ShipLine is read-only and unchanged** — it keeps its own copy; the two copies are kept equal by re-syncing the port against the oracle when ShipLine's math changes (PLAN.md "Phase 2"). *(Superseded: the port in `shipping/src/lib/payments-flow/` serving JFlow through `GET /api/internal/payments-forecast` with `X-Api-Key`.)* | JFlow now holds the payment math and the source read (§2.1, §10.12) as well as the feed snapshot (`external_items`) and the overlay. The snapshot, overlay, loader, engine and lock rules are unchanged by the source swap. |
 | P2 | Feed id grammar is exactly §4's `[A-Za-z0-9_-]{1,64}` (`dep-<po>`, `pi-<ip>[-<g>]`, `bal-<po>-<g>`, `inv-<sp>-<po>-a` or `-s`, `pay-<sp>-…`, `spd-<sp>-<po>`; `<g>` = `s<shipmentId>`, `r<10 hex>` or `n`). Ids survive date drift, amount changes, part payments and a draft becoming real; **a stage change mints a new id** (a PI replacing a derived deposit, lines booked, an invoice recorded). | `ship.<ext_id>` needs no escaping (§4). An overlay or adjustment does not follow a stage change: the old row goes `gone` and reads `SHIP_PLAN_ORPHANED` / `TARGET_MISSING`. D8 retired. |
 | P3 | Paid rows = transfer lines with `paid_on >= paidSince` plus balance records marked paid without a transfer; split per PO so each has one company. A PI marked paid with no transfer has no date and emits nothing. | A paid feed row is one payment line (§9.3.1); assumed-paid money leaves the feed with no paid row and reads as settled before the anchor. |
 | P4 | Refresh on demand: `/forecast` runs it first when `last_success_at` is over 10 minutes old or `feed_today ≠ today`; `POST /external/refresh` forces one. No schedule. | §6.12, §10.12. A failed refresh never fails `/forecast` (`SHIPPING_UNAVAILABLE`, last snapshot kept). |
@@ -244,7 +244,7 @@ rule.
 
 Open questions answered at sign-off that are not a P-row: **Q4** — a ship currency with no
 rate is 422 `FX_RATE_MISSING`, one rule for every currency (§3.4 currencies in scope).
-**Q1** — the source of truth is ShipLine commit **`f9499bc`** (GitHub main/test,
+**Q1** — the source of truth is ShipLine commit **`77577a1`** (2026-10-06; `f9499bc` until the re-pin that day) (GitHub main/test,
 2026-09-29); `paymentsFlowMath.ts` there is 2,786 lines, last changed 2026-09-28 (`ec1cd76`,
 "balance number dupe in pop up"); the port is golden-tested against that commit (it was
 "frozen until step 17"; step 17 is dropped, so ShipLine is not frozen and later changes are
@@ -455,6 +455,13 @@ and by local `ensureSchema`.
   (§3.5): two guarded `ALTER`s adding `external_items.due_set_json` (a feed column) and
   `due_date_prev` / `due_date_moved_at` (refresh-owned bookkeeping beside `gone_at`).
   Re-runnable the same way.
+- The re-pin to ShipLine `77577a1` (2026-10-06): a fourth file, `2026-10-06_jflow_freight.sql`:
+  one guarded `ALTER` adding `external_items.label` (a feed column) and the seed of a second
+  system category, **"Freight and forwarders"** (`system_key = 'freight'`, sort 910): a
+  forwarder's cost of the shipment itself (feed kind `extra`, flag `shipment_cost`) is paid to
+  its own payee, so its lines sit there, not with the supplier's stock payments. It refuses
+  delete and direction change like the `ship` one (P10); the engine falls back to "Stock
+  payments" when it is missing.
 - DDL runs from `tools/migrate.js --stage <stage>` (called by `deploy.sh` before packaging;
   it keeps `schema_migrations(filename, checksum, applied_at)` and refuses a changed applied
   file) and from local `ensureSchema` (`lib/schema.js`, sentinel `jflow_schema_meta`,
@@ -740,7 +747,9 @@ CREATE TABLE IF NOT EXISTS external_items (              -- feed snapshot; rows 
   blocked VARCHAR(16) NULL, flags_json JSON NULL,                     -- blocked: shipment | artwork | pi | pi_signed
   due_set_json JSON NULL,                                -- 2026-10-06: a date set by hand in ShipLine —
                                                          -- {by, email, at, derivedDate, scope, note}; NULL = derived
-  feed_hash CHAR(64) NOT NULL,                           -- sha256 of the feed columns (due_set_json last)
+  label VARCHAR(255) NULL,                               -- 2026-10-06 (re-pin): what a row is when it is not goods —
+                                                         -- "Mould cost", "Freight", "PO charges", "Top-up", "QC units X"
+  feed_hash CHAR(64) NOT NULL,                           -- sha256 of the feed columns (due_set_json, label last)
   gone_at DATETIME NULL,                                 -- left the feed; kept for overlays and adjustments
   due_date_prev DATE NULL, due_date_moved_at DATETIME NULL,  -- 2026-10-06: refresh-owned, not hashed — the due_date the
                                                              -- row had before the refresh last moved it, and when (UTC);
@@ -1138,8 +1147,12 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
 - `include=summary` omits `rows` (the key is absent) and keeps everything else, the
   `shipping` block included; the mobile app uses it.
 - **Ship lines (Phase 2, §9.3.1).** They sit in the "Stock payments" row (the
-  `system_key = 'ship'` category, direction `out`) with `kind: 'ship'`, `id` = the feed
-  `ext_id`, `key` = `ship.<ext_id>`, `name` = `<supplier> · <poNumber> · deposit|balance`,
+  `system_key = 'ship'` category, direction `out`) — a forwarder's shipment cost (feed kind
+  `extra`, flag `shipment_cost`) in the "Freight and forwarders" row (`system_key = 'freight'`,
+  since the 2026-10-06 re-pin) — with `kind: 'ship'`, `id` = the feed
+  `ext_id`, `key` = `ship.<ext_id>`, `name` = `<supplier> · <poNumber> · deposit|balance`, or
+  with the feed's `label` in place of the kind for a row that is not goods (`Fast Forwarders ·
+  Freight`, `… · Mould cost`, `… · PO charges`, `… · Top-up`, `… · QC units X`),
   `counterparty` = the supplier, `accountId` = the account resolved at load (§3.4),
   `status` `expected | paid | skipped`, `settleMode` always `manual`, and the `ship` block
   (`feedDate` = the feed `due_date`, `feedAmountMinor` = the feed `amount`, so the client
@@ -1256,7 +1269,7 @@ overlay (nothing is written back to shipping).
 Row JSON (`GET /external-items`, `GET /external-items/:key` and every overlay mutation
 response, `DELETE` included):
 `{key, id, source, extId, feedKind, feedStatus, supplier, shippingCompanyId, companyId, accountId,
-poId, poNumber, shipmentId, containerRef, currency, amount, dueDate, paidOn, settles, dateBasis,
+poId, poNumber, shipmentId, containerRef, label, currency, amount, dueDate, paidOn, settles, dateBasis,
 amountBasis, blocked, flags, dueSet, dueDatePrev, dueDateMovedAt, goneAt, plannedDate, plannedAmount,
 plannedSkipped, plannedBaseAmount, plannedNote, sourceScenarioId, plannedBy, plannedAt, effectiveDate,
 effectiveAmount, planStale, derivedStatus, dateMoved, rowVersion, createdBy, createdAt, updatedAt}`.
@@ -1350,7 +1363,7 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 `NO_ANCHOR`, `ORPHAN_OVERRIDE`, `STALE`, `ADJUSTMENT_OUT_OF_SCOPE` and, from Phase 2,
 `SHIPPING_UNAVAILABLE`, `SHIP_UNMAPPED`, `SHIP_PLAN_ORPHANED`, `SHIP_PLAN_STALE`;
 `staleReasons` lists `BASE_CHANGED`, `TARGET_SETTLED`, `TARGET_MISSING`, `DATE_PASSED`
-(Phase 2 adds no stale reason). Phase 2 also adds `feedKinds` (`deposit, balance`),
+(Phase 2 adds no stale reason). Phase 2 also adds `feedKinds` (`deposit, balance`, and since the 2026-10-06 re-pin `extra, qc`),
 `feedStatuses` (`open, paid`), `dateBases` (`firm, estimated, undated`), `amountBases`
 (`stated, derived`) and `shippingReasons` (the `SHIPPING_UNAVAILABLE` reasons:
 `source_schema, source_error, bad_response`).
@@ -2057,7 +2070,7 @@ Consciously left out of this contract:
 | `src/db/index.js` | pool (`dateStrings: ['DATE']`, `timezone: 'Z'`), `withConnection`, `withTransaction` (deadlock retry default 1) |
 | `src/db/migrations/2026-09-29_jflow_core.sql` | §3 DDL (14 tables incl. `payments`) + seed |
 | `src/db/migrations/2026-09-29_jflow_ship.sql` (Phase 2) | §3.5: `external_items`, `external_sync`, guarded `companies.shipping_company_id` and `categories.system_key`, the "Stock payments" seed |
-| `src/lib/payments-flow/{dates,terms,suppliers,policy,po,flow,ids}.js` (Phase 2, P1 amended) | the CommonJS port of ShipLine `f9499bc` `paymentsFlowMath.ts` plus `feedId`; `dateOfInstant` pinned to Europe/London, `today` required; pure — imports nothing from `db/` |
+| `src/lib/payments-flow/model.js` + `{dates,lines,money,terms,suppliers,policy,due,po,flow,overrides}.js`, `keys.js`, `containers.js`, `ids.js`, `forecast.js` (Phase 2, P1 amended; re-pinned 2026-10-06) | `model.js` is ShipLine `77577a1` `paymentsFlowMath.ts` transpiled whole (generated — never hand-edited); the modules by concern re-export it; `keys.js` = `paymentReviews.ts`'s key builders; `ids.js` the feed ids (every item kind); `forecast.js` the feed rows; `dateOfInstant` pinned to Europe/London, `today` required, no clock; pure — imports nothing from `db/` |
 | `tools/payments-flow-oracle.mjs` (Phase 2) | runs the frozen TS from the ShipLine checkout via `npx tsx` under `TZ=Europe/London` with a fixed `today`; writes the golden fixtures' expected output |
 | `src/services/shippingSource.js` + `src/services/shippingReads.js` (the SQL loaders, `SOURCE_COLUMNS` for the schema check) + `src/lib/shippingCopy/*.js` (mappers copied from shipping, with headers) (Phase 2, Dev 2026-09-29) | §2.1, §10.12 step 2: `readPaymentsForecast({today, paidSince})` on its own read-only connection — schema check, `jfa` reads through the mappers copied from shipping's `orders.js` (copied-file headers), the ported math, `toForecastRows`, `validateFeed`, `unavailable(reason)`; the only file that knows `SHIPPING_DB_SCHEMA`; contains no `INSERT`/`UPDATE`/`DELETE`. *(Replaces `src/services/shipping.js`, the HTTP feed client — not built.)* |
 | `src/services/shippingRefresh.js` (Phase 2) | §10.12: claim, read (via `shippingSource`), diff, record; feed columns only, no transaction, no audit |

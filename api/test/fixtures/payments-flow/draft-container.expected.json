@@ -1,15 +1,19 @@
 {
  "fixture": "draft-container",
  "source": {
-  "commit": "f9499bc",
+  "commit": "77577a1",
   "files": {
    "src/components/payments/paymentsFlowMath.ts": {
-    "lines": 2786,
-    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+    "lines": 4118,
+    "sha256": "120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07"
    },
    "src/components/shared/containerHelpers.ts": {
     "lines": 340,
     "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 196,
+    "sha256": "c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5"
    }
   }
  },
@@ -24,12 +28,15 @@
      "overdue": 2160,
      "due7": 1750,
      "due30": 2650,
-     "unscheduled": 2260,
+     "unscheduled": 3660,
      "outstanding": 11200,
-     "later": 4130,
+     "later": 2730,
      "notPayable": 5820,
      "overdueCount": 4,
-     "itemCount": 14
+     "itemCount": 14,
+     "qc": 0,
+     "qcCount": 0,
+     "credit": 0
     },
     "items": [
      {
@@ -219,31 +226,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in DRAFT-SEA-260917-110203 - 268",
         "value": 2500,
         "result": 2500,
-        "source": "2 priced lines 2,500.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 750,
-        "result": 1750,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 1750,
-        "result": 1750,
-        "source": "70% of the PO"
+        "source": "2 lines"
        },
        {
         "op": "×",
-        "label": "Share in DRAFT-SEA-260917-110203 - 268",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 1750,
-        "source": "goods on board 2,500.00 of 2,500.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, 70% B/L copy.”"
        }
       ]
      },
@@ -357,31 +350,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in DRAFT-AIR-260920-091500 - 104",
         "value": 1500,
         "result": 1500,
-        "source": "1 priced line 1,500.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 450,
-        "result": 1050,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 1050,
-        "result": 1050,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in DRAFT-AIR-260920-091500 - 104",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 1050,
-        "source": "goods on board 1,500.00 of 1,500.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
        }
       ]
      },
@@ -412,31 +391,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods not yet in a container",
         "value": 2400,
         "result": 2400,
-        "source": "2 priced lines 2,400.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 720,
-        "result": 1680,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 1680,
-        "result": 1680,
-        "source": "70% of the PO"
+        "source": "2 lines"
        },
        {
         "op": "×",
-        "label": "Share not yet in a container",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 1680,
-        "source": "goods on board 2,400.00 of 2,400.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, 70% B/L copy.”"
        }
       ]
      },
@@ -449,8 +414,8 @@
       "supplier": "Shenzhen Arrival Co., Ltd",
       "currency": "USD",
       "amount": 1400,
-      "dueDate": "2027-01-13",
-      "contractualDate": "2027-01-08",
+      "dueDate": null,
+      "contractualDate": null,
       "trigger": "arrival",
       "containerNumber": null,
       "containerShare": 1,
@@ -458,40 +423,24 @@
       "blocked": "shipment",
       "shipmentPaymentId": null,
       "flags": [
-       "no_container",
-       "estimated",
-       "grace_applied"
+       "no_container"
       ],
       "invoiceId": null,
       "paymentId": null,
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods not yet in a container",
         "value": 2000,
         "result": 2000,
-        "source": "1 priced line 2,000.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 600,
-        "result": 1400,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 1400,
-        "result": 1400,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share not yet in a container",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 1400,
-        "source": "goods on board 2,000.00 of 2,000.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, 70% 45 days after arrival at destination port”"
        }
       ]
      },
@@ -521,31 +470,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods not yet in a container",
         "value": 1200,
         "result": 1200,
-        "source": "1 priced line 1,200.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 360,
-        "result": 840,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 840,
-        "result": 840,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share not yet in a container",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 840,
-        "source": "goods on board 1,200.00 of 1,200.00"
+        "source": "the supplier's terms in JFPRO “30D/70B BOL”"
        }
       ]
      },
@@ -574,31 +509,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods not yet in a container",
         "value": 1000,
         "result": 1000,
-        "source": "1 priced line 1,000.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 300,
-        "result": 700,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 700,
-        "result": 700,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share not yet in a container",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 700,
-        "source": "goods on board 1,000.00 of 1,000.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
        }
       ]
      },
@@ -625,31 +546,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in DRAFT-SEA-260917-110203 - 268",
         "value": 600,
         "result": 600,
-        "source": "1 priced line 600.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 180,
-        "result": 420,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 420,
-        "result": 420,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in DRAFT-SEA-260917-110203 - 268",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 420,
-        "source": "goods on board 600.00 of 600.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, 70% B/L copy.”"
        }
       ]
      },
@@ -694,6 +601,8 @@
       ]
      }
     ],
+    "qcItems": [],
+    "qcClosed": [],
     "pos": [
      {
       "poId": 1301,
@@ -749,6 +658,7 @@
         },
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -820,7 +730,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -895,35 +806,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in DRAFT-SEA-260917-110203 - 268",
           "value": 2500,
           "result": 2500,
-          "source": "2 priced lines 2,500.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 750,
-          "result": 1750,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 1750,
-          "result": 1750,
-          "source": "70% of the PO"
+          "source": "2 lines"
          },
          {
           "op": "×",
-          "label": "Share in DRAFT-SEA-260917-110203 - 268",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 1750,
-          "source": "goods on board 2,500.00 of 2,500.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, 70% B/L copy.”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1302,
@@ -979,6 +877,7 @@
         },
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -1050,7 +949,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1127,35 +1027,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods not yet in a container",
           "value": 2400,
           "result": 2400,
-          "source": "2 priced lines 2,400.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 720,
-          "result": 1680,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 1680,
-          "result": 1680,
-          "source": "70% of the PO"
+          "source": "2 lines"
          },
          {
           "op": "×",
-          "label": "Share not yet in a container",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 1680,
-          "source": "goods on board 2,400.00 of 2,400.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, 70% B/L copy.”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1303,
@@ -1211,6 +1098,7 @@
         },
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 6,
@@ -1313,7 +1201,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1387,35 +1276,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in DRAFT-AIR-260920-091500 - 104",
           "value": 1500,
           "result": 1500,
-          "source": "1 priced line 1,500.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 450,
-          "result": 1050,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 1050,
-          "result": 1050,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in DRAFT-AIR-260920-091500 - 104",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 1050,
-          "source": "goods on board 1,500.00 of 1,500.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1304,
@@ -1471,6 +1347,7 @@
         },
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 6,
@@ -1572,7 +1449,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1645,35 +1523,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods not yet in a container",
           "value": 1000,
           "result": 1000,
-          "source": "1 priced line 1,000.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 300,
-          "result": 700,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 700,
-          "result": 700,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share not yet in a container",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 700,
-          "source": "goods on board 1,000.00 of 1,000.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1305,
@@ -1729,6 +1594,7 @@
         },
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -1831,7 +1697,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1905,35 +1772,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods not yet in a container",
           "value": 1200,
           "result": 1200,
-          "source": "1 priced line 1,200.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 360,
-          "result": 840,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 840,
-          "result": 840,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share not yet in a container",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 840,
-          "source": "goods on board 1,200.00 of 1,200.00"
+          "source": "the supplier's terms in JFPRO “30D/70B BOL”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1306,
@@ -1989,6 +1843,7 @@
         },
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -2045,22 +1900,21 @@
         "lineCount": 1,
         "units": 250,
         "value": 2000,
-        "dueDate": "2027-01-13",
-        "contractualDate": "2027-01-08",
+        "dueDate": null,
+        "contractualDate": null,
         "landed": false,
         "departed": false,
-        "estimated": true,
+        "estimated": false,
         "blocked": "shipment",
         "flags": [
-         "no_container",
-         "estimated",
-         "grace_applied"
+         "no_container"
         ],
         "etd": "2026-10-20",
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -2117,8 +1971,8 @@
         "supplier": "Shenzhen Arrival Co., Ltd",
         "currency": "USD",
         "amount": 1400,
-        "dueDate": "2027-01-13",
-        "contractualDate": "2027-01-08",
+        "dueDate": null,
+        "contractualDate": null,
         "trigger": "arrival",
         "containerNumber": null,
         "containerShare": 1,
@@ -2126,44 +1980,29 @@
         "blocked": "shipment",
         "shipmentPaymentId": null,
         "flags": [
-         "no_container",
-         "estimated",
-         "grace_applied"
+         "no_container"
         ],
         "invoiceId": null,
         "paymentId": null,
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods not yet in a container",
           "value": 2000,
           "result": 2000,
-          "source": "1 priced line 2,000.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 600,
-          "result": 1400,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 1400,
-          "result": 1400,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share not yet in a container",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 1400,
-          "source": "goods on board 2,000.00 of 2,000.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, 70% 45 days after arrival at destination port”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1307,
@@ -2219,6 +2058,7 @@
         },
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -2286,7 +2126,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -2359,35 +2200,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in DRAFT-SEA-260917-110203 - 268",
           "value": 600,
           "result": 600,
-          "source": "1 priced line 600.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 180,
-          "result": 420,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 420,
-          "result": 420,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in DRAFT-SEA-260917-110203 - 268",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 420,
-          "source": "goods on board 600.00 of 600.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, 70% B/L copy.”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      }
     ],
     "bySupplier": [
@@ -2449,7 +2277,7 @@
       "outstanding": 2000,
       "overdue": 600,
       "due30": 0,
-      "unscheduled": 0,
+      "unscheduled": 1400,
       "paid": 0,
       "assumedPaid": 0,
       "poCount": 1,
@@ -2549,31 +2377,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in DRAFT-SEA-260917-110203 - 268",
             "value": 2500,
             "result": 2500,
-            "source": "2 priced lines 2,500.00"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 30% of the PO",
-            "value": 750,
-            "result": 1750,
-            "source": "still to pay — a payment of its own"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 1750,
-            "result": 1750,
-            "source": "70% of the PO"
+            "source": "2 lines"
            },
            {
             "op": "×",
-            "label": "Share in DRAFT-SEA-260917-110203 - 268",
-            "value": 1,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 1750,
-            "source": "goods on board 2,500.00 of 2,500.00"
+            "source": "the supplier's terms in JFPRO “30% deposit, 70% B/L copy.”"
            }
           ]
          },
@@ -2600,31 +2414,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in DRAFT-SEA-260917-110203 - 268",
             "value": 600,
             "result": 600,
-            "source": "1 priced line 600.00"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 30% of the PO",
-            "value": 180,
-            "result": 420,
-            "source": "still to pay — a payment of its own"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 420,
-            "result": 420,
-            "source": "70% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in DRAFT-SEA-260917-110203 - 268",
-            "value": 1,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 420,
-            "source": "goods on board 600.00 of 600.00"
+            "source": "the supplier's terms in JFPRO “30% deposit, 70% B/L copy.”"
            }
           ]
          }
@@ -2683,31 +2483,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in DRAFT-AIR-260920-091500 - 104",
             "value": 1500,
             "result": 1500,
-            "source": "1 priced line 1,500.00"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 30% of the PO",
-            "value": 450,
-            "result": 1050,
-            "source": "still to pay — a payment of its own"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 1050,
-            "result": 1050,
-            "source": "70% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in DRAFT-AIR-260920-091500 - 104",
-            "value": 1,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 1050,
-            "source": "goods on board 1,500.00 of 1,500.00"
+            "source": "the supplier's terms in JFPRO “30% deposit, balance 30 days after B/L”"
            }
           ]
          }
@@ -2718,7 +2504,8 @@
       ]
      }
     ],
-    "dataQuality": []
+    "dataQuality": [],
+    "credits": []
    }
   ],
   "poCount": 7

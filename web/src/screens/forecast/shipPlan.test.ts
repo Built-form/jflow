@@ -62,6 +62,11 @@ describe('the target, from the /external-items row', () => {
   it('names the row as /forecast does, leaving out what shipping does not know', () => {
     expect(shipRowName({ supplier: null, poNumber: 'PO-9', feedKind: 'deposit', extId: 'dep-9' })).toBe('PO-9 · deposit');
     expect(shipRowName({ supplier: null, poNumber: null, feedKind: '', extId: 'dep-9' })).toBe('dep-9');
+    // Since 2026-10-06 a row that is not goods says what it is (the feed's label).
+    expect(shipRowName({ supplier: 'Fast Forwarders Ltd', poNumber: null, feedKind: 'extra', extId: 'ext-45', label: 'Freight' })).toBe('Fast Forwarders Ltd · Freight');
+    expect(shipRowName({ supplier: 'Acme', poNumber: 'PO-9', feedKind: 'extra', extId: 'ext-44', label: 'Mould cost' })).toBe('Acme · PO-9 · Mould cost');
+    expect(shipRowName({ supplier: 'Acme', poNumber: 'PO-9', feedKind: 'qc', extId: 'qc-1', label: null })).toBe('Acme · PO-9 · QC units');
+    expect(shipRowName({ supplier: 'Acme', poNumber: 'PO-9', feedKind: 'balance', extId: 'top-9-s1', label: 'Top-up' })).toBe('Acme · PO-9 · Top-up');
   });
 
   it('counts any overlay column as a plan', () => {

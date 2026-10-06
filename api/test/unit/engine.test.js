@@ -992,6 +992,34 @@ describe('ship lines (Phase 2, §9.3.1)', () => {
         });
     });
 
+    test('the re-pin (77577a1): a forwarder\'s shipment cost sits in the Freight category, named by payee and label; an extra riding a balance, a QC unit and a top-up stay in Stock payments, named by their label; no Freight category → Stock payments', () => {
+        const FREIGHT = { id: 91, name: 'Freight and forwarders', direction: 'out', sortOrder: 910, systemKey: 'freight' };
+        const rows = [
+            shipRow('ext-45', { feedKind: 'extra', supplier: 'Fast Forwarders Ltd', poId: null, poNumber: null, containerRef: '268', label: 'Freight', amount: '1200.00', dueDate: '2026-10-20', flags: ['shipment_cost'] }),
+            shipRow('ext-44', { feedKind: 'extra', containerRef: '268', label: 'Mould cost', amount: '300.00', dueDate: '2026-10-20', flags: ['extra_charge'] }),
+            shipRow('qc-81202', { feedKind: 'qc', containerRef: '268', label: 'QC units JF-ABC', amount: '32.90', dueDate: '2026-10-20', flags: ['qc_unit'] }),
+            shipRow('top-817-s322', { feedKind: 'balance', containerRef: '270', label: 'Top-up', amount: '1000.00', dueDate: '2026-10-20', flags: ['top_up', 'box_paid'] }),
+            shipRow('bal-812-s311', { feedKind: 'balance', containerRef: '268', amount: '1495.00', dueDate: '2026-10-20', flags: ['credit_netted'] }),
+        ];
+        const res = ship({ externalItems: rows, categories: [...CATEGORIES, STOCK, FREIGHT] });
+        const stock = res.rows.find((r) => r.categoryId === 90);
+        const freight = res.rows.find((r) => r.categoryId === 91);
+        expect(freight).toMatchObject({ categoryName: 'Freight and forwarders', direction: 'out', sortOrder: 910 });
+        expect(freight.items.map((i) => i.key)).toEqual(['ship.ext-45']);
+        expect(lineOf(res, 'ship.ext-45')).toMatchObject({ name: 'Fast Forwarders Ltd · Freight', counterparty: 'Fast Forwarders Ltd', ship: expect.objectContaining({ kind: 'extra', containerRef: '268' }) });
+        expect(stock.items.map((i) => i.key).sort()).toEqual(['ship.bal-812-s311', 'ship.ext-44', 'ship.qc-81202', 'ship.top-817-s322']);
+        expect(lineOf(res, 'ship.ext-44').name).toBe('Acme Textiles · PO-812 · Mould cost');
+        expect(lineOf(res, 'ship.qc-81202').name).toBe('Acme Textiles · PO-812 · QC units JF-ABC');
+        expect(lineOf(res, 'ship.top-817-s322').name).toBe('Acme Textiles · PO-812 · Top-up');
+        expect(lineOf(res, 'ship.bal-812-s311').name).toBe('Acme Textiles · PO-812 · balance');
+        expect(freight.total + stock.total).toBe(120000 + 30000 + 3290 + 100000 + 149500);
+
+        // No freight category seeded yet: everything in Stock payments.
+        const fallback = ship({ externalItems: rows });
+        expect(fallback.rows.find((r) => r.categoryId === 91)).toBeUndefined();
+        expect(fallback.rows.find((r) => r.categoryId === 90).items.map((i) => i.key)).toContain('ship.ext-45');
+    });
+
     test('paid rows: at A−1 excluded, at A absorbed (flags [paid], no paymentId), today in today\'s bucket', () => {
         const res = ship({
             externalItems: [

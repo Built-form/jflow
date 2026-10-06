@@ -423,10 +423,23 @@ function isoInstant(v) {
     return v instanceof Date ? v.toISOString() : String(v);
 }
 
-/** The systemKey 'ship' category (P10); every ship line sits in it. */
-function shipCategoryOf(categories) {
-    for (const c of categories.values()) if (c.systemKey === 'ship') return c;
-    throw new TypeError("engine: ship lines need the systemKey 'ship' category in input.categories");
+/** A forwarder's cost of the shipment itself: paid to its own payee, not the supplier. */
+const isFreightRow = (row) => row.feedKind === 'extra' && Array.isArray(row.flags) && row.flags.includes('shipment_cost');
+
+/**
+ * The category a ship row's line sits in: the systemKey 'ship' category (P10) for every row
+ * but a forwarder's shipment cost, which sits in the systemKey 'freight' category
+ * ("Freight and forwarders", Dev 2026-10-06) when one is seeded, else with the rest.
+ */
+function shipCategoryOf(categories, row) {
+    let ship = null;
+    let freight = null;
+    for (const c of categories.values()) {
+        if (c.systemKey === 'ship') ship = ship ?? c;
+        if (c.systemKey === 'freight') freight = freight ?? c;
+    }
+    if (!ship) throw new TypeError("engine: ship lines need the systemKey 'ship' category in input.categories");
+    return row && freight && isFreightRow(row) ? freight : ship;
 }
 
 /**
@@ -485,7 +498,7 @@ function buildRecords(input, { today, window, anchors, minA, categories }) {
         requireFeedStatus(row);
         const line = shipLine(row);
         if (line === null) continue;
-        const rec = shipRecord(row, line, shipCategoryOf(categories), today);
+        const rec = shipRecord(row, line, shipCategoryOf(categories, row), today);
         records.set(rec.key, rec);
     }
 

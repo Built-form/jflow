@@ -35,7 +35,7 @@ describe('orderShape (shipping/src/lib/order-shape.js)', () => {
     });
 });
 
-describe('ShipLine api.ts + PaymentsFlowView (f9499bc)', () => {
+describe('ShipLine api.ts + PaymentsFlowView (77577a1)', () => {
     test('mapOrder: string ids, frontend statuses, zero dates dropped', () => {
         const o = page.mapOrder({ id: 7, containerNumber: 268, status: 'IN_PRODUCTION', poDate: '0000-00-00', eta: '2026-10-10', shipmentId: '311' });
         expect(o).toEqual({ id: '7', containerNumber: '268', status: 'UNDER_PRODUCTION', poDate: undefined, eta: '2026-10-10', shipmentId: 311 });
@@ -45,7 +45,7 @@ describe('ShipLine api.ts + PaymentsFlowView (f9499bc)', () => {
     test('normalizePaymentRule fills the estimates shape; supplierFromRow never carries tags (Q5)', () => {
         const r = page.normalizePaymentRule({ id: 1, scope: 'default', estimates: { transit: { sea: 35 } } });
         expect(r).toMatchObject({ depositOffsetDays: null, airOwedFrom: null, airLimitDays: null });
-        expect(r.estimates).toEqual({ artwork: null, pi: null, piSigned: null, ready: null, telex: null, document: null, transit: { sea: 35, air: null, road: null } });
+        expect(r.estimates).toEqual({ artwork: null, pi: null, piSigned: null, ready: null, telex: null, document: null, departure: null, transit: { sea: 35, air: null, road: null } });
         expect(page.supplierFromRow({ id: 11, name: 'Sunmed', paymentTerms: '30D/70B BOL', tags: [{ name: 'shipsline-legacy' }] }))
             .toEqual({ supplierId: 11, name: 'Sunmed', paymentTerms: '30D/70B BOL', tags: [] });
     });
@@ -67,6 +67,31 @@ describe('ShipLine api.ts + PaymentsFlowView (f9499bc)', () => {
             telexReleasedAt: null,
             documents: [{ type: 'packing_list', attachedAt: '2026-09-15' }, { type: 'qa', attachedAt: '2026-09-12' }],
         });
+    });
+
+    test('pageInput: the page\'s key order at 77577a1; open shipments become openContainers; extras and due dates pass through', () => {
+        const empty = {
+            orders: { data: [], purchaseOrders: {}, shipments: {} }, containers: { data: [] }, invoicePayments: { data: [] },
+            paymentRules: { data: [] }, shipments: { data: [] }, shipmentPayments: { data: [] }, supplierPayments: { data: [] },
+            suppliers: [], shipmentDocuments: {},
+        };
+        const open = [
+            { id: 12, reference: null, name: 'Draft 1', stage: 'DRAFT', mode: 'SEA', etd: '2026-11-01', eta: null, lines: [{ orderId: 5, quantity: 100 }] },
+            { id: 13, reference: null, name: null, stage: 'PLANNED', mode: null, etd: null, eta: null, lines: [] },
+            { id: 14, reference: '320', name: 'Booked', stage: 'BOOKED', mode: 'SEA', etd: null, eta: null, lines: [] },
+        ];
+        const extra = { id: 3, supplierName: 'Acme', currency: 'USD', amount: 100, kind: 'mould', label: 'PO-1 mould cost', ridesWith: 'balance' };
+        const { input } = page.pageInput({ ...empty, openShipments: { data: open, read: true }, paymentExtras: { data: [extra], read: true } }, '2026-10-06');
+        expect(Object.keys(input)).toEqual([
+            'orders', 'poBundles', 'invoicePayments', 'suppliers', 'containerIndex', 'rules', 'containerEvents', 'openContainers',
+            'shipmentPayments', 'shipmentPaymentDocuments', 'supplierPayments', 'paymentExtras', 'dueOverrides', 'today',
+        ]);
+        expect(input.openContainers).toEqual([
+            { id: 12, name: 'Draft 1', stage: 'DRAFT', mode: 'SEA', etd: '2026-11-01', eta: null, lines: [{ orderId: 5, quantity: 100 }] },
+            { id: 13, name: 'Shipment 13', stage: 'PLANNED', mode: null, etd: null, eta: null, lines: [] },
+        ]);
+        expect(input.paymentExtras).toEqual([extra]);
+        expect(page.pageInput(empty, '2026-10-06').input).toMatchObject({ openContainers: [], paymentExtras: [], dueOverrides: [] });
     });
 
     test('pageInput: due dates set by hand pass through as dueOverrides; none read → []', () => {

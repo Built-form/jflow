@@ -43,7 +43,8 @@ const shipping = require('./shipping');
 const DEFAULT_SCHEMA = 'jfa';
 const SCHEMA_RE = /^[a-z0-9_]{1,64}$/;
 // The port's source of truth (PLAN.md "Phase 2"): re-synced when ShipLine's math changes.
-const MODEL = 'ShipLine f9499bc';
+// 2026-10-06: re-pinned from f9499bc to 77577a1 (tools/payments-flow-oracle.mjs SOURCE).
+const MODEL = 'ShipLine 77577a1';
 const CONNECT_TIMEOUT_MS = 5000;
 // The whole read, connect to close. /forecast runs a due refresh before it answers
 // (P4) inside the Lambda's 29 s, so a stuck read must give up well before that.
@@ -190,15 +191,22 @@ async function readPaymentsForecast({ today, paidSince } = {}) {
         await conn.query('COMMIT');
 
         const items = flowLib.toForecastRows(model.flow, model.paid, { pos, shipmentIdByRef: model.shipmentIdByRef });
-        const dueDates = sources.paymentDueDates?.read ? sources.paymentDueDates.data.length : null;
+        const countOf = (source) => (source?.read ? source.data.length : null);
+        const dueDates = countOf(sources.paymentDueDates);
+        const extras = countOf(sources.paymentExtras);
+        const openShipments = countOf(sources.openShipments);
+        const say = (n, what, absent) => (n == null ? `; ${absent}` : `; ${n} ${what}`);
         log.info(`[shipping-source] ${schema} ${today}: ${items.length} row(s) in ${Date.now() - started}ms`
-            + (dueDates == null ? '; payment_due_dates not readable (no dates set by hand)' : `; ${dueDates} date(s) set by hand`));
+            + say(dueDates, 'date(s) set by hand', 'payment_due_dates not readable (no dates set by hand)')
+            + say(extras, 'extra(s)', 'payment_extras not readable (no extras)')
+            + say(openShipments, 'open shipment(s)', 'drafts and plans not readable (unbooked goods dated by the old rules)'));
         return {
             meta: {
                 today, paidSince, generatedAt: new Date().toISOString(), model: MODEL, schema,
                 outstanding: outstandingOf(model.flow),
-                // Whether shipping's payment_due_dates was read (null = the table is not there yet).
-                dueDates,
+                // Whether each optional table was read (null = not there yet): the due dates set by
+                // hand, the extras, the drafts and plans with their lines.
+                dueDates, extras, openShipments,
             },
             companies,
             items,

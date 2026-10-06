@@ -1,4 +1,4 @@
-// Copied from ShipLine src/api.ts, src/components/payments/PaymentsFlowView.tsx and src/components/shared/containerHelpers.ts @ f9499bc — changes: TS → CommonJS, types stripped; api.ts mapOrder / fromApiStatus / isZeroDate / normalizePaymentRule verbatim in behaviour; getSuppliers' row mapping trimmed to supplierId, name, paymentTerms with tags always [] (PHASE2 Q5, CONTRACT §11); PaymentsFlowView's documentTargets / containerEvents / shipmentIdByRef memos and its buildPaymentsFlow({...}) call as plain functions over the loaded payloads (pageState, pageInput); indexContainers verbatim; `dueOverrides` (getPaymentDueDates → buildPaymentsFlow) passed through as the page does @ 6565188, ahead of the re-pin (2026-10-06)
+// Copied from ShipLine src/api.ts, src/components/payments/PaymentsFlowView.tsx and src/components/shared/containerHelpers.ts @ 77577a1 — changes: TS → CommonJS, types stripped; api.ts mapOrder / fromApiStatus / isZeroDate / normalizePaymentRule verbatim in behaviour; getSuppliers' row mapping trimmed to supplierId, name, paymentTerms with tags always [] (PHASE2 Q5, CONTRACT §11); PaymentsFlowView's documentTargets / containerEvents / openContainers / shipmentIdByRef memos and its buildPaymentsFlow({...}) call as plain functions over the loaded payloads (pageState, pageInput); indexContainers verbatim; paymentExtras and dueOverrides passed through as the page does
 'use strict';
 
 // What ShipLine's Payments page does between its fetches and buildPaymentsFlow,
@@ -106,10 +106,32 @@ function pageState(sources) {
         shipmentPayments: sources.shipmentPayments.data ?? [],
         supplierPayments: sources.supplierPayments.data ?? [],
         suppliers: sources.suppliers ?? [],
-        // Due dates set by hand (page @ 6565188: api.getPaymentDueDates); [] when the
-        // table is not there yet (shippingReads.js loadSources).
+        // The page's three later fetches (@ 77577a1): api.getOpenShipments (drafts and
+        // plans with their lines), api.getPaymentExtras, api.getPaymentDueDates. [] when
+        // the table is not there yet (shippingReads.js loadSources).
+        openShipments: sources.openShipments?.data ?? [],
+        paymentExtras: sources.paymentExtras?.data ?? [],
         dueOverrides: sources.paymentDueDates?.data ?? [],
     };
+}
+
+/**
+ * PaymentsFlowView's openContainers memo: the open shipments as the model's
+ * OpenContainer — id, a name, the stage, the mode, ETD and ETA as on file, and
+ * the lines as {orderId, quantity}.
+ */
+function openContainersOf(openShipments) {
+    return (openShipments ?? [])
+        .filter(s => s.stage === 'DRAFT' || s.stage === 'PLANNED')
+        .map(s => ({
+            id: s.id,
+            name: s.name ?? `Shipment ${s.id}`,
+            stage: s.stage,
+            mode: s.mode,
+            etd: s.etd,
+            eta: s.eta,
+            lines: (s.lines ?? []).map(l => ({ orderId: l.orderId, quantity: l.quantity })),
+        }));
 }
 
 // The shipments (not yet closed) that hold a line whose supplier is under a
@@ -191,9 +213,11 @@ function pageInput(sources, today) {
         containerIndex: indexContainers(st.containers),
         rules: st.rules,
         containerEvents: eventsFromShipments(st.shipments, sources.shipmentDocuments ?? {}),
+        openContainers: openContainersOf(st.openShipments),
         shipmentPayments: st.shipmentPayments,
         shipmentPaymentDocuments: [],
         supplierPayments: st.supplierPayments,
+        paymentExtras: st.paymentExtras,
         dueOverrides: st.dueOverrides,
         today,
     };
@@ -209,6 +233,7 @@ module.exports = {
     supplierFromRow,
     indexContainers,
     pageState,
+    openContainersOf,
     documentTargets,
     eventsFromShipments,
     shipmentIdByRefOf,

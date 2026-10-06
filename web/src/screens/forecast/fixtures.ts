@@ -337,7 +337,7 @@ export function externalRow(overrides: Partial<ExternalItem> = {}): ExternalItem
   return {
     key: 'ship.bal-812-s311', id: 31, source: 'ship', extId: 'bal-812-s311', feedKind: 'balance', feedStatus: 'open',
     supplier: 'Acme Textiles', shippingCompanyId: 11, companyId: 1, accountId: 1, poId: 812, poNumber: 'PO-812',
-    shipmentId: 311, containerRef: 'MSCU1234567', currency: 'USD', amount: '1500.00', dueDate: '2026-10-13',
+    shipmentId: 311, containerRef: 'MSCU1234567', label: null, currency: 'USD', amount: '1500.00', dueDate: '2026-10-13',
     paidOn: null, settles: null, dateBasis: 'firm', amountBasis: 'derived', blocked: 'artwork', flags: [],
     dueSet: null, dueDatePrev: null, dueDateMovedAt: null, dateMoved: false,
     goneAt: null, plannedDate: null, plannedAmount: null, plannedSkipped: false, plannedBaseAmount: null,

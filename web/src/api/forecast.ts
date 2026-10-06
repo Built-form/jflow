@@ -79,7 +79,7 @@ export type ShipBlocker = 'shipment' | 'artwork' | 'pi' | 'pi_signed';
  * currency.
  */
 export interface ShipInfo {
-  kind: 'deposit' | 'balance' | (string & {});
+  kind: 'deposit' | 'balance' | 'extra' | 'qc' | (string & {});
   poNumber: string | null;
   containerRef: string | null;
   dateBasis: 'firm' | 'estimated' | 'undated' | (string & {});

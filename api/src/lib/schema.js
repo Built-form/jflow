@@ -37,7 +37,9 @@ const { splitStatements } = require('./sql');
 // otherwise never replay it).
 // 2026-10-06.3: 2026-10-06_jflow_due_set.sql (external_items.due_set_json,
 // due_date_prev, due_date_moved_at — dates set by hand in ShipLine).
-const SCHEMA_VERSION = '2026-10-06.3';
+// 2026-10-06.4: 2026-10-06_jflow_freight.sql (external_items.label; the
+// "Freight and forwarders" system category — the re-pin to ShipLine 77577a1).
+const SCHEMA_VERSION = '2026-10-06.4';
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'db', 'migrations');
 

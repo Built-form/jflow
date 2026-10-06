@@ -98,7 +98,7 @@ describe('meta/enums', () => {
     });
 
     test('Phase 2 vocabularies (CONTRACT §7) come from services/shipping.js, which enforces them', () => {
-        expect(ENUMS.feedKinds).toEqual(['deposit', 'balance']);
+        expect(ENUMS.feedKinds).toEqual(['deposit', 'balance', 'extra', 'qc']);
         expect(ENUMS.feedStatuses).toEqual(['open', 'paid']);
         expect(ENUMS.dateBases).toEqual(['firm', 'estimated', 'undated']);
         expect(ENUMS.amountBases).toEqual(['stated', 'derived']);

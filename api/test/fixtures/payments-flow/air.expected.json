@@ -1,15 +1,19 @@
 {
  "fixture": "air",
  "source": {
-  "commit": "f9499bc",
+  "commit": "77577a1",
   "files": {
    "src/components/payments/paymentsFlowMath.ts": {
-    "lines": 2786,
-    "sha256": "4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab"
+    "lines": 4118,
+    "sha256": "120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07"
    },
    "src/components/shared/containerHelpers.ts": {
     "lines": 340,
     "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 196,
+    "sha256": "c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5"
    }
   }
  },
@@ -29,7 +33,10 @@
      "later": 0,
      "notPayable": 0,
      "overdueCount": 4,
-     "itemCount": 9
+     "itemCount": 9,
+     "qc": 0,
+     "qcCount": 0,
+     "credit": 0
     },
     "items": [
      {
@@ -137,24 +144,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 104. Air Freight",
         "value": 800,
         "result": 800,
-        "source": "1 priced line 800.00"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 800,
-        "result": 800,
-        "source": "100% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 104. Air Freight",
+        "label": "Balance 100%",
         "value": 1,
         "result": 800,
-        "source": "goods on board 800.00 of 800.00"
+        "source": "the supplier's terms in JFPRO “100% before dispatch”"
        }
       ]
      },
@@ -181,24 +181,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in AWB 176-22223333",
         "value": 400,
         "result": 400,
-        "source": "1 priced line 400.00"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 400,
-        "result": 400,
-        "source": "100% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in AWB 176-22223333",
+        "label": "Balance 100%",
         "value": 1,
         "result": 400,
-        "source": "goods on board 400.00 of 400.00"
+        "source": "the supplier's terms in JFPRO “100% before dispatch”"
        }
       ]
      },
@@ -227,31 +220,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 340",
         "value": 3000,
         "result": 3000,
-        "source": "1 priced line 3,000.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 900,
-        "result": 2100,
-        "source": "still to pay — a payment of its own"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 2100,
-        "result": 2100,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 340",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 2100,
-        "source": "goods on board 3,000.00 of 3,000.00"
+        "source": "the supplier's terms in JFPRO “30D/70B BOL”"
        }
       ]
      },
@@ -283,31 +262,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 105. Air Freight",
         "value": 1500,
         "result": 1500,
-        "source": "1 priced line 1,500.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 450,
-        "result": 1050,
-        "source": "treated as paid — the goods have shipped"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 1050,
-        "result": 1050,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 105. Air Freight",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 1050,
-        "source": "goods on board 1,500.00 of 1,500.00"
+        "source": "the supplier's terms in JFPRO “30D/70B BOL”"
        }
       ]
      },
@@ -339,31 +304,17 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 111. Air Freight",
         "value": 500,
         "result": 500,
-        "source": "1 priced line 500.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 150,
-        "result": 350,
-        "source": "treated as paid — the goods have shipped"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 350,
-        "result": 350,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 111. Air Freight",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 350,
-        "source": "goods on board 500.00 of 500.00"
+        "source": "the supplier's terms in JFPRO “30D/70B BOL”"
        }
       ]
      },
@@ -385,40 +336,28 @@
       "blocked": null,
       "shipmentPaymentId": null,
       "flags": [
-       "air_owed"
+       "air_owed",
+       "unpriced_lines"
       ],
       "invoiceId": null,
       "paymentId": null,
       "deliveredOn": "2026-09-05",
       "airLimitDate": "2026-10-20",
+      "unpricedLines": 1,
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 106. Air Freight",
         "value": 900,
         "result": 900,
-        "source": "1 priced line 900.00 · 1 unpriced line left out"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 270,
-        "result": 630,
-        "source": "treated as paid — the goods have shipped"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 630,
-        "result": 630,
-        "source": "70% of the PO"
+        "source": "2 lines · 1 without a unit price, left out"
        },
        {
         "op": "×",
-        "label": "Share in 106. Air Freight",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 630,
-        "source": "goods on board 900.00 of 900.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, 70% before shipment”"
        }
       ]
      },
@@ -445,35 +384,23 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 108. Air Freight",
         "value": 800,
         "result": 800,
-        "source": "1 priced line 800.00"
-       },
-       {
-        "op": "−",
-        "label": "Deposit, 30% of the PO",
-        "value": 240,
-        "result": 560,
-        "source": "treated as paid — the goods have shipped"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 560,
-        "result": 560,
-        "source": "70% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 108. Air Freight",
-        "value": 1,
+        "label": "Balance 70%",
+        "value": 0.7,
         "result": 560,
-        "source": "goods on board 800.00 of 800.00"
+        "source": "the supplier's terms in JFPRO “30% deposit, 70% 45 days after arrival at destination port”"
        }
       ]
      }
     ],
+    "qcItems": [],
+    "qcClosed": [],
     "pos": [
      {
       "poId": 1201,
@@ -523,6 +450,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -618,7 +546,8 @@
         "eta": "2026-09-09",
         "settledBy": null,
         "airOwed": true,
-        "deliveredOn": "2026-09-10"
+        "deliveredOn": "2026-09-10",
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -654,28 +583,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 104. Air Freight",
           "value": 800,
           "result": 800,
-          "source": "1 priced line 800.00"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 800,
-          "result": 800,
-          "source": "100% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 104. Air Freight",
+          "label": "Balance 100%",
           "value": 1,
           "result": 800,
-          "source": "goods on board 800.00 of 800.00"
+          "source": "the supplier's terms in JFPRO “100% before dispatch”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1202,
@@ -725,6 +648,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -788,7 +712,8 @@
         "eta": "2026-09-20",
         "settledBy": null,
         "airOwed": true,
-        "deliveredOn": "2026-09-20"
+        "deliveredOn": "2026-09-20",
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -826,35 +751,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 105. Air Freight",
           "value": 1500,
           "result": 1500,
-          "source": "1 priced line 1,500.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 450,
-          "result": 1050,
-          "source": "treated as paid — the goods have shipped"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 1050,
-          "result": 1050,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 105. Air Freight",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 1050,
-          "source": "goods on board 1,500.00 of 1,500.00"
+          "source": "the supplier's terms in JFPRO “30D/70B BOL”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1203,
@@ -904,6 +816,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -967,7 +880,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1037,35 +951,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 340",
           "value": 3000,
           "result": 3000,
-          "source": "1 priced line 3,000.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 900,
-          "result": 2100,
-          "source": "still to pay — a payment of its own"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 2100,
-          "result": 2100,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 340",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 2100,
-          "source": "goods on board 3,000.00 of 3,000.00"
+          "source": "the supplier's terms in JFPRO “30D/70B BOL”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1204,
@@ -1115,6 +1016,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -1178,7 +1080,8 @@
         "eta": "2026-09-05",
         "settledBy": null,
         "airOwed": true,
-        "deliveredOn": "2026-09-05"
+        "deliveredOn": "2026-09-05",
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1207,44 +1110,33 @@
         "blocked": null,
         "shipmentPaymentId": null,
         "flags": [
-         "air_owed"
+         "air_owed",
+         "unpriced_lines"
         ],
         "invoiceId": null,
         "paymentId": null,
         "deliveredOn": "2026-09-05",
         "airLimitDate": "2026-10-20",
+        "unpricedLines": 1,
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 106. Air Freight",
           "value": 900,
           "result": 900,
-          "source": "1 priced line 900.00 · 1 unpriced line left out"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 270,
-          "result": 630,
-          "source": "treated as paid — the goods have shipped"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 630,
-          "result": 630,
-          "source": "70% of the PO"
+          "source": "2 lines · 1 without a unit price, left out"
          },
          {
           "op": "×",
-          "label": "Share in 106. Air Freight",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 630,
-          "source": "goods on board 900.00 of 900.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, 70% before shipment”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1206,
@@ -1294,6 +1186,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -1387,7 +1280,8 @@
         "eta": null,
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1437,7 +1331,8 @@
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1207,
@@ -1487,6 +1382,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -1548,7 +1444,8 @@
         "eta": "2026-09-12",
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": "2026-09-12"
+        "deliveredOn": "2026-09-12",
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1581,35 +1478,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 108. Air Freight",
           "value": 800,
           "result": 800,
-          "source": "1 priced line 800.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 240,
-          "result": 560,
-          "source": "treated as paid — the goods have shipped"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 560,
-          "result": 560,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 108. Air Freight",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 560,
-          "source": "goods on board 800.00 of 800.00"
+          "source": "the supplier's terms in JFPRO “30% deposit, 70% 45 days after arrival at destination port”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1210,
@@ -1659,6 +1543,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -1752,7 +1637,8 @@
         "eta": "2026-10-01",
         "settledBy": null,
         "airOwed": false,
-        "deliveredOn": null
+        "deliveredOn": null,
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1783,28 +1669,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in AWB 176-22223333",
           "value": 400,
           "result": 400,
-          "source": "1 priced line 400.00"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 400,
-          "result": 400,
-          "source": "100% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in AWB 176-22223333",
+          "label": "Balance 100%",
           "value": 1,
           "result": 400,
-          "source": "goods on board 400.00 of 400.00"
+          "source": "the supplier's terms in JFPRO “100% before dispatch”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      },
      {
       "poId": 1211,
@@ -1854,6 +1734,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -1917,7 +1798,8 @@
         "eta": "2026-09-18",
         "settledBy": null,
         "airOwed": true,
-        "deliveredOn": "2026-09-18"
+        "deliveredOn": "2026-09-18",
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -1955,35 +1837,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 111. Air Freight",
           "value": 500,
           "result": 500,
-          "source": "1 priced line 500.00"
-         },
-         {
-          "op": "−",
-          "label": "Deposit, 30% of the PO",
-          "value": 150,
-          "result": 350,
-          "source": "treated as paid — the goods have shipped"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 350,
-          "result": 350,
-          "source": "70% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 111. Air Freight",
-          "value": 1,
+          "label": "Balance 70%",
+          "value": 0.7,
           "result": 350,
-          "source": "goods on board 500.00 of 500.00"
+          "source": "the supplier's terms in JFPRO “30D/70B BOL”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      }
     ],
     "bySupplier": [
@@ -2213,24 +2082,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 104. Air Freight",
             "value": 800,
             "result": 800,
-            "source": "1 priced line 800.00"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 800,
-            "result": 800,
-            "source": "100% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 104. Air Freight",
+            "label": "Balance 100%",
             "value": 1,
             "result": 800,
-            "source": "goods on board 800.00 of 800.00"
+            "source": "the supplier's terms in JFPRO “100% before dispatch”"
            }
           ]
          }
@@ -2286,24 +2148,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in AWB 176-22223333",
             "value": 400,
             "result": 400,
-            "source": "1 priced line 400.00"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 400,
-            "result": 400,
-            "source": "100% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in AWB 176-22223333",
+            "label": "Balance 100%",
             "value": 1,
             "result": 400,
-            "source": "goods on board 400.00 of 400.00"
+            "source": "the supplier's terms in JFPRO “100% before dispatch”"
            }
           ]
          }
@@ -2361,31 +2216,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 340",
             "value": 3000,
             "result": 3000,
-            "source": "1 priced line 3,000.00"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 30% of the PO",
-            "value": 900,
-            "result": 2100,
-            "source": "still to pay — a payment of its own"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 2100,
-            "result": 2100,
-            "source": "70% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 340",
-            "value": 1,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 2100,
-            "source": "goods on board 3,000.00 of 3,000.00"
+            "source": "the supplier's terms in JFPRO “30D/70B BOL”"
            }
           ]
          }
@@ -2446,31 +2287,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 105. Air Freight",
             "value": 1500,
             "result": 1500,
-            "source": "1 priced line 1,500.00"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 30% of the PO",
-            "value": 450,
-            "result": 1050,
-            "source": "treated as paid — the goods have shipped"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 1050,
-            "result": 1050,
-            "source": "70% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 105. Air Freight",
-            "value": 1,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 1050,
-            "source": "goods on board 1,500.00 of 1,500.00"
+            "source": "the supplier's terms in JFPRO “30D/70B BOL”"
            }
           ]
          }
@@ -2531,31 +2358,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 111. Air Freight",
             "value": 500,
             "result": 500,
-            "source": "1 priced line 500.00"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 30% of the PO",
-            "value": 150,
-            "result": 350,
-            "source": "treated as paid — the goods have shipped"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 350,
-            "result": 350,
-            "source": "70% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 111. Air Freight",
-            "value": 1,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 350,
-            "source": "goods on board 500.00 of 500.00"
+            "source": "the supplier's terms in JFPRO “30D/70B BOL”"
            }
           ]
          }
@@ -2606,40 +2419,28 @@
           "blocked": null,
           "shipmentPaymentId": null,
           "flags": [
-           "air_owed"
+           "air_owed",
+           "unpriced_lines"
           ],
           "invoiceId": null,
           "paymentId": null,
           "deliveredOn": "2026-09-05",
           "airLimitDate": "2026-10-20",
+          "unpricedLines": 1,
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 106. Air Freight",
             "value": 900,
             "result": 900,
-            "source": "1 priced line 900.00 · 1 unpriced line left out"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 30% of the PO",
-            "value": 270,
-            "result": 630,
-            "source": "treated as paid — the goods have shipped"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 630,
-            "result": 630,
-            "source": "70% of the PO"
+            "source": "2 lines · 1 without a unit price, left out"
            },
            {
             "op": "×",
-            "label": "Share in 106. Air Freight",
-            "value": 1,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 630,
-            "source": "goods on board 900.00 of 900.00"
+            "source": "the supplier's terms in JFPRO “30% deposit, 70% before shipment”"
            }
           ]
          }
@@ -2695,31 +2496,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 108. Air Freight",
             "value": 800,
             "result": 800,
-            "source": "1 priced line 800.00"
-           },
-           {
-            "op": "−",
-            "label": "Deposit, 30% of the PO",
-            "value": 240,
-            "result": 560,
-            "source": "treated as paid — the goods have shipped"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 560,
-            "result": 560,
-            "source": "70% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 108. Air Freight",
-            "value": 1,
+            "label": "Balance 70%",
+            "value": 0.7,
             "result": 560,
-            "source": "goods on board 800.00 of 800.00"
+            "source": "the supplier's terms in JFPRO “30% deposit, 70% 45 days after arrival at destination port”"
            }
           ]
          }
@@ -2819,7 +2606,8 @@
       "kind": "air_no_next",
       "detail": "Air freight 106. Air Freight (delivered 2026-09-05): no other payment to Ningbo Tam Industrial Co., Ltd coming up — due by 2026-10-20"
      }
-    ]
+    ],
+    "credits": []
    },
    {
     "currency": "EUR",
@@ -2832,7 +2620,10 @@
      "later": 0,
      "notPayable": 0,
      "overdueCount": 0,
-     "itemCount": 1
+     "itemCount": 1,
+     "qc": 0,
+     "qcCount": 0,
+     "credit": 0
     },
     "items": [
      {
@@ -2862,28 +2653,23 @@
       "derivation": [
        {
         "op": "=",
-        "label": "PO value",
+        "label": "Goods on board in 109. Air Freight",
         "value": 700,
         "result": 700,
-        "source": "1 priced line 700.00"
-       },
-       {
-        "op": "=",
-        "label": "Balance for the PO",
-        "value": 700,
-        "result": 700,
-        "source": "100% of the PO"
+        "source": "1 line"
        },
        {
         "op": "×",
-        "label": "Share in 109. Air Freight",
+        "label": "Balance 100%",
         "value": 1,
         "result": 700,
-        "source": "goods on board 700.00 of 700.00"
+        "source": "the supplier's terms in JFPRO “100% before dispatch”"
        }
       ]
      }
     ],
+    "qcItems": [],
+    "qcClosed": [],
     "pos": [
      {
       "poId": 1208,
@@ -2933,6 +2719,7 @@
         "ready": null,
         "telex": null,
         "document": null,
+        "departure": null,
         "transit": {
          "sea": 35,
          "air": 5,
@@ -3028,7 +2815,8 @@
         "eta": "2026-09-15",
         "settledBy": null,
         "airOwed": true,
-        "deliveredOn": "2026-09-15"
+        "deliveredOn": "2026-09-15",
+        "open": null
        }
       ],
       "proofCount": 0,
@@ -3063,28 +2851,22 @@
         "derivation": [
          {
           "op": "=",
-          "label": "PO value",
+          "label": "Goods on board in 109. Air Freight",
           "value": 700,
           "result": 700,
-          "source": "1 priced line 700.00"
-         },
-         {
-          "op": "=",
-          "label": "Balance for the PO",
-          "value": 700,
-          "result": 700,
-          "source": "100% of the PO"
+          "source": "1 line"
          },
          {
           "op": "×",
-          "label": "Share in 109. Air Freight",
+          "label": "Balance 100%",
           "value": 1,
           "result": 700,
-          "source": "goods on board 700.00 of 700.00"
+          "source": "the supplier's terms in JFPRO “100% before dispatch”"
          }
         ]
        }
-      ]
+      ],
+      "qcItems": []
      }
     ],
     "bySupplier": [
@@ -3166,24 +2948,17 @@
           "derivation": [
            {
             "op": "=",
-            "label": "PO value",
+            "label": "Goods on board in 109. Air Freight",
             "value": 700,
             "result": 700,
-            "source": "1 priced line 700.00"
-           },
-           {
-            "op": "=",
-            "label": "Balance for the PO",
-            "value": 700,
-            "result": 700,
-            "source": "100% of the PO"
+            "source": "1 line"
            },
            {
             "op": "×",
-            "label": "Share in 109. Air Freight",
+            "label": "Balance 100%",
             "value": 1,
             "result": 700,
-            "source": "goods on board 700.00 of 700.00"
+            "source": "the supplier's terms in JFPRO “100% before dispatch”"
            }
           ]
          }
@@ -3205,7 +2980,8 @@
       "kind": "air_no_next",
       "detail": "Air freight 109. Air Freight (delivered 2026-09-15): no other payment to Foreu Corporation coming up — due by 2026-10-15"
      }
-    ]
+    ],
+    "credits": []
    }
   ],
   "poCount": 11

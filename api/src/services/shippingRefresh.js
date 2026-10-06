@@ -54,12 +54,12 @@ const LAST_ERROR_MAX = 500;              // external_sync.last_error VARCHAR(500
 const ROW_BUSY = new Set([1205, 1213]);
 
 // The feed columns, in the one fixed order feed_hash is computed over (CONTRACT §3.5).
-// due_set_json (2026-10-06) joined at the end: every stored hash moved once, so the first
-// run after that deploy counts every row as updated.
+// due_set_json and label (2026-10-06) joined at the end: every stored hash moved once, so
+// the first run after that deploy counts every row as updated.
 const FEED_COLUMNS = [
     'feed_kind', 'feed_status', 'supplier', 'shipping_company_id', 'po_id', 'po_number', 'shipment_id',
     'container_ref', 'currency', 'amount', 'due_date', 'paid_on', 'settles', 'date_basis', 'amount_basis',
-    'blocked', 'flags_json', 'due_set_json',
+    'blocked', 'flags_json', 'due_set_json', 'label',
 ];
 // A row whose date counts from today moves one day each day: that slide is not a "move".
 const MOVED_FLAG_EXEMPT = 'from_today';
@@ -85,6 +85,7 @@ function feedRow(item) {
         blocked: item.blocked,
         flags_json: JSON.stringify(item.flags),
         due_set_json: item.dueSet ? JSON.stringify(item.dueSet) : null,
+        label: item.label,
     };
 }
 

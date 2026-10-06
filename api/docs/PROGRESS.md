@@ -1017,3 +1017,58 @@ rows; forwarder costs in their own "Freight and forwarders" category with the pa
 extras riding a supplier payment added to that supplier + container group and shown on
 expansion; credits netted into the payment they offset. All four need the re-pin to ShipLine
 `6565188` first (section 7, steps 2–5): JFlow's model at `f9499bc` has none of those items.
+
+## Phase 2 — Re-pin to ShipLine `77577a1`: extras, QC units, top-ups, drafts and plans (2026-10-06)
+
+Dev: "okay do the re pin" (handover doc section 7, steps 2–5; his decisions on open
+questions 3 and 4). The port had been frozen at `f9499bc` (2026-09-29) while ShipLine's
+model grew by 1,332 lines in a week.
+- **The port is now one generated file.** `api/src/lib/payments-flow/model.js` is ShipLine's
+  `paymentsFlowMath.ts` at `77577a1` transpiled whole (tsc transpileModule), with the port's
+  three deliberate differences applied by exact text replacement (today required, no clock
+  anywhere — `localTodayYmd` is gone; `dateOfInstant` pinned to Europe/London;
+  `buildPaymentsFlow(input, {claims: true})` returns `balanceClaims`) and the TS's private
+  helpers exported at the end. The old modules by concern (`dates`, `lines`, `money`, `terms`,
+  `suppliers`, `policy`, `due`, `po`, `flow`, `overrides`) are thin re-exports; `keys.js` is
+  `paymentReviews.ts`'s key builders (the model's new runtime import); `containers.js` is
+  unchanged (same hash). The build script lives in the session scratchpad; re-pin = run it
+  again and move the oracle's `SOURCE` hashes. **Golden A: 37/37 exact under 5 time zones.**
+- **Oracle** `tools/payments-flow-oracle.mjs`: `SOURCE.commit 77577a1`, three pinned files
+  (paymentsFlowMath.ts 4118 lines, containerHelpers.ts 340, paymentReviews.ts 196). Expected
+  files regenerated; two fixtures added: `extras-qc-credit` (mould cost riding a balance, a
+  forwarder's GBP freight cost, a credit note on account forecast against the supplier's most
+  urgent payment, a paid extra, a `_FQC` QC unit) and `open-containers` (a dated DRAFT splitting
+  a PO's unbooked goods, a PLANNED box with no dates, the departure rule's from-today date, a
+  top-up on a paid container).
+- **Reads** (`shippingReads.js`, all optional so a stage short of a table still feeds):
+  `payment_extras` (+ applied per extra from live transfer lines; copy
+  `lib/shippingCopy/paymentExtras.js`), open shipments `DRAFT`/`PLANNED` with `name`, `etd`,
+  `eta` and their `shipment_lines`, transfer lines of kind `extra` and `qc`, the `departure`
+  estimate key (`paymentRules.js`). `shiplinePage.js` builds the page's input at `77577a1`
+  (`openContainers`, `paymentExtras`, `dueOverrides`, in the page's key order).
+- **Feed** (`forecast.js`, `ids.js`, `validateFeed`): kinds `extra` and `qc` join `deposit` and
+  `balance`; a `label` says what a row is when it is not goods ("Mould cost", "Freight",
+  "PO charges", "Top-up", "QC units X"); ids `ext-<id>`, `qc-<orderId>`, `chg-<po>-<g>`,
+  `top-<po>-<g>`, `pi-<pi>-c<g>` / `f<g>`, and `<g>` = `d<shipmentId>` for goods in a draft or
+  plan (`@open:<id>`); paid rows `pay-<sp>-ext<id>` / `qc<id>`. **Credits** (Dev): netted into
+  the row the model forecasts them against (`credit_netted`); a row netted to nothing is left
+  out; credits with nothing to ride make no row (the model's `kpis.credit` still says how much).
+  A forwarder's cost names no PO, so its company is the company of the goods in its container
+  when they are all one company's (`companiesByBox`), else it stays unmapped.
+- **Schema / engine**: migration `2026-10-06_jflow_freight.sql` — `external_items.label` (feed
+  column, hashed) and the **"Freight and forwarders"** system category (`system_key 'freight'`,
+  sort 910); `SCHEMA_VERSION 2026-10-06.4`. `engine.js` puts a `shipment_cost` extra there
+  (fallback: Stock payments), names lines by label (`lines.js shipName`); `forecastLoad`
+  loads both system categories. Row JSON and `ShipInfo.kind` carry the new kinds.
+- **Web**: `shipRowName` uses the label; the new category row appears on the Forecast by itself;
+  the supplier + shipment grouping folds an extra riding a balance into its supplier's group,
+  and a forwarder's costs into the forwarder's group.
+- **Live on TEST after the first refresh**: 312 rows (74 inserted, 8 gone — the old `-n` ids of
+  goods now split into drafts — 95 dates moved by the new dating rules: a one-off `DATE MOVED`
+  wave for 14 days), 18 extras, 10 open shipments, 0 open QC units. Σ open per currency is the
+  model's `kpis.outstanding` less the netted credit.
+
+**Checks**: api unit 1070 green + eslint; web 341 green + tsc + build. **Not run**: the e2e
+suites (no database here); `migrate.test.js`'s first-two-files check still holds.
+**Deferred**: "History" from shipping's `audit_log`; QC units' sign-off key; the invoice-check
+verdict ("invoice on file, matches") as a feed field.

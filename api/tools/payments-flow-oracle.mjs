@@ -36,11 +36,16 @@ import { pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 const H = require('../test/helpers/paymentsFlow.js');
 
+// Re-pinned 2026-10-06 (Dev) from f9499bc to 77577a1 — the model file's newest commit
+// ("custom due dates"): extras, QC units, top-ups, drafts and plans dating their goods,
+// from-today, due dates set by hand. paymentReviews.ts joined the runtime imports (the
+// sign-off key builders the model files a payment under).
 const SOURCE = {
-    commit: 'f9499bc',
+    commit: '77577a1',
     files: {
-        'src/components/payments/paymentsFlowMath.ts': { lines: 2786, sha256: '4eba847c6bda6cca56ad1545be0273a937fcabe297290a18c7502f407af07aab' },
+        'src/components/payments/paymentsFlowMath.ts': { lines: 4118, sha256: '120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07' },
         'src/components/shared/containerHelpers.ts': { lines: 340, sha256: '50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98' },
+        'src/components/payments/paymentReviews.ts': { lines: 196, sha256: 'c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5' },
     },
 };
 const ZONE = 'Europe/London';
@@ -74,7 +79,7 @@ for (const [rel, want] of Object.entries(SOURCE.files)) {
     const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
     const got = { lines: text.split('\n').length - (text.endsWith('\n') ? 1 : 0), sha256: crypto.createHash('sha256').update(text, 'utf8').digest('hex') };
     if ((got.sha256 !== want.sha256 || got.lines !== want.lines) && !allowOther) {
-        fail(`${rel} is not the frozen f9499bc copy (${got.lines} lines, sha256 ${got.sha256}); pass --allow-other-source to run it anyway`);
+        fail(`${rel} is not the frozen ${SOURCE.commit} copy (${got.lines} lines, sha256 ${got.sha256}); pass --allow-other-source to run it anyway`);
     }
     source.files[rel] = got;
 }

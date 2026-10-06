@@ -30,7 +30,8 @@ export interface ExternalItem {
   id: number;
   source: 'ship' | (string & {});
   extId: string;
-  feedKind: 'deposit' | 'balance' | (string & {});
+  /** Since 2026-10-06: `extra` (an extra charge, or a forwarder's shipment cost) and `qc` (a QC unit) too. */
+  feedKind: 'deposit' | 'balance' | 'extra' | 'qc' | (string & {});
   feedStatus: FeedStatus | (string & {});
   supplier: string | null;
   shippingCompanyId: number | null;
@@ -41,6 +42,8 @@ export interface ExternalItem {
   poNumber: string | null;
   shipmentId: number | null;
   containerRef: string | null;
+  /** What the row is when it is not a PO's goods: "Mould cost", "Freight", "PO charges", "Top-up", "QC units X"; null for goods. */
+  label: string | null;
   currency: string;
   /** Open: still owed. Paid: this payment. */
   amount: Decimal;

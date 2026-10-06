@@ -13,10 +13,13 @@ const PAYMENT_RULE_ESTIMATE_STEPS = {
     ready: ['po', 'pi', 'pi_signed', 'artwork', 'deposit_paid'],
     telex: ['bl', 'etd', 'arrival'],
     document: ['bl', 'etd', 'arrival'],
+    // 2026-10-05: how long after the goods are ready unbooked goods leave — the rule that
+    // dates "not payable yet" balances from today (shipping src/lib/payment-rules.js).
+    departure: ['ready'],
 };
 const PAYMENT_RULE_FREIGHT_MODES = ['sea', 'air', 'road'];
 const EMPTY_PAYMENT_RULE_ESTIMATES = () => ({
-    artwork: null, pi: null, piSigned: null, ready: null, telex: null, document: null,
+    artwork: null, pi: null, piSigned: null, ready: null, telex: null, document: null, departure: null,
     transit: { sea: null, air: null, road: null },
 });
 

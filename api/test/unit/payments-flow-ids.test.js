@@ -56,6 +56,57 @@ test('every form', () => {
     assert.equal(feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'balance', targetId: 7, poId: null }), 'pay-9-bal7');
     assert.equal(feedId({ form: 'spd', shipmentPaymentId: 7, poId: 812 }), 'spd-7-812');
     assert.equal(feedId({ form: 'spd', shipmentPaymentId: 7 }), 'spd-7');
+    // Since the re-pin to 77577a1 (2026-10-06): charges, top-ups, QC units, extras, split parts, PI charges / fqc shares.
+    assert.equal(feedId({ form: 'bal', poId: 812, group: 'd12' }), 'bal-812-d12');
+    assert.equal(feedId({ form: 'chg', poId: 812, group: 's311' }), 'chg-812-s311');
+    assert.equal(feedId({ form: 'fqc', poId: 812, group: 'n' }), 'fqc-812-n');
+    assert.equal(feedId({ form: 'top', poId: 812, group: 's311' }), 'top-812-s311');
+    assert.equal(feedId({ form: 'qc', orderId: 81203 }), 'qc-81203');
+    assert.equal(feedId({ form: 'ext', extraId: 44 }), 'ext-44');
+    assert.equal(feedId({ form: 'pi', invoicePaymentId: 55, group: 's311', of: 'charges' }), 'pi-55-cs311');
+    assert.equal(feedId({ form: 'pi', invoicePaymentId: 55, group: 'n', of: 'fqc' }), 'pi-55-fn');
+    assert.equal(feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'extra', targetId: 44 }), 'pay-9-ext44');
+    assert.equal(feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'qc', targetId: 81203 }), 'pay-9-qc81203');
+    assert.throws(() => feedId({ form: 'pi', invoicePaymentId: 55, of: 'charges' }), /needs its group/);
+    assert.throws(() => feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'extra', targetId: 44, poId: 812 }), /only a balance line/);
+});
+
+test('the TS id, taken apart (parseTsId), and the split part token', () => {
+    const { parseTsId, partToken } = lib;
+    assert.deepEqual(parseTsId('derived:dep:812'), { basis: 'derived', of: 'dep', n: 812, box: null, part: null });
+    assert.deepEqual(parseTsId('derived:bal:812:268'), { basis: 'derived', of: 'bal', n: 812, box: '268', part: null });
+    assert.deepEqual(parseTsId('derived:bal:812:none@open:12'), { basis: 'derived', of: 'bal', n: 812, box: 'none', part: 'open:12' });
+    assert.deepEqual(parseTsId('derived:bal:812:none@none'), { basis: 'derived', of: 'bal', n: 812, box: 'none', part: 'none' });
+    assert.deepEqual(parseTsId('derived:charges:812:122. Air: Freight'), { basis: 'derived', of: 'charges', n: 812, box: '122. Air: Freight', part: null });
+    assert.deepEqual(parseTsId('derived:topup:812:268'), { basis: 'derived', of: 'topup', n: 812, box: '268', part: null });
+    assert.deepEqual(parseTsId('stated:55'), { basis: 'stated', of: null, n: 55, box: null, part: null });
+    assert.deepEqual(parseTsId('stated:55@open:12'), { basis: 'stated', of: null, n: 55, box: null, part: 'open:12' });
+    assert.deepEqual(parseTsId('stated:55:268'), { basis: 'stated', of: null, n: 55, box: '268', part: null });
+    assert.deepEqual(parseTsId('stated:55:none@none'), { basis: 'stated', of: null, n: 55, box: 'none', part: 'none' });
+    assert.deepEqual(parseTsId('stated:55:charges:268'), { basis: 'stated', of: 'charges', n: 55, box: '268', part: null });
+    assert.deepEqual(parseTsId('extra:44'), { basis: 'extra', of: null, n: 44, box: null, part: null });
+    assert.deepEqual(parseTsId('qc:81203'), { basis: 'qc', of: null, n: 81203, box: null, part: null });
+    assert.throws(() => parseTsId('derived:what:1:2'), /unexpected item id/);
+    assert.equal(partToken('open:12'), 'd12');
+    assert.equal(partToken('none'), 'n');
+    assert.throws(() => partToken('open:x'), /unknown split part/);
+});
+
+test('itemFeedId on the new item kinds', () => {
+    const map = new Map([['268', 311]]);
+    const id = (tsId, extra = {}) => itemFeedId({ id: tsId, ...extra }, { shipmentIdByRef: map });
+    assert.equal(id('derived:bal:812:none@open:12'), 'bal-812-d12');
+    assert.equal(id('derived:bal:812:none@none'), 'bal-812-n');
+    assert.equal(id('derived:charges:812:268'), 'chg-812-s311');
+    assert.equal(id('derived:charges:812:none'), 'chg-812-n');
+    assert.equal(id('derived:fqc:812:268'), 'fqc-812-s311');
+    assert.equal(id('derived:topup:812:268'), 'top-812-s311');
+    assert.equal(id('stated:55:charges:268'), 'pi-55-cs311');
+    assert.equal(id('stated:55:none'), 'pi-55-n');
+    assert.equal(id('stated:55:none@open:12'), 'pi-55-d12');
+    assert.equal(id('stated:55@open:12'), 'pi-55-d12');
+    assert.equal(id('extra:44'), 'ext-44');
+    assert.equal(id('qc:81203'), 'qc-81203');
 });
 
 test('the longest ids still fit the grammar', () => {
@@ -65,7 +116,10 @@ test('the longest ids still fit the grammar', () => {
         { form: 'pay', supplierPaymentId: big, lineKind: 'po_deposit', targetId: big },
         { form: 'pay', supplierPaymentId: big, lineKind: 'balance', targetId: big, poId: big },
         { form: 'pi', invoicePaymentId: big, group: `s${big}` },
+        { form: 'pi', invoicePaymentId: big, group: `d${big}`, of: 'charges' },
         { form: 'bal', poId: big, group: 'rffffffffff' },
+        { form: 'top', poId: big, group: `d${big}` },
+        { form: 'pay', supplierPaymentId: big, lineKind: 'extra', targetId: big },
     ]) assert.match(feedId(parts), GRAMMAR);
 });
 
@@ -106,13 +160,25 @@ test('<g>: the shipment id when the ref is spelt as the shipment\'s, else a hash
 
 // ── Whole outputs ────────────────────────────────────────────────────────
 
-// The TS id each open item carries, parsed: the form must agree with the feed id.
+// The TS id each open item carries, parsed independently of ids.js: the form must agree with the feed id.
+const FORM = { bal: 'bal', charges: 'chg', fqc: 'fqc', topup: 'top' };
+const OF = { charges: 'c', fqc: 'f' };
+function partOrBox(part, box, map) {
+    if (part != null) return part === 'none' ? 'n' : `d${part.slice('open:'.length)}`;
+    return groupToken(box === 'none' ? null : box, map);
+}
 function tsForm(it, map) {
+    const at = it.id.lastIndexOf('@');
+    const part = at === -1 ? null : it.id.slice(at + 1);
+    const head = at === -1 ? it.id : it.id.slice(0, at);
     let m;
-    if ((m = /^derived:dep:(\d+)$/.exec(it.id))) return `dep-${m[1]}`;
-    if ((m = /^derived:bal:(\d+):(.*)$/.exec(it.id))) return `bal-${m[1]}-${groupToken(m[2] === 'none' ? null : m[2], map)}`;
-    if ((m = /^stated:(\d+):(.*)$/.exec(it.id))) return `pi-${m[1]}-${groupToken(m[2] === 'none' ? null : m[2], map)}`;
-    if ((m = /^stated:(\d+)$/.exec(it.id))) return `pi-${m[1]}`;
+    if ((m = /^derived:dep:(\d+)$/.exec(head))) return `dep-${m[1]}`;
+    if ((m = /^derived:(bal|charges|fqc|topup):(\d+):(.*)$/s.exec(head))) return `${FORM[m[1]]}-${m[2]}-${partOrBox(part, m[3], map)}`;
+    if ((m = /^stated:(\d+):(charges|fqc):(.*)$/s.exec(head))) return `pi-${m[1]}-${OF[m[2]]}${partOrBox(part, m[3], map)}`;
+    if ((m = /^stated:(\d+):(.*)$/s.exec(head))) return `pi-${m[1]}-${partOrBox(part, m[2], map)}`;
+    if ((m = /^stated:(\d+)$/.exec(head))) return part == null ? `pi-${m[1]}` : `pi-${m[1]}-${partOrBox(part, null, map)}`;
+    if ((m = /^extra:(\d+)$/.exec(head))) return `ext-${m[1]}`;
+    if ((m = /^qc:(\d+)$/.exec(head))) return `qc-${m[1]}`;
     throw new Error(`unexpected TS id ${it.id}`);
 }
 
@@ -122,8 +188,8 @@ for (const name of H.listFixtures()) {
         const flow = flowOf(fixture);
         const map = H.shipmentIdByRef(fixture);
         const items = flow.currencies.flatMap(c => c.items);
-        // The per-currency lists hold every PO's items, once.
-        assert.equal(items.length, flow.currencies.flatMap(c => c.pos.flatMap(p => p.items)).length);
+        // The per-currency lists hold every PO's items, once — plus the extras, which belong to no PO summary.
+        assert.equal(items.filter(it => it.extraId == null).length, flow.currencies.flatMap(c => c.pos.flatMap(p => p.items)).length);
         const ids = items.map(it => itemFeedId(it, { shipmentIdByRef: map }));
         for (const id of ids) assert.match(id, GRAMMAR);
         assert.equal(new Set(ids).size, ids.length, `duplicate feed ids: ${ids.filter((x, i) => ids.indexOf(x) !== i)}`);
@@ -202,7 +268,13 @@ for (const name of ['multi-container', 'allocated-shared-invoice', 'draft-contai
         assert.ok(base.length >= 3, `${name} has too few items to say much`);
         assert.deepEqual(openIds(driftDates(fixture, 9)).sort(), base, 'dates +9');
         assert.deepEqual(openIds(driftDates(fixture, -4)).sort(), base, 'dates −4');
-        assert.deepEqual(openIds(driftAmounts(fixture)).sort(), base, 'amounts');
+        // Since 77577a1 an amount change can mint or retire rows of its own: lines growing
+        // past a paid container make a top-up row (top-), and lines growing past the PI total
+        // leave no charges above them (chg- / pi-…-c…). Every other id survives.
+        const drifted = openIds(driftAmounts(fixture)).sort();
+        const isCharges = (id) => /^chg-|^pi-\d+-c/.test(id);
+        for (const id of base.filter((id) => !isCharges(id))) assert.ok(drifted.includes(id), `amounts: ${id} survives`);
+        for (const id of drifted.filter((id) => !base.includes(id))) assert.match(id, /^top-\d+-/, `amounts: a new row is a top-up, got ${id}`);
         const nextDay = clone(fixture);
         nextDay.input.today = lib.addDays(fixture.input.today, 1);
         assert.deepEqual(openIds(nextDay).sort(), base, 'today +1');
