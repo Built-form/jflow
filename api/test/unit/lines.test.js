@@ -223,3 +223,24 @@ describe('module boundary', () => {
         expect(src).not.toMatch(/assumedSettled|settledBeforeAnchor|unresolved|overdue/);
     });
 });
+
+describe('shipDateMoved (the `date_moved` mark; handover doc "Dates set by hand")', () => {
+    const { shipDateMoved, DATE_MOVED_DAYS } = require('../../src/lib/lines');
+    const TODAY = '2026-10-20';
+
+    test('14 days, inclusive, counted on the move\'s UTC calendar day; nothing without a move', () => {
+        expect(DATE_MOVED_DAYS).toBe(14);
+        expect(shipDateMoved({ dueDateMovedAt: '2026-10-20T08:00:00.000Z' }, TODAY)).toBe(true);
+        expect(shipDateMoved({ dueDateMovedAt: '2026-10-06T23:59:59.000Z' }, TODAY)).toBe(true);
+        expect(shipDateMoved({ dueDateMovedAt: '2026-10-05T23:59:59.000Z' }, TODAY)).toBe(false);
+        expect(shipDateMoved({ dueDateMovedAt: new Date('2026-10-10T10:00:00Z') }, TODAY)).toBe(true);
+        expect(shipDateMoved({ dueDateMovedAt: null }, TODAY)).toBe(false);
+        expect(shipDateMoved({}, TODAY)).toBe(false);
+    });
+
+    test('a move dated after today (a clock ahead of the request) and a bad value are not a mark', () => {
+        expect(shipDateMoved({ dueDateMovedAt: '2026-10-21T00:00:00.000Z' }, TODAY)).toBe(false);
+        expect(shipDateMoved({ dueDateMovedAt: 'yesterday' }, TODAY)).toBe(false);
+        expect(shipDateMoved({ dueDateMovedAt: '2026-10-20T08:00:00.000Z' }, 'not a day')).toBe(false);
+    });
+});

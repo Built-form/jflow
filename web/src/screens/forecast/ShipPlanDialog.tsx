@@ -9,7 +9,7 @@ import { ErrorNote, Loading, Tag, Toggle } from '../../components/ui';
 import { formatDay, isValidDate } from '../../lib/dates';
 import { flagTags, shortDay } from '../../lib/grid';
 import { formatMinor, formatMoney } from '../../lib/money';
-import { PLAN_STALE_TAG, shipFlagNotes } from '../../lib/ship';
+import { PLAN_STALE_TAG, dueSetClause, shipFlagNotes } from '../../lib/ship';
 import { QUICK_SHIFTS, shiftedDate } from './edit';
 import type { PlanAction, PlanForm } from './shipPlan';
 import {
@@ -137,7 +137,9 @@ function PlanFormDialog({
   const submit = useSubmit();
   const check = checkPlan(target, form, today);
   const revert = revertAction(target);
-  const notes = shipFlagNotes(target.flags, { blocked: target.blocked });
+  const notes = shipFlagNotes(target.flags, {
+    blocked: target.blocked, dueSet: target.dueSet, dateMovedFrom: target.dateMovedFrom, dateMovedAt: target.dateMovedAt,
+  });
   const tags = flagTags(target.flags);
   if (target.planStale) tags.push(PLAN_STALE_TAG);
 
@@ -169,7 +171,8 @@ function PlanFormDialog({
       <DialogBody>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div data-testid="ship-feed">
-            Shipping says <span className="mono" style={{ color: 'var(--text)' }}>{feedAmount}</span> on {feedDate}.
+            Shipping says <span className="mono" style={{ color: 'var(--text)' }}>{feedAmount}</span> on {feedDate}
+            {dueSetClause(target.dueSet)}.
           </div>
           {target.planned && (
             <div data-testid="ship-planned">

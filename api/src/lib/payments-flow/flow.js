@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; buildPaymentsFlow(input, {claims: true}) also returns balanceClaims (JFlow feed; without the option the output is the TS's)
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; buildPaymentsFlow(input, {claims: true}) also returns balanceClaims (JFlow feed; without the option the output is the TS's); input.dueOverrides applied before the owed-air pass and owed air with a set date stays put (both from the TS @ 6565188, ported ahead of the re-pin — ./overrides.js; without rows nothing changes)
 'use strict';
 
 // Whole-model assembly: buildPaymentsFlow. Resolves balance invoices into
@@ -22,6 +22,7 @@ const { parsePaymentTerms } = require('./terms');
 const { normName, looseName, indexSuppliersByName, matchSupplier } = require('./suppliers');
 const { canonicalizeRules, resolvePolicy } = require('./policy');
 const { summarizePo } = require('./po');
+const { applyDueOverrides } = require('./overrides');
 
 /** Display order for currency tabs; anything else follows alphabetically. */
 const CURRENCY_ORDER = ['USD', 'EUR', 'GBP', 'CNY', 'HKD', 'SGD'];
@@ -372,6 +373,12 @@ function buildPaymentsFlow(input, options) {
         if (s.items.length || s.excluded == null)
             issuesByCurrency.get(s.currency).push(...issues);
     }
+    // ── Due dates set by hand (TS @ 6565188; ./overrides.js) ─────────────
+    // A date someone gave a payment, or one row of it, replaces the derived
+    // one before anything downstream reads it. No rows → nothing changes.
+    const dueByKey = new Map();
+    for (const d of input.dueOverrides ?? []) dueByKey.set(d.key, d);
+    for (const pos of summariesByCurrency.values()) for (const p of pos) applyDueOverrides(p.items, dueByKey);
     // ── Owed air freight: when it will actually go ───────────────────────
     // It is paid with the supplier's next transfer — the next dated payment to
     // them in the same currency — but never later than the rule's limit after
@@ -385,7 +392,8 @@ function buildPaymentsFlow(input, options) {
         const all = pos.flatMap(p => p.items);
         const transfers = (input.supplierPayments ?? []).filter(sp => (sp.currency || 'USD').toUpperCase() === currency);
         for (const it of all) {
-            if (!it.flags.includes('air_owed') || !it.deliveredOn || !it.airLimitDate)
+            // A date set by hand keeps owed air where it was put (TS @ 6565188).
+            if (!it.flags.includes('air_owed') || !it.deliveredOn || !it.airLimitDate || it.dueOverride)
                 continue;
             const sup = looseName(it.supplier);
             const ref = (it.containerNumber ?? '').trim().toUpperCase();

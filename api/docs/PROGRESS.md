@@ -945,3 +945,45 @@ explorer-test `jflow` schema, so every change has an audit row; the test stack s
 
 Result: 106 stock payment lines are placed in the window to 31 Dec (92 on HSBC, 14 on
 Hangerworld Current). Only the 21 rows with no company in shipping stay unmapped.
+
+## Phase 2 — Dates set by hand in ShipLine reach JFlow's rows (2026-10-06)
+
+ShipLine's Payments flow page lets a person set a payment's due date by hand (shipping table
+`payment_due_dates`, 2026-10-06). The handover doc "JFlow ↔ Payments flow handover", section
+"Dates set by hand", asked for three things, built here ahead of the full re-pin (the port
+stays at `f9499bc` everywhere else):
+- **The model.** `lib/payments-flow/overrides.js` — `applyDueOverrides`, `dueOverrideKeys`
+  and the sign-off key builders, ported from ShipLine `6565188`; `buildPaymentsFlow` takes
+  `input.dueOverrides` (optional; the golden suite is unchanged because the fixtures carry
+  none) and applies them before the owed-air pass, as the TS does. `shippingReads.js` reads
+  `payment_due_dates` (+ `shipping_allowed_emails.display_name` for the setter's name) as
+  **optional tables** (`OPTIONAL_COLUMNS`; `checkSchema` → `{optional}`; the table is not on
+  production until the next shipping deploy, and its absence is "no dates set by hand", never
+  `source_schema`). `shiplinePage.js` passes `dueOverrides` through like the page does.
+- **The feed.** A row carries `dueSet {by, email, at, derivedDate, scope, note}` (null when
+  derived); `validateFeed` checks it; `external_items.due_set_json` is a new **feed column**
+  (last in `FEED_COLUMNS`, so every stored hash moves once on the first run after the deploy —
+  one "updated" sweep, nothing else). Migration `2026-10-06_jflow_due_set.sql`; `SCHEMA_VERSION`
+  `2026-10-06.3`. The row JSON (§6.12) and the forecast's `ship` block (§6.10) carry it.
+- **The date moved.** The refresh records a move of the feed's `due_date` (a set, a clear, a
+  derived date that changed) in `due_date_prev` / `due_date_moved_at` — refresh-owned, not
+  hashed, like `gone_at`; never when a `from_today` row only slid a day (`dueDateMoved`,
+  `MOVED_FLAG_EXEMPT`). `lib/lines.js shipDateMoved` (14 days, `DATE_MOVED_DAYS`) gives the
+  engine's `date_moved` flag, `ship.dateMovedFrom` / `dateMovedAt`, and the row's `dateMoved`.
+- **Web.** A set date wears ShipLine's mark (✎, dotted underline), a "set by … on … · derived …"
+  line and the note on Stock payments; `SET IN SHIPPING` / `DATE MOVED` tags everywhere flags
+  show; `shipFlagNotes` sentences; the dialogs' "Shipping says …" gains "(set by hand by … ;
+  shipping's derived date was …)"; "moved from … on …" under a moved date for 14 days. A JFlow
+  `plannedDate` still wins (handover open question 2).
+
+**Not run here:** the e2e suites (no database on this machine). They were brought in line
+and extended without being run: `shipping-refresh.test.js` now has a move case (a changed
+`due_date` writes `due_date_prev` / `due_date_moved_at` and counts `moved`; a `from_today`
+slide does not; back to the derived date is a move again), a `due_set_json` round trip through
+`GET /external-items/:key`, and the three new columns in the migration check; the row-key lists
+in `ship-overlay.test.js` / `forecast-ship.test.js` and the exact `ship` block carry the new
+fields. `migrate.test.js`'s first-two-files check still holds (the new file sorts third). Run
+`npm run test:e2e` on a machine with the explorer-test database before relying on them.
+
+**Deferred:** the full re-pin to `6565188` (handover doc section 7, steps 2–5); an on-demand
+"History" line from shipping's `audit_log` (`entity_type = 'payment_due_date'`).

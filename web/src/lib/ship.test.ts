@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { flagTags } from './grid';
 import {
+  DUE_SET_STYLE,
   HATCH,
   PLAN_STALE_TAG,
   blockedText,
+  dateMovedLine,
+  dateMovedText,
+  dueSetClause,
+  dueSetLine,
+  dueSetText,
   isShipKey,
   lastSyncText,
   shipExtId,
@@ -51,21 +57,25 @@ describe('how a ship line looks, from its server flags', () => {
   });
 
   it('reads each feed flag on its own; none of them is inferred from another', () => {
-    expect(shipLook(['blocked'])).toEqual({ estimated: false, projected: false, blocked: true, planned: false });
-    expect(shipLook(['estimated', 'projected', 'blocked', 'planned'])).toEqual({
+    expect(shipLook(['blocked'])).toEqual({ estimated: false, projected: false, blocked: true, planned: false, dueSet: false, dateMoved: false });
+    expect(shipLook(['estimated', 'projected', 'blocked', 'planned', 'due_set', 'date_moved'])).toEqual({
       estimated: true,
       projected: true,
       blocked: true,
       planned: true,
+      dueSet: true,
+      dateMoved: true,
     });
   });
 
-  it('names and colours the four feed flags as tags, in the order the server sent them', () => {
-    expect(flagTags(['estimated', 'projected', 'blocked', 'planned', 'overdue'])).toEqual([
+  it('names and colours the six feed flags as tags, in the order the server sent them', () => {
+    expect(flagTags(['estimated', 'projected', 'blocked', 'planned', 'due_set', 'date_moved', 'overdue'])).toEqual([
       { flag: 'estimated', label: 'ESTIMATED', tone: 'idle' },
       { flag: 'projected', label: 'PROJECTED', tone: 'idle' },
       { flag: 'blocked', label: 'BLOCKED', tone: 'warn' },
       { flag: 'planned', label: 'PLANNED', tone: 'live' },
+      { flag: 'due_set', label: 'SET IN SHIPPING', tone: 'live' },
+      { flag: 'date_moved', label: 'DATE MOVED', tone: 'warn' },
       { flag: 'overdue', label: 'OVERDUE', tone: 'warn' },
     ]);
     expect(PLAN_STALE_TAG).toEqual({ flag: 'planStale', label: 'PLAN IGNORED', tone: 'warn' });
@@ -192,5 +202,53 @@ describe('unmappedNote (SHIP_UNMAPPED in words)', () => {
     expect(note({ shippingCompanyId: 1, reason: 'account', companyId: 12, currencies: ['CNY'] }).text).toBe(
       "1 stock payment (CNY) for company #12 has no account to land on: add an account in that currency, or mark one of company #12's accounts as default.",
     );
+  });
+});
+
+describe('a date set by hand in ShipLine, and a date that moved (handover doc "Dates set by hand")', () => {
+  const dueSet = {
+    by: 'Ops', email: 'ops@example.com', at: '2026-10-06T09:30:00.000Z', derivedDate: '2026-11-01',
+    scope: 'item' as const, note: 'agreed with the supplier',
+  };
+
+  it('is a look of its own: ShipLine\'s dotted underline, never the estimate\'s hatch', () => {
+    expect(shipLook(['due_set', 'date_moved'])).toMatchObject({ dueSet: true, dateMoved: true, estimated: false });
+    expect(shipLook([])).toMatchObject({ dueSet: false, dateMoved: false });
+    expect(shipLineStyle(['due_set'])).toEqual(DUE_SET_STYLE);
+    expect(shipLineStyle(['due_set']).backgroundImage).toBeUndefined();
+    expect(shipLineStyle(['estimated'])).toEqual({ fontStyle: 'italic', backgroundImage: HATCH });
+    expect(shipLineStyle(['date_moved'])).toEqual({});
+  });
+
+  it('says who set the date, when, in place of what, for what, and why — as ShipLine\'s hover does', () => {
+    expect(dueSetText(dueSet)).toBe(
+      'Set by hand in shipping by Ops on Tue 6 Oct 2026, in place of Sun 1 Nov 2026 (this row only): “agreed with the supplier”.',
+    );
+    expect(dueSetText({ ...dueSet, scope: 'payment', note: null, derivedDate: null })).toBe(
+      'Set by hand in shipping by Ops on Tue 6 Oct 2026, in place of no date.',
+    );
+    expect(dueSetLine(dueSet)).toBe('set by Ops on Tue 6 Oct 2026 · derived Sun 1 Nov 2026');
+    expect(dueSetLine({ ...dueSet, derivedDate: null })).toBe('set by Ops on Tue 6 Oct 2026 · derived no date');
+    expect(dueSetClause(dueSet)).toBe(" (set by hand by Ops on Tue 6 Oct 2026; shipping's derived date was Sun 1 Nov 2026)");
+    expect(dueSetClause({ ...dueSet, derivedDate: null })).toBe(' (set by hand by Ops on Tue 6 Oct 2026; shipping had no date of its own)');
+    expect(dueSetClause(null)).toBe('');
+  });
+
+  it('says where a moved date moved from, and when', () => {
+    expect(dateMovedText('2026-10-05', '2026-10-06T07:00:00.000Z')).toBe('Shipping moved this date from Mon 5 Oct 2026 on Tue 6 Oct 2026.');
+    expect(dateMovedText(null, '2026-10-06T07:00:00.000Z')).toBe('Shipping moved this date from no date on Tue 6 Oct 2026.');
+    expect(dateMovedLine('2026-10-05', '2026-10-06T07:00:00.000Z')).toBe('moved from Mon 5 Oct 2026 on Tue 6 Oct 2026');
+  });
+
+  it('explains both flags in the notes, from the ship block, and still says something without it', () => {
+    expect(shipFlagNotes(['due_set', 'date_moved', 'planned'], { dueSet, dateMovedFrom: '2026-10-05', dateMovedAt: '2026-10-06T07:00:00.000Z' })).toEqual([
+      'Set by hand in shipping by Ops on Tue 6 Oct 2026, in place of Sun 1 Nov 2026 (this row only): “agreed with the supplier”.',
+      'Shipping moved this date from Mon 5 Oct 2026 on Tue 6 Oct 2026.',
+      "Planned in JFlow: this date, amount or skip is JFlow's, not shipping's.",
+    ]);
+    expect(shipFlagNotes(['due_set', 'date_moved'])).toEqual([
+      'The date was set by hand in shipping.',
+      'Shipping moved this date recently.',
+    ]);
   });
 });

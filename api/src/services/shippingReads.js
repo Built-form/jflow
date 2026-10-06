@@ -14,6 +14,7 @@
 
 const { rowToOrder } = require('../lib/shippingCopy/orderShape');
 const M = require('../lib/shippingCopy/ordersMappers');
+const D = require('../lib/shippingCopy/paymentDueDates');
 const { paymentRuleRowToJson } = require('../lib/shippingCopy/paymentRules');
 const S = require('../lib/shippingCopy/shipments');
 const page = require('../lib/shippingCopy/shiplinePage');
@@ -52,6 +53,18 @@ const SOURCE_COLUMNS = Object.freeze({
     companies: ['id', 'name'],
     draft_container_documents: ['id', 'shipment_id', 'type', 'generated_at', 'deleted_at'],
     quality_assurance_documents: ['id', 'shipment_id', 'generated_at', 'deleted_at'],
+});
+
+/**
+ * Tables read only when they are there (handover doc "Dates set by hand", 2026-10-06,
+ * its last open question): shipping's `payment_due_dates` reaches a stage with a shipping
+ * deploy, so its absence means "no dates set by hand", never `source_schema`; the users
+ * table only names who set a date. services/shippingSource.js checkSchema says which
+ * are whole, and loadSources reads them accordingly.
+ */
+const OPTIONAL_COLUMNS = Object.freeze({
+    payment_due_dates: ['id', 'target_key', 'due_date', 'note', 'set_by_email', 'updated_at'],
+    shipping_allowed_emails: ['email', 'display_name'],
 });
 
 const ph = (list) => list.map(() => '?').join(',');
@@ -361,11 +374,36 @@ async function loadSuppliers(q, t) {
     return rows.map(page.supplierFromRow);
 }
 
+// ── GET /api/v1/payment-due-dates (payment-due-date-routes.js: SELECT d.*, setter) ──
+
+/**
+ * Every due date set by hand, as the route sends them (lib/shippingCopy/paymentDueDates.js).
+ * `withNames` false (no readable users table): `setByName` is null and the page falls
+ * back to the email, as ShipLine's hover does.
+ */
+async function loadPaymentDueDates(q, t, { withNames = true } = {}) {
+    const [rows] = withNames
+        ? await q.query(
+            `SELECT d.id, d.target_key, d.due_date, d.note, d.set_by_email, d.updated_at, u.display_name AS setter_name
+               FROM ${t('payment_due_dates')} d
+               LEFT JOIN ${t('shipping_allowed_emails')} u ON u.email = d.set_by_email
+              ORDER BY d.id`
+        )
+        : await q.query(
+            `SELECT d.id, d.target_key, d.due_date, d.note, d.set_by_email, d.updated_at, NULL AS setter_name
+               FROM ${t('payment_due_dates')} d
+              ORDER BY d.id`
+        );
+    return rows.map(D.rowToJson);
+}
+
 /**
  * Every payload the page's model reads, as JSON. `shipmentDocuments` is filled by
- * loadShipmentDocuments once the targets are known (shippingSource.js).
+ * loadShipmentDocuments once the targets are known (shippingSource.js). `optional`
+ * (checkSchema's) says which OPTIONAL_COLUMNS tables are whole: `paymentDueDates` is
+ * read only then, and says so (`read`).
  */
-async function loadSources(q, t) {
+async function loadSources(q, t, { optional = {} } = {}) {
     const orders = await loadOrders(q, t);
     const purchaseOrders = await loadPurchaseOrdersForOrders(q, t, orders);
     const shipmentsById = await loadShipmentsForOrders(q, t, orders);
@@ -376,6 +414,10 @@ async function loadSources(q, t) {
     const shipmentPayments = await loadShipmentPayments(q, t);
     const supplierPayments = await loadSupplierPayments(q, t);
     const suppliers = await loadSuppliers(q, t);
+    const readDueDates = Boolean(optional.payment_due_dates);
+    const paymentDueDates = readDueDates
+        ? await loadPaymentDueDates(q, t, { withNames: Boolean(optional.shipping_allowed_emails) })
+        : [];
     return viaJson({
         orders: { data: orders, purchaseOrders, shipments: shipmentsById },
         containers: { data: containers },
@@ -386,6 +428,7 @@ async function loadSources(q, t) {
         supplierPayments: { data: supplierPayments },
         suppliers,
         shipmentDocuments: {},
+        paymentDueDates: { data: paymentDueDates, read: readDueDates },
     });
 }
 
@@ -409,7 +452,9 @@ async function loadPoDirectory(q, t, ids) {
 
 module.exports = {
     SOURCE_COLUMNS,
+    OPTIONAL_COLUMNS,
     loadSources,
+    loadPaymentDueDates,
     loadShipmentDocuments,
     loadCompanies,
     loadPoDirectory,

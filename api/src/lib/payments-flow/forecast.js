@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; new, not in the TS: JFlow feed rows (toForecastRows), taken from the shipping step-18 draft with its route-only filterForecastRows dropped
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; new, not in the TS: JFlow feed rows (toForecastRows), taken from the shipping step-18 draft with its route-only filterForecastRows dropped; a row's `dueSet` (the story of a date set by hand, from PaymentItem.dueOverride — overrides.js, 2026-10-06)
 'use strict';
 
 // The JFlow feed — the `items` of the body services/shippingSource.js returns
@@ -167,6 +167,29 @@ function splitCents(cents, parts) {
 }
 
 /**
+ * The story of a date set by hand (handover doc "Dates set by hand"): who, when,
+ * in place of which derived date, for the whole payment or this row, and why.
+ * `by` is the setter's display name, else the part of the email before @ — what
+ * ShipLine's hover says (paymentsCopy.ts dueSetText). Null when the date is derived.
+ * @param {PaymentItem} item
+ * @returns {import('./types').FeedDueSet|null}
+ */
+function dueSetOf(item) {
+    const o = item.dueOverride;
+    if (!o) return null;
+    const name = typeof o.setByName === 'string' ? o.setByName.trim() : '';
+    const email = String(o.setByEmail ?? '');
+    return {
+        by: name || email.split('@')[0],
+        email,
+        at: o.setAt,
+        derivedDate: o.derivedDueDate ?? null,
+        scope: o.scope,
+        note: o.note ?? null,
+    };
+}
+
+/**
  * @param {PaymentItem} item
  * @param {FeedContext} ctx
  * @returns {FeedRow}
@@ -193,6 +216,7 @@ function openRow(item, ctx) {
         paidOn: null,
         settles: null,
         flags: [...item.flags],
+        dueSet: dueSetOf(item),
     };
 }
 
@@ -218,6 +242,7 @@ function paidRow(fact, { id, kind, poId, cents, settles, containerRef, shipmentI
         paidOn: fact.paidOn,
         settles: settles ?? null,
         flags: [],
+        dueSet: null,
     };
 }
 
@@ -309,5 +334,5 @@ function toForecastRows(flow, paidRows, ctx = {}) {
 }
 
 module.exports = {
-    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows,
+    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, dueSetOf, toForecastRows,
 };

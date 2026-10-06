@@ -9,6 +9,7 @@ const M = require('../../src/lib/shippingCopy/ordersMappers');
 const { paymentRuleRowToJson } = require('../../src/lib/shippingCopy/paymentRules');
 const { rowToShipment, effectiveStage } = require('../../src/lib/shippingCopy/shipments');
 const page = require('../../src/lib/shippingCopy/shiplinePage');
+const D = require('../../src/lib/shippingCopy/paymentDueDates');
 
 describe('orderShape (shipping/src/lib/order-shape.js)', () => {
     test('dates: DATE strings pass, DATETIME Dates become ISO, zero and invalid dates are null', () => {
@@ -68,6 +69,20 @@ describe('ShipLine api.ts + PaymentsFlowView (f9499bc)', () => {
         });
     });
 
+    test('pageInput: due dates set by hand pass through as dueOverrides; none read → []', () => {
+        const empty = {
+            orders: { data: [], purchaseOrders: {}, shipments: {} }, containers: { data: [] }, invoicePayments: { data: [] },
+            paymentRules: { data: [] }, shipments: { data: [] }, shipmentPayments: { data: [] }, supplierPayments: { data: [] },
+            suppliers: [], shipmentDocuments: {},
+        };
+        const row = { id: 7, key: 'item:derived:bal:368:330', scope: 'item', dueDate: '2026-11-20', note: null, setByEmail: 'ops@example.com', setByName: 'Ops', setAt: '2026-10-06T09:30:00.000Z' };
+        const { input } = page.pageInput({ ...empty, paymentDueDates: { data: [row], read: true } }, '2026-10-06');
+        expect(input.dueOverrides).toEqual([row]);
+        expect(Object.keys(input).slice(-2)).toEqual(['dueOverrides', 'today']);
+        expect(page.pageInput({ ...empty, paymentDueDates: { data: [], read: false } }, '2026-10-06').input.dueOverrides).toEqual([]);
+        expect(page.pageInput(empty, '2026-10-06').input.dueOverrides).toEqual([]);
+    });
+
     test('shipmentIdByRef: the orders\' side-map first, then the list', () => {
         const map = page.shipmentIdByRefOf({ 5: { id: 5, reference: 'R1 ' } }, [{ id: 6, reference: 'R1' }, { id: 7, reference: 'R2' }]);
         expect([...map]).toEqual([['R1', 5], ['R2', 7]]);
@@ -84,6 +99,21 @@ describe('ShipLine api.ts + PaymentsFlowView (f9499bc)', () => {
         expect(page.documentTargets({ rules: [], shipments, orders, suppliers: [] })).toEqual([]);
         const many = Array.from({ length: 50 }, (_, i) => ({ id: i + 1, reference: 'A1', stage: 'BOOKED' }));
         expect(page.documentTargets({ rules, shipments: many, orders, suppliers: [] })).toHaveLength(page.MAX_DOCUMENT_FETCHES);
+    });
+});
+
+describe('paymentDueDates (shipping payment-due-dates.js rowToJson)', () => {
+    test('a row as GET /api/v1/payment-due-dates sends it: scope from the key, DATE as YYYY-MM-DD, setAt = updated_at as ISO, blank note and no name → null', () => {
+        const row = {
+            id: 7, target_key: 'item:derived:bal:368:330', due_date: '2026-11-20', note: '', set_by_email: 'ops@example.com',
+            updated_at: new Date('2026-10-06T09:30:00Z'), setter_name: null,
+        };
+        expect(D.rowToJson(row)).toEqual({
+            id: 7, key: 'item:derived:bal:368:330', scope: 'item', dueDate: '2026-11-20', note: null,
+            setByEmail: 'ops@example.com', setByName: null, setAt: '2026-10-06T09:30:00.000Z',
+        });
+        expect(D.rowToJson({ ...row, target_key: 'balance:USD:330|acme', due_date: new Date('2026-11-20T00:00:00Z'), note: 'why', setter_name: 'Ops', updated_at: '2026-10-06T09:30:00.000Z' }))
+            .toMatchObject({ scope: 'payment', dueDate: '2026-11-20', note: 'why', setByName: 'Ops', setAt: '2026-10-06T09:30:00.000Z' });
     });
 });
 

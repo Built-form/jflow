@@ -1,4 +1,4 @@
-// Copied from ShipLine src/api.ts, src/components/payments/PaymentsFlowView.tsx and src/components/shared/containerHelpers.ts @ f9499bc — changes: TS → CommonJS, types stripped; api.ts mapOrder / fromApiStatus / isZeroDate / normalizePaymentRule verbatim in behaviour; getSuppliers' row mapping trimmed to supplierId, name, paymentTerms with tags always [] (PHASE2 Q5, CONTRACT §11); PaymentsFlowView's documentTargets / containerEvents / shipmentIdByRef memos and its buildPaymentsFlow({...}) call as plain functions over the loaded payloads (pageState, pageInput); indexContainers verbatim
+// Copied from ShipLine src/api.ts, src/components/payments/PaymentsFlowView.tsx and src/components/shared/containerHelpers.ts @ f9499bc — changes: TS → CommonJS, types stripped; api.ts mapOrder / fromApiStatus / isZeroDate / normalizePaymentRule verbatim in behaviour; getSuppliers' row mapping trimmed to supplierId, name, paymentTerms with tags always [] (PHASE2 Q5, CONTRACT §11); PaymentsFlowView's documentTargets / containerEvents / shipmentIdByRef memos and its buildPaymentsFlow({...}) call as plain functions over the loaded payloads (pageState, pageInput); indexContainers verbatim; `dueOverrides` (getPaymentDueDates → buildPaymentsFlow) passed through as the page does @ 6565188, ahead of the re-pin (2026-10-06)
 'use strict';
 
 // What ShipLine's Payments page does between its fetches and buildPaymentsFlow,
@@ -106,6 +106,9 @@ function pageState(sources) {
         shipmentPayments: sources.shipmentPayments.data ?? [],
         supplierPayments: sources.supplierPayments.data ?? [],
         suppliers: sources.suppliers ?? [],
+        // Due dates set by hand (page @ 6565188: api.getPaymentDueDates); [] when the
+        // table is not there yet (shippingReads.js loadSources).
+        dueOverrides: sources.paymentDueDates?.data ?? [],
     };
 }
 
@@ -191,6 +194,7 @@ function pageInput(sources, today) {
         shipmentPayments: st.shipmentPayments,
         shipmentPaymentDocuments: [],
         supplierPayments: st.supplierPayments,
+        dueOverrides: st.dueOverrides,
         today,
     };
     return { input, shipmentIdByRef: shipmentIdByRefOf(st.shipmentsById, st.shipments) };

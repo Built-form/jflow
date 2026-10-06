@@ -177,6 +177,10 @@ export const FLAG_LABEL: Record<string, { label: string; tone: Tone }> = {
   projected: { label: 'PROJECTED', tone: 'idle' },
   blocked: { label: 'BLOCKED', tone: 'warn' },
   planned: { label: 'PLANNED', tone: 'live' },
+  // 2026-10-06: the feed's date was set by hand in ShipLine; the refresh moved the feed's
+  // date within the last 14 days (lib/ship.ts says by whom and from what).
+  due_set: { label: 'SET IN SHIPPING', tone: 'live' },
+  date_moved: { label: 'DATE MOVED', tone: 'warn' },
 };
 
 /**

@@ -93,10 +93,13 @@ async function openSourceConnection() {
 
 /**
  * Step 2: every column the reads touch must exist and be readable in `schema`.
- * Throws unavailable('source_schema') naming what is missing (names only).
+ * Throws unavailable('source_schema') naming what is missing (names only). The
+ * OPTIONAL_COLUMNS tables (shipping's `payment_due_dates`, its users table) are looked
+ * up in the same query but never fail the check: → `{optional: {<table>: whole?}}`,
+ * which loadSources reads by.
  */
 async function checkSchema(q, schema) {
-    const tables = Object.keys(reads.SOURCE_COLUMNS);
+    const tables = [...Object.keys(reads.SOURCE_COLUMNS), ...Object.keys(reads.OPTIONAL_COLUMNS)];
     const [rows] = await q.query(
         `SELECT TABLE_NAME AS table_name, COLUMN_NAME AS column_name
            FROM information_schema.COLUMNS
@@ -104,10 +107,11 @@ async function checkSchema(q, schema) {
         [schema, ...tables]
     );
     const have = new Set(rows.map((r) => `${r.table_name}.${r.column_name}`.toLowerCase()));
+    const has = (table, column) => have.has(`${table}.${column}`.toLowerCase());
     const missing = [];
     for (const [table, columns] of Object.entries(reads.SOURCE_COLUMNS)) {
         for (const column of columns) {
-            if (!have.has(`${table}.${column}`.toLowerCase())) missing.push(`${table}.${column}`);
+            if (!has(table, column)) missing.push(`${table}.${column}`);
         }
     }
     if (missing.length) {
@@ -117,6 +121,11 @@ async function checkSchema(q, schema) {
         err.missing = missing;           // every `table.column`, for a caller that wants the list
         throw err;
     }
+    const optional = {};
+    for (const [table, columns] of Object.entries(reads.OPTIONAL_COLUMNS)) {
+        optional[table] = columns.every((column) => has(table, column));
+    }
+    return { optional };
 }
 
 /** The feed rows from the loaded payloads (pure). → {flow, input, paid, shipmentIdByRef} */
@@ -168,9 +177,9 @@ async function readPaymentsForecast({ today, paidSince } = {}) {
         if (timedOut) throw new Error('timed out while connecting');
         const q = { query: (sql, params) => conn.query(sql, params) };
 
-        await checkSchema(q, schema);
+        const { optional } = await checkSchema(q, schema);
         await conn.query('START TRANSACTION READ ONLY, WITH CONSISTENT SNAPSHOT');
-        const sources = await reads.loadSources(q, t);
+        const sources = await reads.loadSources(q, t, { optional });
         const targets = page.documentTargets(page.pageState(sources));
         if (targets.length) sources.shipmentDocuments = await reads.loadShipmentDocuments(q, t, targets);
 
@@ -181,11 +190,15 @@ async function readPaymentsForecast({ today, paidSince } = {}) {
         await conn.query('COMMIT');
 
         const items = flowLib.toForecastRows(model.flow, model.paid, { pos, shipmentIdByRef: model.shipmentIdByRef });
-        log.info(`[shipping-source] ${schema} ${today}: ${items.length} row(s) in ${Date.now() - started}ms`);
+        const dueDates = sources.paymentDueDates?.read ? sources.paymentDueDates.data.length : null;
+        log.info(`[shipping-source] ${schema} ${today}: ${items.length} row(s) in ${Date.now() - started}ms`
+            + (dueDates == null ? '; payment_due_dates not readable (no dates set by hand)' : `; ${dueDates} date(s) set by hand`));
         return {
             meta: {
                 today, paidSince, generatedAt: new Date().toISOString(), model: MODEL, schema,
                 outstanding: outstandingOf(model.flow),
+                // Whether shipping's payment_due_dates was read (null = the table is not there yet).
+                dueDates,
             },
             companies,
             items,

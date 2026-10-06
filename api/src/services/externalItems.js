@@ -19,7 +19,7 @@
 const { recordAudit } = require('../lib/audit');
 const { buildShipKey } = require('../lib/keys');
 const { externalItemToJson } = require('../lib/shape');
-const { shipDerivedStatus } = require('../lib/lines');
+const { shipDerivedStatus, shipDateMoved } = require('../lib/lines');
 const { shipResolvedSelect, loadAnchors } = require('./forecastLoad');
 
 // §3.4's effective date in SQL, over the resolved row `x`: a paid row is dated on its
@@ -35,6 +35,8 @@ async function decorateExternalItems(conn, rows, today) {
         const row = externalItemToJson(r, { derivedStatus: null });
         const anchor = row.accountId === null ? null : anchors.get(row.accountId);
         row.derivedStatus = shipDerivedStatus(row, anchor ? anchor.anchorDate : null, today);
+        // The same rule the engine's `date_moved` flag follows (lib/lines.js), for `today`.
+        row.dateMoved = shipDateMoved(row, today);
         return row;
     });
 }

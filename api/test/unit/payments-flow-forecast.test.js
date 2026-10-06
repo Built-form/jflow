@@ -10,7 +10,7 @@ const { validateFeed } = require('../../src/services/shipping');
 const H = require('../helpers/paymentsFlow');
 
 const FEED_KEYS = ['id', 'kind', 'status', 'supplier', 'companyId', 'poId', 'poNumber', 'shipmentId', 'containerRef',
-    'currency', 'amount', 'dueDate', 'dateBasis', 'amountBasis', 'blocked', 'arranged', 'paidOn', 'settles', 'flags'];
+    'currency', 'amount', 'dueDate', 'dateBasis', 'amountBasis', 'blocked', 'arranged', 'paidOn', 'settles', 'flags', 'dueSet'];
 const cents = (s) => Math.round(Number(s) * 100);
 
 function fixtureFeed(name, { paidSince } = {}) {

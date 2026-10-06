@@ -19,6 +19,10 @@ const unmapped = externalRow({ id: 34, key: 'ship.dep-902', extId: 'dep-902', fe
 const gone = externalRow({ id: 35, key: 'ship.dep-700', extId: 'dep-700', feedKind: 'deposit', poNumber: 'PO-700', goneAt: '2026-09-28T10:00:00Z', plannedDate: '2026-10-30', derivedStatus: null });
 const skipped = externalRow({ id: 36, key: 'ship.dep-903', extId: 'dep-903', feedKind: 'deposit', poNumber: 'PO-903', plannedSkipped: true, derivedStatus: 'skipped' });
 const paid = externalRow({ id: 37, key: 'ship.pay-3-904', extId: 'pay-3-904', poNumber: 'PO-904', feedStatus: 'paid', paidOn: '2026-09-25', dueDate: null, effectiveDate: '2026-09-25', derivedStatus: 'paid' });
+const DUE_SET = { by: 'Ops', email: 'ops@example.com', at: '2026-10-06T09:30:00.000Z', derivedDate: '2026-11-01', scope: 'item', note: 'agreed with the supplier' };
+const setByHand = externalRow({ id: 38, key: 'ship.bal-905-s311', extId: 'bal-905-s311', poNumber: 'PO-905', dueDate: '2026-11-20', effectiveDate: '2026-11-20', flags: ['due_set'], dueSet: DUE_SET });
+const movedDate = externalRow({ id: 39, key: 'ship.bal-906-s311', extId: 'bal-906-s311', poNumber: 'PO-906', dueDate: '2026-10-21', effectiveDate: '2026-10-21', dueDatePrev: '2026-10-05', dueDateMovedAt: '2026-10-06T07:00:00.000Z', dateMoved: true });
+const setUnderPlan = externalRow({ id: 41, key: 'ship.bal-907-s311', extId: 'bal-907-s311', poNumber: 'PO-907', dueDate: '2026-11-20', plannedDate: '2026-11-27', effectiveDate: '2026-11-27', flags: ['due_set'], dueSet: { ...DUE_SET, note: null } });
 
 describe('grouping stock payments by the server’s derivedStatus', () => {
   it('orders the bands, with null as "Not in the forecast", and drops empty ones', () => {
@@ -91,6 +95,38 @@ describe('the Stock payments screen', () => {
     expect(noDate.textContent).toContain('No date yet');
     expect(noDate.textContent).toContain('NO DATE YET');
     expect(screen.getByTestId('stock-feed-line').textContent).toMatch(/^Last synced 29 Sep 2026, \d\d:\d\d · 7 rows$/);
+  });
+
+  it("marks a date set by hand in shipping as ShipLine does, says who and what it replaced, and says when shipping moved a date", async () => {
+    stubApi([setByHand, movedDate, setUnderPlan], () => expected);
+    renderScreen();
+    const set = await screen.findByTestId('stock-ship.bal-905-s311');
+    const date = set.querySelector('[data-due-set="1"]') as HTMLElement;
+    expect(date.textContent).toBe('✎ Fri 20 Nov 2026');
+    expect(date.style.textDecoration).toBe('underline dotted');
+    expect(date.title).toBe('Set by hand in shipping by Ops on Tue 6 Oct 2026, in place of Sun 1 Nov 2026 (this row only): “agreed with the supplier”.');
+    expect(within(set).getByTestId('stock-due-set').textContent).toBe('set by Ops on Tue 6 Oct 2026 · derived Sun 1 Nov 2026');
+    expect(within(set).getByTestId('stock-due-set-note').textContent).toBe('shipping: “agreed with the supplier”');
+    expect(set.textContent).toContain('SET IN SHIPPING');
+    expect(within(set).queryByTestId('stock-date-moved')).toBeNull();
+
+    const moved = screen.getByTestId('stock-ship.bal-906-s311');
+    expect(moved.querySelector('[data-due-set]')).toBeNull();
+    expect(within(moved).getByTestId('stock-date-moved').textContent).toBe('moved from Mon 5 Oct 2026 on Tue 6 Oct 2026');
+    expect(moved.textContent).toContain('DATE MOVED');
+    expect(moved.textContent).not.toContain('SET IN SHIPPING');
+
+    // JFlow's plan wins the date; the mark sits on shipping's own date underneath.
+    const planned = screen.getByTestId('stock-ship.bal-907-s311');
+    expect(planned.textContent).toContain('Fri 27 Nov 2026');
+    const under = planned.querySelector('[data-due-set="1"]') as HTMLElement;
+    expect(under.textContent).toBe('shipping ✎ Fri 20 Nov 2026');
+    expect(planned.textContent).toContain('PLANNED');
+    expect(planned.textContent).toContain('SET IN SHIPPING');
+    expect(within(planned).queryByTestId('stock-due-set-note')).toBeNull();
+
+    // The plain row wears none of it.
+    expect(within(screen.getByTestId('stock-ship.bal-905-s311')).getByTestId('stock-due-set')).toBeTruthy();
   });
 
   it('plans a row with its note and row version known, and replaces it from the answer', async () => {

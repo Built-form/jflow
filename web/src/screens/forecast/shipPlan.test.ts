@@ -44,6 +44,21 @@ describe('the target, from the /external-items row', () => {
     expect(plain).toMatchObject({ planned: false, note: null, plannedDate: null, rowVersion: 4 });
   });
 
+  it("carries the feed's set-by-hand story and a recent move as flags and fields; a derived, unmoved date carries neither", () => {
+    const dueSet = { by: 'Ops', email: 'ops@example.com', at: '2026-10-06T09:30:00.000Z', derivedDate: '2026-11-01', scope: 'item', note: null };
+    const set = targetFromRow(externalRow({ dueSet, flags: ['due_set'] }));
+    expect(set.flags).toEqual(['projected', 'blocked', 'due_set']);
+    expect(set).toMatchObject({ dueSet, dateMovedFrom: null, dateMovedAt: null });
+    const moved = targetFromRow(externalRow({ dueDatePrev: '2026-10-05', dueDateMovedAt: '2026-10-06T07:00:00.000Z', dateMoved: true }));
+    expect(moved.flags).toEqual(['projected', 'blocked', 'date_moved']);
+    expect(moved).toMatchObject({ dueSet: null, dateMovedFrom: '2026-10-05', dateMovedAt: '2026-10-06T07:00:00.000Z' });
+    // the server decides the 14 days: an old move the server did not mark is not a flag here
+    const old = targetFromRow(externalRow({ dueDatePrev: '2026-10-05', dueDateMovedAt: '2026-09-01T07:00:00.000Z', dateMoved: false }));
+    expect(old.flags).toEqual(['projected', 'blocked']);
+    expect(old).toMatchObject({ dateMovedFrom: null, dateMovedAt: null });
+    expect(plain).toMatchObject({ dueSet: null, dateMovedFrom: null, dateMovedAt: null });
+  });
+
   it('names the row as /forecast does, leaving out what shipping does not know', () => {
     expect(shipRowName({ supplier: null, poNumber: 'PO-9', feedKind: 'deposit', extId: 'dep-9' })).toBe('PO-9 · deposit');
     expect(shipRowName({ supplier: null, poNumber: null, feedKind: '', extId: 'dep-9' })).toBe('dep-9');

@@ -9,20 +9,21 @@
 
 const fs = require('fs');
 const path = require('path');
-const { FEED_COLUMNS, feedRow, feedHash } = require('../../src/services/shippingRefresh');
+const { FEED_COLUMNS, feedRow, feedHash, dueDateMoved, MOVED_FLAG_EXEMPT } = require('../../src/services/shippingRefresh');
 const shipping = require('../../src/services/shipping');
 const { feedItem, feedBody } = require('../helpers/shippingSourceStub');
 
 const SOURCE = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'services', 'shippingRefresh.js'), 'utf8');
 
 const normalised = (over) => shipping.validateFeed(feedBody([feedItem('bal-812-s311', over)])).items[0];
+const DUE_SET = { by: 'Ops', email: 'ops@example.com', at: '2026-10-06T09:30:00.000Z', derivedDate: '2026-11-01', scope: 'item', note: null };
 
 describe('feed columns', () => {
     test('exactly the §4.2 feed columns, in one fixed order', () => {
         expect(FEED_COLUMNS).toEqual([
             'feed_kind', 'feed_status', 'supplier', 'shipping_company_id', 'po_id', 'po_number', 'shipment_id',
             'container_ref', 'currency', 'amount', 'due_date', 'paid_on', 'settles', 'date_basis', 'amount_basis',
-            'blocked', 'flags_json',
+            'blocked', 'flags_json', 'due_set_json',
         ]);
     });
 
@@ -33,8 +34,14 @@ describe('feed columns', () => {
             feed_kind: 'balance', feed_status: 'open', supplier: 'Acme Textiles', shipping_company_id: 1,
             po_id: 812, po_number: 'PO-812', shipment_id: 311, container_ref: 'MSKU1234567', currency: 'USD',
             amount: '12345.67', due_date: '2026-10-15', paid_on: null, settles: null, date_basis: 'firm',
-            amount_basis: 'stated', blocked: null, flags_json: '["estimated"]',
+            amount_basis: 'stated', blocked: null, flags_json: '["estimated"]', due_set_json: null,
         });
+    });
+
+    test("due_set_json is the row's dueSet as JSON, in one fixed key order", () => {
+        const row = feedRow(normalised({ dueSet: DUE_SET }));
+        expect(JSON.parse(row.due_set_json)).toEqual(DUE_SET);
+        expect(Object.keys(JSON.parse(row.due_set_json))).toEqual(['by', 'email', 'at', 'derivedDate', 'scope', 'note']);
     });
 });
 
@@ -69,6 +76,8 @@ describe('feedHash', () => {
         ['amount basis', { amountBasis: 'derived' }],
         ['blocked', { blocked: 'artwork' }],
         ['flags', { flags: ['estimated'] }],
+        ['due set', { dueSet: DUE_SET }],
+        ['due set note', { dueSet: { ...DUE_SET, note: 'later' } }],
     ])('changes when the %s changes', (_label, over) => {
         expect(feedHash(feedRow(normalised(over)))).not.toBe(feedHash(feedRow(normalised())));
     });
@@ -87,5 +96,31 @@ describe('what the refresh may write (source check)', () => {
     test('it never deletes, and writes no audit row (P8)', () => {
         expect(SOURCE).not.toMatch(/\bDELETE\b/);
         expect(SOURCE).not.toMatch(/recordAudit|audit_log/);
+    });
+});
+
+describe('dueDateMoved (the "date moved" bookkeeping: due_date_prev, due_date_moved_at)', () => {
+    const prior = (over = {}) => ({ due_date: '2026-10-15', flags_json: '[]', ...over });
+
+    test('a different due_date — a set, a clear, a derived date that changed — is a move; the same date is not', () => {
+        expect(dueDateMoved(prior(), normalised({ dueDate: '2026-11-20' }))).toBe(true);
+        expect(dueDateMoved(prior(), normalised({ dueDate: null, dateBasis: 'undated' }))).toBe(true);
+        expect(dueDateMoved(prior({ due_date: null }), normalised())).toBe(true);
+        expect(dueDateMoved(prior(), normalised())).toBe(false);
+        expect(dueDateMoved(prior({ due_date: null }), normalised({ dueDate: null, dateBasis: 'undated' }))).toBe(false);
+    });
+
+    test('a from_today row sliding by the days elapsed is not a move (both sides carry the flag)', () => {
+        expect(MOVED_FLAG_EXEMPT).toBe('from_today');
+        const slid = normalised({ dueDate: '2026-10-16', flags: ['from_today'] });
+        expect(dueDateMoved(prior({ flags_json: '["from_today"]' }), slid)).toBe(false);
+        expect(dueDateMoved(prior({ flags_json: '[]' }), slid)).toBe(true);
+        expect(dueDateMoved(prior({ flags_json: '["from_today"]' }), normalised({ dueDate: '2026-10-16' }))).toBe(true);
+    });
+
+    test('a prior row read back as a Date, or with unreadable flags, still compares by the calendar day', () => {
+        expect(dueDateMoved(prior({ due_date: new Date('2026-10-15T00:00:00Z') }), normalised())).toBe(false);
+        expect(dueDateMoved(prior({ flags_json: 'not json' }), normalised({ dueDate: '2026-10-16' }))).toBe(true);
+        expect(dueDateMoved(prior({ flags_json: null }), normalised())).toBe(false);
     });
 });

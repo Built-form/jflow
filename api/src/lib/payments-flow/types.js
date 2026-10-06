@@ -213,7 +213,36 @@
  * @property {ShipmentPayment[]|null} [shipmentPayments]
  * @property {ShipmentPaymentDocument[]|null} [shipmentPaymentDocuments]
  * @property {SupplierPayment[]|null} [supplierPayments]
+ * @property {PaymentDueDate[]|null} [dueOverrides]  Due dates set by hand (ShipLine 6565188; overrides.js): a row key beats its payment's.
  * @property {Ymd} today  Required (the TS read the clock when absent; the port throws).
+ */
+
+/**
+ * A due date set by hand — one row of shipping's `payment_due_dates` as ShipLine's
+ * GET /api/v1/payment-due-dates sends it (lib/shippingCopy/paymentDueDates.js).
+ * @typedef {object} PaymentDueDate
+ * @property {number} id
+ * @property {string} key  `deposit:<po>` | `balance:<CUR>:<CONTAINER>|<supplier>` | `item:<row id>`.
+ * @property {'payment'|'item'} scope
+ * @property {Ymd} dueDate
+ * @property {string|null} note
+ * @property {string} setByEmail
+ * @property {string|null} setByName
+ * @property {string} setAt  ISO instant: the row's updated_at.
+ */
+
+/**
+ * A due date set by hand, as the row it dates carries it (PaymentItem.dueOverride).
+ * @typedef {object} DueOverrideInfo
+ * @property {number} id
+ * @property {string} key
+ * @property {'payment'|'item'} scope  'item': set on this row alone; 'payment': on the whole payment.
+ * @property {Ymd} dueDate  The date set (the row's dueDate now).
+ * @property {Ymd|null} derivedDueDate  What the model would have said.
+ * @property {string} setByEmail
+ * @property {string|null} setByName
+ * @property {string} setAt
+ * @property {string|null} note
  */
 
 // ── Terms and suppliers ─────────────────────────────────────────────────
@@ -284,7 +313,7 @@
 
 // ── Output ──────────────────────────────────────────────────────────────
 
-/** @typedef {'estimated'|'derived_date'|'terms_unclear'|'terms_partial'|'no_container'|'landed_fallback'|'departed_no_date'|'po_not_sent'|'prorated_by_qty'|'unpriced_lines'|'overpaid'|'currency_mismatch'|'type_unknown'|'multi_container'|'arranged'|'invoice_total_used'|'total_mismatch'|'duplicate_stated'|'goods_moved'|'assumed_paid'|'estimate_passed'|'policy_applied'|'grace_applied'|'awaiting_artwork'|'awaiting_pi'|'awaiting_pi_signed'|'awaiting_telex'|'awaiting_document'|'bl_issued'|'shipment_invoice'|'invoice_vs_share'|'allocated_by_share'|'superseded_by_shipment_invoice'|'deposit_deducted'|'partly_paid'|'air_owed'|'air_rides_next'|'air_missed'} PaymentFlag */
+/** @typedef {'estimated'|'derived_date'|'terms_unclear'|'terms_partial'|'no_container'|'landed_fallback'|'departed_no_date'|'po_not_sent'|'prorated_by_qty'|'unpriced_lines'|'overpaid'|'currency_mismatch'|'type_unknown'|'multi_container'|'arranged'|'invoice_total_used'|'total_mismatch'|'duplicate_stated'|'goods_moved'|'assumed_paid'|'estimate_passed'|'policy_applied'|'grace_applied'|'awaiting_artwork'|'awaiting_pi'|'awaiting_pi_signed'|'awaiting_telex'|'awaiting_document'|'bl_issued'|'shipment_invoice'|'invoice_vs_share'|'allocated_by_share'|'superseded_by_shipment_invoice'|'deposit_deducted'|'partly_paid'|'air_owed'|'air_rides_next'|'air_missed'|'due_set'} PaymentFlag */
 
 /** @typedef {'pending'|'arranged'|'projected'} PaymentItemStatus */
 
@@ -326,6 +355,7 @@
  * @property {number} [owedInFull]
  * @property {Ymd|null} [airLimitDate]
  * @property {DerivationStep[]} [derivation]
+ * @property {DueOverrideInfo} [dueOverride]  Set only when a date set by hand replaced the derived one (flag `due_set`).
  */
 
 /**
@@ -514,6 +544,18 @@
  * @property {Ymd|null} paidOn  Paid rows.
  * @property {string|null} settles  Paid rows: the open row id of what it paid.
  * @property {string[]} flags
+ * @property {FeedDueSet|null} dueSet  Open rows whose date was set by hand in ShipLine; else null.
+ */
+
+/**
+ * The story of a date set by hand, as the feed carries it (external_items.due_set_json).
+ * @typedef {object} FeedDueSet
+ * @property {string} by  The setter's display name, else the part of the email before @.
+ * @property {string} email
+ * @property {string} at  ISO instant of the last change.
+ * @property {Ymd|null} derivedDate  The date the model would have given.
+ * @property {'payment'|'item'} scope
+ * @property {string|null} note
  */
 
 /**

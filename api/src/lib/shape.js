@@ -487,6 +487,7 @@ function externalSyncToJson(r, extras = {}) {
 function externalItemToJson(r, extras = {}) {
     if (!r) return null;
     const flags = json(r.flags_json);
+    const dueSet = json(r.due_set_json);
     const out = {
         key: buildShipKey(r.ext_id),
         id: id(r.id),
@@ -511,6 +512,12 @@ function externalItemToJson(r, extras = {}) {
         amountBasis: r.amount_basis,
         blocked: r.blocked,
         flags: Array.isArray(flags) ? flags : [],
+        // A date set by hand in ShipLine (external_items.due_set_json; CONTRACT §3.5), and
+        // the refresh's record of the last move of the feed's due date (handover doc
+        // "Dates set by hand", 2026-10-06).
+        dueSet: dueSet && typeof dueSet === 'object' && !Array.isArray(dueSet) ? dueSet : null,
+        dueDatePrev: r.due_date_prev ?? null,
+        dueDateMovedAt: r.due_date_moved_at ?? null,
         goneAt: r.gone_at,
         plannedDate: r.planned_date,
         plannedAmount: r.planned_amount,

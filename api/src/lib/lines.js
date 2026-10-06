@@ -11,6 +11,7 @@
 // Pure: no DB, no clock.
 
 const { parseMinor } = require('./money');
+const { isValidDate, diffDays } = require('./dates');
 const { classify, derivedStatus } = require('./classify');
 
 /**
@@ -84,6 +85,24 @@ const SHIP_SETTLE_MODE = 'manual';
  * the feed does not know. The engine's lines and a `ship.` adjustment's `current.name`.
  */
 const shipName = (row) => [row.supplier, row.poNumber, row.feedKind].filter((p) => p != null && p !== '').join(' · ');
+
+// The "date moved" mark (handover doc "Dates set by hand", 2026-10-06): how long a row
+// says its feed date moved — from a set, a clear, or a derived date that changed.
+const DATE_MOVED_DAYS = 14;
+
+/**
+ * Whether the row wears the `date_moved` mark for `today` (the request's Europe/London
+ * date): the refresh recorded a move (`dueDateMovedAt`, UTC) whose calendar day is at most
+ * DATE_MOVED_DAYS before today. A Date or an ISO string; never true without a move.
+ */
+function shipDateMoved(row, today) {
+    const at = row.dueDateMovedAt;
+    if (at == null || !isValidDate(today)) return false;
+    const day = at instanceof Date ? at.toISOString().slice(0, 10) : String(at).slice(0, 10);
+    if (!isValidDate(day)) return false;
+    const age = diffDays(today, day);          // days since the move; negative = a clock ahead of the request
+    return age >= 0 && age <= DATE_MOVED_DAYS;
+}
 
 /** Any overlay column set (the `planned` flag, SHIP_PLAN_ORPHANED). */
 function hasShipOverlay(row) {
@@ -162,5 +181,5 @@ function shipDerivedStatus(row, A, today) {
 
 module.exports = {
     itemLine, itemDerivedStatus, instanceLine, instanceDerivedStatus,
-    SHIP_SETTLE_MODE, shipName, hasShipOverlay, shipEffectiveValues, shipLine, shipDerivedStatus,
+    SHIP_SETTLE_MODE, DATE_MOVED_DAYS, shipName, hasShipOverlay, shipDateMoved, shipEffectiveValues, shipLine, shipDerivedStatus,
 };

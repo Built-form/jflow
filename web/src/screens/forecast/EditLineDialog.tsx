@@ -9,7 +9,7 @@ import { Tag, Toggle } from '../../components/ui';
 import { formatDay, isValidDate } from '../../lib/dates';
 import { flagTags, shortDay } from '../../lib/grid';
 import { formatMoney, toMinor } from '../../lib/money';
-import { shipFlagNotes } from '../../lib/ship';
+import { dueSetClause, shipFlagNotes } from '../../lib/ship';
 import { RefusalNote } from '../scenarios/RefusalNote';
 import type { EditAction, EditForm } from './edit';
 import { QUICK_SHIFTS, checkEdit, initialForm, shiftedDate } from './edit';
@@ -116,7 +116,8 @@ export function EditLineDialog({
               <span className="mono" style={{ color: 'var(--text)' }}>
                 {formatMoney(toMinor(ship.feedAmountMinor), item.currency)}
               </span>{' '}
-              on {ship.feedDate ? formatDay(ship.feedDate) : 'no date yet'}.
+              on {ship.feedDate ? formatDay(ship.feedDate) : 'no date yet'}
+              {dueSetClause(ship.dueSet)}.
             </div>
           )}
           {ship && shipFlagNotes(item.flags, ship).map((n) => <div key={n} style={{ fontSize: 13 }}>{n}</div>)}

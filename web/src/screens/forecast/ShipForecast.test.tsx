@@ -554,6 +554,43 @@ describe('editing a ship line with no scenario open: the overlay', () => {
   });
 });
 
+describe("a date set by hand in ShipLine, in the dialogs", () => {
+  const DUE_SET = { by: 'Ops', email: 'ops@example.com', at: '2026-10-06T09:30:00.000Z', derivedDate: '2026-10-01', scope: 'item', note: 'agreed with the supplier' };
+
+  it("the plan dialog says who set shipping's date, in place of what, and tags the row", async () => {
+    stubApi({ forecast: () => forecastFixture({ ship: true }), row: () => depositRow({ dueSet: DUE_SET, flags: ['due_set'], dateBasis: 'firm' }) });
+    renderForecast();
+    await expandGrid();
+    fireEvent.click(await screen.findByRole('button', { name: /Edit Acme Textiles · PO-812 · deposit/ }));
+    await screen.findByLabelText('Amount');
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByTestId('ship-feed').textContent).toBe(
+      "Shipping says $5,000.00 on Fri 2 Oct 2026 (set by hand by Ops on Tue 6 Oct 2026; shipping's derived date was Thu 1 Oct 2026).",
+    );
+    expect(dialog.textContent).toContain('Set by hand in shipping by Ops on Tue 6 Oct 2026, in place of Thu 1 Oct 2026 (this row only): “agreed with the supplier”.');
+    expect(dialog.textContent).toContain('SET IN SHIPPING');
+    expect(dialog.textContent).not.toContain("The date is shipping's estimate.");
+  });
+
+  it("the scenario edit dialog says the same from the line's ship block, and a moved date says where from", async () => {
+    const fx = forecastFixture({ ship: true, scenario: true });
+    const stock = fx.rows!.find((r) => r.categoryId === 90)!;
+    const balance = stock.items.find((i) => i.key === 'ship.bal-812-s311')!;
+    balance.flags = ['projected', 'blocked', 'due_set', 'date_moved'];
+    balance.ship = { ...balance.ship!, dueSet: DUE_SET, dateMovedFrom: '2026-10-01', dateMovedAt: '2026-10-06T09:30:00.000Z' };
+    stubApi({ forecast: () => fx });
+    renderForecast(createScenarioStore({ id: 9, name: 'Delay the rent' }));
+    await expandGrid();
+    fireEvent.click(await screen.findByRole('button', { name: /Edit Acme Textiles · PO-812 · balance/ }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByTestId('edit-ship-feed').textContent).toBe(
+      "Shipping says $1,500.00 on Tue 13 Oct 2026 (set by hand by Ops on Tue 6 Oct 2026; shipping's derived date was Thu 1 Oct 2026).",
+    );
+    expect(dialog.textContent).toContain('Shipping moved this date from Thu 1 Oct 2026 on Tue 6 Oct 2026.');
+    expect(dialog.textContent).toContain('DATE MOVED');
+  });
+});
+
 describe('editing a ship line inside a scenario', () => {
   it('writes an adjustment like any other line, and still shows what shipping says', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true, scenario: true }) });

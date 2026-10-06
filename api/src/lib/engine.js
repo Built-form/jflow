@@ -43,7 +43,7 @@ const { parseMinor, parseRate, toGbp, fromGbp } = require('./money');
 const { buildItemKey, buildSchedKey, buildShipKey } = require('./keys');
 const { occurrences, isOccurrence, effectiveValues } = require('./recurrence');
 const { classify } = require('./classify');
-const { itemLine, shipLine, shipName, shipEffectiveValues, hasShipOverlay } = require('./lines');
+const { itemLine, shipLine, shipName, shipEffectiveValues, hasShipOverlay, shipDateMoved } = require('./lines');
 
 /**
  * CONTRACT §8's `engineInput`, field for field. Rows are the camelCase JSON of lib/shape.js
@@ -368,13 +368,19 @@ function requireFeedStatus(row) {
     return row.feedStatus;
 }
 
-/** §6.10's ship flags, carried on the line; none of them changes a band. */
-function shipFlags(row) {
+/**
+ * §6.10's ship flags, carried on the line; none of them changes a band. `due_set`: the
+ * feed's date was set by hand in ShipLine (row.dueSet says by whom); `date_moved`: the
+ * refresh moved the feed's due date within the last DATE_MOVED_DAYS (lib/lines.js).
+ */
+function shipFlags(row, today) {
     const flags = [];
     if (row.dateBasis === 'estimated') flags.push('estimated');
     if (row.amountBasis === 'derived') flags.push('projected');
     if (row.blocked != null) flags.push('blocked');
     if (hasShipOverlay(row)) flags.push('planned');
+    if (row.dueSet) flags.push('due_set');
+    if (shipDateMoved(row, today)) flags.push('date_moved');
     return flags;
 }
 
@@ -383,7 +389,7 @@ function shipFlags(row) {
  * the systemKey 'ship' category, direction 'out', settle mode 'manual', the resolved
  * account. `hasPaymentState` is true for a paid row (the feed row is the payment).
  */
-function shipRecord(row, line, category) {
+function shipRecord(row, line, category, today) {
     return {
         key: buildShipKey(row.extId), kind: 'ship', id: row.extId, scheduleId: null, naturalDate: null,
         name: shipName(row),
@@ -396,13 +402,24 @@ function shipRecord(row, line, category) {
         status: line.status, settleMode: line.settleMode, date: line.effectiveDate,
         amountMinor: line.amountMinor, paidAmountMinor: line.paidAmountMinor, payments: line.payments,
         tuned: false, sourceScenarioId: row.sourceScenarioId ?? null, hasPaymentState: line.status === 'paid',
-        shipFlags: shipFlags(row),
+        shipFlags: shipFlags(row, today),
         ship: {
             kind: row.feedKind, poNumber: row.poNumber ?? null, containerRef: row.containerRef ?? null,
             dateBasis: row.dateBasis, amountBasis: row.amountBasis, blocked: row.blocked ?? null,
             feedDate: row.dueDate ?? null, feedAmountMinor: parseMinor(row.amount),
+            // The story of a date set by hand in ShipLine, and the feed's last date move
+            // (handover doc "Dates set by hand"); null when there is none.
+            dueSet: row.dueSet ?? null,
+            dateMovedFrom: shipDateMoved(row, today) ? (row.dueDatePrev ?? null) : null,
+            dateMovedAt: shipDateMoved(row, today) ? isoInstant(row.dueDateMovedAt) : null,
         },
     };
+}
+
+/** A DATETIME as the row carries it (a Date from the pool, or an ISO string) → ISO string | null. */
+function isoInstant(v) {
+    if (v == null) return null;
+    return v instanceof Date ? v.toISOString() : String(v);
 }
 
 /** The systemKey 'ship' category (P10); every ship line sits in it. */
@@ -467,7 +484,7 @@ function buildRecords(input, { today, window, anchors, minA, categories }) {
         requireFeedStatus(row);
         const line = shipLine(row);
         if (line === null) continue;
-        const rec = shipRecord(row, line, shipCategoryOf(categories));
+        const rec = shipRecord(row, line, shipCategoryOf(categories), today);
         records.set(rec.key, rec);
     }
 

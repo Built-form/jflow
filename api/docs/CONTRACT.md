@@ -451,6 +451,10 @@ and by local `ensureSchema`.
 - Phase 2: a second file, `src/db/migrations/2026-09-29_jflow_ship.sql` (§3.5): two new
   tables, two guarded `ALTER`s and the system-category seed. It sorts after the core file
   and is re-runnable (migrate twice → 0 applied).
+- Dates set by hand (2026-10-06): a third file, `src/db/migrations/2026-10-06_jflow_due_set.sql`
+  (§3.5): two guarded `ALTER`s adding `external_items.due_set_json` (a feed column) and
+  `due_date_prev` / `due_date_moved_at` (refresh-owned bookkeeping beside `gone_at`).
+  Re-runnable the same way.
 - DDL runs from `tools/migrate.js --stage <stage>` (called by `deploy.sh` before packaging;
   it keeps `schema_migrations(filename, checksum, applied_at)` and refuses a changed applied
   file) and from local `ensureSchema` (`lib/schema.js`, sentinel `jflow_schema_meta`,
@@ -734,8 +738,13 @@ CREATE TABLE IF NOT EXISTS external_items (              -- feed snapshot; rows 
   due_date DATE NULL, paid_on DATE NULL, settles VARCHAR(64) NULL,    -- settles = the open row's ext_id
   date_basis VARCHAR(12) NOT NULL, amount_basis VARCHAR(8) NOT NULL,  -- firm | estimated | undated; stated | derived
   blocked VARCHAR(16) NULL, flags_json JSON NULL,                     -- blocked: shipment | artwork | pi | pi_signed
-  feed_hash CHAR(64) NOT NULL,                           -- sha256 of the feed columns
+  due_set_json JSON NULL,                                -- 2026-10-06: a date set by hand in ShipLine —
+                                                         -- {by, email, at, derivedDate, scope, note}; NULL = derived
+  feed_hash CHAR(64) NOT NULL,                           -- sha256 of the feed columns (due_set_json last)
   gone_at DATETIME NULL,                                 -- left the feed; kept for overlays and adjustments
+  due_date_prev DATE NULL, due_date_moved_at DATETIME NULL,  -- 2026-10-06: refresh-owned, not hashed — the due_date the
+                                                             -- row had before the refresh last moved it, and when (UTC);
+                                                             -- a `from_today` row sliding a day is not a move
   -- overlay: written by user edit or scenario apply only, never by the refresh
   planned_date DATE NULL, planned_amount DECIMAL(14,2) NULL,
   planned_skipped TINYINT(1) NOT NULL DEFAULT 0,         -- P7
@@ -1107,7 +1116,9 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
                           amountMinor, accountMinor, gbpMinor, date, dueDate, bucketIndex,
                           status, settleMode, flags: [...], editable, paymentId?,
                           ship?: { kind: 'deposit' | 'balance', poNumber, containerRef,     // kind 'ship' only
-                                   dateBasis, amountBasis, blocked, feedDate, feedAmountMinor },
+                                   dateBasis, amountBasis, blocked, feedDate, feedAmountMinor,
+                                   dueSet: { by, email, at, derivedDate, scope, note } | null,   // 2026-10-06
+                                   dateMovedFrom: 'YYYY-MM-DD' | null, dateMovedAt: ISO | null },
                           baseline: { date, amountMinor, gbpMinor, flags } | null } ] } ],
   summary: { opening, inflow, outflow, net, closing, minClosing, minDate,
              unresolvedCount, unresolvedTotal, absorbedCount },
@@ -1134,9 +1145,15 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   (`feedDate` = the feed `due_date`, `feedAmountMinor` = the feed `amount`, so the client
   can show what was planned against what shipping says). Their flags are `estimated`
   (`dateBasis = 'estimated'`), `projected` (`amountBasis = 'derived'`), `blocked` (the feed's
-  `blocked` is set), `planned` (any overlay column set) — **none of which changes a band** —
-  plus `overdue`, `paid`, `adjusted`, `excluded`, `stale` and `fromScenario` with their
-  usual meaning; never `tuned`, `partial` or `remainder`. `paymentId` is absent on a ship
+  `blocked` is set), `planned` (any overlay column set), and since 2026-10-06 `due_set` (the
+  feed's date was set by hand in ShipLine — `ship.dueSet` says by whom, when, in place of
+  which derived date, for the whole payment or this row, and why) and `date_moved` (the
+  refresh moved the feed's `due_date` within the last 14 days, `lib/lines.js
+  DATE_MOVED_DAYS`; `ship.dateMovedFrom` / `dateMovedAt` say from what and when, and are
+  null otherwise) — **none of which changes a band** — plus `overdue`, `paid`, `adjusted`,
+  `excluded`, `stale` and `fromScenario` with their usual meaning; never `tuned`, `partial`
+  or `remainder`. A JFlow `plannedDate` still wins the line's date over a date set by hand
+  in ShipLine (the handover doc's open question 2); both marks ride along. `paymentId` is absent on a ship
   payment line (there is no `payments` row; the feed row is the payment). `editable` is the
   same formula as below; without a scenario an edit writes the overlay
   (`PUT /external-items/:key`), inside a draft scenario it writes a `ship.` adjustment.
@@ -1235,9 +1252,14 @@ Row JSON (`GET /external-items`, `GET /external-items/:key` and every overlay mu
 response, `DELETE` included):
 `{key, id, source, extId, feedKind, feedStatus, supplier, shippingCompanyId, companyId, accountId,
 poId, poNumber, shipmentId, containerRef, currency, amount, dueDate, paidOn, settles, dateBasis,
-amountBasis, blocked, flags, goneAt, plannedDate, plannedAmount, plannedSkipped, plannedBaseAmount,
-plannedNote, sourceScenarioId, plannedBy, plannedAt, effectiveDate, effectiveAmount, planStale,
-derivedStatus, rowVersion, createdBy, createdAt, updatedAt}`. `key` = `buildShipKey(extId)`;
+amountBasis, blocked, flags, dueSet, dueDatePrev, dueDateMovedAt, goneAt, plannedDate, plannedAmount,
+plannedSkipped, plannedBaseAmount, plannedNote, sourceScenarioId, plannedBy, plannedAt, effectiveDate,
+effectiveAmount, planStale, derivedStatus, dateMoved, rowVersion, createdBy, createdAt, updatedAt}`.
+`dueSet` (2026-10-06) is the feed's `due_set_json` — `{by, email, at, derivedDate, scope, note}`
+when the date was set by hand in ShipLine, else null; `dueDatePrev` / `dueDateMovedAt` the
+refresh's record of the last move of the feed's `due_date` (§3.5), and `dateMoved` whether that
+move is within the last 14 days of the request's `today` (the engine's `date_moved` flag, the
+same rule). `key` = `buildShipKey(extId)`;
 `companyId`/`accountId` are resolved per §3.4 (`null` when unmapped); `effectiveDate`,
 `effectiveAmount` and `planStale` (`planned_amount` set but ignored, P6) per §3.4; money is
 DECIMAL strings (D1); `flags` is the feed's `flags_json` array. `derivedStatus` is §9.6's

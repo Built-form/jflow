@@ -168,7 +168,8 @@ envelope and "Errors" below are history.
              dateBasis: 'firm' | 'estimated' | 'undated', amountBasis: 'stated' | 'derived',
              blocked: null | 'shipment' | 'artwork' | 'pi' | 'pi_signed', arranged: bool,
              paidOn: 'YYYY-MM-DD' | null, settles: '<id>' | null,   // paid rows
-             flags: [ …PaymentFlag ] } ] }
+             flags: [ …PaymentFlag ],
+             dueSet: { by, email, at, derivedDate, scope, note } | null } ] }   // 2026-10-06: a date set by hand
 ```
 - **Rows (P3).** `open` rows are the model's `PaymentItem`s. `paid` rows are transfer lines with
   `paid_on >= paidSince`, plus balance records marked paid without a transfer
@@ -176,6 +177,9 @@ envelope and "Errors" below are history.
   has one company. A PI marked paid with no transfer has no date and emits nothing. Tested: Σ open
   `amount` per currency = `kpis.outstanding`.
 - **`dateBasis`** is `undated` with no `dueDate`, `estimated` if `flags` has `estimated`, else `firm`.
+  A date set by hand in ShipLine (flag `due_set`, 2026-10-06) reads `firm`, and the row's `dueSet`
+  says who set it, when, in place of which derived date (`derivedDate`), for the whole payment or
+  this row (`scope`), and why (`note`); null when the date is derived.
   **`amount`** = `toFixed(2)` of the model's cent-rounded value.
 - **Ids (P2)** all come from `feedId` in the lib (now `jflow/api/src/lib/payments-flow/ids.js`).
   - `<g>` = `s<shipmentId>`, or `r<10 hex of sha256(upper(ref))>` if the ref has no shipment, or `n`

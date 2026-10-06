@@ -23,8 +23,8 @@
 
 import type { ApiError } from '../../api/client';
 import type { ExternalItem, PlanWrite } from '../../api/external';
-import type { ItemFlag } from '../../api/forecast';
-import type { IsoDate } from '../../api/types';
+import type { ItemFlag, ShipDueSet } from '../../api/forecast';
+import type { IsoDate, IsoDateTime } from '../../api/types';
 import { formatDay, isValidDate } from '../../lib/dates';
 import { formatMinor, parseMinor, parseMoneyInput } from '../../lib/money';
 import { shipExtId } from '../../lib/ship';
@@ -56,6 +56,11 @@ export interface ShipPlanTarget {
   paid: boolean;
   flags: ItemFlag[];
   blocked: string | null;
+  /** The feed's date was set by hand in ShipLine (flag `due_set`); null when derived. */
+  dueSet: ShipDueSet | null;
+  /** Flag `date_moved` (the server's `dateMoved`): the feed's date moved from here, at this instant. */
+  dateMovedFrom: IsoDate | null;
+  dateMovedAt: IsoDateTime | null;
   rowVersion: number;
 }
 
@@ -76,6 +81,9 @@ export function targetFromRow(row: ExternalItem): ShipPlanTarget {
   if (row.blocked != null) flags.push('blocked');
   const planned = hasOverlay(row);
   if (planned) flags.push('planned');
+  // The server's say (CONTRACT §6.12): `dueSet` set, `dateMoved` within its 14 days.
+  if (row.dueSet) flags.push('due_set');
+  if (row.dateMoved) flags.push('date_moved');
   const feedAmountMinor = parseMinor(row.amount) ?? 0n;
   return {
     key: row.key,
@@ -95,6 +103,9 @@ export function targetFromRow(row: ExternalItem): ShipPlanTarget {
     paid: row.feedStatus === 'paid',
     flags,
     blocked: row.blocked,
+    dueSet: row.dueSet ?? null,
+    dateMovedFrom: row.dateMoved ? row.dueDatePrev ?? null : null,
+    dateMovedAt: row.dateMoved ? row.dueDateMovedAt ?? null : null,
     rowVersion: row.rowVersion,
   };
 }

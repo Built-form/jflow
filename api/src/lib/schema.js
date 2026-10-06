@@ -35,7 +35,9 @@ const { splitStatements } = require('./sql');
 // seedAdminEmails). The value is opaque — date + counter is just convention.
 // .2: Phase 2's 2026-09-29_jflow_ship.sql (a converged local schema at .1 would
 // otherwise never replay it).
-const SCHEMA_VERSION = '2026-09-29.2';
+// 2026-10-06.3: 2026-10-06_jflow_due_set.sql (external_items.due_set_json,
+// due_date_prev, due_date_moved_at — dates set by hand in ShipLine).
+const SCHEMA_VERSION = '2026-10-06.3';
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'db', 'migrations');
 

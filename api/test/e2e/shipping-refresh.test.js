@@ -101,6 +101,16 @@ describe('the migration (CONTRACT §3.5)', () => {
         expect(rows).toEqual([{ name: 'Stock payments', direction: 'out', sort_order: 900, system_key: 'ship', deleted_at: null }]);
     });
 
+    test('the 2026-10-06 columns exist, nullable: due_set_json (feed), due_date_prev and due_date_moved_at (refresh bookkeeping)', async () => {
+        const cols = await h.sql(
+            `SELECT COLUMN_NAME AS c, IS_NULLABLE AS n FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'external_items'
+                AND COLUMN_NAME IN ('due_set_json', 'due_date_prev', 'due_date_moved_at')
+              ORDER BY COLUMN_NAME`
+        );
+        expect(cols).toEqual([{ c: 'due_date_moved_at', n: 'YES' }, { c: 'due_date_prev', n: 'YES' }, { c: 'due_set_json', n: 'YES' }]);
+    });
+
     test('the guarded columns and their keys exist', async () => {
         const cols = await h.sql(
             `SELECT TABLE_NAME AS t, COLUMN_NAME AS c, IS_NULLABLE AS n FROM information_schema.COLUMNS
@@ -213,7 +223,7 @@ describe('the refresh diff (CONTRACT §10.12)', () => {
     test('an unchanged feed writes nothing', async () => {
         const before = await itemRows();
         expect(await runWith([A, B, C])).toEqual({
-            inserted: 0, updated: 0, returned: 0, gone: 0, unchanged: 3, deferred: 0, rejected: 0,
+            inserted: 0, updated: 0, returned: 0, gone: 0, unchanged: 3, deferred: 0, moved: 0, rejected: 0,
         });
         expect(await itemRows()).toEqual(before);
     });
@@ -224,6 +234,41 @@ describe('the refresh diff (CONTRACT §10.12)', () => {
         expect(rows.map((r) => [r.ext_id, r.row_version, r.amount])).toEqual([
             ['bal-812-s311', 0, '12345.67'], ['dep-812', 1, '5100.00'], ['pi-77-s311', 0, '750.25'],
         ]);
+    });
+
+    // Dates set by hand in ShipLine (2026-10-06): the "date moved" bookkeeping and due_set_json.
+    // Each case ends with the feed back at [A, B2, C], so the tests after it see what they expect.
+    test('moved: a changed due_date records the date it moved from and when, and counts `moved`; a from_today slide does not', async () => {
+        expect(await runWith([A, { ...B2, dueDate: '2026-10-20', flags: ['from_today'] }, C])).toMatchObject({ updated: 1, moved: 1, unchanged: 2 });
+        const first = await itemRow('dep-812');
+        expect(first).toMatchObject({ due_date: '2026-10-20', due_date_prev: '2026-10-01' });
+        expect(first.due_date_moved_at).toBeInstanceOf(Date);
+
+        // the same row sliding a day with from_today on both sides: an update, not a move
+        expect(await runWith([A, { ...B2, dueDate: '2026-10-21', flags: ['from_today'] }, C])).toMatchObject({ updated: 1, moved: 0, unchanged: 2 });
+        const slid = await itemRow('dep-812');
+        expect(slid).toMatchObject({ due_date: '2026-10-21', due_date_prev: '2026-10-01' });
+        expect(slid.due_date_moved_at).toEqual(first.due_date_moved_at);
+
+        // back to the derived date (the flag gone): a move again, from the slid date
+        expect(await runWith([A, B2, C])).toMatchObject({ updated: 1, moved: 1, unchanged: 2 });
+        expect(await itemRow('dep-812')).toMatchObject({ due_date: '2026-10-01', due_date_prev: '2026-10-21' });
+    });
+
+    test('due_set_json: stored as the feed sent it, read back on the row JSON as dueSet with the move bookkeeping', async () => {
+        const dueSet = { by: 'Ops', email: 'ops@example.com', at: '2026-10-06T09:30:00.000Z', derivedDate: '2026-10-01', scope: 'item', note: 'agreed' };
+        expect(await runWith([A, { ...B2, dueSet, flags: ['due_set'] }, C])).toMatchObject({ updated: 1, moved: 0, unchanged: 2 });
+        const stored = (await itemRow('dep-812')).due_set_json;
+        expect(typeof stored === 'string' ? JSON.parse(stored) : stored).toEqual(dueSet);
+
+        const res = await api().get('/api/v1/external-items/ship.dep-812').query({ today: TODAY }).expect(200);
+        expect(res.body).toMatchObject({ dueSet, dueDatePrev: '2026-10-21', flags: ['due_set'] });
+        expect(typeof res.body.dueDateMovedAt).toBe('string');
+        expect(typeof res.body.dateMoved).toBe('boolean');
+
+        expect(await runWith([A, B2, C])).toMatchObject({ updated: 1, moved: 0, unchanged: 2 });
+        expect((await itemRow('dep-812')).due_set_json).toBeNull();
+        expect((await api().get('/api/v1/external-items/ship.dep-812').query({ today: TODAY }).expect(200)).body.dueSet).toBeNull();
     });
 
     test('gone: a row missing from the feed is marked, never deleted; it stays gone without a bump', async () => {

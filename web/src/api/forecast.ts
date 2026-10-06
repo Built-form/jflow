@@ -31,7 +31,24 @@ export type StaleReason = 'BASE_CHANGED' | 'TARGET_SETTLED' | 'TARGET_MISSING' |
  * `projected` (its amount is derived, not stated), `blocked` (the feed's `blocked` is set),
  * `planned` (an overlay column is set). None of them changes a band.
  */
-export type ShipFlag = 'estimated' | 'projected' | 'blocked' | 'planned';
+export type ShipFlag = 'estimated' | 'projected' | 'blocked' | 'planned' | 'due_set' | 'date_moved';
+
+/**
+ * The story of a due date set by hand on ShipLine's Payments flow page (the feed's
+ * `due_set_json`, CONTRACT §3.5; 2026-10-06): who, when, in place of which derived date,
+ * for the whole payment or this row alone, and why.
+ */
+export interface ShipDueSet {
+  /** The setter's display name, else the part of the email before @. */
+  by: string;
+  email: string;
+  /** ISO instant of the last change. */
+  at: IsoDateTime;
+  /** What shipping's model would have said; null when it had no date. */
+  derivedDate: IsoDate | null;
+  scope: 'payment' | 'item' | (string & {});
+  note: string | null;
+}
 
 /**
  * §6.10 item flags. A string union for the ones CONTRACT names, open to anything newer so
@@ -68,6 +85,11 @@ export interface ShipInfo {
   blocked: ShipBlocker | (string & {}) | null;
   feedDate: IsoDate | null;
   feedAmountMinor: Minor;
+  /** The feed's date was set by hand in ShipLine (flag `due_set`); null when derived. */
+  dueSet: ShipDueSet | null;
+  /** Flag `date_moved`: the refresh moved the feed's date within the last 14 days — from this date (null = none), at this instant. */
+  dateMovedFrom: IsoDate | null;
+  dateMovedAt: IsoDateTime | null;
 }
 
 export interface ForecastMeta {

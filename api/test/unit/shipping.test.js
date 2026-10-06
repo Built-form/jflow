@@ -15,7 +15,7 @@
 const mysql = require('mysql2/promise');
 const shipping = require('../../src/services/shipping');
 const source = require('../../src/services/shippingSource');
-const { SOURCE_COLUMNS } = require('../../src/services/shippingReads');
+const { SOURCE_COLUMNS, OPTIONAL_COLUMNS } = require('../../src/services/shippingReads');
 const { stubShippingSource, feedItem, feedBody } = require('../helpers/shippingSourceStub');
 
 const TODAY = '2026-09-29';
@@ -107,15 +107,17 @@ describe('configuration', () => {
 });
 
 describe('the schema check', () => {
-    /** information_schema rows for every column the reads use, minus `drop`, with `rename` applied. */
-    const columnsQuery = ({ drop = [], upper = false } = {}) => {
+    const ALL_OPTIONAL = { payment_due_dates: true, shipping_allowed_emails: true };
+    /** information_schema rows for every column the reads use (optional tables included unless `without`), minus `drop`. */
+    const columnsQuery = ({ drop = [], upper = false, without = [] } = {}) => {
         const calls = [];
         return {
             calls,
             async query(sql, params) {
                 calls.push({ sql, params });
                 const rows = [];
-                for (const [table, columns] of Object.entries(SOURCE_COLUMNS)) {
+                for (const [table, columns] of Object.entries({ ...SOURCE_COLUMNS, ...OPTIONAL_COLUMNS })) {
+                    if (without.includes(table)) continue;
                     for (const column of columns) {
                         if (drop.includes(`${table}.${column}`)) continue;
                         rows.push({ table_name: table, column_name: upper ? column.toUpperCase() : column });
@@ -126,16 +128,32 @@ describe('the schema check', () => {
         };
     };
 
-    test('a complete schema passes; the query is scoped to the schema and the tables read', async () => {
+    test('a complete schema passes; the query is scoped to the schema and the tables read, optional ones included', async () => {
         const q = columnsQuery();
-        await expect(source.checkSchema(q, 'jfa')).resolves.toBeUndefined();
+        await expect(source.checkSchema(q, 'jfa')).resolves.toEqual({ optional: ALL_OPTIONAL });
         expect(q.calls).toHaveLength(1);
         expect(q.calls[0].sql).toMatch(/FROM information_schema\.COLUMNS/);
-        expect(q.calls[0].params).toEqual(['jfa', ...Object.keys(SOURCE_COLUMNS)]);
+        expect(q.calls[0].params).toEqual(['jfa', ...Object.keys(SOURCE_COLUMNS), ...Object.keys(OPTIONAL_COLUMNS)]);
     });
 
     test('column names compare case-blind (information_schema may report another case)', async () => {
-        await expect(source.checkSchema(columnsQuery({ upper: true }), 'jfa')).resolves.toBeUndefined();
+        await expect(source.checkSchema(columnsQuery({ upper: true }), 'jfa')).resolves.toEqual({ optional: ALL_OPTIONAL });
+    });
+
+    test('an optional table missing, or short of a column, is reported — never source_schema', async () => {
+        await expect(source.checkSchema(columnsQuery({ without: ['payment_due_dates'] }), 'jfa'))
+            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: true } });
+        await expect(source.checkSchema(columnsQuery({ drop: ['shipping_allowed_emails.display_name'] }), 'jfa'))
+            .resolves.toEqual({ optional: { payment_due_dates: true, shipping_allowed_emails: false } });
+        await expect(source.checkSchema(columnsQuery({ without: ['payment_due_dates', 'shipping_allowed_emails'] }), 'jfa'))
+            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: false } });
+    });
+
+    test("OPTIONAL_COLUMNS: shipping's due dates set by hand and the users table that names the setter", () => {
+        expect(OPTIONAL_COLUMNS).toEqual({
+            payment_due_dates: ['id', 'target_key', 'due_date', 'note', 'set_by_email', 'updated_at'],
+            shipping_allowed_emails: ['email', 'display_name'],
+        });
     });
 
     test('a missing (or unreadable) column → source_schema naming it', async () => {
@@ -212,7 +230,7 @@ describe('validateFeed', () => {
             id: 'bal-812-s311', kind: 'balance', status: 'open', supplier: 'Acme Textiles', companyId: 1,
             poId: 812, poNumber: 'PO-812', shipmentId: 311, containerRef: 'MSKU1234567', currency: 'USD',
             amount: '12.50', dueDate: '2026-10-15', paidOn: null, settles: null, dateBasis: 'estimated',
-            amountBasis: 'stated', blocked: null, flags: ['estimated', 'projected'],
+            amountBasis: 'stated', blocked: null, flags: ['estimated', 'projected'], dueSet: null,
         });
         expect(out.items[1]).toMatchObject({ id: 'dep-900', dueDate: null, dateBasis: 'undated', flags: [] });
         expect(out.items[2]).toMatchObject({ status: 'paid', paidOn: '2026-09-20', settles: 'bal-812-s311' });
@@ -311,5 +329,51 @@ describe('validateFeed', () => {
         expect(err.reason).toBe('bad_response');
         expect(err.message).toMatch(/Every row of the shipping feed was rejected \(2: id, amount\)/);
         expect(shipping.validateFeed(feedBody([])).items).toEqual([]);
+    });
+});
+
+describe('validateFeed: dueSet (a date set by hand in ShipLine — external_items.due_set_json)', () => {
+    const dueSet = (over = {}) => ({
+        by: 'Ops', email: 'ops@example.com', at: '2026-10-06T09:30:00.000Z', derivedDate: '2026-11-01',
+        scope: 'item', note: 'agreed with the supplier', ...over,
+    });
+    const only = (over) => shipping.validateFeed(feedBody([feedItem('bal-812-s311', over)]));
+    // Beside a good row: a feed whose every row is rejected throws bad_response instead.
+    const beside = (over) => shipping.validateFeed(feedBody([
+        feedItem('dep-900', { kind: 'deposit', shipmentId: null, containerRef: null }),
+        feedItem('bal-812-s311', over),
+    ]));
+
+    test('absent or null → null; a good one is kept whole, with a blank note read as none', () => {
+        expect(only({}).items[0].dueSet).toBeNull();
+        expect(only({ dueSet: null }).items[0].dueSet).toBeNull();
+        expect(only({ dueSet: dueSet() }).items[0].dueSet).toEqual(dueSet());
+        expect(only({ dueSet: dueSet({ note: '', derivedDate: null }) }).items[0].dueSet).toEqual(dueSet({ note: null, derivedDate: null }));
+        expect(only({ dueSet: dueSet({ scope: 'payment', at: '2026-10-06T09:30:00Z' }) }).items[0].dueSet)
+            .toMatchObject({ scope: 'payment', at: '2026-10-06T09:30:00Z' });
+    });
+
+    test.each([
+        ['not an object', 'set by hand'],
+        ['an array', [dueSet()]],
+        ['no setter', dueSet({ by: '' })],
+        ['a setter over 255 characters', dueSet({ by: 'x'.repeat(256) })],
+        ['no email', dueSet({ email: null })],
+        ['an instant that is not ISO UTC', dueSet({ at: '2026-10-06 09:30:00' })],
+        ['an instant that is not real', dueSet({ at: '2026-13-06T09:30:00.000Z' })],
+        ['a derived date that is not a date', dueSet({ derivedDate: '2026-02-30' })],
+        ['an unknown scope', dueSet({ scope: 'row' })],
+        ['a note over 500 characters', dueSet({ note: 'x'.repeat(501) })],
+        ['a note that is not text', dueSet({ note: 7 })],
+    ])('rejects the row when dueSet is %s', (_label, bad) => {
+        const out = beside({ dueSet: bad });
+        expect(out.rejected).toBe(1);
+        expect(out.items.map((r) => r.id)).toEqual(['dep-900']);
+        expect(out.problems).toEqual([{ index: 1, id: 'bal-812-s311', reason: 'dueSet' }]);
+    });
+
+    test('a set date is a date: refused on an undated open row and on a paid row', () => {
+        expect(beside({ dueSet: dueSet(), dueDate: null, dateBasis: 'undated' }).problems).toEqual([{ index: 1, id: 'bal-812-s311', reason: 'dueSet' }]);
+        expect(beside({ dueSet: dueSet(), status: 'paid', dueDate: null, paidOn: '2026-09-20' }).problems).toEqual([{ index: 1, id: 'bal-812-s311', reason: 'dueSet' }]);
     });
 });

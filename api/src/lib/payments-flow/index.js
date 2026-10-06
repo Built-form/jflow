@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; buildPaymentsFlow(input, {claims: true}) also returns balanceClaims (JFlow feed; without the option the output is the TS's); new, not in the TS: re-exports ids.js (feed ids) and forecast.js (feed rows)
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ f9499bc — changes: today required; dateOfInstant pinned to Europe/London; buildPaymentsFlow(input, {claims: true}) also returns balanceClaims (JFlow feed; without the option the output is the TS's); new, not in the TS: re-exports ids.js (feed ids) and forecast.js (feed rows); overrides.js (due dates set by hand, from the TS @ 6565188, ahead of the re-pin) re-exported too
 'use strict';
 
 // Payments-flow model — "what money leaves the account, to whom, when" for
@@ -28,7 +28,8 @@
 //   policy      company payment rules (default + supplier)
 //   due         event chain, freight mode, balance and deposit due dates
 //   po          summarizePo — one PO's payments
-//   flow        buildPaymentsFlow — all POs, claims, owed air, rollups
+//   overrides   due dates set by hand (keys, applyDueOverrides) — TS @ 6565188
+//   flow        buildPaymentsFlow — all POs, claims, set dates, owed air, rollups
 //   ids         feed ids
 //   forecast    JFlow feed rows: open items + payments made, split per PO
 //   types       JSDoc types only
@@ -44,9 +45,10 @@ const { AIR_LIMIT_DEFAULT_DAYS, EMPTY_PAYMENT_RULE_ESTIMATES, resolvePolicy, can
 const { buildPoChain, freightModeOf } = require('./due');
 const { summarizePo } = require('./po');
 const { CURRENCY_ORDER, buildPaymentsFlow } = require('./flow');
+const { depositKey, balanceKey, itemKey, dueOverrideKeys, applyDueOverrides } = require('./overrides');
 const { FEED_ID_RE, isFeedId, groupToken, feedId, itemFeedId } = require('./ids');
 const {
-    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows,
+    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, dueSetOf, toForecastRows,
 } = require('./forecast');
 
 module.exports = {
@@ -60,8 +62,10 @@ module.exports = {
     dateOf, dateOfInstant, addDays,
     // constants
     LANDED_STATUSES, CURRENCY_ORDER, AIR_LIMIT_DEFAULT_DAYS, EMPTY_PAYMENT_RULE_ESTIMATES,
+    // due dates set by hand
+    depositKey, balanceKey, itemKey, dueOverrideKeys, applyDueOverrides,
     // feed ids
     FEED_ID_RE, isFeedId, groupToken, feedId, itemFeedId,
     // JFlow feed
-    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, toForecastRows,
+    TEXT_LIMITS, shipmentIdOf, poDirectory, collectPaidRows, splitCents, formatCents, dueSetOf, toForecastRows,
 };

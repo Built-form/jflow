@@ -39,6 +39,12 @@ const DECIMAL_ID_RE = /^[1-9][0-9]{0,17}$/;
 const TEXT_LIMITS = { supplier: 255, poNumber: 64, containerRef: 100 };
 const FLAG_MAX_LENGTH = 64;
 const PROBLEMS_KEPT = 20;
+// `dueSet` (a date set by hand in ShipLine; external_items.due_set_json): the setter's
+// name and email as shipping stores them (VARCHAR(255)), the note as payment_due_dates
+// holds it (VARCHAR(500)), the instant as the source connection sends a TIMESTAMP.
+const DUE_SET_SCOPES = ['payment', 'item'];
+const DUE_SET_LIMITS = { by: 255, email: 255, note: 500 };
+const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
 
 /** The one failure shape: `err.reason` is a SHIPPING_REASONS value; the message is safe to log. */
 function unavailable(reason, message) {
@@ -102,9 +108,34 @@ function isFeedId(v) {
 }
 
 /**
+ * A row's `dueSet` → its normalised form, or undefined when malformed: `by` and `email`
+ * non-empty strings within their widths, `at` an ISO UTC instant, `derivedDate` a real
+ * date or null, `scope` payment | item, `note` within 500 characters or null ('' → null).
+ */
+function checkDueSet(v) {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    for (const field of ['by', 'email']) {
+        if (typeof v[field] !== 'string' || !v[field] || charLength(v[field]) > DUE_SET_LIMITS[field]) return undefined;
+    }
+    if (typeof v.at !== 'string' || !ISO_INSTANT_RE.test(v.at) || Number.isNaN(Date.parse(v.at))) return undefined;
+    if (!isNullish(v.derivedDate) && !isValidDate(v.derivedDate)) return undefined;
+    if (!DUE_SET_SCOPES.includes(v.scope)) return undefined;
+    if (!isNullish(v.note) && (typeof v.note !== 'string' || charLength(v.note) > DUE_SET_LIMITS.note)) return undefined;
+    return {
+        by: v.by,
+        email: v.email,
+        at: v.at,
+        derivedDate: isNullish(v.derivedDate) ? null : v.derivedDate,
+        scope: v.scope,
+        note: isNullish(v.note) || v.note === '' ? null : v.note,
+    };
+}
+
+/**
  * One raw feed row → {item} or {reason}. The item is the normalised form the refresh
  * stores: nullable fields null (never undefined), `amount` canonical 2-dp, `flags`
- * sorted. `arranged` has no column (CONTRACT §3.5) and is not carried.
+ * sorted, `dueSet` null or checked (checkDueSet). `arranged` has no column
+ * (CONTRACT §3.5) and is not carried.
  */
 function checkRow(row) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) return { reason: 'not an object' };
@@ -143,6 +174,7 @@ function checkRow(row) {
         amountBasis: row.amountBasis,
         blocked: isNullish(row.blocked) ? null : row.blocked,
         flags: [],
+        dueSet: null,
     };
 
     for (const field of ['companyId', 'poId', 'shipmentId']) {
@@ -172,12 +204,20 @@ function checkRow(row) {
         }
         item.flags = [...row.flags].sort();
     }
+    if (!isNullish(row.dueSet)) {
+        const dueSet = checkDueSet(row.dueSet);
+        if (dueSet === undefined) return { reason: 'dueSet' };
+        item.dueSet = dueSet;
+    }
 
     // Consistency (PHASE2 §3): a paid row is one dated payment; an open row is owed, and
-    // is undated exactly when it has no due date.
+    // is undated exactly when it has no due date. A date set by hand is a date: it
+    // belongs to a dated open row.
     if (item.status === 'paid') {
         if (item.paidOn === null) return { reason: 'paidOn' };
+        if (item.dueSet !== null) return { reason: 'dueSet' };
     } else {
+        if (item.dueSet !== null && item.dueDate === null) return { reason: 'dueSet' };
         if (item.paidOn !== null) return { reason: 'paidOn' };
         if ((item.dueDate === null) !== (item.dateBasis === 'undated')) return { reason: 'dateBasis' };
     }

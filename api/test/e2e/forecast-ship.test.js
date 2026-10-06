@@ -178,6 +178,7 @@ describe('ship lines in /forecast (step 20)', () => {
             ship: {
                 kind: 'balance', poNumber: 'PO-812', containerRef: 'MSKU1234567', dateBasis: 'firm', amountBasis: 'stated',
                 blocked: null, feedDate: '2026-10-15', feedAmountMinor: 1234567,
+                dueSet: null, dateMovedFrom: null, dateMovedAt: null,
             },
         });
         // No CNY account: the company's default (GBP) account, through GBP (§9.8).
@@ -327,9 +328,10 @@ describe('ship lines in /forecast (step 20)', () => {
         expect(Object.keys(byId['bal-812-s311'])).toEqual([
             'key', 'id', 'source', 'extId', 'feedKind', 'feedStatus', 'supplier', 'shippingCompanyId', 'companyId',
             'accountId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'currency', 'amount', 'dueDate', 'paidOn',
-            'settles', 'dateBasis', 'amountBasis', 'blocked', 'flags', 'goneAt', 'plannedDate', 'plannedAmount',
+            'settles', 'dateBasis', 'amountBasis', 'blocked', 'flags', 'dueSet', 'dueDatePrev', 'dueDateMovedAt', 'goneAt',
+            'plannedDate', 'plannedAmount',
             'plannedSkipped', 'plannedBaseAmount', 'plannedNote', 'sourceScenarioId', 'plannedBy', 'plannedAt',
-            'effectiveDate', 'effectiveAmount', 'planStale', 'derivedStatus', 'rowVersion', 'createdBy', 'createdAt',
+            'effectiveDate', 'effectiveAmount', 'planStale', 'derivedStatus', 'dateMoved', 'rowVersion', 'createdBy', 'createdAt',
             'updatedAt',
         ]);
         expect(byId['bal-812-s311']).toMatchObject({

@@ -11,8 +11,9 @@
  */
 
 import type { CSSProperties } from 'react';
-import type { ForecastShipping, ForecastWarning, ItemFlag, ShipInfo, ShippingReason, ShipUnmappedReason } from '../api/forecast';
-import type { IsoDateTime } from '../api/types';
+import type { ForecastShipping, ForecastWarning, ItemFlag, ShipDueSet, ShipInfo, ShippingReason, ShipUnmappedReason } from '../api/forecast';
+import type { IsoDate, IsoDateTime } from '../api/types';
+import { formatDay } from './dates';
 import { parseUtc, plural } from './format';
 import { parseKey } from './keys';
 import { formatMoney, toMinor } from './money';
@@ -44,6 +45,10 @@ export interface ShipLook {
   blocked: boolean;
   /** `planned`: marked — JFlow's overlay is in force. */
   planned: boolean;
+  /** `due_set`: the feed's date was set by hand in ShipLine — ShipLine's mark (dotted underline). */
+  dueSet: boolean;
+  /** `date_moved`: the refresh moved the feed's date within the last 14 days — marked. */
+  dateMoved: boolean;
 }
 
 export function shipLook(flags: readonly ItemFlag[]): ShipLook {
@@ -52,14 +57,72 @@ export function shipLook(flags: readonly ItemFlag[]): ShipLook {
     projected: flags.includes('projected'),
     blocked: flags.includes('blocked'),
     planned: flags.includes('planned'),
+    dueSet: flags.includes('due_set'),
+    dateMoved: flags.includes('date_moved'),
   };
 }
 
-/** The inline style a line's figure takes: italic and hatched when its date is estimated. */
+/**
+ * ShipLine marks a date set by hand with a pen and a dotted underline (its DueDateMark); the
+ * same mark here, wherever such a date shows.
+ */
+export const DUE_SET_STYLE: CSSProperties = { textDecoration: 'underline dotted', textUnderlineOffset: 3, fontWeight: 600 };
+/** The pen beside a date set by hand (ShipLine draws a pencil icon; the web has no icon set). */
+export const DUE_SET_GLYPH = '✎';
+
+/**
+ * The inline style a line's figure takes: italic and hatched when its date is estimated;
+ * ShipLine's dotted underline when its date was set by hand (never both: a set date is not
+ * an estimate).
+ */
 export function shipLineStyle(flags: readonly ItemFlag[]): CSSProperties {
   const look = shipLook(flags);
-  if (!look.estimated) return {};
-  return { fontStyle: 'italic', backgroundImage: HATCH };
+  const out: CSSProperties = {};
+  if (look.estimated) Object.assign(out, { fontStyle: 'italic', backgroundImage: HATCH });
+  if (look.dueSet) Object.assign(out, DUE_SET_STYLE);
+  return out;
+}
+
+/* ---------- a date set by hand, and a date that moved, in words ---------- */
+
+/** The calendar day of an ISO instant as the API sends it (UTC), formatted like every other day. */
+const instantDay = (at: IsoDateTime | string): string => formatDay(at.slice(0, 10));
+
+/**
+ * The full story, for a tooltip or a dialog — what ShipLine's hover says (paymentsCopy.ts
+ * dueSetText): `Set by hand in shipping by Ops on Tue 6 Oct 2026, in place of Sun 1 Nov 2026
+ * (this row only): “agreed with the supplier”.`
+ */
+export function dueSetText(d: ShipDueSet): string {
+  const derived = d.derivedDate ? formatDay(d.derivedDate) : 'no date';
+  const scope = d.scope === 'item' ? ' (this row only)' : '';
+  const note = d.note ? `: “${d.note}”` : '';
+  return `Set by hand in shipping by ${d.by} on ${instantDay(d.at)}, in place of ${derived}${scope}${note}.`;
+}
+
+/** The short line under a date on the Stock payments list: `set by Ops on Tue 6 Oct 2026 · derived Sun 1 Nov 2026`. */
+export function dueSetLine(d: ShipDueSet): string {
+  return `set by ${d.by} on ${instantDay(d.at)} · derived ${d.derivedDate ? formatDay(d.derivedDate) : 'no date'}`;
+}
+
+/**
+ * What the dialogs append to "Shipping says … on <date>": ` (set by hand by Ops on Tue 6 Oct
+ * 2026; shipping's derived date was Sun 1 Nov 2026)`; '' when the date is derived.
+ */
+export function dueSetClause(d: ShipDueSet | null | undefined): string {
+  if (!d) return '';
+  const derived = d.derivedDate ? `shipping's derived date was ${formatDay(d.derivedDate)}` : 'shipping had no date of its own';
+  return ` (set by hand by ${d.by} on ${instantDay(d.at)}; ${derived})`;
+}
+
+/** The sentence for a moved date: `Shipping moved this date from Mon 5 Oct 2026 on Tue 6 Oct 2026.` */
+export function dateMovedText(from: IsoDate | null | undefined, at: IsoDateTime): string {
+  return `Shipping moved this date from ${from ? formatDay(from) : 'no date'} on ${instantDay(at)}.`;
+}
+
+/** The short line under a moved date: `moved from Mon 5 Oct 2026 on Tue 6 Oct 2026`. */
+export function dateMovedLine(from: IsoDate | null | undefined, at: IsoDateTime): string {
+  return `moved from ${from ? formatDay(from) : 'no date'} on ${instantDay(at)}`;
 }
 
 /** What a blocked line waits on (the feed's `blocked`, §3.5), in words. */
@@ -75,16 +138,22 @@ export function blockedText(blocked: string | null | undefined): string {
   return BLOCKER_TEXT[blocked] ?? `Blocked (${blocked.replace(/_/g, ' ')})`;
 }
 
+/** What `shipFlagNotes` reads off the line's `ship` block, all optional (an older server sends fewer). */
+export type ShipNoteInfo = Partial<Pick<ShipInfo, 'blocked' | 'dueSet' | 'dateMovedFrom' | 'dateMovedAt'>>;
+
 /**
  * One sentence per feed flag the line carries, for a tooltip or a dialog. `ship` gives the
- * blocker; without it a blocked line just says "Blocked".
+ * blocker (without it a blocked line just says "Blocked"), who set a date by hand, and
+ * what a moved date moved from.
  */
-export function shipFlagNotes(flags: readonly ItemFlag[], ship?: Pick<ShipInfo, 'blocked'> | null): string[] {
+export function shipFlagNotes(flags: readonly ItemFlag[], ship?: ShipNoteInfo | null): string[] {
   const look = shipLook(flags);
   const notes: string[] = [];
   if (look.estimated) notes.push("The date is shipping's estimate.");
   if (look.projected) notes.push('The amount is projected by shipping, not yet stated on an invoice.');
   if (look.blocked) notes.push(`${blockedText(ship?.blocked)}.`);
+  if (look.dueSet) notes.push(ship?.dueSet ? dueSetText(ship.dueSet) : 'The date was set by hand in shipping.');
+  if (look.dateMoved) notes.push(ship?.dateMovedAt ? dateMovedText(ship.dateMovedFrom, ship.dateMovedAt) : 'Shipping moved this date recently.');
   if (look.planned) notes.push("Planned in JFlow: this date, amount or skip is JFlow's, not shipping's.");
   return notes;
 }

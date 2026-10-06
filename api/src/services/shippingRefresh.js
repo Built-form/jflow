@@ -13,15 +13,20 @@
 //              READ ONLY connection) with none of the refresh's connections held; validateFeed;
 //   3  diff    by (ext_id, feed_hash, gone_at): a new id → INSERT; a changed hash, or a
 //              row back after gone_at → UPDATE the feed columns and clear gone_at; a row
-//              missing from the feed → set gone_at. Rows are never removed;
+//              missing from the feed → set gone_at. Rows are never removed. When the
+//              UPDATE moves due_date (a date set or cleared by hand in ShipLine, a
+//              derived date that changed), due_date_prev / due_date_moved_at record the
+//              move — except a `from_today` row sliding by the days elapsed, which would
+//              say "moved" every morning (handover doc "Dates set by hand");
 //   4  record  success: last_success_at, feed_today, the counts, companies_json and
 //              last_error = NULL. Failure: last_error only, so the snapshot's age stays
 //              truthful.
 //
-// What it may write is exactly FEED_COLUMNS plus feed_hash, gone_at, row_version and (on
-// insert) source, ext_id and created_by. The overlay columns belong to user edits and
-// scenario apply (§10.9, §10.11); this file never names one. It writes no per-row audit
-// (P8): feed columns are shipping's data, and feed_hash / updated_at say when they moved.
+// What it may write is exactly FEED_COLUMNS plus feed_hash, gone_at, due_date_prev,
+// due_date_moved_at, row_version and (on insert) source, ext_id and created_by. The overlay
+// columns belong to user edits and scenario apply (§10.9, §10.11); this file never names
+// one. It writes no per-row audit (P8): feed columns are shipping's data, and feed_hash /
+// updated_at say when they moved.
 //
 // Its connection is its own, not the pool's. The session variable would otherwise ride
 // back into the pool on release and give some later request a 5 s lock wait, and through
@@ -49,11 +54,15 @@ const LAST_ERROR_MAX = 500;              // external_sync.last_error VARCHAR(500
 const ROW_BUSY = new Set([1205, 1213]);
 
 // The feed columns, in the one fixed order feed_hash is computed over (CONTRACT §3.5).
+// due_set_json (2026-10-06) joined at the end: every stored hash moved once, so the first
+// run after that deploy counts every row as updated.
 const FEED_COLUMNS = [
     'feed_kind', 'feed_status', 'supplier', 'shipping_company_id', 'po_id', 'po_number', 'shipment_id',
     'container_ref', 'currency', 'amount', 'due_date', 'paid_on', 'settles', 'date_basis', 'amount_basis',
-    'blocked', 'flags_json',
+    'blocked', 'flags_json', 'due_set_json',
 ];
+// A row whose date counts from today moves one day each day: that slide is not a "move".
+const MOVED_FLAG_EXEMPT = 'from_today';
 
 /** A validated feed item (services/shipping.js validateFeed) → its feed-column values. */
 function feedRow(item) {
@@ -75,7 +84,38 @@ function feedRow(item) {
         amount_basis: item.amountBasis,
         blocked: item.blocked,
         flags_json: JSON.stringify(item.flags),
+        due_set_json: item.dueSet ? JSON.stringify(item.dueSet) : null,
     };
+}
+
+/** A stored DATE (a 'YYYY-MM-DD' string, or a Date when read without dateStrings) as 'YYYY-MM-DD' | null. */
+function ymdOf(v) {
+    if (v == null) return null;
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    return String(v).slice(0, 10);
+}
+
+function flagsOf(flagsJson) {
+    if (Array.isArray(flagsJson)) return flagsJson;
+    try {
+        const parsed = JSON.parse(flagsJson);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Whether this run moves the row's due date — what due_date_prev / due_date_moved_at
+ * record: the stored due_date differs from the incoming one (a date set or cleared by hand
+ * in ShipLine, or a derived date that changed), except when both sides carry
+ * MOVED_FLAG_EXEMPT (`from_today`), whose date slides by the days elapsed every morning.
+ * `prior` is the stored row ({due_date, flags_json}); `item` the validated feed item.
+ */
+function dueDateMoved(prior, item) {
+    if (ymdOf(prior.due_date) === (item.dueDate ?? null)) return false;
+    const slid = flagsOf(prior.flags_json).includes(MOVED_FLAG_EXEMPT) && (item.flags || []).includes(MOVED_FLAG_EXEMPT);
+    return !slid;
 }
 
 /**
@@ -165,6 +205,12 @@ const UPDATE_FEED_SQL = `UPDATE external_items
                             SET ${FEED_COLUMNS.map((c) => `${c} = ?`).join(', ')}, feed_hash = ?, gone_at = NULL,
                                 row_version = row_version + 1
                           WHERE id = ?`;
+// The same UPDATE when the due date moved: the date it moved from, and when (now, UTC).
+const UPDATE_FEED_MOVED_SQL = `UPDATE external_items
+                                  SET ${FEED_COLUMNS.map((c) => `${c} = ?`).join(', ')}, feed_hash = ?, gone_at = NULL,
+                                      due_date_prev = ?, due_date_moved_at = UTC_TIMESTAMP(),
+                                      row_version = row_version + 1
+                                WHERE id = ?`;
 const MARK_GONE_SQL = `UPDATE external_items SET gone_at = UTC_TIMESTAMP(), row_version = row_version + 1
                         WHERE id = ? AND gone_at IS NULL`;
 
@@ -183,11 +229,11 @@ async function writeRow(conn, sql, params, what) {
 /** Step 3: the diff, one autocommit statement per row. → counts. */
 async function applyFeed(conn, items) {
     const [existing] = await conn.query(
-        'SELECT id, ext_id, feed_hash, gone_at FROM external_items WHERE source = ?', [SOURCE]
+        'SELECT id, ext_id, feed_hash, gone_at, due_date, flags_json FROM external_items WHERE source = ?', [SOURCE]
     );
     // Keyed as the unique key compares ext_id (the schema's collation is case-insensitive).
     const byExtId = new Map(existing.map((r) => [String(r.ext_id).toLowerCase(), r]));
-    const counts = { inserted: 0, updated: 0, returned: 0, gone: 0, unchanged: 0, deferred: 0 };
+    const counts = { inserted: 0, updated: 0, returned: 0, gone: 0, unchanged: 0, deferred: 0, moved: 0 };
     const seen = new Set();
 
     for (const item of items) {
@@ -201,9 +247,15 @@ async function applyFeed(conn, items) {
             const ok = await writeRow(conn, INSERT_SQL, [SOURCE, item.id, ...values, hash, FEED_CREATED_BY], `insert ${item.id}`);
             counts[ok ? 'inserted' : 'deferred'] += 1;
         } else if (prior.feed_hash !== hash || prior.gone_at !== null) {
-            const ok = await writeRow(conn, UPDATE_FEED_SQL, [...values, hash, prior.id], `update ${item.id}`);
+            const moved = dueDateMoved(prior, item);
+            const ok = moved
+                ? await writeRow(conn, UPDATE_FEED_MOVED_SQL, [...values, hash, ymdOf(prior.due_date), prior.id], `update ${item.id}`)
+                : await writeRow(conn, UPDATE_FEED_SQL, [...values, hash, prior.id], `update ${item.id}`);
             if (!ok) counts.deferred += 1;
-            else counts[prior.gone_at !== null ? 'returned' : 'updated'] += 1;
+            else {
+                counts[prior.gone_at !== null ? 'returned' : 'updated'] += 1;
+                if (moved) counts.moved += 1;
+            }
         } else {
             counts.unchanged += 1;
         }
@@ -233,7 +285,7 @@ async function recordFailure(err) {
  *   {status: 'skipped', ran: false, sync}                      another run holds the claim
  *   {status: 'ok',      ran: true,  sync, counts}              counts: inserted, updated,
  *                                                              returned, gone, unchanged,
- *                                                              deferred, rejected
+ *                                                              deferred, moved, rejected
  *   {status: 'failed',  ran: true,  sync, reason, message}     the read failed; only
  *                                                              last_error was written
  * `sync` is the external_sync row after the run (raw columns). A database error throws.
@@ -314,10 +366,12 @@ function readStatus() {
 
 module.exports = {
     FEED_COLUMNS,
+    MOVED_FLAG_EXEMPT,
     CLAIM_GUARD_SECONDS,
     REFRESH_TTL_SECONDS,
     feedRow,
     feedHash,
+    dueDateMoved,
     runRefresh,
     refreshIfStale,
     readStatus,

@@ -13,7 +13,7 @@
 
 import { request } from './client';
 import type { Decimal, IsoDate, IsoDateTime, ListEnvelope } from './types';
-import type { ShipBlocker, ShippingReason } from './forecast';
+import type { ShipBlocker, ShipDueSet, ShippingReason } from './forecast';
 
 /** `parseListParams`'s ceiling (§2.3). */
 const PAGE_LIMIT = 500;
@@ -51,6 +51,13 @@ export interface ExternalItem {
   amountBasis: 'stated' | 'derived' | (string & {});
   blocked: ShipBlocker | (string & {}) | null;
   flags: string[];
+  /** The feed's date was set by hand in ShipLine (§3.5 `due_set_json`); null when derived. */
+  dueSet: ShipDueSet | null;
+  /** The refresh's record of the last move of the feed's `dueDate`: from this date, at this instant. */
+  dueDatePrev: IsoDate | null;
+  dueDateMovedAt: IsoDateTime | null;
+  /** Server rule: that move is within the last 14 days of `today` (the engine's `date_moved` flag). */
+  dateMoved: boolean;
   goneAt: IsoDateTime | null;
   plannedDate: IsoDate | null;
   plannedAmount: Decimal | null;

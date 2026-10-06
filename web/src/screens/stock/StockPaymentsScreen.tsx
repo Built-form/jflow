@@ -12,7 +12,7 @@ import { formatDay, londonToday } from '../../lib/dates';
 import { flagTags } from '../../lib/grid';
 import { formatDecimal, parseMinor } from '../../lib/money';
 import { removeById, updateList, upsertById } from '../../lib/rows';
-import { PLAN_STALE_TAG, blockedText, lastSyncText } from '../../lib/ship';
+import { DUE_SET_GLYPH, DUE_SET_STYLE, PLAN_STALE_TAG, blockedText, dateMovedLine, dueSetLine, dueSetText, lastSyncText } from '../../lib/ship';
 import { ShipPlanDialog } from '../forecast/ShipPlanDialog';
 import { RefreshButton } from '../forecast/shipping';
 import { hasOverlay, targetFromRow } from '../forecast/shipPlan';
@@ -131,6 +131,12 @@ export function StockPaymentsScreen() {
                 const open = row.feedStatus === 'open' && !row.goneAt;
                 const overlay = hasOverlay(row);
                 const shownDate = row.feedStatus === 'paid' ? row.paidOn : row.effectiveDate;
+                // A JFlow plan wins the date; shipping's own date then sits on the second line.
+                // A date set by hand in ShipLine wears ShipLine's mark (pen, dotted underline)
+                // wherever shipping's date shows, with who set it and the derived date under it.
+                const planOverridesDate = Boolean(row.plannedDate && row.dueDate !== row.plannedDate);
+                const markMain = Boolean(row.dueSet) && !planOverridesDate;
+                const pen = <span aria-label="Date set by hand in shipping">{DUE_SET_GLYPH} </span>;
                 return (
                   <div
                     key={row.id}
@@ -139,10 +145,32 @@ export function StockPaymentsScreen() {
                     style={{ gridTemplateColumns: COLUMNS, alignItems: 'start' }}
                   >
                     <div className="mono" style={{ fontSize: 12.5, paddingTop: 2 }}>
-                      {shownDate ? formatDay(shownDate) : 'No date yet'}
-                      {row.plannedDate && row.dueDate !== row.plannedDate && (
-                        <div style={{ fontSize: 11.5, color: 'var(--dim)' }}>
-                          shipping {row.dueDate ? formatDay(row.dueDate) : 'no date'}
+                      <span
+                        data-due-set={markMain ? '1' : undefined}
+                        title={markMain && row.dueSet ? dueSetText(row.dueSet) : undefined}
+                        style={markMain ? DUE_SET_STYLE : undefined}
+                      >
+                        {markMain && pen}
+                        {shownDate ? formatDay(shownDate) : 'No date yet'}
+                      </span>
+                      {planOverridesDate && (
+                        <div
+                          style={{ fontSize: 11.5, color: 'var(--dim)' }}
+                          data-due-set={row.dueSet ? '1' : undefined}
+                          title={row.dueSet ? dueSetText(row.dueSet) : undefined}
+                        >
+                          shipping {row.dueSet && pen}
+                          <span style={row.dueSet ? DUE_SET_STYLE : undefined}>{row.dueDate ? formatDay(row.dueDate) : 'no date'}</span>
+                        </div>
+                      )}
+                      {row.dueSet && (
+                        <div style={{ fontSize: 11.5, color: 'var(--dim)' }} data-testid="stock-due-set">
+                          {dueSetLine(row.dueSet)}
+                        </div>
+                      )}
+                      {row.dateMoved && row.dueDateMovedAt && (
+                        <div style={{ fontSize: 11.5, color: 'var(--warn)' }} data-testid="stock-date-moved">
+                          {dateMovedLine(row.dueDatePrev, row.dueDateMovedAt)}
                         </div>
                       )}
                     </div>
@@ -151,6 +179,11 @@ export function StockPaymentsScreen() {
                       {row.containerRef && <span style={{ fontSize: 12.5, color: 'var(--mut)' }}>{row.containerRef}</span>}
                       {row.blocked && <span style={{ fontSize: 12.5, color: 'var(--warn)' }}>{blockedText(row.blocked)}</span>}
                       {row.plannedNote && <span style={{ fontSize: 12.5, color: 'var(--mut)' }}>“{row.plannedNote}”</span>}
+                      {row.dueSet?.note && (
+                        <span style={{ fontSize: 12.5, color: 'var(--mut)' }} data-testid="stock-due-set-note">
+                          shipping: “{row.dueSet.note}”
+                        </span>
+                      )}
                       {tags.length > 0 && (
                         <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {tags.map((t) => (

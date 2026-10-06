@@ -941,6 +941,7 @@ describe('ship lines (Phase 2, §9.3.1)', () => {
             ship: {
                 kind: 'balance', poNumber: 'PO-812', containerRef: 'MSKU1234567', dateBasis: 'firm',
                 amountBasis: 'stated', blocked: null, feedDate: '2026-10-05', feedAmountMinor: 10000,
+                dueSet: null, dateMovedFrom: null, dateMovedAt: null,
             },
         });
         for (const key of ['ship.bal-44', 'ship.bal-45', 'ship.dep-2', 'ship.dep-3']) {
@@ -963,6 +964,32 @@ describe('ship lines (Phase 2, §9.3.1)', () => {
             lastSuccessAt: SYNC.lastSuccessAt, feedToday: TODAY, openCount: 7, undatedCount: 1, undatedGbp: 25000, unmappedCount: 0,
         });
         expect(res.warnings).toEqual([]);
+    });
+
+    test('a date set by hand in ShipLine: flag due_set and the story on ship.dueSet; a recent move: flag date_moved with where from and when', () => {
+        const dueSet = { by: 'Ops', email: 'ops@example.com', at: '2026-10-06T09:30:00.000Z', derivedDate: '2026-11-01', scope: 'item', note: 'agreed' };
+        const res = ship({
+            externalItems: [
+                shipRow('bal-set', { dueDate: '2026-10-20', dueSet, flags: ['due_set'] }),
+                shipRow('bal-moved', { dueDate: '2026-10-21', dueDatePrev: '2026-10-05', dueDateMovedAt: new Date(`${addDays(TODAY, -14)}T10:00:00Z`) }),
+                shipRow('bal-old-move', { dueDate: '2026-10-22', dueDatePrev: '2026-10-05', dueDateMovedAt: `${addDays(TODAY, -15)}T10:00:00.000Z` }),
+                shipRow('bal-both', { dueDate: '2026-10-23', dueSet, dueDatePrev: null, dueDateMovedAt: `${TODAY}T07:00:00.000Z`, plannedDate: '2026-10-28' }),
+            ],
+        });
+        expect(lineOf(res, 'ship.bal-set')).toMatchObject({
+            date: '2026-10-20', flags: ['due_set'],
+            ship: { feedDate: '2026-10-20', dueSet, dateMovedFrom: null, dateMovedAt: null },
+        });
+        expect(lineOf(res, 'ship.bal-moved')).toMatchObject({
+            flags: ['date_moved'],
+            ship: { dueSet: null, dateMovedFrom: '2026-10-05', dateMovedAt: `${addDays(TODAY, -14)}T10:00:00.000Z` },
+        });
+        expect(lineOf(res, 'ship.bal-old-move')).toMatchObject({ flags: [], ship: { dateMovedFrom: null, dateMovedAt: null } });
+        // a JFlow plan still wins the date; the marks and the feed's story ride along
+        expect(lineOf(res, 'ship.bal-both')).toMatchObject({
+            date: '2026-10-28', flags: ['planned', 'due_set', 'date_moved'],
+            ship: { feedDate: '2026-10-23', dueSet, dateMovedFrom: null, dateMovedAt: `${TODAY}T07:00:00.000Z` },
+        });
     });
 
     test('paid rows: at A−1 excluded, at A absorbed (flags [paid], no paymentId), today in today\'s bucket', () => {
