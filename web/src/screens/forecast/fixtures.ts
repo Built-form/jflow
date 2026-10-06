@@ -127,7 +127,8 @@ export function rows(): ForecastRow[] {
 /**
  * The Stock payments row (Phase 2, §6.10): a USD deposit whose date is shipping's estimate
  * and which JFlow has planned (a date moved from 2 Oct to 6 Oct), and a USD balance blocked
- * on artwork whose amount is projected. Both editable.
+ * on artwork whose amount is derived from the terms (amountBasis 'derived'; no flag for that
+ * since 2026-10-06). Both editable.
  */
 export function shipRow(): ForecastRow {
   return {
@@ -181,7 +182,7 @@ export function shipRow(): ForecastRow {
         dueDate: '2026-10-13',
         bucketIndex: 2,
         settleMode: 'manual',
-        flags: ['projected', 'blocked'],
+        flags: ['blocked'],
         ship: {
           kind: 'balance',
           poNumber: 'PO-812',

@@ -1144,8 +1144,8 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   `status` `expected | paid | skipped`, `settleMode` always `manual`, and the `ship` block
   (`feedDate` = the feed `due_date`, `feedAmountMinor` = the feed `amount`, so the client
   can show what was planned against what shipping says). Their flags are `estimated`
-  (`dateBasis = 'estimated'`), `projected` (`amountBasis = 'derived'`), `blocked` (the feed's
-  `blocked` is set), `planned` (any overlay column set), and since 2026-10-06 `due_set` (the
+  (`dateBasis = 'estimated'`), `blocked` (the feed's `blocked` is set), `planned` (any overlay
+  column set), and since 2026-10-06 `due_set` (the
   feed's date was set by hand in ShipLine — `ship.dueSet` says by whom, when, in place of
   which derived date, for the whole payment or this row, and why) and `date_moved` (the
   refresh moved the feed's `due_date` within the last 14 days, `lib/lines.js
@@ -1153,7 +1153,12 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   null otherwise) — **none of which changes a band** — plus `overdue`, `paid`, `adjusted`,
   `excluded`, `stale` and `fromScenario` with their usual meaning; never `tuned`, `partial`
   or `remainder`. A JFlow `plannedDate` still wins the line's date over a date set by hand
-  in ShipLine (the handover doc's open question 2); both marks ride along. `paymentId` is absent on a ship
+  in ShipLine (the handover doc's open question 2); both marks ride along. **Retired
+  2026-10-06: `projected`** (`amountBasis = 'derived'`). Users read it as "no invoice yet",
+  while it only meant "worked out from the payment terms", which is also how ShipLine's own
+  page treats such rows (an uploaded supplier invoice is checked against the owed figure
+  and never changes it). The server no longer emits it; `amountBasis` stays on the row and
+  the `ship` block; the web ignores the flag from an older API. `paymentId` is absent on a ship
   payment line (there is no `payments` row; the feed row is the payment). `editable` is the
   same formula as below; without a scenario an edit writes the overlay
   (`PUT /external-items/:key`), inside a draft scenario it writes a `ship.` adjustment.
@@ -1493,8 +1498,8 @@ mapping, in `lib/lines.js` beside `itemLine` / `instanceLine`:
 | open, undated | **no line**; counted in `shipping.undatedCount` / `undatedGbp` (at §9.7's rate) |
 | `goneAt` set (reaches the engine only as a rule-6 target) | **no line**; any overlay column set → warning `SHIP_PLAN_ORPHANED {key}`; as an adjustment target it reads `TARGET_MISSING` |
 
-Flags `estimated`, `projected`, `blocked` and `planned` (§6.10) are carried on the line
-and **never change a band**. There is no `part_paid` for a ship line: the feed's open
+Flags `estimated`, `blocked`, `planned`, `due_set` and `date_moved` (§6.10) are carried on
+the line and **never change a band** (`projected` retired 2026-10-06, §6.10). There is no `part_paid` for a ship line: the feed's open
 `amount` is already the remainder, and a part payment arrives as its own paid row (P3).
 Assumed-paid money (a proof file, or goods that have moved) leaves the feed with no paid
 row, so it reads as settled before the anchor — PHASE2.md risk 7.

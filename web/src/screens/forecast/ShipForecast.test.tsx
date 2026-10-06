@@ -89,7 +89,7 @@ async function expandGrid() {
 const forecastReads = (calls: Call[]) => calls.filter((c) => c.method === 'GET' && c.path.startsWith('/forecast'));
 
 describe('ship lines in the grid', () => {
-  it('render from the server flags: estimated hatched and italic, blocked, planned and projected marked, the name as sent', async () => {
+  it('render from the server flags: estimated hatched and italic, blocked and planned marked, no mark for a derived amount, the name as sent', async () => {
     stubApi({ forecast: () => forecastFixture({ ship: true, shipping: SHIPPING }) });
     renderForecast();
     await expandGrid();
@@ -107,13 +107,17 @@ describe('ship lines in the grid', () => {
 
     const balance = within(grid).getByTestId('line-ship.bal-812-s311');
     expect(balance.textContent).toContain('Acme Textiles · PO-812 · balance');
-    // Its container, not the supplier again, under the name.
-    expect(balance.textContent).toContain('MSCU1234567');
+    // Its container sits on the supplier + shipment group row above it, not on the line again.
+    expect(balance.textContent).not.toContain('MSCU1234567');
+    expect(within(grid).getByTestId('combo-acme textiles|MSCU1234567').textContent).toContain('MSCU1234567 · 1 payment');
     expect(balance.querySelector('[data-estimated="true"]')).toBeNull();
     expect(balance.querySelector('[data-flag="blocked"]')?.textContent).toBe('BLOCKED');
-    expect(balance.querySelector('[data-flag="projected"]')?.textContent).toBe('PROJECTED');
-    // The blocker and the projection are explained on the line.
+    // `projected` retired 2026-10-06: a derived amount wears no tag and gets no sentence.
+    expect(balance.querySelector('[data-flag="projected"]')).toBeNull();
+    expect(balance.textContent).not.toContain('PROJECTED');
+    // The blocker is explained on the line.
     expect(within(balance).getByRole('button').getAttribute('title')).toContain('Waiting on artwork sign-off.');
+    expect(within(balance).getByRole('button').getAttribute('title')).not.toContain('invoice');
   });
 
   it('marks a SHIP_PLAN_STALE line and lists it; lists a SHIP_PLAN_ORPHANED plan with a way to clear it', async () => {
@@ -301,6 +305,53 @@ describe('the SHIPPING_UNAVAILABLE banner', () => {
     await expandGrid();
     await screen.findByTestId('forecast-grid');
     expect(screen.queryByTestId('shipping-unavailable')).toBeNull();
+  });
+});
+
+describe('stock payments grouped by supplier + shipment (Dev, 2026-10-06)', () => {
+  /** The fixture's two Acme lines plus a second Acme balance in the same container, flagged overdue. */
+  const withSecondBalance = () => {
+    const fx = forecastFixture({ ship: true, shipping: SHIPPING });
+    const stock = fx.rows!.find((r) => r.categoryId === 90)!;
+    const bal = stock.items.find((i) => i.key === 'ship.bal-812-s311')!;
+    stock.items.push({
+      ...bal, key: 'ship.bal-813-s311', id: 'bal-813-s311', name: 'Acme Textiles · PO-813 · balance',
+      amountMinor: 50000, accountMinor: 50000, gbpMinor: 37000, flags: ['overdue'], ship: { ...bal.ship!, poNumber: 'PO-813' },
+    });
+    return fx;
+  };
+
+  it('opening the category shows one line per supplier + container with the summed figure; the payments open on a click, or with Expand all', async () => {
+    stubApi({ forecast: withSecondBalance });
+    renderForecast();
+    const grid = await screen.findByTestId('forecast-grid');
+    fireEvent.click(within(grid).getByRole('button', { name: /Stock payments/ }));
+
+    const combo = within(grid).getByTestId('combo-acme textiles|MSCU1234567');
+    expect(combo.textContent).toContain('Acme Textiles');
+    expect(combo.textContent).toContain('MSCU1234567 · 2 payments');
+    expect(combo.textContent).toContain('£1,480.00');
+    expect(within(combo).getByTestId('attention-combo:acme textiles|MSCU1234567').textContent).toContain('OVERDUE 1');
+    expect(screen.queryByTestId('line-ship.bal-812-s311')).toBeNull();
+    expect(screen.queryByTestId('line-ship.bal-813-s311')).toBeNull();
+
+    const single = within(grid).getByTestId('combo-acme textiles|-');
+    expect(single.textContent).toContain('No container · 1 payment');
+    expect(single.textContent).toContain('£3,700.00');
+
+    fireEvent.click(within(combo).getByRole('button', { name: /Acme Textiles/ }));
+    expect(screen.getByTestId('line-ship.bal-812-s311').textContent).toContain('Acme Textiles · PO-812 · balance');
+    expect(screen.getByTestId('line-ship.bal-813-s311').textContent).toContain('PO-813');
+    // Under its group the line does not repeat the container; the group already says it.
+    expect(screen.getByTestId('line-ship.bal-812-s311').textContent).not.toContain('MSCU1234567');
+    expect(screen.queryByTestId('attention-combo:acme textiles|MSCU1234567')).toBeNull();
+    expect(screen.queryByTestId('line-ship.dep-812')).toBeNull();
+
+    fireEvent.click(within(grid).getByRole('button', { name: 'Expand all' }));
+    expect(screen.getByTestId('line-ship.dep-812')).toBeTruthy();
+    fireEvent.click(within(grid).getByRole('button', { name: 'Collapse all' }));
+    expect(screen.queryByTestId('combo-acme textiles|-')).toBeNull();
+    expect(screen.queryByTestId('line-ship.dep-812')).toBeNull();
   });
 });
 
@@ -576,7 +627,7 @@ describe("a date set by hand in ShipLine, in the dialogs", () => {
     const fx = forecastFixture({ ship: true, scenario: true });
     const stock = fx.rows!.find((r) => r.categoryId === 90)!;
     const balance = stock.items.find((i) => i.key === 'ship.bal-812-s311')!;
-    balance.flags = ['projected', 'blocked', 'due_set', 'date_moved'];
+    balance.flags = ['blocked', 'due_set', 'date_moved'];
     balance.ship = { ...balance.ship!, dueSet: DUE_SET, dateMovedFrom: '2026-10-01', dateMovedAt: '2026-10-06T09:30:00.000Z' };
     stubApi({ forecast: () => fx });
     renderForecast(createScenarioStore({ id: 9, name: 'Delay the rent' }));

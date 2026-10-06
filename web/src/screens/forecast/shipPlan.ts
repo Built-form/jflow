@@ -77,7 +77,7 @@ export function shipRowName(row: Pick<ExternalItem, 'supplier' | 'poNumber' | 'f
 export function targetFromRow(row: ExternalItem): ShipPlanTarget {
   const flags: ItemFlag[] = [];
   if (row.dateBasis === 'estimated') flags.push('estimated');
-  if (row.amountBasis === 'derived') flags.push('projected');
+  // No `projected` flag since 2026-10-06 (CONTRACT §6.10): it read as "no invoice yet".
   if (row.blocked != null) flags.push('blocked');
   const planned = hasOverlay(row);
   if (planned) flags.push('planned');

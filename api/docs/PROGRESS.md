@@ -987,3 +987,33 @@ fields. `migrate.test.js`'s first-two-files check still holds (the new file sort
 
 **Deferred:** the full re-pin to `6565188` (handover doc section 7, steps 2–5); an on-demand
 "History" line from shipping's `audit_log` (`entity_type = 'payment_due_date'`).
+
+## Phase 2 — `projected` retired (2026-10-06)
+
+Dev, testing locally: "remove projected from jflow, confuses user". The tag read as "no
+invoice uploaded yet", while it only meant `amountBasis = 'derived'` — the amount is the terms
+percentage of the goods, which is exactly how ShipLine's own page treats the same row (an
+uploaded supplier invoice is an invoice *check* against the owed figure and never changes it;
+`basis` is `stated` only for a PI row or a balance record). The server no longer emits the
+flag (`engine.js shipFlags`), the web no longer derives it (`shipPlan.ts targetFromRow`),
+`flagTags` skips a stray one from an older API, and the "not yet stated on an invoice"
+sentence is gone. `amountBasis` is unchanged on the row JSON and the `ship` block. CONTRACT
+§6.10 and PHASE2 §4.5 note the retirement.
+
+## Phase 2 — Forecast groups stock payments by supplier + shipment (2026-10-06)
+
+Dev: "similar to what we do on ShipLine payments flow … group by supplier+shipment combination,
+clicking expands to show individual payments". Web only, in `ForecastGrid.tsx`: the Stock
+payments category (every line `kind: 'ship'`, `lib/grid.ts isShipCategory`) now shows one row
+per supplier + container (`groupShipCombos`: key = lower-cased supplier | upper-cased container,
+`-` when unknown, so a PO's unbooked goods are their own group), with the group's per-bucket
+and window sums of its lines' `gbpMinor` — the grid's one display-only sum — a count, and the
+collapsed category's attention tags. Groups open collapsed; "Expand all" opens them with the
+categories; a line under its group no longer repeats the container. The lines themselves are
+unchanged and are still what the edit dialog opens. The server sends nothing new.
+
+Decisions recorded in the handover doc the same day (open questions 3 and 4): QC units as
+rows; forwarder costs in their own "Freight and forwarders" category with the payee shown;
+extras riding a supplier payment added to that supplier + container group and shown on
+expansion; credits netted into the payment they offset. All four need the re-pin to ShipLine
+`6565188` first (section 7, steps 2–5): JFlow's model at `f9499bc` has none of those items.

@@ -141,6 +141,68 @@ export function groupLines(items: ForecastItem[], bucketCount: number): LineGrou
   return [...groups.values()];
 }
 
+/* ---------- stock payments by supplier + shipment ---------- */
+
+/**
+ * The Forecast shows stock payments the way ShipLine's Balances due does (Dev, 2026-10-06):
+ * one line per supplier + shipment, expanding to the individual payments. A combo's cells
+ * are the SUM of its lines' `gbpMinor` — the one place this file adds money up, and only for
+ * display: every figure summed is the server's, and the lines underneath are the ones edited.
+ */
+export interface ShipCombo {
+  /** `<supplier>|<container>`, lower-cased supplier and upper-cased container as ShipLine keys a payment; `-` when unknown. */
+  key: string;
+  supplier: string | null;
+  containerRef: string | null;
+  /** The ship LineGroups in it, in the server's order. */
+  groups: LineGroup[];
+  /** Every line of those groups. */
+  lines: ForecastItem[];
+  /** `cells[i]` = Σ gbpMinor of the lines with `bucketIndex === i`. */
+  cells: number[];
+  /** Σ gbpMinor of every line in the window. */
+  total: number;
+}
+
+const comboPart = (s: string | null | undefined, fold: (v: string) => string): string => {
+  const t = (s ?? '').trim();
+  return t ? fold(t) : '-';
+};
+
+/** True for a category whose lines are all stock payments (the systemKey 'ship' category). */
+export function isShipCategory(groups: readonly LineGroup[]): boolean {
+  return groups.length > 0 && groups.every((g) => g.kind === 'ship');
+}
+
+export function groupShipCombos(groups: readonly LineGroup[], bucketCount: number): ShipCombo[] {
+  const combos = new Map<string, ShipCombo>();
+  for (const group of groups) {
+    const supplier = group.counterparty ?? null;
+    const containerRef = group.lines[0]?.ship?.containerRef ?? null;
+    const key = `${comboPart(supplier, (v) => v.toLowerCase())}|${comboPart(containerRef, (v) => v.toUpperCase())}`;
+    let combo = combos.get(key);
+    if (!combo) {
+      combo = {
+        key,
+        supplier,
+        containerRef,
+        groups: [],
+        lines: [],
+        cells: Array.from({ length: Math.max(bucketCount, 0) }, () => 0),
+        total: 0,
+      };
+      combos.set(key, combo);
+    }
+    combo.groups.push(group);
+    for (const line of group.lines) {
+      combo.lines.push(line);
+      if (line.bucketIndex >= 0 && line.bucketIndex < bucketCount) combo.cells[line.bucketIndex] += line.gbpMinor;
+      combo.total += line.gbpMinor;
+    }
+  }
+  return [...combos.values()];
+}
+
 /**
  * A stable React key for one LINE. `key` alone is not unique — a paid line and the
  * remainder share it — so the payment id (or the remainder flag) and the position join it.
@@ -174,7 +236,6 @@ export const FLAG_LABEL: Record<string, { label: string; tone: Tone }> = {
   // Phase 2 ship lines' feed flags (§6.10). None of them changes a band; they say how firm
   // shipping's figures are, and whether JFlow has planned over them (lib/ship.ts explains each).
   estimated: { label: 'ESTIMATED', tone: 'idle' },
-  projected: { label: 'PROJECTED', tone: 'idle' },
   blocked: { label: 'BLOCKED', tone: 'warn' },
   planned: { label: 'PLANNED', tone: 'live' },
   // 2026-10-06: the feed's date was set by hand in ShipLine; the refresh moved the feed's
@@ -192,6 +253,8 @@ export function flagTags(flags: ItemFlag[]): FlagTag[] {
   const partial = flags.includes('partial');
   for (const flag of flags) {
     if (flag === 'partial') continue;
+    // Retired 2026-10-06 (it read as "no invoice yet"); an older API may still send it.
+    if (flag === 'projected') continue;
     if (flag === 'paid' && partial) {
       out.push({ flag: 'paid', label: 'PART PAID', tone: 'done' });
       continue;
@@ -210,7 +273,7 @@ export interface AttentionTag extends FlagTag {
 /**
  * What a collapsed category must still say: each warn or fail tag its lines wear (their own
  * flags plus `marks` from `warnings[]`), with how many lines wear it. Fail comes before
- * warn; the informational tags (PAID, TUNED, PROJECTED…) are left to the open category.
+ * warn; the informational tags (PAID, TUNED, ESTIMATED…) are left to the open category.
  */
 export function attentionTags(
   lines: ReadonlyArray<{ key: string; flags: readonly string[] }>,

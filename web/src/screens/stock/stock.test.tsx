@@ -88,7 +88,7 @@ describe('the Stock payments screen', () => {
     expect(balance.closest('[data-group]')?.getAttribute('data-group')).toBe('expected');
     expect(balance.textContent).toContain('Acme Textiles · PO-812 · balance');
     expect(balance.textContent).toContain('Waiting on artwork sign-off');
-    expect(balance.textContent).toContain('PROJECTED');
+    expect(balance.textContent).not.toContain('PROJECTED');   // retired 2026-10-06
     expect(balance.textContent).toContain('Barclays USD');
     const noDate = screen.getByTestId('stock-ship.bal-901-n');
     expect(noDate.closest('[data-group]')?.getAttribute('data-group')).toBe(NOT_IN_FORECAST);

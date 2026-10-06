@@ -350,7 +350,8 @@ nothing is escaped. The parsed form is `target_kind 'ship'`, `target_id = ext_id
 | open, undated | no band; counted in `shipping.undatedCount` |
 | gone | not projected; an overlay on it → warning `SHIP_PLAN_ORPHANED {key}` |
 
-- **Flags only.** `estimated`, `projected`, `blocked` and `planned` never change a band.
+- **Flags only.** `estimated`, `blocked` and `planned` never change a band (`projected` was
+  retired on 2026-10-06; `amountBasis` still says derived or stated).
 - **Assumed-paid money** (a proof file, or goods that have moved) leaves the feed with no paid row,
   so it reads as settled before the anchor.
 - **FX.** Ship currencies join the currencies in scope (§3.4); a missing rate → 422

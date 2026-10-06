@@ -9,12 +9,15 @@ import {
   compactMoney,
   flagTags,
   groupLines,
+  groupShipCombos,
   isClipped,
+  isShipCategory,
   lineId,
   parseBucket,
   parseWindowDays,
   signedMoney,
 } from './grid';
+import { line as fixtureLine, shipRow as stockRow } from '../screens/forecast/fixtures';
 
 describe('bucket parameters', () => {
   it('defaults to week and 90 days, the server defaults (D7)', () => {
@@ -163,5 +166,45 @@ describe('negative cells', () => {
     expect(compactMoney(1_259_900)).toBe('£12.5k');
     expect(compactMoney(-120_000_000)).toBe('-£1.2m');
     expect(compactMoney(25_000_000)).toBe('£250k');
+  });
+});
+
+describe('stock payments by supplier + shipment (groupShipCombos; Dev, 2026-10-06)', () => {
+  // The fixture: Acme's deposit (no container, bucket 1, £3,700) and Acme's balance in
+  // MSCU1234567 (bucket 2, £1,110); plus a second Acme balance in the same container.
+  const stock = stockRow();
+  const bal = stock.items[1];
+  const second = fixtureLine({
+    ...bal, key: 'ship.bal-813-s311', id: 'bal-813-s311', name: 'Acme Textiles · PO-813 · balance',
+    amountMinor: 50000, accountMinor: 50000, gbpMinor: 37000, flags: ['overdue'], ship: { ...bal.ship!, poNumber: 'PO-813' },
+  });
+  const groups = () => groupLines([...stock.items, second], 3);
+
+  it('one combo per supplier + container, in order of appearance; no container is a group of its own', () => {
+    const combos = groupShipCombos(groups(), 3);
+    expect(combos.map((c) => [c.key, c.supplier, c.containerRef, c.lines.map((l) => l.key)])).toEqual([
+      ['acme textiles|-', 'Acme Textiles', null, ['ship.dep-812']],
+      ['acme textiles|MSCU1234567', 'Acme Textiles', 'MSCU1234567', ['ship.bal-812-s311', 'ship.bal-813-s311']],
+    ]);
+    expect(combos[1].groups.map((g) => g.key)).toEqual(['ship.bal-812-s311', 'ship.bal-813-s311']);
+  });
+
+  it("sums its lines' GBP per bucket and over the window — the one sum the grid makes", () => {
+    const combos = groupShipCombos(groups(), 3);
+    expect(combos[0].cells).toEqual([0, 370000, 0]);
+    expect(combos[0].total).toBe(370000);
+    expect(combos[1].cells).toEqual([0, 0, 148000]);
+    expect(combos[1].total).toBe(148000);
+  });
+
+  it('keys supplier and container case-blind, as ShipLine keys a payment', () => {
+    const shouty = { ...second, counterparty: 'ACME TEXTILES', ship: { ...second.ship!, containerRef: 'mscu1234567' } };
+    expect(groupShipCombos(groupLines([bal, shouty], 3), 3)).toHaveLength(1);
+  });
+
+  it('only a category whose lines are all stock payments is grouped this way', () => {
+    expect(isShipCategory(groups())).toBe(true);
+    expect(isShipCategory(groupLines(rows()[2].items, 3))).toBe(false);
+    expect(isShipCategory([])).toBe(false);
   });
 });

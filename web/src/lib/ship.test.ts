@@ -57,10 +57,9 @@ describe('how a ship line looks, from its server flags', () => {
   });
 
   it('reads each feed flag on its own; none of them is inferred from another', () => {
-    expect(shipLook(['blocked'])).toEqual({ estimated: false, projected: false, blocked: true, planned: false, dueSet: false, dateMoved: false });
-    expect(shipLook(['estimated', 'projected', 'blocked', 'planned', 'due_set', 'date_moved'])).toEqual({
+    expect(shipLook(['blocked'])).toEqual({ estimated: false, blocked: true, planned: false, dueSet: false, dateMoved: false });
+    expect(shipLook(['estimated', 'blocked', 'planned', 'due_set', 'date_moved'])).toEqual({
       estimated: true,
-      projected: true,
       blocked: true,
       planned: true,
       dueSet: true,
@@ -68,10 +67,9 @@ describe('how a ship line looks, from its server flags', () => {
     });
   });
 
-  it('names and colours the six feed flags as tags, in the order the server sent them', () => {
+  it('names and colours the five feed flags as tags, in the order the server sent them; a stray `projected` from an older API shows nothing', () => {
     expect(flagTags(['estimated', 'projected', 'blocked', 'planned', 'due_set', 'date_moved', 'overdue'])).toEqual([
       { flag: 'estimated', label: 'ESTIMATED', tone: 'idle' },
-      { flag: 'projected', label: 'PROJECTED', tone: 'idle' },
       { flag: 'blocked', label: 'BLOCKED', tone: 'warn' },
       { flag: 'planned', label: 'PLANNED', tone: 'live' },
       { flag: 'due_set', label: 'SET IN SHIPPING', tone: 'live' },
@@ -93,7 +91,6 @@ describe('how a ship line looks, from its server flags', () => {
   it('explains each flag in a sentence', () => {
     expect(shipFlagNotes(['estimated', 'projected', 'blocked', 'planned'], { blocked: 'artwork' })).toEqual([
       "The date is shipping's estimate.",
-      'The amount is projected by shipping, not yet stated on an invoice.',
       'Waiting on artwork sign-off.',
       "Planned in JFlow: this date, amount or skip is JFlow's, not shipping's.",
     ]);

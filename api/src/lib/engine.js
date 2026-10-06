@@ -376,7 +376,8 @@ function requireFeedStatus(row) {
 function shipFlags(row, today) {
     const flags = [];
     if (row.dateBasis === 'estimated') flags.push('estimated');
-    if (row.amountBasis === 'derived') flags.push('projected');
+    // `projected` (amountBasis = 'derived') retired 2026-10-06: it read as "no invoice" to
+    // users, while it only meant "worked out from the terms"; amountBasis stays on the row.
     if (row.blocked != null) flags.push('blocked');
     if (hasShipOverlay(row)) flags.push('planned');
     if (row.dueSet) flags.push('due_set');

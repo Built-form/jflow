@@ -1,7 +1,7 @@
 /**
  * Stock payments (Phase 2) on the client: display only.
  *
- * A ship line's band, its flags (`estimated`, `projected`, `blocked`, `planned`, plus the
+ * A ship line's band, its flags (`estimated`, `blocked`, `planned`, `due_set`, `date_moved`, plus the
  * usual `overdue`, `adjusted`…), `editable` and every warning come from the server
  * (CONTRACT §6.10; CLAUDE.md "Never"). This file turns them into looks and words: which
  * flag hatches a line, what a blocker is waiting on, why a refresh failed, what the
@@ -39,8 +39,6 @@ export const HATCH = 'repeating-linear-gradient(135deg, transparent 0 4px, var(-
 export interface ShipLook {
   /** `estimated`: hatched background, italic figure. */
   estimated: boolean;
-  /** `projected`: the amount is derived, not stated — noted. */
-  projected: boolean;
   /** `blocked`: marked. */
   blocked: boolean;
   /** `planned`: marked — JFlow's overlay is in force. */
@@ -54,7 +52,6 @@ export interface ShipLook {
 export function shipLook(flags: readonly ItemFlag[]): ShipLook {
   return {
     estimated: flags.includes('estimated'),
-    projected: flags.includes('projected'),
     blocked: flags.includes('blocked'),
     planned: flags.includes('planned'),
     dueSet: flags.includes('due_set'),
@@ -150,7 +147,8 @@ export function shipFlagNotes(flags: readonly ItemFlag[], ship?: ShipNoteInfo | 
   const look = shipLook(flags);
   const notes: string[] = [];
   if (look.estimated) notes.push("The date is shipping's estimate.");
-  if (look.projected) notes.push('The amount is projected by shipping, not yet stated on an invoice.');
+  // No sentence for a derived amount since 2026-10-06: "not yet stated on an invoice" read
+  // as "no invoice uploaded", while shipping's page treats the same row as owed by the terms.
   if (look.blocked) notes.push(`${blockedText(ship?.blocked)}.`);
   if (look.dueSet) notes.push(ship?.dueSet ? dueSetText(ship.dueSet) : 'The date was set by hand in shipping.');
   if (look.dateMoved) notes.push(ship?.dateMovedAt ? dateMovedText(ship.dateMovedFrom, ship.dateMovedAt) : 'Shipping moved this date recently.');

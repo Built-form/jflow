@@ -10,12 +10,14 @@ import {
   attentionTags,
   flagTags,
   groupLines,
+  groupShipCombos,
   isClipped,
+  isShipCategory,
   lineId,
   shortDay,
   signedMoney,
 } from '../../lib/grid';
-import type { BalanceFlag, FlagTag } from '../../lib/grid';
+import type { BalanceFlag, FlagTag, LineGroup, ShipCombo } from '../../lib/grid';
 import { formatMoney, toMinor } from '../../lib/money';
 import { shipFlagNotes, shipLineStyle } from '../../lib/ship';
 import { toneStyle } from '../../lib/tone';
@@ -24,11 +26,14 @@ import { toneStyle } from '../../lib/tone';
  * The timeline grid: one column per bucket, the balance rows on top (opening, in, out,
  * closing), then each category and the lines under it. Every figure is the server's —
  * the header rows are `buckets[]`, a category's cells are its `totals[]`, a line's cell
- * is its own `gbpMinor`. Nothing here adds money up.
+ * is its own `gbpMinor`. Nothing here adds money up, with one display-only exception:
+ * the Stock payments category shows one line per supplier + shipment (Dev, 2026-10-06, as
+ * ShipLine's Balances due does), whose cells are the sum of its lines' `gbpMinor`; the
+ * lines themselves sit under it, one click away, and are the ones edited.
  *
  * A ship line (Phase 2) looks the way its server flags say: `estimated` hatched and in
- * italics, `blocked` / `planned` / `projected` as marks; `lineMarks` adds the marks that
- * come from `warnings[]` rather than the line (a `SHIP_PLAN_STALE` key).
+ * italics, `blocked` / `planned` / `due_set` / `date_moved` as marks; `lineMarks` adds the
+ * marks that come from `warnings[]` rather than the line (a `SHIP_PLAN_STALE` key).
  */
 export type LineMarks = ReadonlyMap<string, FlagTag[]>;
 const NO_MARKS: LineMarks = new Map();
@@ -122,6 +127,10 @@ export function ForecastGrid({
   // Categories open collapsed (Dev, 2026-09-30): the totals read first, and a category's
   // lines are one click away. This set holds the ones opened since.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  // The supplier + shipment groups of the Stock payments category, keyed
+  // `<categoryId>:<combo key>`. They open collapsed too (the group's total reads first);
+  // "Expand all" opens them with the categories.
+  const [openCombos, setOpenCombos] = useState<Set<string>>(new Set());
   const allOpen = rows.length > 0 && rows.every((r) => expanded.has(r.categoryId));
   const lowest = bucketIndexOf(summary.minDate, buckets);
   const toggle = (categoryId: number) =>
@@ -131,6 +140,26 @@ export function ForecastGrid({
       else next.add(categoryId);
       return next;
     });
+  const toggleCombo = (comboId: string) =>
+    setOpenCombos((prev) => {
+      const next = new Set(prev);
+      if (next.has(comboId)) next.delete(comboId);
+      else next.add(comboId);
+      return next;
+    });
+  const comboIdsOf = (row: ForecastRow): string[] => {
+    const groups = groupLines(row.items, buckets.length);
+    if (!isShipCategory(groups)) return [];
+    return groupShipCombos(groups, buckets.length).map((c) => `${row.categoryId}:${c.key}`);
+  };
+  const expandAll = () => {
+    setExpanded(new Set(rows.map((r) => r.categoryId)));
+    setOpenCombos(new Set(rows.flatMap(comboIdsOf)));
+  };
+  const collapseAll = () => {
+    setExpanded(new Set());
+    setOpenCombos(new Set());
+  };
 
   return (
     <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--panel)', boxShadow: 'var(--shadow)' }}>
@@ -149,7 +178,7 @@ export function ForecastGrid({
                     type="button"
                     className="link-btn"
                     style={{ fontSize: 12, fontWeight: 500 }}
-                    onClick={() => setExpanded(allOpen ? new Set() : new Set(rows.map((r) => r.categoryId)))}
+                    onClick={allOpen ? collapseAll : expandAll}
                   >
                     {allOpen ? 'Collapse all' : 'Expand all'}
                   </button>
@@ -248,6 +277,8 @@ export function ForecastGrid({
                 groups={groups}
                 bucketCount={buckets.length}
                 lineMarks={lineMarks}
+                openCombos={openCombos}
+                onToggleCombo={toggleCombo}
                 onEdit={(item) => onEdit(item, row)}
               />
             );
@@ -265,6 +296,8 @@ function CategoryBlock({
   groups,
   bucketCount,
   lineMarks,
+  openCombos,
+  onToggleCombo,
   onEdit,
 }: {
   row: ForecastRow;
@@ -273,8 +306,12 @@ function CategoryBlock({
   groups: ReturnType<typeof groupLines>;
   bucketCount: number;
   lineMarks: LineMarks;
+  openCombos: ReadonlySet<string>;
+  onToggleCombo: (comboId: string) => void;
   onEdit: (item: ForecastItem) => void;
 }) {
+  const shipCategory = isShipCategory(groups);
+  const combos = shipCategory ? groupShipCombos(groups, bucketCount) : [];
   return (
     <>
       <tr data-testid={`category-${row.categoryId}`} style={{ background: 'var(--panel2)' }}>
@@ -294,7 +331,7 @@ function CategoryBlock({
               {row.direction === 'in' ? 'IN' : 'OUT'}
             </span>
           </button>
-          {!open && <AttentionMarker categoryId={row.categoryId} tags={attentionTags(row.items, lineMarks)} />}
+          {!open && <AttentionMarker id={row.categoryId} tags={attentionTags(row.items, lineMarks)} />}
         </th>
         {Array.from({ length: bucketCount }, (_, i) => (
           <td key={i} style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}>
@@ -303,33 +340,116 @@ function CategoryBlock({
         ))}
         <td style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}>{cellMoney(row.total)}</td>
       </tr>
+      {open && !shipCategory && groups.map((group) => <LineRow key={group.key} group={group} indent={30} lineMarks={lineMarks} onEdit={onEdit} />)}
       {open &&
-        groups.map((group) => {
-          // A ship line's name already carries the supplier (§6.10); its container says more.
-          const sub = group.kind === 'ship' ? group.lines[0]?.ship?.containerRef ?? null : group.counterparty;
+        shipCategory &&
+        combos.map((combo) => {
+          const comboId = `${row.categoryId}:${combo.key}`;
           return (
-          <tr key={group.key} data-testid={`line-${group.key}`}>
-            <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: 30 }}>
-              <div style={{ fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.name}>
-                {group.name}
-              </div>
-              {sub && (
-                <div style={{ fontSize: 12, color: 'var(--dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {sub}
-                </div>
-              )}
-            </th>
-            {group.cells.map((lines, i) => (
-              <td key={i} style={cell}>
-                {lines.map((line, j) => (
-                  <LineCell key={lineId(line, j)} line={line} marks={lineMarks.get(line.key)} onEdit={onEdit} />
-                ))}
-              </td>
-            ))}
-            <td style={cell} />
-          </tr>
+            <ShipComboRows
+              key={combo.key}
+              combo={combo}
+              open={openCombos.has(comboId)}
+              onToggle={() => onToggleCombo(comboId)}
+              lineMarks={lineMarks}
+              onEdit={onEdit}
+            />
           );
         })}
+    </>
+  );
+}
+
+/** One line's row: its name (and container or counterparty under it) and its cells. */
+function LineRow({
+  group,
+  indent,
+  lineMarks,
+  onEdit,
+}: {
+  group: LineGroup;
+  indent: number;
+  lineMarks: LineMarks;
+  onEdit: (item: ForecastItem) => void;
+}) {
+  // A ship line's name already carries the supplier (§6.10); its container says more —
+  // unless it sits under its supplier + shipment group, which already says both.
+  const sub = group.kind === 'ship' ? (indent > 30 ? null : group.lines[0]?.ship?.containerRef ?? null) : group.counterparty;
+  return (
+    <tr data-testid={`line-${group.key}`}>
+      <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: indent }}>
+        <div style={{ fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.name}>
+          {group.name}
+        </div>
+        {sub && (
+          <div style={{ fontSize: 12, color: 'var(--dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {sub}
+          </div>
+        )}
+      </th>
+      {group.cells.map((lines, i) => (
+        <td key={i} style={cell}>
+          {lines.map((line, j) => (
+            <LineCell key={lineId(line, j)} line={line} marks={lineMarks.get(line.key)} onEdit={onEdit} />
+          ))}
+        </td>
+      ))}
+      <td style={cell} />
+    </tr>
+  );
+}
+
+/**
+ * A supplier + shipment group of stock payments (Dev, 2026-10-06, as ShipLine's Balances
+ * due): one row with the group's summed figures, and under it, once opened, the
+ * individual payments — the lines that are edited.
+ */
+function ShipComboRows({
+  combo,
+  open,
+  onToggle,
+  lineMarks,
+  onEdit,
+}: {
+  combo: ShipCombo;
+  open: boolean;
+  onToggle: () => void;
+  lineMarks: LineMarks;
+  onEdit: (item: ForecastItem) => void;
+}) {
+  const count = combo.lines.length;
+  const sub = `${combo.containerRef ?? 'No container'} · ${count} ${count === 1 ? 'payment' : 'payments'}`;
+  return (
+    <>
+      <tr data-testid={`combo-${combo.key}`}>
+        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 30 }}>
+          <button
+            type="button"
+            className="btn-quiet"
+            aria-expanded={open}
+            onClick={onToggle}
+            style={{ color: 'var(--text)', fontWeight: 500, fontSize: 13.5, display: 'flex', gap: 8, alignItems: 'baseline', textAlign: 'left', maxWidth: '100%' }}
+          >
+            <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10, flexShrink: 0 }}>
+              {open ? '▾' : '▸'}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={combo.supplier ?? undefined}>
+              {combo.supplier ?? 'No supplier'}
+            </span>
+          </button>
+          <div style={{ fontSize: 12, color: 'var(--dim)', paddingLeft: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {sub}
+          </div>
+          {!open && <AttentionMarker id={`combo:${combo.key}`} tags={attentionTags(combo.lines, lineMarks)} />}
+        </th>
+        {combo.cells.map((sum, i) => (
+          <td key={i} style={{ ...cell, fontWeight: 500 }}>
+            {cellMoney(sum, { blankZero: true })}
+          </td>
+        ))}
+        <td style={{ ...cell, fontWeight: 500 }}>{cellMoney(combo.total)}</td>
+      </tr>
+      {open && combo.groups.map((group) => <LineRow key={group.key} group={group} indent={46} lineMarks={lineMarks} onEdit={onEdit} />)}
     </>
   );
 }
@@ -338,10 +458,10 @@ function CategoryBlock({
  * On a collapsed category: each warn or fail tag its hidden lines wear, with a count, so an
  * OVERDUE or STALE line is not lost behind the fold. Open, the lines show their own tags.
  */
-function AttentionMarker({ categoryId, tags }: { categoryId: number; tags: ReturnType<typeof attentionTags> }) {
+function AttentionMarker({ id, tags }: { id: number | string; tags: ReturnType<typeof attentionTags> }) {
   if (tags.length === 0) return null;
   return (
-    <span data-testid={`attention-${categoryId}`} style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4, paddingLeft: 18 }}>
+    <span data-testid={`attention-${id}`} style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4, paddingLeft: 18 }}>
       {tags.map((t) => {
         const s = toneStyle(t.tone);
         return (

@@ -1062,7 +1062,7 @@ describe('ship lines (Phase 2, §9.3.1)', () => {
         expect(res.shipping).toMatchObject({ openCount: 0, undatedCount: 0 });
     });
 
-    test('flags estimated / projected / blocked / planned / fromScenario never change a band', () => {
+    test('flags estimated / blocked / planned / fromScenario never change a band; a derived amount wears no flag (projected retired 2026-10-06)', () => {
         const res = ship({
             externalItems: [
                 shipRow('bal-e', { dueDate: addDays(TODAY, -10), dateBasis: 'estimated', flags: ['estimated'] }),
@@ -1073,7 +1073,7 @@ describe('ship lines (Phase 2, §9.3.1)', () => {
         });
         expect(lineOf(res, 'ship.bal-e')).toMatchObject({ date: TODAY, flags: ['estimated', 'overdue'] });
         expect(lineOf(res, 'ship.bal-d')).toMatchObject({
-            date: '2026-10-05', flags: ['projected', 'blocked'],
+            date: '2026-10-05', flags: ['blocked'],
             ship: expect.objectContaining({ amountBasis: 'derived', blocked: 'shipment' }),
         });
         expect(lineOf(res, 'ship.bal-f').flags).toEqual(['planned', 'fromScenario']);

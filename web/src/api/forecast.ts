@@ -28,10 +28,12 @@ export type StaleReason = 'BASE_CHANGED' | 'TARGET_SETTLED' | 'TARGET_MISSING' |
 
 /**
  * §6.10's feed flags on a ship line (Phase 2): `estimated` (shipping's date is an estimate),
- * `projected` (its amount is derived, not stated), `blocked` (the feed's `blocked` is set),
- * `planned` (an overlay column is set). None of them changes a band.
+ * `blocked` (the feed's `blocked` is set), `planned` (an overlay column is set), `due_set`
+ * (the date was set by hand in ShipLine), `date_moved` (the feed's date moved lately). None
+ * of them changes a band. `projected` was retired on 2026-10-06; `ShipInfo.amountBasis`
+ * still says whether the amount is derived from the terms or stated.
  */
-export type ShipFlag = 'estimated' | 'projected' | 'blocked' | 'planned' | 'due_set' | 'date_moved';
+export type ShipFlag = 'estimated' | 'blocked' | 'planned' | 'due_set' | 'date_moved';
 
 /**
  * The story of a due date set by hand on ShipLine's Payments flow page (the feed's
