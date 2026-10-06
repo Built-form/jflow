@@ -298,6 +298,13 @@ function ScenarioPanel({ scenario, lineName }: { scenario: ForecastScenario; lin
           ? 'The solid line and the grid are this scenario; the dashed line is the real plan. Edits here write adjustments to it.'
           : `This scenario is ${scenario.status}, so it is shown for reading only — nothing here can be edited.`}
       </div>
+      {draft && (
+        <div style={{ fontSize: 13.5, lineHeight: 1.55 }} data-testid="scenario-how">
+          <strong>To change a payment:</strong> open its category in the grid below (or Expand all), then click the
+          underlined amount. You can move its date, change the amount or leave it out. Only lines on the forecast
+          can be changed.
+        </div>
+      )}
       {scenario.warnings.length > 0 && (
         <ul data-testid="scenario-warnings" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {scenario.warnings.map((w, i) => {

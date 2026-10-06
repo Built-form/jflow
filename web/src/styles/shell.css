@@ -1,4 +1,4 @@
-/* Copied from workflows/web/src/styles/shell.css — changes: finance restyle — deep navy sidebar in both themes (--side-* tokens) with its own kicker, nav, theme switch and sign-out styling; brand mark and caption restyled; 232px width; `.main` column wrapping `.content`; scenario mode (`.scenario-banner`, `.shell.scenario-mode`, `.sidebar-scenario`) */
+/* Copied from workflows/web/src/styles/shell.css — changes: finance restyle — deep navy sidebar in both themes (--side-* tokens) with its own kicker, nav, theme switch and sign-out styling; brand mark and caption restyled; 232px width; `.main` column wrapping `.content`; scenario mode (`.scenario-banner`, `.shell.scenario-mode`, `.sidebar-scenario`, underlined `.ledger-edit` figures) */
 /* App shell: fixed 232px sidebar, independently scrolling content area.
    This is a desk app with a phone view for the floor — screens carry a min-width and
    the content area scrolls horizontally below it rather than reflowing. */
@@ -251,6 +251,21 @@
 .shell.scenario-mode .content {
   border: 4px solid var(--scenario);
   border-top: 0;
+}
+/* In scenario mode the grid's editable figures say so at rest, not only on hover: these are
+   the what-if's controls (base.css `.ledger-edit` keeps the real plan's figures plain ink). */
+.shell.scenario-mode .ledger-edit {
+  text-decoration: underline dashed var(--scenario);
+  text-underline-offset: 3px;
+}
+.shell.scenario-mode .ledger-edit:hover,
+.shell.scenario-mode .ledger-edit:focus-visible {
+  color: var(--scenario);
+  box-shadow: inset 0 0 0 1px var(--scenario);
+}
+[data-theme='dark'] .shell.scenario-mode .ledger-edit:hover,
+[data-theme='dark'] .shell.scenario-mode .ledger-edit:focus-visible {
+  color: var(--scenario-soft);
 }
 .shell.scenario-mode .sidebar-brand .mark {
   background: var(--scenario-soft);
