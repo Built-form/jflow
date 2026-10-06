@@ -129,28 +129,6 @@ export function ForecastScreen() {
         </InfoText>
       </PageHeader>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Segmented
-          ariaLabel="Bucket"
-          options={BUCKET_OPTIONS}
-          value={bucket}
-          onChange={(next) => setParam(BUCKET_PARAM, next === 'week' ? null : next)}
-        />
-        <Segmented
-          ariaLabel="Window"
-          compact
-          options={WINDOW_OPTIONS.map((d) => ({ id: String(d), label: `${d} days` }))}
-          value={String(windowDays)}
-          onChange={(next) => setParam(WINDOW_PARAM, next === '90' ? null : next)}
-        />
-        {res && (
-          <span className="mono" style={{ fontSize: 12, color: 'var(--dim)' }}>
-            {formatDay(res.meta.from)} – {formatDay(res.meta.to)}
-            {res.meta.toClamped ? ' (capped)' : ''}
-          </span>
-        )}
-      </div>
-
       {companies.error && <ErrorNote error={companies.error} onRetry={companies.reload} />}
 
       {data.error ? (
@@ -182,6 +160,26 @@ export function ForecastScreen() {
           </section>
 
           <section aria-label="Timeline" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* The grid's controls sit with the table, under the chart (Dev, 2026-10-06). */}
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Segmented
+                ariaLabel="Bucket"
+                options={BUCKET_OPTIONS}
+                value={bucket}
+                onChange={(next) => setParam(BUCKET_PARAM, next === 'week' ? null : next)}
+              />
+              <Segmented
+                ariaLabel="Window"
+                compact
+                options={WINDOW_OPTIONS.map((d) => ({ id: String(d), label: `${d} days` }))}
+                value={String(windowDays)}
+                onChange={(next) => setParam(WINDOW_PARAM, next === '90' ? null : next)}
+              />
+              <span className="mono" style={{ fontSize: 12, color: 'var(--dim)' }}>
+                {formatDay(res.meta.from)} – {formatDay(res.meta.to)}
+                {res.meta.toClamped ? ' (capped)' : ''}
+              </span>
+            </div>
             {res.rows === undefined ? (
               <Empty>The grid was not included in this answer.</Empty>
             ) : (

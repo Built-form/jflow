@@ -93,6 +93,26 @@ describe('Forecast', () => {
     expect(forecastCalls(calls)[0].path).toMatch(/bucket=month/);
   });
 
+  it('puts the Day / Week / Month toggle and the days picker side by side, below the chart and above the grid', async () => {
+    stubApi(() => forecastFixture());
+    renderForecast();
+    await screen.findByTestId('forecast-grid');
+    const chart = screen.getByRole('region', { name: 'Balance chart' });
+    const timeline = screen.getByRole('region', { name: 'Timeline' });
+    const bucket = within(timeline).getByRole('group', { name: 'Bucket' });
+    const grid = within(timeline).getByTestId('forecast-grid');
+    // Chart, then the toggle, then the grid.
+    expect(chart.compareDocumentPosition(bucket) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bucket.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(bucket).getAllByRole('button').map((b) => b.textContent)).toEqual(['Day', 'Week', 'Month']);
+    // The days picker and the date range sit in the same row, right after the toggle.
+    const window = within(timeline).getByRole('group', { name: 'Window' });
+    expect(bucket.parentElement).toBe(window.parentElement);
+    expect(bucket.nextElementSibling).toBe(window);
+    expect(within(bucket.parentElement as HTMLElement).getByText(/–/).textContent).toMatch(/\d{4}/);
+    expect(window.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('flags negative cells: a closing below zero, and one whose bucket dips below zero', async () => {
     stubApi(() => forecastFixture());
     renderForecast();
