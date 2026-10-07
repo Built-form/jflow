@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import { items } from '../../api/items';
 import type { Item } from '../../api/items';
+import { schedules } from '../../api/schedules';
+import type { Instance, InstanceAcross } from '../../api/schedules';
 import type { Account } from '../../api/types';
 import { useQuery } from '../../app/useQuery';
 import { useSubmit } from '../../app/useSubmit';
@@ -14,7 +16,7 @@ import { addDays, formatDay, londonToday } from '../../lib/dates';
 import { formatDecimal } from '../../lib/money';
 import { removeById, updateList, upsertById } from '../../lib/rows';
 import { RemoveDialog } from '../settings/RemoveDialog';
-import { ASSUMED_SETTLED, derivedStatusLabel, groupByDerivedStatus } from './grouping';
+import { ASSUMED, ASSUMED_SETTLED, derivedStatusLabel, groupByDerivedStatus } from './grouping';
 import { DidntHappenDialog, GroupFilter, GroupSection, RowAction, useShowFilter } from './groups';
 import { ITEMS_KICKER, ItemDialog } from './ItemDialog';
 
@@ -34,7 +36,24 @@ function byDue(a: Item, b: Item): number {
   return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : a.id - b.id;
 }
 
-type Paying = { item: Item; confirming: boolean };
+/**
+ * A row of the list: a one-off, or an instance of a schedule (Dev, 2026-10-07: the
+ * schedules' assumed instances are listed here too, so one place shows everything a
+ * recorded balance assumed). An instance is told by its natural date.
+ */
+type Row = Item | InstanceAcross;
+const isInstance = (row: Row): row is InstanceAcross => 'naturalDate' in row;
+/** The bands of a schedule instance that need a person: the ones this screen lists. */
+const INSTANCE_BANDS = ['assumed', 'assumedSettled', 'overdue', 'unresolved'];
+/** The server's window cap on `GET /instances` (D35), for the "All" window. */
+const INSTANCE_SPAN_DAYS = 730;
+const byDueRow = (a: Row, b: Row) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0);
+const instanceRemaining = (i: Instance) => {
+  const paid = Number(i.override?.paidAmount ?? 0);
+  return (Number(i.amount) - paid).toFixed(2);
+};
+
+type Paying = { row: Row; confirming: boolean };
 
 /**
  * Income & outgoings: one-off money in and out, grouped by the server's `derivedStatus`.
@@ -57,11 +76,23 @@ export function ItemsScreen() {
   const accounts = useQuery(() => api.accounts.list({ companyId }), [companyId]);
   const categories = useQuery(() => api.categories.list(), []);
   const list = useQuery(() => items.listAll({ companyId, from }), [companyId, from]);
+  // The schedules' instances that need a person, up to today (nothing expected is listed
+  // here — the schedules screen has those).
+  const instances = useQuery(
+    () =>
+      schedules.instancesAcross({
+        companyId,
+        from: from ?? addDays(today, -INSTANCE_SPAN_DAYS),
+        to: today,
+        derivedStatus: INSTANCE_BANDS,
+      }),
+    [companyId, from, today],
+  );
 
   const [editing, setEditing] = useState<Item | 'new' | null>(null);
   const [paying, setPaying] = useState<Paying | null>(null);
-  const [unpaying, setUnpaying] = useState<Item | null>(null);
-  const [didntHappen, setDidntHappen] = useState<Item | null>(null);
+  const [unpaying, setUnpaying] = useState<Row | null>(null);
+  const [didntHappen, setDidntHappen] = useState<Row | null>(null);
   const [removing, setRemoving] = useState<Item | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const action = useSubmit();
@@ -73,7 +104,10 @@ export function ItemsScreen() {
   const categoryOf = (id: number) => categoryRows.find((c) => c.id === id);
   const pickable: Account[] = accountRows.filter((a) => a.isActive && !a.deletedAt);
 
-  const groups = useMemo(() => groupByDerivedStatus(list.data?.data ?? []), [list.data]);
+  const groups = useMemo(
+    () => groupByDerivedStatus<Row>([...(list.data?.data ?? []), ...(instances.data?.data ?? [])].sort(byDueRow)),
+    [list.data, instances.data],
+  );
   const visible = show === null ? groups : groups.filter((g) => g.id === show);
 
   /** Replace-from-response: the row as the server now holds it. */
@@ -84,6 +118,12 @@ export function ItemsScreen() {
     }
     updateList(list, (rows) => upsertById(rows, row).sort(byDue));
   };
+  /** An instance's mutation answers the bare instance; its schedule block carries over. */
+  const replaceInstance = (prev: InstanceAcross, next: Instance) => {
+    const row: InstanceAcross = { ...next, schedule: prev.schedule };
+    instances.set({ data: [...(instances.data?.data ?? []).filter((r) => r.key !== row.key), row].sort(byDueRow) });
+  };
+  const rowName = (row: Row) => (isInstance(row) ? `${row.schedule.name}, ${formatDay(row.naturalDate)}` : row.name);
 
   const setWindow = (next: Window) =>
     setParams(
@@ -117,9 +157,10 @@ export function ItemsScreen() {
         }
       >
         <InfoText className="explainer">
-          One-off money in and out. Mark each paid or part-paid as it happens. Items settled
-          automatically are assumed to be in the bank once a later balance is recorded — check
-          those under Assumed settled.
+          One-off money in and out, with the schedules' instances that need a person. Mark each
+          paid or part-paid as it happens. Anything settled automatically is assumed to be in the
+          bank once a later balance is recorded — check those under Assumed settled, and say
+          Didn't happen when the money has not arrived yet.
         </InfoText>
       </PageHeader>
 
@@ -155,6 +196,7 @@ export function ItemsScreen() {
       )}
 
       {list.error && <ErrorNote error={list.error} onRetry={list.reload} />}
+      {instances.error && <ErrorNote error={instances.error} onRetry={instances.reload} />}
       {!list.data ? (
         !list.error && <Loading what="Income & outgoings" />
       ) : groups.length === 0 ? (
@@ -179,7 +221,22 @@ export function ItemsScreen() {
                 <div style={{ textAlign: 'right' }}>AMOUNT</div>
                 <div />
               </div>
-              {group.rows.map((item) => {
+              {group.rows.map((row) => {
+                if (isInstance(row)) {
+                  return (
+                    <InstanceRow
+                      key={row.key}
+                      row={row}
+                      group={group.id}
+                      account={accountOf(row.schedule.accountId)?.name ?? `Account ${row.schedule.accountId}`}
+                      category={categoryOf(row.schedule.categoryId)?.name ?? `Category ${row.schedule.categoryId}`}
+                      onPay={(confirming) => setPaying({ row, confirming })}
+                      onDidntHappen={() => setDidntHappen(row)}
+                      onUnpay={() => setUnpaying(row)}
+                    />
+                  );
+                }
+                const item = row;
                 const account = accountOf(item.accountId);
                 const category = categoryOf(item.categoryId);
                 const partPaid = item.status === 'part_paid';
@@ -222,20 +279,21 @@ export function ItemsScreen() {
                     </div>
                     <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                       {group.id === ASSUMED_SETTLED ? (
-                        <>
-                          <RowAction label={`Confirm paid, ${item.name}`} onClick={() => setPaying({ item, confirming: true })}>
-                            Confirm paid
-                          </RowAction>
-                          <RowAction label={`Didn't happen, ${item.name}`} tone="fail" onClick={() => setDidntHappen(item)}>
-                            Didn't happen
-                          </RowAction>
-                        </>
+                        <RowAction label={`Confirm paid, ${item.name}`} onClick={() => setPaying({ row: item, confirming: true })}>
+                          Confirm paid
+                        </RowAction>
                       ) : (
                         owed && (
-                          <RowAction label={`Pay, ${item.name}`} onClick={() => setPaying({ item, confirming: false })}>
+                          <RowAction label={`Pay, ${item.name}`} onClick={() => setPaying({ row: item, confirming: false })}>
                             {partPaid ? 'pay the rest' : 'pay'}
                           </RowAction>
                         )
+                      )}
+                      {/* Assumed into the balance, or into today's opening: either may not have happened yet. */}
+                      {(group.id === ASSUMED_SETTLED || group.id === ASSUMED) && (
+                        <RowAction label={`Didn't happen, ${item.name}`} tone="fail" onClick={() => setDidntHappen(item)}>
+                          Didn't happen
+                        </RowAction>
                       )}
                       {item.payments.length > 0 && (
                         <RowAction label={`Unpay, ${item.name}`} tone="mut" onClick={() => setUnpaying(item)}>
@@ -289,22 +347,27 @@ export function ItemsScreen() {
       {paying && (
         <PayDialog
           kicker={ITEMS_KICKER}
-          title={paying.confirming ? `Confirm ${paying.item.name} was paid` : `Pay ${paying.item.name}`}
+          title={paying.confirming ? `Confirm ${rowName(paying.row)} was paid` : `Pay ${rowName(paying.row)}`}
           target={{
-            amount: paying.item.amount,
-            remaining: paying.item.remainingAmount,
-            currency: paying.item.currency,
-            effectiveDate: paying.item.dueDate,
-            payments: paying.item.payments,
+            amount: paying.row.amount,
+            remaining: isInstance(paying.row) ? instanceRemaining(paying.row) : paying.row.remainingAmount,
+            currency: paying.row.currency,
+            effectiveDate: paying.row.dueDate,
+            payments: paying.row.payments,
           }}
           today={today}
-          defaultPaidOn={paying.confirming ? paying.item.dueDate : undefined}
+          defaultPaidOn={paying.confirming ? paying.row.dueDate : undefined}
           intro={
             paying.confirming
               ? 'The pay date starts at its due date, which the recorded balance is assumed to include. Change it if the money moved on another day.'
               : undefined
           }
-          pay={async (body) => replace(await items.pay(paying.item.id, body, paying.item.rowVersion))}
+          pay={async (body) => {
+            const target = paying.row;
+            if (isInstance(target)) {
+              replaceInstance(target, await schedules.pay(target.scheduleId, target.naturalDate, body, target.override?.rowVersion));
+            } else replace(await items.pay(target.id, body, target.rowVersion));
+          }}
           onPaid={() => setPaying(null)}
           onClose={() => setPaying(null)}
         />
@@ -313,10 +376,15 @@ export function ItemsScreen() {
       {unpaying && (
         <UnpayDialog
           kicker={ITEMS_KICKER}
-          title={`Unpay ${unpaying.name}?`}
+          title={`Unpay ${rowName(unpaying)}?`}
           payments={unpaying.payments}
           currency={unpaying.currency}
-          unpay={async () => replace(await items.unpay(unpaying.id, unpaying.rowVersion))}
+          unpay={async () => {
+            const target = unpaying;
+            if (isInstance(target)) {
+              replaceInstance(target, await schedules.unpay(target.scheduleId, target.naturalDate, target.override?.rowVersion));
+            } else replace(await items.unpay(target.id, target.rowVersion));
+          }}
           onDone={() => setUnpaying(null)}
           onClose={() => setUnpaying(null)}
         />
@@ -325,13 +393,23 @@ export function ItemsScreen() {
       {didntHappen && (
         <DidntHappenDialog
           kicker={ITEMS_KICKER}
-          title={`${didntHappen.name} didn't happen?`}
-          detail={`${formatDecimal(didntHappen.amount, didntHappen.currency)}, due ${formatDay(didntHappen.dueDate)}.`}
+          title={`${rowName(didntHappen)} didn't happen?`}
+          detail={`${formatDecimal(didntHappen.amount, didntHappen.currency)}, due ${formatDay(didntHappen.dueDate)}.${
+            isInstance(didntHappen) ? ' Only this instance changes; the schedule keeps settling automatically.' : ''
+          }`}
           confirm={async () => {
-            const row = await items.update(didntHappen.id, { settleMode: 'manual' }, didntHappen.rowVersion);
-            replace(row);
+            const target = didntHappen;
+            let next: Row;
+            if (isInstance(target)) {
+              const inst = await schedules.tune(target.scheduleId, target.naturalDate, { settleMode: 'manual' }, target.override?.rowVersion);
+              replaceInstance(target, inst);
+              next = { ...inst, schedule: target.schedule };
+            } else {
+              next = await items.update(target.id, { settleMode: 'manual' }, target.rowVersion);
+              replace(next);
+            }
             setNotice(
-              `${row.name} is now settled by hand. It shows under ${derivedStatusLabel(row.derivedStatus)} until it is paid, re-dated or skipped.`,
+              `${rowName(next)} is now settled by hand. It shows under ${derivedStatusLabel(next.derivedStatus)} until it is paid, re-dated or skipped.`,
             );
           }}
           onDone={() => setDidntHappen(null)}
@@ -354,6 +432,91 @@ export function ItemsScreen() {
           {formatDecimal(removing.amount, removing.currency)}, due {formatDay(removing.dueDate)}.
         </RemoveDialog>
       )}
+    </div>
+  );
+}
+
+/**
+ * One instance of a schedule, in the list's columns: its schedule's name (a link to the
+ * schedule, where it is tuned), the date it is for, and the same Confirm paid / Didn't
+ * happen as a one-off. Tuning and skipping stay on the schedule's page.
+ */
+function InstanceRow({
+  row: i,
+  group,
+  account,
+  category,
+  onPay,
+  onDidntHappen,
+  onUnpay,
+}: {
+  row: InstanceAcross;
+  group: string;
+  account: string;
+  category: string;
+  onPay: (confirming: boolean) => void;
+  onDidntHappen: () => void;
+  onUnpay: () => void;
+}) {
+  const name = `${i.schedule.name}, ${formatDay(i.naturalDate)}`;
+  const partPaid = i.status === 'part_paid';
+  const owed = i.status === 'expected' || partPaid;
+  return (
+    <div className="table-row" data-testid={`instance-${i.key}`} style={{ gridTemplateColumns: COLUMNS, alignItems: 'start' }}>
+      <div className="mono" style={{ fontSize: 12.5, paddingTop: 2 }}>
+        {formatDay(i.dueDate)}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+        <span style={{ fontSize: 14.5 }}>
+          <Link to={`/schedules/${i.schedule.id}`}>{i.schedule.name}</Link>
+        </span>
+        <span style={{ fontSize: 12.5, color: 'var(--mut)' }}>
+          {i.schedule.counterparty ? `${i.schedule.counterparty} · ` : ''}
+          the {formatDay(i.naturalDate)} instance
+        </span>
+        <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <Tag>RECURRING</Tag>
+          {i.tuned && <Tag tone="live">TUNED</Tag>}
+          {partPaid && <Tag tone="warn">PART PAID</Tag>}
+          {i.settleMode === 'manual' && <Tag>BY HAND</Tag>}
+        </span>
+        <PaymentsList payments={i.payments} currency={i.currency} />
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--mut)', lineHeight: 1.5 }}>
+        {account}
+        <br />
+        <span style={{ color: 'var(--dim)' }}>{category}</span>
+      </div>
+      <div className="mono" style={{ fontSize: 13.5, textAlign: 'right' }}>
+        {i.direction === 'in' ? '+' : '−'}
+        {formatDecimal(i.amount, i.currency)}
+        {partPaid && (
+          <div style={{ fontSize: 12, color: 'var(--mut)' }}>{formatDecimal(instanceRemaining(i), i.currency)} left</div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        {group === ASSUMED_SETTLED ? (
+          <RowAction label={`Confirm paid, ${name}`} onClick={() => onPay(true)}>
+            Confirm paid
+          </RowAction>
+        ) : (
+          owed && (
+            <RowAction label={`Pay, ${name}`} onClick={() => onPay(false)}>
+              {partPaid ? 'pay the rest' : 'pay'}
+            </RowAction>
+          )
+        )}
+        {(group === ASSUMED_SETTLED || group === ASSUMED) && (
+          <RowAction label={`Didn't happen, ${name}`} tone="fail" onClick={onDidntHappen}>
+            Didn't happen
+          </RowAction>
+        )}
+        {i.payments.length > 0 && (
+          <RowAction label={`Unpay, ${name}`} tone="mut" onClick={onUnpay}>
+            unpay
+          </RowAction>
+        )}
+      </div>
     </div>
   );
 }

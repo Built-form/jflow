@@ -69,6 +69,7 @@ export const GROUP_ORDER: GroupMeta[] = [
 ];
 
 export const ASSUMED_SETTLED = 'assumedSettled';
+export const ASSUMED = 'assumed';
 
 export interface Group<T> extends GroupMeta {
   rows: T[];

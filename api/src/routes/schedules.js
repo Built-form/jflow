@@ -29,6 +29,7 @@ const { withConnection, withTransaction } = require('../db');
 const { recordAudit, recordAuditBulk } = require('../lib/audit');
 const { addDays, diffDays, isValidDate } = require('../lib/dates');
 const { buildSchedKey } = require('../lib/keys');
+const { DERIVED_STATUSES } = require('../lib/classify');
 const { parseMinor, formatMinor } = require('../lib/money');
 const {
     FREQUENCIES, WEEKEND_RULES, isOccurrence, firstActiveOccurrence, nextOccurrenceAfter, endBefore, effectiveValues,
@@ -716,18 +717,74 @@ function factory({ schemaReady, fail, serverError, todayFor, enums }) {
 
     // ── Instances ───────────────────────────────────────────────────────────
 
+    /** `?from&to` with D35's defaults → {from, to}, or answers 400 and returns null. */
+    const instanceWindow = (req, res, today) => {
+        const from = req.query.from === undefined ? addDays(today, -DEFAULT_BACK_DAYS) : req.query.from;
+        const to = req.query.to === undefined ? addDays(today, DEFAULT_AHEAD_DAYS) : req.query.to;
+        let message = null;
+        let details;
+        if (!isValidDate(from)) message = 'from must be a real date, YYYY-MM-DD.';
+        else if (!isValidDate(to)) message = 'to must be a real date, YYYY-MM-DD.';
+        else if (to < from) message = 'to must be on or after from.';
+        else if (diffDays(to, from) > INSTANCE_SPAN_DAYS) {
+            message = `The window spans at most ${INSTANCE_SPAN_DAYS} days.`;
+            details = { from, to };
+        }
+        if (message !== null) {
+            fail(res, 400, message, undefined, details);
+            return null;
+        }
+        return { from, to };
+    };
+
+    // §6.9 across schedules (Dev, 2026-10-07): every instance in the window of every live
+    // schedule in scope, each with its schedule's name and account, so one screen can list
+    // what a recorded balance assumed — money in and out — without opening each schedule.
+    router.get('/instances', handle('instances-across', async (req, res) => {
+        const today = todayFor(req);
+        const window = instanceWindow(req, res, today);
+        if (!window) return;
+        const where = ['s.deleted_at IS NULL'];
+        const params = [];
+        for (const [key, column] of [['accountId', 's.account_id'], ['companyId', 'a.company_id'], ['categoryId', 's.category_id']]) {
+            if (req.query[key] === undefined || req.query[key] === 'all') continue;
+            const value = parseId(req.query[key]);
+            if (!value) return fail(res, 400, `${key} must be a positive integer.`);
+            where.push(`${column} = ?`);
+            params.push(value);
+        }
+        let bands = null;
+        if (req.query.derivedStatus !== undefined) {
+            bands = String(req.query.derivedStatus).split(',').map((s) => s.trim());
+            if (!bands.length || bands.some((b) => !DERIVED_STATUSES.includes(b))) {
+                return fail(res, 400, `derivedStatus must be a comma list of: ${DERIVED_STATUSES.join(', ')}.`);
+            }
+        }
+        const data = await withConnection(async (c) => {
+            const [rows] = await c.query(`${SCHEDULE_SELECT} WHERE ${where.join(' AND ')} ORDER BY s.id ASC`, params);
+            const out = [];
+            for (const row of rows) {
+                const s = scheduleToJson(row);
+                const schedule = {
+                    id: s.id, name: s.name, counterparty: s.counterparty, accountId: s.accountId, companyId: s.companyId,
+                    categoryId: s.categoryId, status: s.status,
+                };
+                const { data: instances } = await listInstances(c, s, { ...window, today });
+                for (const i of instances) if (bands === null || bands.includes(i.derivedStatus)) out.push({ ...i, schedule });
+            }
+            return out.sort((x, y) => (x.dueDate < y.dueDate ? -1 : x.dueDate > y.dueDate ? 1 : x.scheduleId - y.scheduleId
+                || (x.naturalDate < y.naturalDate ? -1 : x.naturalDate > y.naturalDate ? 1 : 0)));
+        });
+        res.json({ data });
+    }));
+
     router.get('/schedules/:id/instances', handle('instances-list', async (req, res) => {
         const id = pathId(req, res);
         if (!id) return;
         const today = todayFor(req);
-        const from = req.query.from === undefined ? addDays(today, -DEFAULT_BACK_DAYS) : req.query.from;
-        const to = req.query.to === undefined ? addDays(today, DEFAULT_AHEAD_DAYS) : req.query.to;
-        if (!isValidDate(from)) return fail(res, 400, 'from must be a real date, YYYY-MM-DD.');
-        if (!isValidDate(to)) return fail(res, 400, 'to must be a real date, YYYY-MM-DD.');
-        if (to < from) return fail(res, 400, 'to must be on or after from.');
-        if (diffDays(to, from) > INSTANCE_SPAN_DAYS) {
-            return fail(res, 400, `The window spans at most ${INSTANCE_SPAN_DAYS} days.`, undefined, { from, to });
-        }
+        const window = instanceWindow(req, res, today);
+        if (!window) return;
+        const { from, to } = window;
         const out = await withConnection(async (c) => {
             const row = await readSchedule(c, id);
             return row ? listInstances(c, scheduleToJson(row), { from, to, today }) : null;

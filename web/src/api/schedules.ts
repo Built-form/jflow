@@ -152,6 +152,32 @@ export interface Instance {
   derivedStatus: DerivedStatus | string;
 }
 
+/** The schedule an across-schedules instance belongs to (§6.9 `GET /instances`). */
+export interface InstanceSchedule {
+  id: number;
+  name: string;
+  counterparty: string | null;
+  accountId: number;
+  companyId: number;
+  categoryId: number;
+  status: ScheduleStatus;
+}
+
+/** An instance from `GET /instances`: the instance plus its schedule. */
+export interface InstanceAcross extends Instance {
+  schedule: InstanceSchedule;
+}
+
+export interface InstancesAcrossQuery {
+  /** null = every company. */
+  companyId?: number | null;
+  accountId?: number;
+  from?: IsoDate;
+  to?: IsoDate;
+  /** D10's bands; absent = every band. */
+  derivedStatus?: string[];
+}
+
 export interface OrphanOverride {
   code: 'ORPHAN_OVERRIDE';
   scheduleId: number;
@@ -264,6 +290,17 @@ export const schedules = {
   /** D35: the server defaults `from = today − 90d`, `to = today + 365d`; span at most 730 days. */
   instances: (id: number, q: { from?: IsoDate; to?: IsoDate } = {}) =>
     request<InstanceList>(`/schedules/${id}/instances`, { query: { from: q.from, to: q.to } }),
+  /** Every schedule's instances in scope, each with its schedule (§6.9; Dev, 2026-10-07). Same window rules. */
+  instancesAcross: (q: InstancesAcrossQuery = {}) =>
+    request<{ data: InstanceAcross[] }>('/instances', {
+      query: {
+        companyId: q.companyId ?? undefined,
+        accountId: q.accountId,
+        from: q.from,
+        to: q.to,
+        derivedStatus: q.derivedStatus?.join(','),
+      },
+    }),
   /** `baseVersion` is checked against the OVERRIDE row when one exists (§10.4). */
   tune: (id: number, naturalDate: IsoDate, body: TuneBody, baseVersion?: number) =>
     request<Instance>(instancePath(id, naturalDate), { method: 'PUT', body: versioned(body, baseVersion) }),

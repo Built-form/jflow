@@ -4,9 +4,10 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { __setTestTransport } from '../../api/client';
 import type { Item } from '../../api/items';
-import { addDays, londonToday } from '../../lib/dates';
+import type { InstanceAcross } from '../../api/schedules';
+import { addDays, formatDay, londonToday } from '../../lib/dates';
 import { ItemsScreen } from './ItemsScreen';
-import { account, category, company, item, list } from './testFixtures';
+import { account, category, company, instance, item, list } from './testFixtures';
 
 afterEach(cleanup);
 
@@ -15,13 +16,14 @@ const longAgo = addDays(today, -19);
 
 type Call = { method: string; path: string; body: unknown };
 
-/** The items routes as CONTRACT §6.7 describes them, answering from `rows`. */
-function stubApi(rows: Item[], answer: (call: Call) => unknown = () => undefined) {
+/** The items routes as CONTRACT §6.7 describes them, answering from `rows`; `/instances` from `instanceRows`. */
+function stubApi(rows: Item[], answer: (call: Call) => unknown = () => undefined, instanceRows: InstanceAcross[] = []) {
   const calls: Call[] = [];
   __setTestTransport(<T,>(method: string, path: string, body?: unknown): Promise<T> => {
     const call = { method, path, body };
     calls.push(call);
     const ok = (value: unknown) => Promise.resolve(value as T);
+    if (method === 'GET' && path.startsWith('/instances')) return ok({ data: instanceRows });
     if (method === 'GET' && path.startsWith('/companies')) return ok(list([company]));
     if (method === 'GET' && path.startsWith('/accounts')) return ok(list([account(1, 'Barclays')]));
     if (method === 'GET' && path.startsWith('/categories')) {
@@ -71,6 +73,47 @@ describe('Income & outgoings', () => {
     expect(within(group('Overdue')).getByText('Courier')).toBeTruthy();
     // The payment rows behind the paid figure are shown.
     expect(within(group('Paid')).getByLabelText('Payments').textContent).toContain('£100.00');
+  });
+
+  it("lists the schedules' assumed instances alongside, and Didn't happen on one tunes that instance alone (Dev, 2026-10-07)", async () => {
+    const payout: InstanceAcross = {
+      ...instance(5, longAgo, { direction: 'in', amount: '2500.00', derivedStatus: 'assumedSettled' }),
+      schedule: { id: 5, name: 'Amazon payout', counterparty: 'Amazon', accountId: 1, companyId: 1, categoryId: 1, status: 'active' },
+    };
+    const calls = stubApi(
+      rows,
+      (call) =>
+        call.method === 'PUT' && call.path === `/schedules/5/instances/${longAgo}`
+          ? { ...instance(5, longAgo, { direction: 'in', amount: '2500.00', settleMode: 'manual', derivedStatus: 'overdue', tuned: true }) }
+          : undefined,
+      [payout],
+    );
+    renderScreen();
+    await screen.findByText('Stationery');
+    const asked = calls.find((c) => c.method === 'GET' && c.path.startsWith('/instances'));
+    expect(decodeURIComponent(asked?.path ?? '')).toContain('derivedStatus=assumed,assumedSettled,overdue,unresolved');
+    expect(decodeURIComponent(asked?.path ?? '')).toContain(`to=${today}`);
+
+    const assumed = group('Assumed settled');
+    const row = within(assumed).getByTestId(`instance-sched.5.${longAgo}`);
+    expect(within(row).getByRole('link', { name: 'Amazon payout' }).getAttribute('href')).toBe('/schedules/5');
+    expect(row.textContent).toContain('RECURRING');
+    expect(row.textContent).toContain('+£2,500.00');
+    const name = `Amazon payout, ${formatDay(longAgo)}`;
+    expect(within(row).getByRole('button', { name: `Confirm paid, ${name}` })).toBeTruthy();
+
+    fireEvent.click(within(row).getByRole('button', { name: `Didn't happen, ${name}` }));
+    const dialog = screen.getByRole('dialog', { name: `${name} didn't happen?` });
+    expect(dialog.textContent).toMatch(/Only this instance changes/);
+    fireEvent.click(within(dialog).getByRole('button', { name: "It didn't happen" }));
+    await screen.findByRole('status');
+    expect(calls.find((c) => c.method === 'PUT')).toEqual({
+      method: 'PUT',
+      path: `/schedules/5/instances/${longAgo}`,
+      body: { settleMode: 'manual' },
+    });
+    expect(within(group('Overdue')).getByTestId(`instance-sched.5.${longAgo}`)).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toMatch(/Amazon payout.*settled by hand.*Overdue/);
   });
 
   it('offers Confirm paid and Didn\'t happen only on assumed-settled items', async () => {

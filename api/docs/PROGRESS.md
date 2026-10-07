@@ -1149,3 +1149,29 @@ what was still owed, so every shipment whose goods are paid before its charges d
 
 **Checks**: api unit 1088 green + eslint. **Not deployed**: the three rows resolve at the first
 shipping refresh after Dev runs `deploy.sh`.
+
+## Assumed instances across schedules on Income & outgoings (2026-10-07)
+
+Dev: an automatic receipt that arrives a few days late is assumed into the recorded balance,
+so the forecast drops it and reads low; "is it possible to see a list of all auto received
+items and mark them as not paid / received yet? where is the best place". The one-off side
+existed (Assumed settled → Confirm paid / Didn't happen); the recurring side needed each
+schedule opened in turn. Chosen place: Income & outgoings, both kinds in one list.
+
+- **API** `GET /instances?companyId&accountId&categoryId&from&to&derivedStatus` (CONTRACT
+  §6.9): every instance in the window of every live schedule in scope, each with a
+  `schedule {id, name, counterparty, accountId, companyId, categoryId, status}` block;
+  `derivedStatus` a comma list of D10's bands. `routes/schedules.js` (the D35 window
+  parsing is now `instanceWindow`, shared with the per-schedule route).
+- **Web** Income & outgoings lists the schedules' instances in the assumed, overdue and
+  unresolved bands up to today alongside the one-offs (RECURRING tag, the schedule's name as
+  a link, "the 5 Oct instance"), with Confirm paid / Didn't happen / pay / unpay; tune and
+  skip stay on the schedule's page. Didn't happen tunes that one instance to settled by hand.
+  One-offs in "Assumed since the last balance" now offer Didn't happen too.
+- Tests: `test/e2e/schedules.test.js` "GET /instances …" (written, **not run** — no test
+  database here); `ItemsScreen.test.tsx` the instance row and its Didn't happen.
+
+**Checks**: api unit 1088 green + eslint; web 349 green + tsc. **Not deployed**: until Dev runs
+`deploy.sh`, the deployed API answers 404 for `/instances` and the screen shows that error
+above the one-offs. **Deferred**: a Forecast warning for automatic receipts assumed in the
+last few days; tune / skip from this list.

@@ -300,6 +300,42 @@ describe('schedules', () => {
     });
 
     describe('instances', () => {
+        test('GET /instances lists every schedule\'s instances in scope, each with its schedule, filtered by derivedStatus (Dev, 2026-10-07)', async () => {
+            const rent = await makeSchedule({ name: 'Across rent' });
+            const payout = await makeSchedule({ name: 'Across payout', categoryId: sales.id, startDate: '2026-01-20', counterparty: 'Amazon' });
+            const other = (await post('/schedules', {
+                accountId: bare.id, categoryId: out.id, name: 'Across bare', amount: '5.00', frequency: 'monthly', startDate: '2026-01-05',
+            }).expect(201)).body;
+            const mine = (body) => body.data.filter((i) => [rent.id, payout.id, other.id].includes(i.scheduleId));
+
+            // Assumed bands only, main account: Jan and Feb before the anchor, Mar 5 after it.
+            const assumed = mine((await get('/instances', {
+                accountId: main.id, from: '2026-01-01', to: TODAY, derivedStatus: 'assumed,assumedSettled',
+            }).expect(200)).body);
+            expect(assumed.map((i) => [i.schedule.name, i.naturalDate, i.derivedStatus])).toEqual([
+                ['Across rent', '2026-01-05', 'assumedSettled'],
+                ['Across payout', '2026-01-20', 'assumedSettled'],
+                ['Across rent', '2026-02-05', 'assumedSettled'],
+                ['Across payout', '2026-02-20', 'assumedSettled'],
+                ['Across rent', '2026-03-05', 'assumed'],
+            ]);
+            expect(Object.keys(assumed[0]).sort()).toEqual([...INSTANCE_KEYS, 'schedule'].sort());
+            expect(assumed[1].schedule).toEqual({
+                id: payout.id, name: 'Across payout', counterparty: 'Amazon', accountId: main.id, companyId: jfa.id,
+                categoryId: sales.id, status: 'active',
+            });
+
+            // No derivedStatus: every band; the company scope takes in the anchorless account (D12: assumed, never assumedSettled).
+            const all = mine((await get('/instances', { companyId: jfa.id, from: '2026-01-01', to: '2026-04-30' }).expect(200)).body);
+            expect(all.filter((i) => i.scheduleId === other.id).map((i) => i.derivedStatus)).toEqual(['assumed', 'assumed', 'assumed', 'expected']);
+            expect(all.filter((i) => i.derivedStatus === 'expected').map((i) => i.scheduleId).sort()).toEqual([other.id, payout.id, rent.id].sort());
+            expect(mine((await get('/instances', { companyId: hw.id, from: '2026-01-01', to: TODAY }).expect(200)).body)).toEqual([]);
+
+            await get('/instances', { derivedStatus: 'late' }).expect(400);
+            await get('/instances', { companyId: 'x' }).expect(400);
+            await get('/instances', { from: '2026-01-01', to: '2028-01-02' }).expect(400);
+        });
+
         test('predicted vs tuned, derivedStatus against the anchor, window defaults and limits (D35)', async () => {
             // Monthly on the 5th; 5 Apr 2026 is a Sunday, moved to Monday by the weekend rule.
             const s = await makeSchedule({ name: 'Instances', weekendRule: 'next' });
