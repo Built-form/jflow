@@ -79,10 +79,29 @@ const cell: CSSProperties = {
  * category or supplier-group figure — or Ctrl/⌘-click a line's, whose plain click edits it —
  * and the bar under the grid shows what the picked figures come to. Display only: every
  * figure picked is one already on screen, and nothing is sent anywhere.
+ *
+ * A total already holds the figures under it — Out holds every out category, a category its
+ * lines, a row's Window figure that row's buckets — so a figure picked together with a total
+ * it is part of is counted once, through the total (Dev, 2026-10-07: a category picked on
+ * top of its own lines doubled the sum). `within` lists the totals a figure is part of.
  */
 interface Picked {
   minor: bigint;
   direction: LineDirection;
+  within: string[];
+}
+/** The picked totals this figure is part of — none means it counts in its own right. */
+const insidePicked = (within: readonly string[], picked: ReadonlyMap<string, Picked>) => within.some((id) => picked.has(id));
+/** The totals around a row, outermost first: its side, its category, its supplier group. */
+const ScopeContext = createContext<readonly string[]>([]);
+/**
+ * The totals a figure in column `col` is part of: each scope's figure for that column and for
+ * the window, and — for a total's own bucket figure — its own Window figure.
+ */
+function withinOf(scopes: readonly string[], col: number | 'window', own?: string): string[] {
+  const out = scopes.flatMap((s) => (col === 'window' ? [`${s}:window`] : [`${s}:${col}`, `${s}:window`]));
+  if (own && col !== 'window') out.push(`${own}:window`);
+  return out;
 }
 const PickedContext = createContext<ReadonlyMap<string, Picked>>(new Map());
 /** The side a category's rows are on — a line does not carry its own. */
@@ -135,34 +154,49 @@ const PICK_HINT ='Click to add to the sum';
 const PICK_LINE_HINT = 'Ctrl-click to add to the sum';
 
 /** The attributes that make a figure pickable; the grid's one click handler reads them. */
-function pickProps(id: string, minor: number | bigint, direction: LineDirection, picked: ReadonlyMap<string, Picked>) {
-  const on = picked.has(id);
+function pickProps(
+  id: string,
+  minor: number | bigint,
+  direction: LineDirection,
+  within: readonly string[],
+  picked: ReadonlyMap<string, Picked>,
+) {
   return {
     'data-pick': id,
     'data-pick-minor': String(toMinor(minor)),
     'data-pick-direction': direction,
-    'data-picked': on ? 'true' : undefined,
+    'data-pick-within': JSON.stringify(within),
+    // 'inside': picked, but a picked total already holds it.
+    'data-picked': !picked.has(id) ? undefined : insidePicked(within, picked) ? 'inside' : 'true',
   };
 }
 
 /** A total's cell (In, Out, a category, a supplier group): pickable unless it is blank. */
 function TotalCell({
-  id,
+  scope,
+  col,
   value,
   direction,
   blankZero,
   style,
 }: {
-  id: string;
+  /** The total this cell belongs to (`side:out`, `category:3`, `combo:…`) and its column. */
+  scope: string;
+  col: number | 'window';
   value: number;
   direction: LineDirection;
   blankZero?: boolean;
   style: CSSProperties;
 }) {
   const picked = useContext(PickedContext);
+  const scopes = useContext(ScopeContext);
   if (blankZero && toMinor(value) === 0n) return <td style={style} />;
   return (
-    <td style={{ ...style, cursor: 'cell' }} title={PICK_HINT} {...pickProps(id, value, direction, picked)}>
+    <td
+      style={{ ...style, cursor: 'cell' }}
+      title={PICK_HINT}
+      {...pickProps(`${scope}:${col}`, value, direction, withinOf(scopes, col, scope), picked)}
+    >
       {cellMoney(value)}
     </td>
   );
@@ -174,13 +208,17 @@ function SumBar({ picked, onClear }: { picked: ReadonlyMap<string, Picked>; onCl
   let moneyIn = 0n;
   let moneyOut = 0n;
   let ins = 0;
+  let counted = 0;
   for (const p of picked.values()) {
+    if (insidePicked(p.within, picked)) continue;
+    counted += 1;
     if (p.direction === 'in') {
       moneyIn += p.minor;
       ins += 1;
     } else moneyOut += p.minor;
   }
-  const mixed = ins > 0 && ins < picked.size;
+  const mixed = ins > 0 && ins < counted;
+  const inside = picked.size - counted;
   return (
     <div
       role="status"
@@ -205,6 +243,7 @@ function SumBar({ picked, onClear }: { picked: ReadonlyMap<string, Picked>; onCl
     >
       <span style={{ color: 'var(--mut)' }}>
         {picked.size} {picked.size === 1 ? 'figure' : 'figures'}
+        {inside > 0 && ` · ${inside} already in a picked total, counted once`}
       </span>
       {mixed ? (
         <>
@@ -422,10 +461,11 @@ export function ForecastGrid({
     const id = el.dataset.pick as string;
     const minor = BigInt(el.dataset.pickMinor ?? '0');
     const direction: LineDirection = el.dataset.pickDirection === 'in' ? 'in' : 'out';
+    const within = JSON.parse(el.dataset.pickWithin ?? '[]') as string[];
     setPicked((prev) => {
       const next = new Map(prev);
       if (next.has(id)) next.delete(id);
-      else next.set(id, { minor, direction });
+      else next.set(id, { minor, direction, within });
       return next;
     });
   };
@@ -536,15 +576,15 @@ export function ForecastGrid({
           </HeaderRow>
           <HeaderRow label="In">
             {buckets.map((b, i) => (
-              <TotalCell key={b.start} id={`side:in:${i}`} value={b.inflow} direction="in" blankZero style={cell} />
+              <TotalCell key={b.start} scope="side:in" col={i} value={b.inflow} direction="in" blankZero style={cell} />
             ))}
-            <TotalCell id="side:in:window" value={summary.inflow} direction="in" style={cell} />
+            <TotalCell scope="side:in" col="window" value={summary.inflow} direction="in" style={cell} />
           </HeaderRow>
           <HeaderRow label="Out">
             {buckets.map((b, i) => (
-              <TotalCell key={b.start} id={`side:out:${i}`} value={b.outflow} direction="out" blankZero style={cell} />
+              <TotalCell key={b.start} scope="side:out" col={i} value={b.outflow} direction="out" blankZero style={cell} />
             ))}
-            <TotalCell id="side:out:window" value={summary.outflow} direction="out" style={cell} />
+            <TotalCell scope="side:out" col="window" value={summary.outflow} direction="out" style={cell} />
           </HeaderRow>
           <HeaderRow label="Closing" strong>
             {buckets.map((b) => (
@@ -609,9 +649,12 @@ function CategoryBlock({
   const combos = shipCategory ? groupShipCombos(groups, bucketCount) : [];
   const hide = useContext(HideContext);
   const hidden = hide?.categoryIds.has(row.categoryId) ?? false;
+  const sideScope = [`side:${row.direction}`];
+  const scope = `category:${row.categoryId}`;
   return (
     <DirectionContext.Provider value={row.direction}>
     <CategoryHiddenContext.Provider value={hidden}>
+    <ScopeContext.Provider value={sideScope}>
       <tr
         data-testid={`category-${row.categoryId}`}
         className="ledger-category"
@@ -637,7 +680,8 @@ function CategoryBlock({
         {Array.from({ length: bucketCount }, (_, i) => (
           <TotalCell
             key={i}
-            id={`category:${row.categoryId}:${i}`}
+            scope={scope}
+            col={i}
             value={row.totals[i] ?? 0}
             direction={row.direction}
             blankZero
@@ -645,12 +689,15 @@ function CategoryBlock({
           />
         ))}
         <TotalCell
-          id={`category:${row.categoryId}:window`}
+          scope={scope}
+          col="window"
           value={row.total}
           direction={row.direction}
           style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}
         />
       </tr>
+      </ScopeContext.Provider>
+      <ScopeContext.Provider value={[...sideScope, scope]}>
       {open && !shipCategory && groups.map((group) => <LineRow key={group.key} group={group} indent={30} lineMarks={lineMarks} onEdit={onEdit} />)}
       {open &&
         shipCategory &&
@@ -667,6 +714,7 @@ function CategoryBlock({
             />
           );
         })}
+    </ScopeContext.Provider>
     </CategoryHiddenContext.Provider>
     </DirectionContext.Provider>
   );
@@ -693,6 +741,7 @@ function LineRow({
   const hide = useContext(HideContext);
   const withCategory = useContext(CategoryHiddenContext);
   const hidden = withCategory || (hide !== null && group.keys.every((k) => hide.keys.has(k)));
+  const scopes = useContext(ScopeContext);
   return (
     <tr data-testid={`line-${group.key}`}>
       <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: indent, ...(hide ? EYE_PAD : {}) }}>
@@ -712,7 +761,7 @@ function LineRow({
       {group.cells.map((lines, i) => (
         <td key={i} style={cell}>
           {lines.map((line, j) => (
-            <LineCell key={lineId(line, j)} pickId={`line:${i}:${lineId(line, j)}`} line={line} marks={lineMarks.get(line.key)} onEdit={onEdit} />
+            <LineCell key={lineId(line, j)} pickId={`line:${i}:${lineId(line, j)}`} within={withinOf(scopes, i)} line={line} marks={lineMarks.get(line.key)} onEdit={onEdit} />
           ))}
         </td>
       ))}
@@ -741,6 +790,8 @@ function ShipComboRows({
 }) {
   const count = combo.lines.length;
   const direction = useContext(DirectionContext);
+  const scopes = useContext(ScopeContext);
+  const scope = `combo:${combo.key}`;
   const sub = `${combo.containerRef ?? 'No container'} · ${count} ${count === 1 ? 'payment' : 'payments'}`;
   // The group is hidden when every payment in it is; its eye hides or shows them all.
   const hide = useContext(HideContext);
@@ -782,11 +833,17 @@ function ShipComboRows({
           {!open && <AttentionMarker id={`combo:${combo.key}`} tags={attentionTags(combo.lines, lineMarks)} />}
         </th>
         {combo.cells.map((sum, i) => (
-          <TotalCell key={i} id={`combo:${combo.key}:${i}`} value={sum} direction={direction} blankZero style={{ ...cell, fontWeight: 500 }} />
+          <TotalCell key={i} scope={scope} col={i} value={sum} direction={direction} blankZero style={{ ...cell, fontWeight: 500 }} />
         ))}
-        <TotalCell id={`combo:${combo.key}:window`} value={combo.total} direction={direction} style={{ ...cell, fontWeight: 500 }} />
+        <TotalCell scope={scope} col="window" value={combo.total} direction={direction} style={{ ...cell, fontWeight: 500 }} />
       </tr>
-      {open && combo.groups.map((group) => <LineRow key={group.key} group={group} indent={46} underCombo lineMarks={lineMarks} onEdit={onEdit} />)}
+      {open && (
+        <ScopeContext.Provider value={[...scopes, scope]}>
+          {combo.groups.map((group) => (
+            <LineRow key={group.key} group={group} indent={46} underCombo lineMarks={lineMarks} onEdit={onEdit} />
+          ))}
+        </ScopeContext.Provider>
+      )}
     </>
   );
 }
@@ -828,16 +885,19 @@ function AttentionMarker({ id, tags }: { id: number | string; tags: ReturnType<t
 /** One line in one cell: its GBP figure and its flags; a button when the server allows an edit. */
 function LineCell({
   pickId,
+  within,
   line,
   marks,
   onEdit,
 }: {
   pickId: string;
+  /** The totals this line's figure is part of. */
+  within: string[];
   line: ForecastItem;
   marks?: FlagTag[];
   onEdit: (item: ForecastItem) => void;
 }) {
-  const pick = pickProps(pickId, line.gbpMinor, useContext(DirectionContext), useContext(PickedContext));
+  const pick = pickProps(pickId, line.gbpMinor, useContext(DirectionContext), within, useContext(PickedContext));
   const tags = [...flagTags(line.flags), ...(marks ?? [])];
   // Left out by the scenario or hidden with an eye: either way the server counts nothing for it.
   const excluded = line.flags.includes('excluded') || line.flags.includes('hidden');
