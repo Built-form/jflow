@@ -17,7 +17,7 @@ const longAgo = addDays(today, -19);
 type Call = { method: string; path: string; body: unknown };
 
 /** The items routes as CONTRACT §6.7 describes them, answering from `rows`; `/instances` from `instanceRows`. */
-function stubApi(rows: Item[], answer: (call: Call) => unknown = () => undefined, instanceRows: InstanceAcross[] = []) {
+function stubApi(rows: Item[], answer: (call: Call) => unknown = () => undefined, instanceRows: InstanceAcross[] = [], assumedRows: Item[] = []) {
   const calls: Call[] = [];
   __setTestTransport(<T,>(method: string, path: string, body?: unknown): Promise<T> => {
     const call = { method, path, body };
@@ -29,7 +29,8 @@ function stubApi(rows: Item[], answer: (call: Call) => unknown = () => undefined
     if (method === 'GET' && path.startsWith('/categories')) {
       return ok(list([category(1, 'Sales', 'in'), category(2, 'Suppliers', 'out')]));
     }
-    if (method === 'GET' && path.startsWith('/items')) return ok(list(rows));
+    // The windowed read, and the all-time read of what may have been assumed (status=expected&settleMode=auto).
+    if (method === 'GET' && path.startsWith('/items')) return ok(list(path.includes('settleMode=auto') ? assumedRows : rows));
     const reply = answer(call);
     return reply === undefined ? Promise.reject(new Error(`unexpected ${method} ${path}`)) : ok(reply);
   });
@@ -114,6 +115,21 @@ describe('Income & outgoings', () => {
     });
     expect(within(group('Overdue')).getByTestId(`instance-sched.5.${longAgo}`)).toBeTruthy();
     expect(screen.getByRole('status').textContent).toMatch(/Amazon payout.*settled by hand.*Overdue/);
+  });
+
+  it('lists assumed one-offs however old, outside the window, from a second all-time read (Dev, 2026-10-07)', async () => {
+    const old = item(7, { name: 'Old payout', dueDate: addDays(today, -400), direction: 'in', derivedStatus: 'assumedSettled' });
+    const calls = stubApi(rows, () => undefined, [], [old, rows[1]]);
+    renderScreen();
+    await screen.findByText('Stationery');
+    const reads = calls.filter((c) => c.method === 'GET' && c.path.startsWith('/items')).map((c) => decodeURIComponent(c.path));
+    expect(reads.some((p) => p.includes(`from=${addDays(today, -90)}`))).toBe(true);
+    expect(reads.some((p) => p.includes('status=expected') && p.includes('settleMode=auto') && p.includes(`to=${addDays(today, -1)}`) && !p.includes('from='))).toBe(true);
+    const assumed = group('Assumed settled');
+    expect(within(assumed).getByText('Old payout')).toBeTruthy();
+    // A row in both reads shows once.
+    expect(within(assumed).getAllByText('Stationery')).toHaveLength(1);
+    expect(screen.getByText(/listed however old it is/)).toBeTruthy();
   });
 
   it('offers Confirm paid and Didn\'t happen only on assumed-settled items', async () => {

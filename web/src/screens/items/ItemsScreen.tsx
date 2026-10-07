@@ -76,17 +76,26 @@ export function ItemsScreen() {
   const accounts = useQuery(() => api.accounts.list({ companyId }), [companyId]);
   const categories = useQuery(() => api.categories.list(), []);
   const list = useQuery(() => items.listAll({ companyId, from }), [companyId, from]);
-  // The schedules' instances that need a person, up to today (nothing expected is listed
-  // here — the schedules screen has those).
+  // What a recorded balance may have swallowed is listed however old it is (Dev,
+  // 2026-10-07: a receipt that never came might not be noticed until long after the balance
+  // that assumed it). The window above applies to everything else. An automatic one-off
+  // still expected and dated before today is in an assumed band, whatever its account's anchor.
+  const yesterday = addDays(today, -1);
+  const assumedItems = useQuery(
+    () => items.listAll({ companyId, status: 'expected', settleMode: 'auto', to: yesterday }),
+    [companyId, yesterday],
+  );
+  // The schedules' instances that need a person, up to today, as far back as the server
+  // reads (nothing expected is listed here — the schedules screen has those).
   const instances = useQuery(
     () =>
       schedules.instancesAcross({
         companyId,
-        from: from ?? addDays(today, -INSTANCE_SPAN_DAYS),
+        from: addDays(today, -INSTANCE_SPAN_DAYS),
         to: today,
         derivedStatus: INSTANCE_BANDS,
       }),
-    [companyId, from, today],
+    [companyId, today],
   );
 
   const [editing, setEditing] = useState<Item | 'new' | null>(null);
@@ -104,10 +113,12 @@ export function ItemsScreen() {
   const categoryOf = (id: number) => categoryRows.find((c) => c.id === id);
   const pickable: Account[] = accountRows.filter((a) => a.isActive && !a.deletedAt);
 
-  const groups = useMemo(
-    () => groupByDerivedStatus<Row>([...(list.data?.data ?? []), ...(instances.data?.data ?? [])].sort(byDueRow)),
-    [list.data, instances.data],
-  );
+  const groups = useMemo(() => {
+    // The windowed list wins where both reads hold a row: every write lands there.
+    const seen = new Set((list.data?.data ?? []).map((i) => i.id));
+    const older = (assumedItems.data?.data ?? []).filter((i) => !seen.has(i.id));
+    return groupByDerivedStatus<Row>([...(list.data?.data ?? []), ...older, ...(instances.data?.data ?? [])].sort(byDueRow));
+  }, [list.data, assumedItems.data, instances.data]);
   const visible = show === null ? groups : groups.filter((g) => g.id === show);
 
   /** Replace-from-response: the row as the server now holds it. */
@@ -117,6 +128,7 @@ export function ItemsScreen() {
       return;
     }
     updateList(list, (rows) => upsertById(rows, row).sort(byDue));
+    updateList(assumedItems, (rows) => removeById(rows, row.id));
   };
   /** An instance's mutation answers the bare instance; its schedule block carries over. */
   const replaceInstance = (prev: InstanceAcross, next: Instance) => {
@@ -191,14 +203,16 @@ export function ItemsScreen() {
       </div>
       {from && (
         <div style={{ fontSize: 12.5, color: 'var(--dim)' }}>
-          Due from {formatDay(from)} onwards. Pick a longer window for anything older.
+          Due from {formatDay(from)} onwards — except anything assumed, which is listed however old it is. Pick a longer
+          window for the rest.
         </div>
       )}
 
       {list.error && <ErrorNote error={list.error} onRetry={list.reload} />}
+      {assumedItems.error && <ErrorNote error={assumedItems.error} onRetry={assumedItems.reload} />}
       {instances.error && <ErrorNote error={instances.error} onRetry={instances.reload} />}
-      {!list.data ? (
-        !list.error && <Loading what="Income & outgoings" />
+      {!list.data || !assumedItems.data ? (
+        !list.error && !assumedItems.error && <Loading what="Income & outgoings" />
       ) : groups.length === 0 ? (
         <Empty>
           Nothing {from ? `due since ${formatDay(from)}` : 'yet'}.{' '}

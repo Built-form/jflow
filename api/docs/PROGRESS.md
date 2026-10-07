@@ -1175,3 +1175,10 @@ schedule opened in turn. Chosen place: Income & outgoings, both kinds in one lis
 `deploy.sh`, the deployed API answers 404 for `/instances` and the screen shows that error
 above the one-offs. **Deferred**: a Forecast warning for automatic receipts assumed in the
 last few days; tune / skip from this list.
+
+**Later**: Dev — "could we go back further? for the assumed settled, just in case it was not
+noticed until after I added latest cash at bank". The assumed bands are now read however old:
+a second all-time `GET /items?status=expected&settleMode=auto&to=<yesterday>` beside the
+windowed read (an automatic one-off still expected and dated before today is assumed, whatever
+its anchor), merged by id with the windowed rows winning; the instances read always spans the
+server's 730 days. The window note says so. `ItemsScreen.test.tsx` covers the second read.
