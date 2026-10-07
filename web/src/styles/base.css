@@ -977,6 +977,27 @@ h1.page-title {
   box-shadow: inset 3px 0 0 var(--fail);
 }
 
+/* The grid's sideways scrollbar, in its own row under Closing (ForecastGrid): full-size and
+   in accent, so it is found at a glance; the chart's and the grid's own bars are hidden. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.ledger tr.ledger-scroll-row > td {
+  padding: 6px 0;
+  border-top: 1px solid var(--line2);
+  background: var(--panel2);
+}
+.ledger .ledger-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: 10px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  border-radius: 999px;
+  scrollbar-width: auto;
+  scrollbar-color: var(--acc) var(--accBd);
+}
+
 /* The eye in a label cell's corner (ForecastGrid `EyeToggle`): faint until the row is
    pointed at, solid once the row is hidden. */
 .ledger .ledger-eye {

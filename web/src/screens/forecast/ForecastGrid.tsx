@@ -295,6 +295,48 @@ export function ForecastGrid({
   // The header cells are the columns: measured on every resize of any of them (a category
   // opening can widen one), so the chart's buckets stay exactly as wide as the grid's.
   const tableRef = useRef<HTMLTableElement>(null);
+
+  // The sideways scrollbar sits under the Closing row (Dev, 2026-10-07), not at the foot of
+  // a long list or under the chart: a bar in a table row, pinned to the visible width, that
+  // moves the grid (and, through `onScroll`, the chart). The scrollers' own bars are hidden.
+  const scrollerEl = useRef<HTMLDivElement | null>(null);
+  const barEl = useRef<HTMLDivElement>(null);
+  const setScroller = (el: HTMLDivElement | null) => {
+    scrollerEl.current = el;
+    if (typeof scrollRef === 'function') scrollRef(el);
+    else if (scrollRef) (scrollRef as { current: HTMLDivElement | null }).current = el;
+  };
+  const [view, setView] = useState({ client: 0, total: 0, label: 0 });
+  useLayoutEffect(() => {
+    const scroller = scrollerEl.current;
+    const table = tableRef.current;
+    if (!scroller || !table) return;
+    const measure = () => {
+      const next = {
+        client: scroller.clientWidth,
+        total: table.scrollWidth,
+        label: table.querySelector<HTMLElement>('thead th')?.getBoundingClientRect().width ?? 0,
+      };
+      setView((prev) => (prev.client === next.client && prev.total === next.total && prev.label === next.label ? prev : next));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroller);
+    observer.observe(table);
+    return () => observer.disconnect();
+  }, [buckets]);
+  const scrollable = view.total > view.client + 1;
+  const onGridScroll = () => {
+    const scroller = scrollerEl.current;
+    if (scroller && barEl.current && barEl.current.scrollLeft !== scroller.scrollLeft) barEl.current.scrollLeft = scroller.scrollLeft;
+    onScroll?.();
+  };
+  const onBarScroll = () => {
+    const scroller = scrollerEl.current;
+    if (scroller && barEl.current && scroller.scrollLeft !== barEl.current.scrollLeft) scroller.scrollLeft = barEl.current.scrollLeft;
+  };
+
   useLayoutEffect(() => {
     const table = tableRef.current;
     if (!table || !onColumns) return;
@@ -405,8 +447,9 @@ export function ForecastGrid({
     <HideContext.Provider value={hide}>
     <PickedContext.Provider value={picked}>
     <div
-      ref={scrollRef}
-      onScroll={onScroll}
+      ref={setScroller}
+      onScroll={onGridScroll}
+      className={scrollable ? 'no-scrollbar' : undefined}
       style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--panel)', boxShadow: 'var(--shadow)' }}
     >
       <table
@@ -507,6 +550,25 @@ export function ForecastGrid({
               })}
               <td style={cell} />
             </HeaderRow>
+          )}
+          {scrollable && (
+            <tr className="ledger-scroll-row" data-testid="grid-scroll">
+              <td colSpan={buckets.length + 2}>
+                <div style={{ position: 'sticky', left: 0, width: view.client, display: 'flex', alignItems: 'center' }}>
+                  <span className="kicker" style={{ width: view.label, flexShrink: 0, padding: '0 12px' }}>
+                    ◂ SCROLL DATES ▸
+                  </span>
+                  <div
+                    ref={barEl}
+                    className="ledger-scroll"
+                    aria-hidden="true"
+                    onScroll={onBarScroll}
+                  >
+                    <div style={{ width: view.total - view.label, height: 1 }} />
+                  </div>
+                </div>
+              </td>
+            </tr>
           )}
 
           {section('in', 'Money in')}

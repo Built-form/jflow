@@ -229,8 +229,9 @@ export function BalanceChart({
           ref={scrollRef}
           onScroll={onScroll}
           data-testid={aligned ? 'chart-scroll' : undefined}
-          // Its scrollbar shows, under the chart: the grid's own is at the bottom of a long
-          // list (Dev, 2026-10-07). Either one moves both.
+          // No scrollbar of its own: the one under the grid's Closing row moves both
+          // (Dev, 2026-10-07), and so does a sideways swipe or shift-wheel here.
+          className={aligned ? 'no-scrollbar' : undefined}
           style={aligned ? { overflowX: 'auto', overflowY: 'hidden' } : undefined}
         >
           <div style={{ position: 'relative', width: aligned ? width : undefined }}>
