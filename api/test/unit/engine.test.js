@@ -186,7 +186,7 @@ function expectInvariants(res) {
         for (const row of res.rows) {
             expect(row.totals).toHaveLength(buckets.length);
             row.totals.forEach((t, i) => {
-                const cell = row.items.filter((l) => l.bucketIndex === i && !l.flags.includes('excluded'));
+                const cell = row.items.filter((l) => l.bucketIndex === i && !l.flags.includes('excluded') && !l.flags.includes('hidden'));
                 expect(t).toBe(sum(cell.map((l) => l.gbpMinor)));
                 if (row.direction === 'in') ins[i] += t; else outs[i] += t;
             });
@@ -839,10 +839,10 @@ describe('window (§9.10, §9.11, D7, D25) and buckets (D6, §9.12)', () => {
     test('include=summary omits rows and keeps everything else', () => {
         const res = forecast({ include: 'summary', items: [item(1, { dueDate: '2026-10-01' })] });
         expect('rows' in res).toBe(false);
-        expect(Object.keys(res)).toEqual(['meta', 'accounts', 'days', 'buckets', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings']);
+        expect(Object.keys(res)).toEqual(['meta', 'accounts', 'days', 'buckets', 'summary', 'scenario', 'hidden', 'unresolved', 'shipping', 'warnings']);
         expect(res.summary.outflow).toBe(10000);
         expect(INCLUDES).toEqual(['summary', 'grid']);
-        expect(Object.keys(forecast({}))).toEqual(['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings']);
+        expect(Object.keys(forecast({}))).toEqual(['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'hidden', 'unresolved', 'shipping', 'warnings']);
     });
 });
 
@@ -1332,5 +1332,89 @@ describe('purity', () => {
         const a = forecast({ items: [item(1, { dueDate: '2026-10-01' })], scenario: DRAFT });
         const b = forecast({ items: [item(1, { dueDate: '2026-10-01' })], scenario: DRAFT });
         expect(a).toEqual(b);
+    });
+});
+
+// ── Hide (§6.10 `hide` / `hideCategories`, Dev 2026-10-07) ───────────────────────────────
+
+describe('hide: lines left out of one read, nothing stored', () => {
+    const hide = (over = {}) => ({ keys: [], categoryIds: [], ...over });
+
+    test('no hide → hidden is null and no day carries fullClosing', () => {
+        const res = forecast({ items: [item(31, { dueDate: '2026-10-05' })] });
+        expect(res.hidden).toBeNull();
+        res.days.forEach((d) => expect('fullClosing' in d).toBe(false));
+        expect(forecast({ items: [item(31, { dueDate: '2026-10-05' })], hide: hide() }).hidden).toBeNull();
+    });
+
+    test('a hidden key stays in rows flagged hidden, counts nothing, and the answer says what went', () => {
+        const res = forecast({
+            items: [item(31, { dueDate: '2026-10-05' }), item(32, { dueDate: '2026-10-06', direction: 'in', amount: '250.00' })],
+            hide: hide({ keys: ['item.31'] }),
+        });
+        expect(lineOf(res, 'item.31')).toMatchObject({ gbpMinor: 10000, flags: ['hidden'], editable: true });
+        expect(lineOf(res, 'item.32').flags).toEqual([]);
+        expect(res.rows.find((r) => r.categoryId === 20).total).toBe(0);
+        expect(res.summary).toMatchObject({ inflow: 25000, outflow: 0, closing: 125000 });
+        expect(dayOf(res, '2026-10-05')).toMatchObject({ outflow: 0, closing: 100000, fullClosing: 90000 });
+        expect(dayOf(res, '2026-10-06')).toMatchObject({ closing: 125000, fullClosing: 115000 });
+        expect(res.hidden).toMatchObject({
+            count: 1, inflow: 0, outflow: 10000,
+            fullSummary: { inflow: 25000, outflow: 10000, closing: 115000, minClosing: 90000, minDate: '2026-10-05' },
+        });
+        expect(res.scenario).toBeNull();
+    });
+
+    test('a hidden category hides every line in it — one-offs and schedule instances alike', () => {
+        const res = forecast({
+            items: [item(33, { dueDate: '2026-10-05', categoryId: 21 }), item(34, { dueDate: '2026-10-07' })],
+            schedules: [schedule(5)],                       // Payroll (21), 15th of the month
+            hide: hide({ categoryIds: [21] }),
+        });
+        expect(lineOf(res, 'item.33').flags).toEqual(['hidden']);
+        expect(lineOf(res, 'sched.5.2026-10-15').flags).toEqual(['hidden']);
+        expect(lineOf(res, 'item.34').flags).toEqual([]);
+        expect(res.summary.outflow).toBe(10000);
+        expect(res.hidden).toMatchObject({ count: 2, inflow: 0, outflow: 20000 });
+    });
+
+    test('what is already in today\'s opening stays there: hiding an absorbed line changes nothing', () => {
+        const res = forecast({ items: [item(35, { dueDate: '2026-09-25' })], hide: hide({ keys: ['item.35'] }) });
+        expect(accountOf(res, 1)).toMatchObject({ openingGbp: 90000 });
+        expect(absorbedKeys(res)).toEqual(['item.35']);
+        expect(res.hidden).toMatchObject({ count: 0, inflow: 0, outflow: 0 });
+    });
+
+    test('a key or category with nothing behind it hides nothing', () => {
+        const res = forecast({ items: [item(36, { dueDate: '2026-10-05' })], hide: hide({ keys: ['item.999'], categoryIds: [77] }) });
+        expect(lineOf(res, 'item.36').flags).toEqual([]);
+        expect(res.hidden).toMatchObject({ count: 0, outflow: 0 });
+        expect(res.summary).toEqual(res.hidden.fullSummary);
+    });
+
+    test('with a scenario: the hide sits on the scenario set; baselineClosing is still the real plan', () => {
+        const res = forecast({
+            items: [item(37, { dueDate: '2026-10-05' }), item(38, { dueDate: '2026-10-05', amount: '40.00' })],
+            scenario: DRAFT,
+            adjustments: [adjustment(1, 'item.37', { newAmount: '60.00', baseDate: '2026-10-05' })],
+            hide: hide({ keys: ['item.38'] }),
+        });
+        expect(lineOf(res, 'item.37').flags).toEqual(['adjusted']);
+        expect(lineOf(res, 'item.38').flags).toEqual(['hidden']);
+        // real plan 1000 − 100 − 40; scenario 1000 − 60 − 40; scenario with item.38 hidden 1000 − 60
+        expect(dayOf(res, '2026-10-05')).toMatchObject({ closing: 94000, fullClosing: 90000, baselineClosing: 86000 });
+        expect(res.hidden).toMatchObject({ count: 1, outflow: 4000, fullSummary: { closing: 90000 } });
+        expect(res.scenario.baselineSummary.closing).toBe(86000);
+    });
+
+    test('a line the scenario already left out is not counted as hidden money', () => {
+        const res = forecast({
+            items: [item(39, { dueDate: '2026-10-05' })],
+            scenario: DRAFT,
+            adjustments: [adjustment(1, 'item.39', { kind: 'exclude', baseDate: '2026-10-05' })],
+            hide: hide({ keys: ['item.39'] }),
+        });
+        expect(lineOf(res, 'item.39').flags).toEqual(['excluded', 'hidden']);
+        expect(res.hidden).toMatchObject({ count: 0, outflow: 0 });
     });
 });

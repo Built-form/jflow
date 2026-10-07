@@ -1082,7 +1082,20 @@ response (§6.7).
 
 ### 6.10 Forecast
 
-`GET /forecast?companyId=<id>|all&from&to&bucket=day|week|month&scenarioId&include=summary|grid&today` — perm `any`.
+`GET /forecast?companyId=<id>|all&from&to&bucket=day|week|month&scenarioId&include=summary|grid&hide&hideCategories&today` — perm `any`.
+
+**Hide (Dev, 2026-10-07 — not in PLAN.md).** `hide` is a comma list of line keys (§4),
+`hideCategories` a comma list of category ids; at most 100 each, anything malformed a
+message-only 400. Existence is not checked: an entry that matches no line hides nothing.
+They apply to **this read only** — nothing is stored, no audit row. A line named by key or
+sitting in a hidden category stays in `rows[]` with flag `hidden`, and its **placed** parts
+count in no total, bucket, day or summary. What it already put into today's opening
+(`accounts[].absorbed[]`) and `unresolved[]` are untouched: the hide is the grid without a
+row, not a change to the books. With a scenario it sits on the scenario set, and
+`baselineClosing` / `scenario.*` still compare with the real plan. With a hide the body
+carries `hidden: {count, inflow, outflow, fullSummary}` — the hidden lines in `[from, to]`
+that would otherwise have counted, their GBP in and out, and the summary with nothing
+hidden — and each `days[]` entry carries `fullClosing`; without one `hidden` is `null`.
 
 Query validation (all 400 unless stated): `companyId` required, a live company id or `all`;
 `from`/`to` dates, `from <= to`, and `to >= today` (a `to` before today is a message-only
@@ -1116,7 +1129,7 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
                               accountMinor,           // in the account's currency (§9.8)
                               gbpMinor, direction, paymentId?,
                               flags: ['assumed'] | ['paid'] | ['paid','partial'] } ] } ],
-  days:    [ { date, opening, inflow, outflow, net, closing, baselineClosing? } ],   // [today, to], combined GBP
+  days:    [ { date, opening, inflow, outflow, net, closing, baselineClosing?, fullClosing? } ],   // [today, to], combined GBP
   buckets: [ { start, end, opening, inflow, outflow, net, closing, minClosing, minDate } ],
   rows:    [ { categoryId, categoryName, direction, sortOrder,
                totals: [ perBucketGbp… ], total,
@@ -1211,7 +1224,8 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   belongs to a `part_paid` parent), `remainder` (the owed part of a `part_paid`),
   `adjusted` (scenario set: an adjustment applied), `excluded` (scenario set, D30), `stale`
   (an adjustment exists for this key but was not applied), `fromScenario`
-  (`sourceScenarioId` set). `assumed` and pre-today payment lines never appear in
+  (`sourceScenarioId` set), `hidden` (left out of this read by `hide` / `hideCategories`;
+  always last). `assumed` and pre-today payment lines never appear in
   `rows[]` — they are in `accounts[].absorbed[]`.
 - `date` is where the line is **placed** (today for an overdue line, `paidOn` for a
   payment line); `dueDate` is its effective date before placement (§3.4), so an overdue

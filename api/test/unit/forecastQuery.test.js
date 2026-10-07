@@ -24,10 +24,10 @@ function refusal(query) {
 describe('parseQuery (§6.10)', () => {
     test('defaults: bucket week, include grid, from / to left to the engine (D7), no scenario', () => {
         expect(parse({ companyId: '3' })).toEqual({
-            companyId: 3, from: undefined, to: undefined, bucket: 'week', include: 'grid', scenarioId: null,
+            companyId: 3, from: undefined, to: undefined, bucket: 'week', include: 'grid', scenarioId: null, hide: null,
         });
         expect(parse({ companyId: 'all', from: '2026-03-01', to: '2026-04-30', bucket: 'month', include: 'summary', scenarioId: '7' }))
-            .toEqual({ companyId: 'all', from: '2026-03-01', to: '2026-04-30', bucket: 'month', include: 'summary', scenarioId: 7 });
+            .toEqual({ companyId: 'all', from: '2026-03-01', to: '2026-04-30', bucket: 'month', include: 'summary', scenarioId: 7, hide: null });
     });
 
     test('a past from and a to beyond 730 days are accepted: the engine clamps them', () => {
@@ -59,6 +59,29 @@ describe('parseQuery (§6.10)', () => {
         expect(isApiError(err)).toBe(true);
         expect(err.status).toBe(400);
         expect(err.code).toBeUndefined();
+        expect(err.message).toMatch(message);
+    });
+});
+
+describe('parseQuery: hide / hideCategories (§6.10, Dev 2026-10-07)', () => {
+    test('comma lists of item keys and category ids, de-duplicated; absent or empty → null', () => {
+        expect(parse({ companyId: 'all' }).hide).toBeNull();
+        expect(parse({ companyId: 'all', hide: '', hideCategories: '' }).hide).toBeNull();
+        expect(parse({ companyId: 'all', hide: 'item.5,sched.4.2026-04-01,ship.dep-812,item.5' }).hide)
+            .toEqual({ keys: ['item.5', 'sched.4.2026-04-01', 'ship.dep-812'], categoryIds: [] });
+        expect(parse({ companyId: 'all', hideCategories: '3,12,3' }).hide).toEqual({ keys: [], categoryIds: [3, 12] });
+    });
+
+    test.each([
+        [{ companyId: '1', hide: 'item.0' }, /hide must be a comma list of line keys/],
+        [{ companyId: '1', hide: 'item.5,,item.6' }, /hide must be a comma list of line keys/],
+        [{ companyId: '1', hide: ['item.5', 'item.6'] }, /hide must be a comma list of line keys/],
+        [{ companyId: '1', hideCategories: '3,x' }, /hideCategories must be a comma list of category ids/],
+        [{ companyId: '1', hideCategories: '0' }, /hideCategories must be a comma list of category ids/],
+        [{ companyId: '1', hide: Array.from({ length: 101 }, (_, i) => `item.${i + 1}`).join(',') }, /at most 100/],
+    ])('%j → 400', (query, message) => {
+        const err = refusal(query);
+        expect(err.status).toBe(400);
         expect(err.message).toMatch(message);
     });
 });

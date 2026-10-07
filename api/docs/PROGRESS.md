@@ -1096,3 +1096,31 @@ wins". ShipLine has no company on a forwarder's cost, so this is JFlow's rule, n
 **Checks**: api unit 1072 green + eslint. **Not run**: the e2e suites — `api/.env` pointed at
 the production instance, and they create and drop schemas. **Not deployed**: the rows change
 at the first shipping refresh after Dev runs `deploy.sh`.
+
+## Forecast grid — In / Out bands, click-to-sum, and the hide eye (2026-10-07)
+
+Dev, on the Forecast screen. None of this is in PLAN.md; the hide is recorded in CONTRACT §6.10.
+
+- **In / Out as plain rows again** (the nested In ▸ categories layout of this morning is
+  gone): the categories are listed under the balance rows, collapsed, in two bands —
+  MONEY IN, MONEY OUT — with the side's colour down each category's left edge, in place of
+  the small IN / OUT tag beside every name.
+- **Click-to-sum**: clicking a total (In, Out, a category, a supplier group) or Ctrl-clicking
+  a line picks its figure; a bar under the grid shows the sum (in, out and net when mixed).
+  Display only.
+- **Hide** (`GET /forecast?hide=<keys>&hideCategories=<ids>`): an eye on every category,
+  supplier group and line re-reads the forecast without it. The engine flags the lines
+  `hidden` and counts nothing for their placed parts; `hidden {count, inflow, outflow,
+  fullSummary}` and `days[].fullClosing` say what went. The screen holds the hidden set for
+  the visit only — nothing is stored. The chart draws the "with everything" line dashed and
+  the tiles show the difference; inside a scenario both keep comparing with the real plan
+  and the HIDDEN panel gives the with / without figures.
+  - `engine.js` (`hideOf`, `applyHide`, `hiddenTotals`), `routes/forecast.js` (`parseHide`).
+  - Tests written first: `engine.test.js` "hide: …" (7), `forecastQuery.test.js` (7).
+
+**Checks**: api unit 1086 green + eslint; web 346 green + tsc. **Not run**: the e2e suites
+(their pinned response-key lists were updated for `hidden`, unrun). **Not deployed**: until
+Dev runs `deploy.sh`, the deployed API ignores `hide` and the web's HIDDEN panel says so.
+**Deferred**: keeping the hidden set across a reload (URL or storage); a per-bucket
+"vs everything" row in the grid; hiding a whole schedule with one entry (each instance is
+its own row and key today).

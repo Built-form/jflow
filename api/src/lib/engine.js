@@ -69,6 +69,8 @@ const { itemLine, shipLine, shipName, shipEffectiveValues, hasShipOverlay, shipD
  * @property {EngineExternalItem[]} externalItems  §8 rule 11 plus rule-6 `ship.` targets (Phase 2)
  * @property {EngineShipping|null} [shipping]  external_sync; null until the feed has succeeded once
  * @property {EngineScenario|null} scenario
+ * @property {{keys: string[], categoryIds: number[]}|null} [hide]  the route's `hide` / `hideCategories`:
+ *           lines left out of this read only (flag `hidden`); nothing is stored
  * @property {Array<{code: 'NO_ANCHOR', accountId: number}|{code: 'SHIPPING_UNAVAILABLE', reason: string,
  *           lastSuccessAt: string|null}>} warnings  the loader's and the route's; merged, not duplicated
  *
@@ -551,6 +553,40 @@ function applyAdjustments(baseline, records, adjustments, today) {
     return { lines, warnings };
 }
 
+// ── Hide (§6.10 `hide` / `hideCategories`) ──────────────────────────────────────────────
+
+/** input.hide → {keys: Set, categoryIds: Set}, or null when it names nothing. */
+function hideOf(input) {
+    const hide = input.hide ?? null;
+    if (hide === null) return null;
+    const keys = new Set(hide.keys || []);
+    const categoryIds = new Set(hide.categoryIds || []);
+    return keys.size || categoryIds.size ? { keys, categoryIds } : null;
+}
+
+/**
+ * The set with each hidden line flagged: a line named by key, or sitting in a hidden
+ * category. A hidden line stays in rows[] (flag `hidden`) and its PLACED parts count
+ * nothing; what it already put into today's opening, and the unresolved list, are as
+ * they were — the hide is a look at the grid without a row, not a change to the books.
+ */
+function applyHide(lines, hide) {
+    return lines.map((l) => (hide.keys.has(l.key) || hide.categoryIds.has(l.categoryId) ? { ...l, hidden: true } : l));
+}
+
+/** What the hide took out of [from, to]: the hidden lines that would otherwise have counted. */
+function hiddenTotals(set, window) {
+    let count = 0n;
+    let inflow = 0n;
+    let outflow = 0n;
+    for (const p of set.placed) {
+        if (!p.line.hidden || p.line.excluded || p.date < window.from || p.date > window.to) continue;
+        count += 1n;
+        if (p.line.direction === 'in') inflow += p.gbpMinor; else outflow += p.gbpMinor;
+    }
+    return { count: num(count), inflow: num(inflow), outflow: num(outflow) };
+}
+
 // ── Classify each set (§9.6) and route what classify returns (§9.9) ─────────────────────
 
 // Where each of classify's owed bands goes. Nothing here decides a band.
@@ -588,6 +624,7 @@ function rowFlags(line, piece) {
     if (line.adjusted) flags.push('adjusted');
     if (line.excluded) flags.push('excluded');
     if (line.stale) flags.push('stale');
+    if (line.hidden) flags.push('hidden');
     return flags;
 }
 
@@ -635,7 +672,10 @@ function evaluate(lines, { today, anchors, rateOf }) {
                 : fromGbp(gbpMinor, rateOf(account.currency));
             const section = sectionOf(piece, today);
             const flags = rowFlags(line, piece);
-            const part = { ...piece, line, gbpMinor, accountMinor, flags, identity: identityOf(line, piece), counts: !line.excluded };
+            const part = {
+                ...piece, line, gbpMinor, accountMinor, flags, identity: identityOf(line, piece),
+                counts: !line.excluded && !line.hidden,
+            };
             byIdentity.set(part.identity, {
                 date: piece.date, amountMinor: piece.amountMinor, gbpMinor,
                 flags: section === 'placed' || piece.isPayment ? flags : [...flags, piece.band],
@@ -967,10 +1007,14 @@ function run(input) {
     const adjusted = scenario ? applyAdjustments(baselineLines, records, input.adjustments, today) : null;
 
     // §9.6–9.9 per set; the response is built from the scenario set when there is one.
+    // With a hide, `full` is that set with nothing hidden and `main` the one shown.
     const baseline = evaluate(baselineLines, ctx);
-    const main = adjusted ? evaluate(adjusted.lines, ctx) : baseline;
+    const full = adjusted ? evaluate(adjusted.lines, ctx) : baseline;
+    const hide = hideOf(input);
+    const main = hide ? evaluate(applyHide(adjusted ? adjusted.lines : baselineLines, hide), ctx) : full;
     const baselineDays = dailySeries(baseline, ctx);
-    const days = adjusted ? dailySeries(main, ctx) : baselineDays;
+    const fullDays = adjusted ? dailySeries(full, ctx) : baselineDays;
+    const days = hide ? dailySeries(main, ctx) : fullDays;
     const ranges = bucketRanges(window.from, window.to, bucket);
     const buckets = bucketFigures(days, ranges);
     const summary = summarise(main, days);
@@ -986,6 +1030,7 @@ function run(input) {
         days: days.map((d, i) => {
             const out = moneyJson(d, DAY_FIELDS);
             if (adjusted) out.baselineClosing = num(baselineDays[i].closing);
+            if (hide) out.fullClosing = num(fullDays[i].closing);
             return out;
         }),
         buckets: buckets.map((b) => moneyJson(b, BUCKET_FIELDS)),
@@ -1009,6 +1054,9 @@ function run(input) {
     } else {
         body.scenario = null;
     }
+    body.hidden = hide
+        ? { ...hiddenTotals(main, window), fullSummary: moneyJson(summarise(full, fullDays), SUMMARY_FIELDS) }
+        : null;
     body.unresolved = main.unresolved.map((p) => unresolvedJson(p, today));
     const feed = shipFeed(input, ctx);
     body.shipping = feed.block;

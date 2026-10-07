@@ -96,7 +96,7 @@ describe('GET /forecast', () => {
 
         const body = await ok({ companyId: co.id });
         expect(Object.keys(body)).toEqual(
-            ['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings'],
+            ['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'hidden', 'unresolved', 'shipping', 'warnings'],
         );
         expect(body.meta).toEqual({
             today: TODAY, from: TODAY, to: '2026-06-08', bucket: 'week', fromClamped: false, toClamped: false,
@@ -145,7 +145,7 @@ describe('GET /forecast', () => {
         const summary = await ok({ companyId: co.id, include: 'summary' });
         expect('rows' in summary).toBe(false);
         expect(Object.keys(summary)).toEqual(
-            ['meta', 'accounts', 'days', 'buckets', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings'],
+            ['meta', 'accounts', 'days', 'buckets', 'summary', 'scenario', 'hidden', 'unresolved', 'shipping', 'warnings'],
         );
         expect(summary.meta.include).toBe('summary');
         expect(summary.summary).toEqual(body.summary);

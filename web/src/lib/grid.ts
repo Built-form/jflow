@@ -228,6 +228,8 @@ export function groupShipCombos(groups: readonly LineGroup[], bucketCount: numbe
     combo.groups.push(group);
     for (const line of group.lines) {
       combo.lines.push(line);
+      // The server says which lines count nothing (left out by a scenario, or hidden).
+      if (line.flags.includes('excluded') || line.flags.includes('hidden')) continue;
       if (line.bucketIndex >= 0 && line.bucketIndex < bucketCount) combo.cells[line.bucketIndex] += line.gbpMinor;
       combo.total += line.gbpMinor;
     }
@@ -265,6 +267,8 @@ export const FLAG_LABEL: Record<string, { label: string; tone: Tone }> = {
   excluded: { label: 'LEFT OUT', tone: 'idle' },
   stale: { label: 'STALE', tone: 'fail' },
   fromScenario: { label: 'FROM SCENARIO', tone: 'idle' },
+  // Left out of this read with the grid's eye (§6.10 `hide`): shown, counts nothing.
+  hidden: { label: 'HIDDEN', tone: 'idle' },
   // Phase 2 ship lines' feed flags (§6.10). None of them changes a band; they say how firm
   // shipping's figures are, and whether JFlow has planned over them (lib/ship.ts explains each).
   estimated: { label: 'ESTIMATED', tone: 'idle' },

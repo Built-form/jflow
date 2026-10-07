@@ -87,6 +87,50 @@ interface Picked {
 const PickedContext = createContext<ReadonlyMap<string, Picked>>(new Map());
 /** The side a category's rows are on — a line does not carry its own. */
 const DirectionContext = createContext<LineDirection>('out');
+
+/**
+ * Hiding (Dev, 2026-10-07): the eye on a category, a supplier group or a line asks the
+ * server for the forecast without it, to see what difference it makes. Which rows are
+ * hidden is the screen's to hold; every figure is still the server's, and nothing is saved.
+ */
+export interface GridHide {
+  keys: ReadonlySet<string>;
+  categoryIds: ReadonlySet<number>;
+  setKeys: (keys: string[], hidden: boolean) => void;
+  setCategory: (categoryId: number, hidden: boolean) => void;
+}
+const HideContext = createContext<GridHide | null>(null);
+/** True under a hidden category: its rows are hidden with it, and come back with it. */
+const CategoryHiddenContext = createContext(false);
+/** Room in a label cell for the eye, which sits in its top right corner. */
+const EYE_PAD: CSSProperties = { paddingRight: 34 };
+const HIDDEN_NAME: CSSProperties = { textDecoration: 'line-through', color: 'var(--dim)' };
+
+function EyeToggle({ what, hidden, locked, onToggle }: { what: string; hidden: boolean; locked?: boolean; onToggle: () => void }) {
+  const label = locked
+    ? `${what} is hidden with its category — show the category to bring it back`
+    : hidden
+      ? `Show ${what} in the forecast again`
+      : `Hide ${what} from the forecast, to see the balance without it`;
+  return (
+    <button
+      type="button"
+      className="ledger-eye"
+      aria-pressed={hidden}
+      aria-label={label}
+      title={label}
+      disabled={locked}
+      onClick={onToggle}
+    >
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" />
+        <circle cx="8" cy="8" r="2" />
+        {hidden && <path d="M2.5 13.5 13.5 2.5" />}
+      </svg>
+    </button>
+  );
+}
+
 const PICK_HINT ='Click to add to the sum';
 const PICK_LINE_HINT = 'Ctrl-click to add to the sum';
 
@@ -225,6 +269,7 @@ export function ForecastGrid({
   summary,
   delta,
   lineMarks = NO_MARKS,
+  hide = null,
   onEdit,
   onColumns,
   scrollRef,
@@ -238,6 +283,8 @@ export function ForecastGrid({
   delta: BucketDelta[] | null;
   /** Extra marks per key, from `warnings[]`. */
   lineMarks?: LineMarks;
+  /** What is hidden and how to change it; without it the grid shows no eyes. */
+  hide?: GridHide | null;
   onEdit: (item: ForecastItem, row: ForecastRow) => void;
   /** The columns as laid out, whenever they change — the chart above draws on them. */
   onColumns?: (columns: GridColumns) => void;
@@ -355,6 +402,7 @@ export function ForecastGrid({
   };
 
   return (
+    <HideContext.Provider value={hide}>
     <PickedContext.Provider value={picked}>
     <div
       ref={scrollRef}
@@ -468,6 +516,7 @@ export function ForecastGrid({
     </div>
     <SumBar picked={picked} onClear={() => setPicked(new Map())} />
     </PickedContext.Provider>
+    </HideContext.Provider>
   );
 }
 
@@ -494,15 +543,18 @@ function CategoryBlock({
 }) {
   const shipCategory = isShipCategory(groups);
   const combos = shipCategory ? groupShipCombos(groups, bucketCount) : [];
+  const hide = useContext(HideContext);
+  const hidden = hide?.categoryIds.has(row.categoryId) ?? false;
   return (
     <DirectionContext.Provider value={row.direction}>
+    <CategoryHiddenContext.Provider value={hidden}>
       <tr
         data-testid={`category-${row.categoryId}`}
         className="ledger-category"
         data-direction={row.direction}
         style={{ background: 'var(--panel2)' }}
       >
-        <th scope="rowgroup" style={{ ...stickyLabel, background: 'var(--panel2)', borderTop: '1px solid var(--line2)' }}>
+        <th scope="rowgroup" style={{ ...stickyLabel, background: 'var(--panel2)', borderTop: '1px solid var(--line2)', ...(hide ? EYE_PAD : {}) }}>
           <button
             type="button"
             className="btn-quiet"
@@ -513,8 +565,9 @@ function CategoryBlock({
             <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10 }}>
               {open ? '▾' : '▸'}
             </span>
-            {row.categoryName}
+            <span style={hidden ? HIDDEN_NAME : undefined}>{row.categoryName}</span>
           </button>
+          {hide && <EyeToggle what={row.categoryName} hidden={hidden} onToggle={() => hide.setCategory(row.categoryId, !hidden)} />}
           {!open && <AttentionMarker id={row.categoryId} tags={attentionTags(row.items, lineMarks)} />}
         </th>
         {Array.from({ length: bucketCount }, (_, i) => (
@@ -550,6 +603,7 @@ function CategoryBlock({
             />
           );
         })}
+    </CategoryHiddenContext.Provider>
     </DirectionContext.Provider>
   );
 }
@@ -572,12 +626,19 @@ function LineRow({
   // A ship line's name already carries the supplier (§6.10); its container says more —
   // unless it sits under its supplier + shipment group, which already says both.
   const sub = group.kind === 'ship' ? (underCombo ? null : group.lines[0]?.ship?.containerRef ?? null) : group.counterparty;
+  const hide = useContext(HideContext);
+  const withCategory = useContext(CategoryHiddenContext);
+  const hidden = withCategory || (hide?.keys.has(group.key) ?? false);
   return (
     <tr data-testid={`line-${group.key}`}>
-      <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: indent }}>
-        <div style={{ fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={group.name}>
+      <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: indent, ...(hide ? EYE_PAD : {}) }}>
+        <div
+          style={{ fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(hidden ? HIDDEN_NAME : {}) }}
+          title={group.name}
+        >
           {group.name}
         </div>
+        {hide && <EyeToggle what={group.name} hidden={hidden} locked={withCategory} onToggle={() => hide.setKeys([group.key], !hidden)} />}
         {sub && (
           <div style={{ fontSize: 12, color: 'var(--dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {sub}
@@ -617,10 +678,15 @@ function ShipComboRows({
   const count = combo.lines.length;
   const direction = useContext(DirectionContext);
   const sub = `${combo.containerRef ?? 'No container'} · ${count} ${count === 1 ? 'payment' : 'payments'}`;
+  // The group is hidden when every payment in it is; its eye hides or shows them all.
+  const hide = useContext(HideContext);
+  const withCategory = useContext(CategoryHiddenContext);
+  const keys = combo.groups.map((g) => g.key);
+  const hidden = withCategory || (hide !== null && keys.every((k) => hide.keys.has(k)));
   return (
     <>
       <tr data-testid={`combo-${combo.key}`}>
-        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 30 }}>
+        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 30, ...(hide ? EYE_PAD : {}) }}>
           <button
             type="button"
             className="btn-quiet"
@@ -631,10 +697,21 @@ function ShipComboRows({
             <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10, flexShrink: 0 }}>
               {open ? '▾' : '▸'}
             </span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={combo.supplier ?? undefined}>
+            <span
+              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(hidden ? HIDDEN_NAME : {}) }}
+              title={combo.supplier ?? undefined}
+            >
               {combo.supplier ?? 'No supplier'}
             </span>
           </button>
+          {hide && (
+            <EyeToggle
+              what={`${combo.supplier ?? 'No supplier'} · ${combo.containerRef ?? 'no container'}`}
+              hidden={hidden}
+              locked={withCategory}
+              onToggle={() => hide.setKeys(keys, !hidden)}
+            />
+          )}
           <div style={{ fontSize: 12, color: 'var(--dim)', paddingLeft: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {sub}
           </div>
@@ -698,7 +775,8 @@ function LineCell({
 }) {
   const pick = pickProps(pickId, line.gbpMinor, useContext(DirectionContext), useContext(PickedContext));
   const tags = [...flagTags(line.flags), ...(marks ?? [])];
-  const excluded = line.flags.includes('excluded');
+  // Left out by the scenario or hidden with an eye: either way the server counts nothing for it.
+  const excluded = line.flags.includes('excluded') || line.flags.includes('hidden');
   const stale = line.flags.includes('stale');
   const ship = line.kind === 'ship';
   const estimated = ship && line.flags.includes('estimated');

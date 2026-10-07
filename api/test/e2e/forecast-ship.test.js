@@ -163,7 +163,7 @@ describe('ship lines in /forecast (step 20)', () => {
     test('the Stock payments row: lines, the USD account by sort_order, CNY on the default, paid and owed bands', async () => {
         const body = await ok({ companyId: co1.id, bucket: 'day' });
         expect(Object.keys(body)).toEqual(
-            ['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'unresolved', 'shipping', 'warnings'],
+            ['meta', 'accounts', 'days', 'buckets', 'rows', 'summary', 'scenario', 'hidden', 'unresolved', 'shipping', 'warnings'],
         );
         const row = body.rows.find((r) => r.categoryId === stock.id);
         expect(row).toMatchObject({ categoryName: 'Stock payments', direction: 'out', sortOrder: 900 });

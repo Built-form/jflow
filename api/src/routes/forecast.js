@@ -25,6 +25,7 @@ const { withConnection } = require('../db');
 const log = require('../lib/logger');
 const { isValidDate, addDays } = require('../lib/dates');
 const { apiError, isApiError, sendApiError, parseId } = require('../lib/shape');
+const { isValidKey } = require('../lib/keys');
 const { run, clampWindow, currenciesInScope, DEFAULT_WINDOW_DAYS, MAX_WINDOW_DAYS } = require('../lib/engine');
 const { loadEngineInput, loadScenario } = require('../services/forecastLoad');
 const { refreshIfStale } = require('../services/shippingRefresh');
@@ -36,7 +37,8 @@ const invalid = (message) => apiError(400, undefined, message);
 
 /**
  * §6.10's query validation → {companyId: number | 'all', from, to, bucket, include,
- * scenarioId: number | null}. `from` / `to` stay as requested (undefined when absent):
+ * scenarioId: number | null, hide: {keys, categoryIds} | null}. `from` / `to` stay as
+ * requested (undefined when absent):
  * the engine applies D7's defaults and the clamps, and the loader bounds itself by
  * clampWindow's `to`. Throws a message-only 400.
  */
@@ -72,7 +74,38 @@ function parseQuery(query, today, { buckets, includeModes }) {
     if (q.scenarioId !== undefined && !(scenarioId = parseId(q.scenarioId))) {
         throw invalid('scenarioId must be a scenario id.');
     }
-    return { companyId, from, to, bucket, include, scenarioId };
+    return { companyId, from, to, bucket, include, scenarioId, hide: parseHide(q) };
+}
+
+const MAX_HIDE = 100;          // per list: the whole query has to fit a request line
+
+/** A comma list → its distinct parsed members; null when one is not what `parse` accepts. */
+function commaList(raw, parse) {
+    if (raw === undefined || raw === '') return [];
+    if (typeof raw !== 'string') return null;
+    const out = [];
+    for (const part of raw.split(',')) {
+        const value = parse(part);
+        if (value === null) return null;
+        if (!out.includes(value)) out.push(value);
+    }
+    return out;
+}
+
+/**
+ * §6.10 `hide` (line keys, §4) and `hideCategories` (category ids): what this one read
+ * leaves out. → {keys, categoryIds}, or null when neither names anything. Whether a key or
+ * a category exists is not checked — one that matches no line hides nothing.
+ */
+function parseHide(q) {
+    const keys = commaList(q.hide, (k) => (isValidKey(k) ? k : null));
+    if (keys === null) throw invalid('hide must be a comma list of line keys.');
+    const categoryIds = commaList(q.hideCategories, (id) => parseId(id) || null);
+    if (categoryIds === null) throw invalid('hideCategories must be a comma list of category ids.');
+    if (keys.length > MAX_HIDE || categoryIds.length > MAX_HIDE) {
+        throw invalid(`hide and hideCategories take at most ${MAX_HIDE} entries each.`);
+    }
+    return keys.length || categoryIds.length ? { keys, categoryIds } : null;
 }
 
 /**
@@ -179,6 +212,7 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
                     'FX_RATE_MISSING', { currencies: missing });
             }
 
+            input.hide = q.hide;                    // this read only; the loader knows nothing of it
             const body = run(input);
             body.meta.generatedAt = new Date().toISOString();
             res.type('application/json').send(JSON.stringify(body, jsonNumbers));

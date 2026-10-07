@@ -116,8 +116,8 @@ describe('ship lines in the grid', () => {
     expect(balance.querySelector('[data-flag="projected"]')).toBeNull();
     expect(balance.textContent).not.toContain('PROJECTED');
     // The blocker is explained on the line.
-    expect(within(balance).getByRole('button').getAttribute('title')).toContain('Waiting on artwork sign-off.');
-    expect(within(balance).getByRole('button').getAttribute('title')).not.toContain('invoice');
+    expect(within(balance).getByRole('button', { name: /^Edit / }).getAttribute('title')).toContain('Waiting on artwork sign-off.');
+    expect(within(balance).getByRole('button', { name: /^Edit / }).getAttribute('title')).not.toContain('invoice');
   });
 
   it('marks a SHIP_PLAN_STALE line and lists it; lists a SHIP_PLAN_ORPHANED plan with a way to clear it', async () => {
@@ -325,7 +325,7 @@ describe('stock payments grouped by supplier + shipment (Dev, 2026-10-06)', () =
     stubApi({ forecast: withSecondBalance });
     renderForecast();
     const grid = await screen.findByTestId('forecast-grid');
-    fireEvent.click(within(grid).getByRole('button', { name: /Stock payments/ }));
+    fireEvent.click(within(grid).getByRole('button', { name: /^Stock payments/ }));
 
     const combo = within(grid).getByTestId('combo-acme textiles|MSCU1234567');
     expect(combo.textContent).toContain('Acme Textiles');
@@ -339,7 +339,7 @@ describe('stock payments grouped by supplier + shipment (Dev, 2026-10-06)', () =
     expect(single.textContent).toContain('No container · 1 payment');
     expect(single.textContent).toContain('£3,700.00');
 
-    fireEvent.click(within(combo).getByRole('button', { name: /Acme Textiles/ }));
+    fireEvent.click(within(combo).getByRole('button', { name: /^Acme Textiles/ }));
     expect(screen.getByTestId('line-ship.bal-812-s311').textContent).toContain('Acme Textiles · PO-812 · balance');
     expect(screen.getByTestId('line-ship.bal-813-s311').textContent).toContain('PO-813');
     // Under its group the line does not repeat the container; the group already says it.

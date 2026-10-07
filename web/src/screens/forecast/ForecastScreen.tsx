@@ -5,6 +5,8 @@ import { api } from '../../api';
 import type { ApiError } from '../../api/client';
 import type {
   ForecastAccount,
+  ForecastHidden,
+  ForecastHide,
   ForecastItem,
   ForecastRow,
   ForecastScenario,
@@ -37,15 +39,21 @@ import { PLAN_STALE_TAG, splitShipWarnings } from '../../lib/ship';
 import { toneOfScenarioStatus } from '../../lib/tone';
 import { SCENARIO_STATUS_LABEL, staleReason } from '../scenarios/stale';
 import { BalanceChart } from './BalanceChart';
-import type { ChartAlign } from './BalanceChart';
+import type { ChartAlign, ChartLabels } from './BalanceChart';
 import { EditLineDialog } from './EditLineDialog';
 import { ForecastGrid } from './ForecastGrid';
-import type { LineMarks } from './ForecastGrid';
+import type { GridHide, LineMarks } from './ForecastGrid';
 import { ShipPlanDialog } from './ShipPlanDialog';
 import { ShipNotes, ShippingStatus, ShippingUnavailableBanner } from './shipping';
 
 export const BUCKET_PARAM = 'bucket';
 export const WINDOW_PARAM = 'days';
+
+/** The server's cap on each of `hide` and `hideCategories` (§6.10). */
+const MAX_HIDE = 100;
+const NOTHING_HIDDEN: ForecastHide = { keys: [], categoryIds: [] };
+/** The chart's two lines while rows are hidden and no scenario is open. */
+const HIDE_LABELS: ChartLabels = { main: 'Without hidden rows', baseline: 'Everything', baselineLegend: 'With everything' };
 
 /**
  * The forecast: the combined GBP balance from today, as a chart and as a day / week /
@@ -60,6 +68,10 @@ export const WINDOW_PARAM = 'days';
  * edit of one writes JFlow's plan over shipping's figures (the overlay); inside a scenario
  * it is an adjustment like any other line. The shipping feed's state is one status line
  * with "Refresh now"; its warnings are shown in words.
+ *
+ * The eye on a grid row hides it (Dev, 2026-10-07): the forecast is re-read without that
+ * row's money, so the balance, the chart and the tiles show what difference it makes. It is
+ * held here, for this visit only — nothing is saved, and a reload shows everything again.
  */
 export function ForecastScreen() {
   const [today] = useState(() => londonToday());
@@ -84,9 +96,28 @@ export function ForecastScreen() {
 
   const companies = useQuery(() => api.companies.list(), []);
   const accounts = useQuery(() => api.accounts.list({ companyId }), [companyId]);
+  const [hide, setHide] = useState<ForecastHide>(NOTHING_HIDDEN);
+  const hiding = hide.keys.length > 0 || hide.categoryIds.length > 0;
   const data = useQuery(
-    () => forecast.get({ companyId, to, bucket, scenarioId, include: 'grid' }),
-    [companyId, to, bucket, scenarioId],
+    () => forecast.get({ companyId, to, bucket, scenarioId, include: 'grid', hide: hiding ? hide : null }),
+    [companyId, to, bucket, scenarioId, hide],
+  );
+  const gridHide: GridHide = useMemo(
+    () => ({
+      keys: new Set(hide.keys),
+      categoryIds: new Set(hide.categoryIds),
+      setKeys: (keys, hidden) =>
+        setHide((prev) => {
+          const rest = prev.keys.filter((k) => !keys.includes(k));
+          return { ...prev, keys: hidden ? [...rest, ...keys].slice(0, MAX_HIDE) : rest };
+        }),
+      setCategory: (categoryId, hidden) =>
+        setHide((prev) => {
+          const rest = prev.categoryIds.filter((id) => id !== categoryId);
+          return { ...prev, categoryIds: hidden ? [...rest, categoryId].slice(0, MAX_HIDE) : rest };
+        }),
+    }),
+    [hide],
   );
 
   const [editing, setEditing] = useState<{ item: ForecastItem; row: ForecastRow } | null>(null);
@@ -110,6 +141,14 @@ export function ForecastScreen() {
 
   const res = data.data;
   const scenario = res?.scenario ?? null;
+  // With rows hidden and no scenario open, the chart and the tiles compare with everything
+  // shown; inside a scenario they keep comparing with the real plan, and the panel says the rest.
+  const hidden = res?.hidden ?? null;
+  const compareHidden = scenario === null && hidden !== null;
+  const chartDays = useMemo(
+    () => (res && compareHidden ? res.days.map((d) => ({ ...d, baselineClosing: d.fullClosing })) : res?.days ?? []),
+    [res, compareHidden],
+  );
 
   // The chart sits on the grid's columns (Dev, 2026-10-07): the grid reports them as laid
   // out, the chart draws each bucket that wide, and the two scroll sideways as one.
@@ -168,7 +207,11 @@ export function ForecastScreen() {
           <Warnings warnings={shipWarnings.other} accountName={accountName} />
           <ShipNotes warnings={shipWarnings} lineName={lineName} companyName={companyName} onChanged={data.reload} />
           <UnresolvedBanner summary={res.summary} unresolved={res.unresolved} accountName={accountName} />
-          <SummaryTiles summary={res.summary} baseline={scenario?.baselineSummary ?? null} />
+          <SummaryTiles
+            summary={res.summary}
+            baseline={scenario?.baselineSummary ?? hidden?.fullSummary ?? null}
+            baselineLabel={scenario ? 'real plan' : 'with everything'}
+          />
           <ShippingStatus shipping={res.shipping} onRefreshed={data.reload} />
 
           {/* Aligned, the chart runs edge to edge like the grid, so its columns start where the
@@ -185,8 +228,9 @@ export function ForecastScreen() {
               <Empty>No days in the window.</Empty>
             ) : (
               <BalanceChart
-                days={res.days}
-                withBaseline={scenario !== null}
+                days={chartDays}
+                withBaseline={scenario !== null || compareHidden}
+                labels={compareHidden ? HIDE_LABELS : undefined}
                 minDate={res.summary.minDate}
                 align={align}
                 scrollRef={chartScroll}
@@ -216,6 +260,15 @@ export function ForecastScreen() {
                 {res.meta.toClamped ? ' (capped)' : ''}
               </span>
             </div>
+            {hiding && (
+              <HiddenPanel
+                hide={hide}
+                hidden={hidden}
+                summary={res.summary}
+                waiting={data.loading}
+                onShowAll={() => setHide(NOTHING_HIDDEN)}
+              />
+            )}
             {res.rows === undefined ? (
               <Empty>The grid was not included in this answer.</Empty>
             ) : (
@@ -227,6 +280,7 @@ export function ForecastScreen() {
                   summary={res.summary}
                   delta={scenario?.deltaByBucket ?? null}
                   lineMarks={lineMarks}
+                  hide={gridHide}
                   onEdit={(item, row) => setEditing({ item, row })}
                   onColumns={onColumns}
                   scrollRef={gridScroll}
@@ -366,6 +420,79 @@ function ScenarioPanel({ scenario, lineName }: { scenario: ForecastScenario; lin
   );
 }
 
+/**
+ * What the eyes in the grid have hidden, in the server's figures: how much money that is,
+ * and where the window ends without it against with it. One click shows everything again.
+ */
+function HiddenPanel({
+  hide,
+  hidden,
+  summary,
+  waiting,
+  onShowAll,
+}: {
+  hide: ForecastHide;
+  hidden: ForecastHidden | null;
+  summary: ForecastSummary;
+  waiting: boolean;
+  onShowAll: () => void;
+}) {
+  const asked = [
+    hide.categoryIds.length > 0 ? plural(hide.categoryIds.length, 'category', 'categories') : null,
+    hide.keys.length > 0 ? plural(hide.keys.length, 'row') : null,
+  ]
+    .filter(Boolean)
+    .join(' and ');
+  const m = (v: number) => toMinor(v);
+  return (
+    <div
+      role="status"
+      data-testid="hidden-panel"
+      style={{
+        display: 'flex',
+        gap: 14,
+        alignItems: 'baseline',
+        flexWrap: 'wrap',
+        border: '1px solid var(--warnBd)',
+        background: 'var(--warnBg)',
+        borderRadius: 'var(--radius)',
+        padding: '9px 13px',
+        fontSize: 13.5,
+        lineHeight: 1.55,
+      }}
+    >
+      <span className="kicker" style={{ color: 'var(--warn)' }}>
+        HIDDEN
+      </span>
+      {hidden ? (
+        <>
+          <span>
+            {asked} hidden: <span className="mono">{formatMoney(m(hidden.outflow), 'GBP')}</span> out and{' '}
+            <span className="mono">{formatMoney(m(hidden.inflow), 'GBP')}</span> in left out of this view.
+          </span>
+          <span>
+            End of window <strong className="mono">{formatMoney(m(summary.closing), 'GBP')}</strong>, against{' '}
+            <span className="mono">{formatMoney(m(hidden.fullSummary.closing), 'GBP')}</span> with everything (
+            <span className="mono">{signedMoney(m(summary.closing) - m(hidden.fullSummary.closing))}</span>). Lowest point{' '}
+            <strong className="mono">{formatMoney(m(summary.minClosing), 'GBP')}</strong>, against{' '}
+            <span className="mono">{formatMoney(m(hidden.fullSummary.minClosing), 'GBP')}</span>.
+          </span>
+        </>
+      ) : waiting ? (
+        <span>{asked} hidden — working out the forecast without them…</span>
+      ) : (
+        <span>
+          {asked} hidden, but this server did not leave them out: the API has not been updated to hide rows yet.
+        </span>
+      )}
+      <span style={{ color: 'var(--mut)' }}>Nothing is changed or saved.</span>
+      <button type="button" className="link-btn" style={{ marginLeft: 'auto' }} onClick={onShowAll}>
+        Show everything
+      </button>
+    </div>
+  );
+}
+
 /** `warnings[]` — what the forecast left out or could not place, and why. */
 export function Warnings({ warnings, accountName }: { warnings: ForecastWarning[]; accountName: (id: number) => string }) {
   if (warnings.length === 0) return null;
@@ -487,12 +614,15 @@ function Tile({
   value,
   sub,
   baseline,
+  baselineLabel = 'real plan',
   flagged,
 }: {
   label: string;
   value: bigint;
   sub?: string;
   baseline?: bigint | null;
+  /** What `baseline` is: the real plan (a scenario is open), or everything (rows are hidden). */
+  baselineLabel?: string;
   flagged?: boolean;
 }) {
   return (
@@ -519,28 +649,36 @@ function Tile({
       {sub && <div style={{ fontSize: 12.5, color: 'var(--mut)' }}>{sub}</div>}
       {baseline != null && (
         <div className="mono" style={{ fontSize: 12, color: 'var(--dim)' }}>
-          real plan {formatMoney(baseline, 'GBP')} · {signedMoney(value - baseline)}
+          {baselineLabel} {formatMoney(baseline, 'GBP')} · {signedMoney(value - baseline)}
         </div>
       )}
     </div>
   );
 }
 
-function SummaryTiles({ summary, baseline }: { summary: ForecastSummary; baseline: ForecastSummary | null }) {
+function SummaryTiles({
+  summary,
+  baseline,
+  baselineLabel,
+}: {
+  summary: ForecastSummary;
+  baseline: ForecastSummary | null;
+  baselineLabel?: string;
+}) {
   const m = (v: number) => toMinor(v);
   return (
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }} data-testid="summary">
-      <Tile label="TODAY, START OF DAY" value={m(summary.opening)} baseline={baseline ? m(baseline.opening) : null} flagged={balanceFlag(summary.opening) === 'negative'} />
+      <Tile label="TODAY, START OF DAY" value={m(summary.opening)} baseline={baseline ? m(baseline.opening) : null} baselineLabel={baselineLabel} flagged={balanceFlag(summary.opening) === 'negative'} />
       <Tile
         label="LOWEST POINT"
         value={m(summary.minClosing)}
         sub={formatDay(summary.minDate)}
-        baseline={baseline ? m(baseline.minClosing) : null}
+        baseline={baseline ? m(baseline.minClosing) : null} baselineLabel={baselineLabel}
         flagged={balanceFlag(summary.minClosing) === 'negative'}
       />
-      <Tile label="END OF WINDOW" value={m(summary.closing)} baseline={baseline ? m(baseline.closing) : null} flagged={balanceFlag(summary.closing) === 'negative'} />
-      <Tile label="MONEY IN" value={m(summary.inflow)} baseline={baseline ? m(baseline.inflow) : null} />
-      <Tile label="MONEY OUT" value={m(summary.outflow)} baseline={baseline ? m(baseline.outflow) : null} />
+      <Tile label="END OF WINDOW" value={m(summary.closing)} baseline={baseline ? m(baseline.closing) : null} baselineLabel={baselineLabel} flagged={balanceFlag(summary.closing) === 'negative'} />
+      <Tile label="MONEY IN" value={m(summary.inflow)} baseline={baseline ? m(baseline.inflow) : null} baselineLabel={baselineLabel} />
+      <Tile label="MONEY OUT" value={m(summary.outflow)} baseline={baseline ? m(baseline.outflow) : null} baselineLabel={baselineLabel} />
     </div>
   );
 }

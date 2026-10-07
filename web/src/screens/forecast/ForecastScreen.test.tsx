@@ -150,7 +150,7 @@ describe('Forecast', () => {
     expect(marker.textContent).toContain('OVERDUE 1');
     expect(within(grid).queryByTestId('attention-1')).toBeNull();
     // Open, the lines wear their own tags, so the marker goes.
-    fireEvent.click(within(within(grid).getByTestId('category-3')).getByRole('button'));
+    fireEvent.click(within(within(grid).getByTestId('category-3')).getByRole('button', { expanded: false }));
     expect(await screen.findByTestId('line-item.88')).toBeTruthy();
     expect(within(grid).queryByTestId('attention-3')).toBeNull();
   });
@@ -190,6 +190,49 @@ describe('Forecast', () => {
     expect(screen.queryByTestId('sum-bar')).toBeNull();
   });
 
+  it('hides a row or a category with its eye: re-reads without it, says what went, and shows everything again', async () => {
+    let calls: Call[] = [];
+    calls = stubApi(() => {
+      const res = forecastFixture();
+      if (/hide/.test(calls[calls.length - 1].path)) {
+        res.hidden = { count: 1, inflow: 0, outflow: 50000, fullSummary: { ...res.summary, closing: res.summary.closing - 50000 } };
+        res.days = res.days.map((d) => ({ ...d, fullClosing: d.closing - 50000 }));
+      }
+      return res;
+    });
+    const lastPath = () => decodeURIComponent(forecastCalls(calls).slice(-1)[0].path);
+    renderForecast();
+    await expandGrid();
+    const grid = await screen.findByTestId('forecast-grid');
+    expect(screen.queryByTestId('hidden-panel')).toBeNull();
+    expect(lastPath()).not.toMatch(/hide/);
+
+    // A line: its key goes in `hide`, and the answer's `hidden` block is what the panel says.
+    const eye = () => within(within(grid).getByTestId('line-item.88')).getByRole('button', { name: /forecast|hidden/ });
+    expect(eye().getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(eye());
+    await waitFor(() => expect(lastPath()).toMatch(/[?&]hide=item\.88(&|$)/));
+    const panel = await screen.findByTestId('hidden-panel');
+    await waitFor(() => expect(panel.textContent).toContain('1 row hidden: £500.00 out'));
+    expect(panel.textContent).toContain('Nothing is changed or saved.');
+    expect(eye().getAttribute('aria-pressed')).toBe('true');
+    // The chart compares with everything shown.
+    expect(screen.getByTestId('chart-line-baseline')).toBeTruthy();
+    expect(screen.getByTestId('chart-legend').textContent).toContain('With everything');
+
+    // A category: one id, and its rows are hidden with it.
+    fireEvent.click(within(within(grid).getByTestId('category-3')).getByRole('button', { name: /^Hide / }));
+    await waitFor(() => expect(lastPath()).toMatch(/hideCategories=3(&|$)/));
+    expect(lastPath()).toMatch(/[?&]hide=item\.88(&|$)/);
+    expect((eye() as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByTestId('hidden-panel').textContent).toContain('1 category and 1 row hidden');
+
+    fireEvent.click(within(screen.getByTestId('hidden-panel')).getByRole('button', { name: 'Show everything' }));
+    await waitFor(() => expect(lastPath()).not.toMatch(/hide/));
+    expect(screen.queryByTestId('hidden-panel')).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId('chart-line-baseline')).toBeNull());
+  });
+
   it('renders every line of a key that appears several times — the payment and the remainder', async () => {
     stubApi(() => forecastFixture());
     renderForecast();
@@ -202,8 +245,8 @@ describe('Forecast', () => {
     expect(cells[2].textContent).toContain('£600.00');
     expect(cells[2].textContent).toContain('REMAINDER');
     expect(row.querySelectorAll('[data-line="item.77"]')).toHaveLength(2);
-    // Neither is editable (the server said so): no buttons in the row.
-    expect(within(row).queryAllByRole('button')).toHaveLength(0);
+    // Neither is editable (the server said so): the row's only button is its eye.
+    expect(within(row).queryAllByRole('button').map((b) => b.className)).toEqual(['ledger-eye']);
     // Overdue comes from the flag, and that line is editable.
     const late = screen.getByTestId('line-item.88');
     expect(within(late).getByRole('button', { name: /Edit Late courier invoice/ }).textContent).toContain('OVERDUE');

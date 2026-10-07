@@ -36,6 +36,14 @@ export interface ChartGeometry {
 }
 
 /** What the chart needs to sit on the grid's columns. */
+/** The names of the solid line and the dashed one it is compared with. */
+export interface ChartLabels {
+  main: string;
+  baseline: string;
+  baselineLegend: string;
+}
+const SCENARIO_LABELS: ChartLabels = { main: 'Scenario', baseline: 'Baseline', baselineLegend: 'Baseline (the real plan)' };
+
 export interface ChartAlign {
   kind: BucketKind;
   buckets: ForecastBucket[];
@@ -117,6 +125,7 @@ export function axisIndices(count: number, want = 6): number[] {
 export function BalanceChart({
   days,
   withBaseline,
+  labels = SCENARIO_LABELS,
   minDate,
   align,
   scrollRef,
@@ -125,6 +134,8 @@ export function BalanceChart({
   days: ForecastDay[];
   /** A scenario is open: draw `baselineClosing` too. */
   withBaseline: boolean;
+  /** What the two lines are called; a scenario against the real plan unless said. */
+  labels?: ChartLabels;
   /** The window's lowest day (`summary.minDate`), marked on the line. */
   minDate?: string | null;
   /** The grid's buckets and measured columns: the chart lines up with them. */
@@ -175,7 +186,7 @@ export function BalanceChart({
 
   const at = hover !== null && hover.i < days.length ? hover.i : null;
   const hovered = at === null ? null : days[at];
-  const lineLabel = withBaseline ? 'Scenario' : 'Closing balance';
+  const lineLabel = withBaseline ? labels.main : 'Closing balance';
 
   const tickLabel = (t: number) => (
     <text
@@ -203,13 +214,13 @@ export function BalanceChart({
             <svg width="22" height="6" aria-hidden="true">
               <line x1="0" y1="3" x2="22" y2="3" stroke="var(--acc)" strokeWidth="2" />
             </svg>
-            Scenario
+            {labels.main}
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
             <svg width="22" height="6" aria-hidden="true">
               <line x1="0" y1="3" x2="22" y2="3" stroke="var(--mut)" strokeWidth="2" strokeDasharray="5 4" />
             </svg>
-            Baseline (the real plan)
+            {labels.baselineLegend}
           </span>
         </div>
       )}
@@ -384,13 +395,13 @@ export function BalanceChart({
                   {formatDay(hovered.date)} · closing
                 </div>
                 <div className="mono" style={{ color: toMinor(hovered.closing) < 0n ? 'var(--fail)' : undefined }}>
-                  {withBaseline ? 'Scenario ' : ''}
+                  {withBaseline ? `${labels.main} ` : ''}
                   {formatMoney(toMinor(hovered.closing), 'GBP')}
                 </div>
                 {withBaseline && hovered.baselineClosing !== undefined && (
                   <>
                     <div className="mono" style={{ color: 'var(--mut)' }}>
-                      Baseline {formatMoney(toMinor(hovered.baselineClosing), 'GBP')}
+                      {labels.baseline} {formatMoney(toMinor(hovered.baselineClosing), 'GBP')}
                     </div>
                     <div className="mono" style={{ color: 'var(--mut)' }}>
                       Difference {signedMoney(toMinor(hovered.closing) - toMinor(hovered.baselineClosing))}

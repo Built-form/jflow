@@ -66,6 +66,8 @@ export type ItemFlag =
   | 'excluded'
   | 'stale'
   | 'fromScenario'
+  /** Left out of this read by `hide` / `hideCategories`: shown, counts nothing. */
+  | 'hidden'
   | ShipFlag
   | (string & {});
 
@@ -146,6 +148,8 @@ export interface ForecastDay {
   net: Minor;
   closing: Minor;
   baselineClosing?: Minor;
+  /** Only with a hide: the day's closing with nothing hidden. */
+  fullClosing?: Minor;
 }
 
 export interface ForecastBucket {
@@ -252,6 +256,24 @@ export interface ForecastScenario {
   warnings: ScenarioWarning[];
 }
 
+/**
+ * What a read leaves out (§6.10 `hide`, `hideCategories`; Dev, 2026-10-07): line keys, and
+ * whole categories. Nothing is stored — it is a look at the forecast without those rows.
+ */
+export interface ForecastHide {
+  keys: string[];
+  categoryIds: number[];
+}
+
+/** `hidden` (§6.10): what the hide took out of the window, and the summary with nothing hidden. */
+export interface ForecastHidden {
+  /** Hidden lines in the window that would otherwise have counted. */
+  count: number;
+  inflow: Minor;
+  outflow: Minor;
+  fullSummary: ForecastSummary;
+}
+
 export interface UnresolvedLine {
   key: string;
   kind: 'item' | 'sched' | 'ship';
@@ -322,6 +344,8 @@ export interface ForecastResponse {
   rows?: ForecastRow[];
   summary: ForecastSummary;
   scenario: ForecastScenario | null;
+  /** null without a hide; absent from an API older than 2026-10-07. */
+  hidden?: ForecastHidden | null;
   unresolved: UnresolvedLine[];
   /** Phase 2; null until the shipping feed has succeeded once. */
   shipping: ForecastShipping | null;
@@ -336,6 +360,7 @@ export interface ForecastQuery {
   bucket?: BucketKind;
   scenarioId?: number | null;
   include?: IncludeMode;
+  hide?: ForecastHide | null;
 }
 
 /** The body of a real-data edit from the grid: only the fields that changed. */
@@ -354,6 +379,8 @@ export const forecast = {
         bucket: q.bucket,
         scenarioId: q.scenarioId ?? undefined,
         include: q.include,
+        hide: q.hide?.keys.join(','),
+        hideCategories: q.hide?.categoryIds.join(','),
       },
     }),
   /**
