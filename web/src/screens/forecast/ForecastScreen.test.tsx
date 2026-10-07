@@ -213,7 +213,7 @@ describe('Forecast', () => {
     fireEvent.click(eye());
     await waitFor(() => expect(lastPath()).toMatch(/[?&]hide=item\.88(&|$)/));
     const panel = await screen.findByTestId('hidden-panel');
-    await waitFor(() => expect(panel.textContent).toContain('1 row hidden: £500.00 out'));
+    await waitFor(() => expect(panel.textContent).toContain('1 line hidden: £500.00 out'));
     expect(panel.textContent).toContain('Nothing is changed or saved.');
     expect(eye().getAttribute('aria-pressed')).toBe('true');
     // The chart compares with everything shown.
@@ -225,7 +225,7 @@ describe('Forecast', () => {
     await waitFor(() => expect(lastPath()).toMatch(/hideCategories=3(&|$)/));
     expect(lastPath()).toMatch(/[?&]hide=item\.88(&|$)/);
     expect((eye() as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByTestId('hidden-panel').textContent).toContain('1 category and 1 row hidden');
+    expect(screen.getByTestId('hidden-panel').textContent).toContain('1 category and 1 line hidden');
 
     fireEvent.click(within(screen.getByTestId('hidden-panel')).getByRole('button', { name: 'Show everything' }));
     await waitFor(() => expect(lastPath()).not.toMatch(/hide/));

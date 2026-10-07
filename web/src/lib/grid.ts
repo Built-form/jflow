@@ -136,12 +136,15 @@ export function sameColumns(a: GridColumns | null, b: GridColumns | null): boole
 /* ---------- lines into rows and cells ---------- */
 
 /**
- * Every line of one key, laid out across the buckets. One key can own several lines — a
- * line per payment in the window plus the remainder (§6.10) — and each is kept as its
- * own entry in its cell: they are shown, and edited, one by one; nothing here sums them.
+ * One row of lines, laid out across the buckets: every line of one key, or of one schedule
+ * (each instance has its own key). One key can own several lines — a line per payment in
+ * the window plus the remainder (§6.10) — and each is kept as its own entry in its cell: they are shown, and edited, one by one; nothing here sums them.
  */
 export interface LineGroup {
+  /** The first line's key: the row's identity. */
   key: string;
+  /** Every distinct key on the row — one, or one per instance of a schedule. */
+  keys: string[];
   name: string;
   counterparty: string | null;
   kind: ForecastItem['kind'];
@@ -154,10 +157,14 @@ export interface LineGroup {
 export function groupLines(items: ForecastItem[], bucketCount: number): LineGroup[] {
   const groups = new Map<string, LineGroup>();
   for (const item of items) {
-    let group = groups.get(item.key);
+    // A schedule is one row (Dev, 2026-10-07): its instances sit side by side in their own
+    // buckets, as a spreadsheet would have them, not one row per date.
+    const id = item.kind === 'sched' && item.scheduleId !== undefined ? `sched:${item.scheduleId}` : item.key;
+    let group = groups.get(id);
     if (!group) {
       group = {
         key: item.key,
+        keys: [],
         name: item.name,
         counterparty: item.counterparty,
         kind: item.kind,
@@ -165,8 +172,9 @@ export function groupLines(items: ForecastItem[], bucketCount: number): LineGrou
         lines: [],
         cells: Array.from({ length: Math.max(bucketCount, 0) }, () => []),
       };
-      groups.set(item.key, group);
+      groups.set(id, group);
     }
+    if (!group.keys.includes(item.key)) group.keys.push(item.key);
     group.lines.push(item);
     if (item.bucketIndex >= 0 && item.bucketIndex < bucketCount) group.cells[item.bucketIndex].push(item);
   }

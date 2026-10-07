@@ -1122,5 +1122,9 @@ Dev, on the Forecast screen. None of this is in PLAN.md; the hide is recorded in
 (their pinned response-key lists were updated for `hidden`, unrun). **Not deployed**: until
 Dev runs `deploy.sh`, the deployed API ignores `hide` and the web's HIDDEN panel says so.
 **Deferred**: keeping the hidden set across a reload (URL or storage); a per-bucket
-"vs everything" row in the grid; hiding a whole schedule with one entry (each instance is
-its own row and key today).
+"vs everything" row in the grid; a schedule with more than 100 instances in the window
+cannot be hidden whole from its row (the cap on `hide`) — hide its category instead.
+
+**Later the same day**: a schedule is one grid row (`grid.ts groupLines` groups `sched` lines
+by `scheduleId`), its instances side by side in their buckets, not one row per date; the
+row's eye hides every instance on it.

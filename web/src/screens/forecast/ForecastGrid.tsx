@@ -628,7 +628,7 @@ function LineRow({
   const sub = group.kind === 'ship' ? (underCombo ? null : group.lines[0]?.ship?.containerRef ?? null) : group.counterparty;
   const hide = useContext(HideContext);
   const withCategory = useContext(CategoryHiddenContext);
-  const hidden = withCategory || (hide?.keys.has(group.key) ?? false);
+  const hidden = withCategory || (hide !== null && group.keys.every((k) => hide.keys.has(k)));
   return (
     <tr data-testid={`line-${group.key}`}>
       <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: indent, ...(hide ? EYE_PAD : {}) }}>
@@ -638,7 +638,7 @@ function LineRow({
         >
           {group.name}
         </div>
-        {hide && <EyeToggle what={group.name} hidden={hidden} locked={withCategory} onToggle={() => hide.setKeys([group.key], !hidden)} />}
+        {hide && <EyeToggle what={group.name} hidden={hidden} locked={withCategory} onToggle={() => hide.setKeys(group.keys, !hidden)} />}
         {sub && (
           <div style={{ fontSize: 12, color: 'var(--dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {sub}
@@ -681,7 +681,7 @@ function ShipComboRows({
   // The group is hidden when every payment in it is; its eye hides or shows them all.
   const hide = useContext(HideContext);
   const withCategory = useContext(CategoryHiddenContext);
-  const keys = combo.groups.map((g) => g.key);
+  const keys = combo.groups.flatMap((g) => g.keys);
   const hidden = withCategory || (hide !== null && keys.every((k) => hide.keys.has(k)));
   return (
     <>

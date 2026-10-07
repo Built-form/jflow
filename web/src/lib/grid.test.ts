@@ -93,6 +93,17 @@ describe('lines into rows and cells', () => {
     expect(groups[0].cells[0].map((l) => l.gbpMinor)).toEqual([40000, 60000]);
   });
 
+  it('puts every instance of one schedule on one row, each in its own bucket (Dev, 2026-10-07)', () => {
+    const [oct] = rows()[1].items;
+    const nov = { ...oct, key: 'sched.45.2026-11-01', naturalDate: '2026-11-01', date: '2026-11-01', bucketIndex: 2 };
+    const other = { ...oct, key: 'sched.46.2026-10-01', id: 46, scheduleId: 46, name: 'Storage' };
+    const groups = groupLines([oct, other, nov], 3);
+    expect(groups.map((g) => g.key)).toEqual(['sched.45.2026-10-01', 'sched.46.2026-10-01']);
+    expect(groups[0].keys).toEqual(['sched.45.2026-10-01', 'sched.45.2026-11-01']);
+    expect(groups[0].cells.map((c) => c.map((l) => l.key))).toEqual([['sched.45.2026-10-01'], [], ['sched.45.2026-11-01']]);
+    expect(groups[1].keys).toEqual(['sched.46.2026-10-01']);
+  });
+
   it('gives each line its own React key even when the item key repeats', () => {
     const [paid, remainder] = rows()[2].items;
     expect(lineId(paid, 0)).toBe('item.77:p5:0');

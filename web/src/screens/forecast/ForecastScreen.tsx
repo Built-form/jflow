@@ -439,7 +439,7 @@ function HiddenPanel({
 }) {
   const asked = [
     hide.categoryIds.length > 0 ? plural(hide.categoryIds.length, 'category', 'categories') : null,
-    hide.keys.length > 0 ? plural(hide.keys.length, 'row') : null,
+    hide.keys.length > 0 ? plural(hide.keys.length, 'line') : null,
   ]
     .filter(Boolean)
     .join(' and ');
