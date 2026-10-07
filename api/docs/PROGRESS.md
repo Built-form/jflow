@@ -1128,3 +1128,24 @@ cannot be hidden whole from its row (the cap on `hide`) — hide its category in
 **Later the same day**: a schedule is one grid row (`grid.ts groupLines` groups `sched` lines
 by `scheduleId`), its instances side by side in their buckets, not one row per date; the
 row's eye hides every instance on it.
+
+## Phase 2 — A box's company is weighed by its goods, paid or not (2026-10-07)
+
+Dev: `SHIP_UNMAPPED · 3 stock payments have no company in shipping` — "why does this keep
+happening". Shipment 334 ("126. Air Freight"): Sunmed's packaging and handling fee and DCG's
+freight name no PO, so they take the company of the goods in the box; the goods balance
+(PO_00333J) was settled in shipping at 10:48 that morning, the box then held nothing owed,
+and the three extras lost their company. The rule ("biggest share wins", above) weighed
+what was still owed, so every shipment whose goods are paid before its charges did this.
+
+- `forecast.js companiesByBox` now weighs the **goods** in a box — each PO line's
+  quantity × unit price (`input.orders`), in the PO's currency, paid or not. A box whose
+  goods carry no price falls back to what is owed in it, as before. `poDirectory` carries
+  the PO's currency; `toForecastRows` takes `orders` in its context (the source service and
+  the test helper pass `input.orders`).
+- Tests (written first): `payments-flow-forecast.test.js` — a paid box keeps its company,
+  goods value beats owed balance, a PO with no company weighs nothing, unpriced goods fall
+  back to owed, two currencies stay unmapped; `poDirectory`'s currency.
+
+**Checks**: api unit 1088 green + eslint. **Not deployed**: the three rows resolve at the first
+shipping refresh after Dev runs `deploy.sh`.

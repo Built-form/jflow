@@ -43,8 +43,14 @@ const { feedId, groupToken, itemFeedId } = require('./ids');
 /** @typedef {import('./types').PaymentsFlow} PaymentsFlow */
 /** @typedef {import('./types').PaymentItem} PaymentItem */
 /** @typedef {import('./types').QcItem} QcItem */
-/** @typedef {{ poNumber: string, supplier: string|null, companyId: number|null }} PoEntry */
-/** @typedef {{ pos?: Map<number, PoEntry>, shipmentIdByRef?: Map<string, number>|null }} FeedContext */
+/** @typedef {{ poNumber: string, supplier: string|null, companyId: number|null, currency: string|null }} PoEntry */
+/**
+ * @typedef {object} FeedContext
+ * @property {Map<number, PoEntry>} [pos]
+ * @property {Map<string, number>|null} [shipmentIdByRef]
+ * @property {import('./types').Order[]|null} [orders]  The PO lines: a shared box's goods, by company.
+ * @property {Map<string, number|null>} [companiesByBox]  Set by toForecastRows.
+ */
 
 // JFlow's external_items widths (services/shipping.js TEXT_LIMITS,
 // in characters): JFlow rejects a longer value, and with it the whole row, so
@@ -95,7 +101,10 @@ function poDirectory(poBundles) {
     const out = new Map();
     for (const b of Object.values(poBundles ?? {})) {
         if (!b || !isId(b.id)) continue;
-        out.set(b.id, { poNumber: b.poNumber || `PO ${b.id}`, supplier: b.supplier ?? null, companyId: isId(b.companyId) ? b.companyId : null });
+        out.set(b.id, {
+            poNumber: b.poNumber || `PO ${b.id}`, supplier: b.supplier ?? null, companyId: isId(b.companyId) ? b.companyId : null,
+            currency: typeof b.currency === 'string' && b.currency ? b.currency : null,
+        });
     }
     return out;
 }
@@ -240,30 +249,49 @@ function biggestShare(box) {
     return first[1] > second[1] ? first[0] : null;
 }
 
+/** One company's cents in a box, in one currency. */
+function weigh(boxes, key, companyId, cents, currency) {
+    const box = boxes.get(key) ?? { cents: new Map(), currencies: new Set() };
+    box.cents.set(companyId, (box.cents.get(companyId) ?? 0) + Math.max(0, cents));
+    if (currency) box.currencies.add(currencyOf(currency));
+    boxes.set(key, box);
+}
+
 /**
  * Container ref (upper-cased, as the model matches a shipment cost to its box) → the
  * company whose POs have goods in it: the only one, or of several the one with the
- * biggest share of what is owed there (biggestShare), else null. Built from every item
- * of every currency that names a PO with a company.
+ * biggest share (biggestShare), else null.
+ *
+ * The share is of the GOODS in the box — each PO line's quantity × unit price, in the PO's
+ * currency, paid or not (Dev, 2026-10-07: shipment 126's freight, packaging and handling
+ * lost their company the morning its goods were paid, because the share was of what was
+ * still owed). A box whose goods carry no price falls back to what is owed in it, from
+ * every item of every currency that names a PO with a company.
  * @param {PaymentsFlow} flow
  * @param {FeedContext} ctx
  * @returns {Map<string, number|null>}
  */
 function companiesByBox(flow, ctx) {
-    const boxes = new Map();
+    const goods = new Map();
+    for (const o of ctx.orders ?? []) {
+        const key = boxKey(o.containerNumber);
+        const po = isId(o.purchaseOrderId) ? ctx.pos?.get(o.purchaseOrderId) : null;
+        if (!key || po?.companyId == null) continue;
+        const value = o.unitPrice != null && o.unitPrice > 0 ? o.unitPrice * (o.quantity || 0) : 0;
+        if (value <= 0) continue;
+        weigh(goods, key, po.companyId, centsOf(value), po.currency);
+    }
+    const owed = new Map();
     for (const c of flow.currencies ?? []) {
         for (const item of c.items) {
             const key = boxKey(item.containerNumber);
-            if (!key || !isId(item.poId)) continue;
+            if (!key || !isId(item.poId) || goods.has(key)) continue;
             const companyId = ctx.pos?.get(item.poId)?.companyId ?? null;
             if (companyId == null) continue;
-            const box = boxes.get(key) ?? { cents: new Map(), currencies: new Set() };
-            box.cents.set(companyId, (box.cents.get(companyId) ?? 0) + Math.max(0, centsOf(item.amount)));
-            box.currencies.add(currencyOf(item.currency ?? c.currency));
-            boxes.set(key, box);
+            weigh(owed, key, companyId, centsOf(item.amount), item.currency ?? c.currency);
         }
     }
-    return new Map([...boxes].map(([key, box]) => [key, biggestShare(box)]));
+    return new Map([...goods, ...owed].map(([key, box]) => [key, biggestShare(box)]));
 }
 
 const companyOfBox = (ref, ctx) => ctx.companiesByBox?.get(boxKey(ref)) ?? null;
@@ -400,7 +428,8 @@ function balanceRows(fact, recordId, claimsByRecord, ctx) {
  * @param {PaymentsFlow} flow  buildPaymentsFlow(input, { claims: true })
  * @param {PaidFact[]} paidRows  collectPaidRows(input, { paidSince })
  * @param {FeedContext} [ctx]  pos: poDirectory(input.poBundles) (plus any PO a
- *   payment names that has no bundle); shipmentIdByRef: the page's map.
+ *   payment names that has no bundle); shipmentIdByRef: the page's map; orders: the PO
+ *   lines (input.orders), which weigh a shared box's goods by company.
  * @returns {FeedRow[]}
  */
 function toForecastRows(flow, paidRows, ctx = {}) {

@@ -81,17 +81,17 @@ const cell: CSSProperties = {
  * figure picked is one already on screen, and nothing is sent anywhere.
  *
  * A total already holds the figures under it — Out holds every out category, a category its
- * lines, a row's Window figure that row's buckets — so a figure picked together with a total
- * it is part of is counted once, through the total (Dev, 2026-10-07: a category picked on
- * top of its own lines doubled the sum). `within` lists the totals a figure is part of.
+ * lines, a row's Window figure that row's buckets — so a total and a figure inside it are
+ * never picked together (Dev, 2026-10-07: a category picked on top of its own lines doubled
+ * the sum). Picking a total lets go of the figures picked under it; picking a figure lets go
+ * of a picked total it is part of. Every picked figure is therefore boxed and counted.
+ * `within` lists the totals a figure is part of.
  */
 interface Picked {
   minor: bigint;
   direction: LineDirection;
   within: string[];
 }
-/** The picked totals this figure is part of — none means it counts in its own right. */
-const insidePicked = (within: readonly string[], picked: ReadonlyMap<string, Picked>) => within.some((id) => picked.has(id));
 /** The totals around a row, outermost first: its side, its category, its supplier group. */
 const ScopeContext = createContext<readonly string[]>([]);
 /**
@@ -166,8 +166,7 @@ function pickProps(
     'data-pick-minor': String(toMinor(minor)),
     'data-pick-direction': direction,
     'data-pick-within': JSON.stringify(within),
-    // 'inside': picked, but a picked total already holds it.
-    'data-picked': !picked.has(id) ? undefined : insidePicked(within, picked) ? 'inside' : 'true',
+    'data-picked': picked.has(id) ? 'true' : undefined,
   };
 }
 
@@ -208,17 +207,13 @@ function SumBar({ picked, onClear }: { picked: ReadonlyMap<string, Picked>; onCl
   let moneyIn = 0n;
   let moneyOut = 0n;
   let ins = 0;
-  let counted = 0;
   for (const p of picked.values()) {
-    if (insidePicked(p.within, picked)) continue;
-    counted += 1;
     if (p.direction === 'in') {
       moneyIn += p.minor;
       ins += 1;
     } else moneyOut += p.minor;
   }
-  const mixed = ins > 0 && ins < counted;
-  const inside = picked.size - counted;
+  const mixed = ins > 0 && ins < picked.size;
   return (
     <div
       role="status"
@@ -243,7 +238,6 @@ function SumBar({ picked, onClear }: { picked: ReadonlyMap<string, Picked>; onCl
     >
       <span style={{ color: 'var(--mut)' }}>
         {picked.size} {picked.size === 1 ? 'figure' : 'figures'}
-        {inside > 0 && ` · ${inside} already in a picked total, counted once`}
       </span>
       {mixed ? (
         <>
@@ -464,8 +458,15 @@ export function ForecastGrid({
     const within = JSON.parse(el.dataset.pickWithin ?? '[]') as string[];
     setPicked((prev) => {
       const next = new Map(prev);
-      if (next.has(id)) next.delete(id);
-      else next.set(id, { minor, direction, within });
+      if (next.has(id)) {
+        next.delete(id);
+        return next;
+      }
+      // Never a total together with a figure inside it: let go of the totals this figure is
+      // part of, and of the figures that are part of it.
+      for (const total of within) next.delete(total);
+      for (const [other, p] of next) if (p.within.includes(id)) next.delete(other);
+      next.set(id, { minor, direction, within });
       return next;
     });
   };

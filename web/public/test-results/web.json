@@ -3,10 +3,10 @@
   "suite": "Web unit tests",
   "command": "npm test (in web/)",
   "runner": "vitest 2.1.9",
-  "commit": "55020d1",
+  "commit": "6eb5591",
   "branch": "master",
-  "ranAt": "2026-10-07T11:01:54.702Z",
-  "durationMs": 21279,
+  "ranAt": "2026-10-07T11:08:54.449Z",
+  "durationMs": 21273,
   "totals": {
     "files": 28,
     "tests": 348,
@@ -19,7 +19,7 @@
     {
       "path": "src/app/shell.test.tsx",
       "status": "passed",
-      "durationMs": 5019,
+      "durationMs": 5125,
       "error": null,
       "tests": [
         {
@@ -28,7 +28,7 @@
           ],
           "name": "lists JFlow's screens, in PLAN's order",
           "status": "passed",
-          "durationMs": 142,
+          "durationMs": 166,
           "messages": []
         },
         {
@@ -37,7 +37,7 @@
           ],
           "name": "/items is built (step 9), not a placeholder",
           "status": "passed",
-          "durationMs": 27,
+          "durationMs": 30,
           "messages": []
         },
         {
@@ -46,7 +46,7 @@
           ],
           "name": "/schedules is built (step 9), not a placeholder",
           "status": "passed",
-          "durationMs": 12,
+          "durationMs": 14,
           "messages": []
         },
         {
@@ -55,7 +55,7 @@
           ],
           "name": "carries the company filter from screen to screen",
           "status": "passed",
-          "durationMs": 33,
+          "durationMs": 40,
           "messages": []
         },
         {
@@ -64,7 +64,282 @@
           ],
           "name": "lands on Forecast, and says so for an unknown address",
           "status": "passed",
-          "durationMs": 39,
+          "durationMs": 51,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/components/PayDialog.test.tsx",
+      "status": "passed",
+      "durationMs": 3609,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "opens paid today, for the whole remainder, with the rest due today",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "refuses a pay date in the future",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "refuses the amount 0",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "refuses the amount 0.00",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "refuses the amount -5",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "refuses the amount ",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "refuses the amount 100.01",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "refuses the amount 12.345",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "refuses any amount when nothing remains",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "requires the remainder date, pre-filled with today, for a part-payment on something past due",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "does not ask for a remainder date when the item is not yet due, or the payment is whole",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "requires it once the server has answered REMAINDER_DATE_REQUIRED, whatever this browser thinks",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validatePay"
+          ],
+          "name": "compares money in minor units, never through floats",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the pay dialog"
+          ],
+          "name": "pre-fills the remainder date with today and says why, for a part-payment on something already due",
+          "status": "passed",
+          "durationMs": 192,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the pay dialog"
+          ],
+          "name": "keeps the confirm disabled for a future pay date and an amount above what remains",
+          "status": "passed",
+          "durationMs": 32,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the pay dialog"
+          ],
+          "name": "shows the remainder date when the server answers REMAINDER_DATE_REQUIRED, and sends it on the retry",
+          "status": "passed",
+          "durationMs": 92,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/components/ui.test.ts",
+      "status": "passed",
+      "durationMs": 531,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "refusal detail lines"
+          ],
+          "name": "names each bad bulk entry by the account the screen sent at that position",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "refusal detail lines"
+          ],
+          "name": "explains a stale write and an in-use refusal",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/config/env.test.ts",
+      "status": "passed",
+      "durationMs": 447,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "which environment this is"
+          ],
+          "name": "is production only on the named host, test everywhere else",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "which environment this is"
+          ],
+          "name": "titles the tab",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "where the API is"
+          ],
+          "name": "is nowhere while a stage is not deployed — never the other stage",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "where the API is"
+          ],
+          "name": "takes the override first, without a trailing slash",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "where the API is"
+          ],
+          "name": "uses the stage address once it exists",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/CashAtBankScreen.test.tsx",
+      "status": "passed",
+      "durationMs": 4934,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "Cash at bank"
+          ],
+          "name": "is labelled \"Cash at bank at start of day\" and defaults to today (Europe/London)",
+          "status": "passed",
+          "durationMs": 158,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Cash at bank"
+          ],
+          "name": "saves every filled account in one bulk call, as DECIMAL strings for today",
+          "status": "passed",
+          "durationMs": 77,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Cash at bank"
+          ],
+          "name": "shows no combined figure when the accounts in view are not all GBP",
+          "status": "passed",
+          "durationMs": 27,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Cash at bank"
+          ],
+          "name": "keeps Save disabled while a row is wrong, and says which",
+          "status": "passed",
+          "durationMs": 23,
           "messages": []
         }
       ]
@@ -72,7 +347,7 @@
     {
       "path": "src/lib/balances.test.ts",
       "status": "passed",
-      "durationMs": 83,
+      "durationMs": 82,
       "error": null,
       "tests": [
         {
@@ -90,7 +365,7 @@
           ],
           "name": "names the day, and says when it is today or yesterday",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -224,7 +499,7 @@
     {
       "path": "src/lib/dates.test.ts",
       "status": "passed",
-      "durationMs": 68,
+      "durationMs": 504,
       "error": null,
       "tests": [
         {
@@ -242,7 +517,7 @@
           ],
           "name": "round-trips through epoch days",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -287,7 +562,7 @@
           ],
           "name": "is already tomorrow in London at 23:30 UTC in summer (BST)",
           "status": "passed",
-          "durationMs": 12,
+          "durationMs": 9,
           "messages": []
         },
         {
@@ -322,7 +597,7 @@
     {
       "path": "src/lib/grid.test.ts",
       "status": "passed",
-      "durationMs": 89,
+      "durationMs": 88,
       "error": null,
       "tests": [
         {
@@ -537,7 +812,7 @@
     {
       "path": "src/lib/keys.test.ts",
       "status": "passed",
-      "durationMs": 31,
+      "durationMs": 1306,
       "error": null,
       "tests": [
         {
@@ -734,7 +1009,7 @@
     {
       "path": "src/lib/money.test.ts",
       "status": "passed",
-      "durationMs": 23,
+      "durationMs": 878,
       "error": null,
       "tests": [
         {
@@ -761,7 +1036,7 @@
           ],
           "name": "sums exactly where floats would not",
           "status": "passed",
-          "durationMs": 0,
+          "durationMs": 1,
           "messages": []
         },
         {
@@ -868,7 +1143,7 @@
     {
       "path": "src/lib/ship.test.ts",
       "status": "passed",
-      "durationMs": 106,
+      "durationMs": 111,
       "error": null,
       "tests": [
         {
@@ -1030,7 +1305,7 @@
           ],
           "name": "hatches and italicises an estimated line, and only that",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -1245,7 +1520,7 @@
     {
       "path": "src/lib/validation.test.ts",
       "status": "passed",
-      "durationMs": 56,
+      "durationMs": 25,
       "error": null,
       "tests": [
         {
@@ -1341,470 +1616,9 @@
       ]
     },
     {
-      "path": "src/config/env.test.ts",
-      "status": "passed",
-      "durationMs": 57,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "which environment this is"
-          ],
-          "name": "is production only on the named host, test everywhere else",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "which environment this is"
-          ],
-          "name": "titles the tab",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "where the API is"
-          ],
-          "name": "is nowhere while a stage is not deployed — never the other stage",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "where the API is"
-          ],
-          "name": "takes the override first, without a trailing slash",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "where the API is"
-          ],
-          "name": "uses the stage address once it exists",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/components/PayDialog.test.tsx",
-      "status": "passed",
-      "durationMs": 2688,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "opens paid today, for the whole remainder, with the rest due today",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "refuses a pay date in the future",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "refuses the amount 0",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "refuses the amount 0.00",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "refuses the amount -5",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "refuses the amount ",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "refuses the amount 100.01",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "refuses the amount 12.345",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "refuses any amount when nothing remains",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "requires the remainder date, pre-filled with today, for a part-payment on something past due",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "does not ask for a remainder date when the item is not yet due, or the payment is whole",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "requires it once the server has answered REMAINDER_DATE_REQUIRED, whatever this browser thinks",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validatePay"
-          ],
-          "name": "compares money in minor units, never through floats",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the pay dialog"
-          ],
-          "name": "pre-fills the remainder date with today and says why, for a part-payment on something already due",
-          "status": "passed",
-          "durationMs": 155,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the pay dialog"
-          ],
-          "name": "keeps the confirm disabled for a future pay date and an amount above what remains",
-          "status": "passed",
-          "durationMs": 19,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the pay dialog"
-          ],
-          "name": "shows the remainder date when the server answers REMAINDER_DATE_REQUIRED, and sends it on the retry",
-          "status": "passed",
-          "durationMs": 91,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/components/ui.test.ts",
-      "status": "passed",
-      "durationMs": 64,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "refusal detail lines"
-          ],
-          "name": "names each bad bulk entry by the account the screen sent at that position",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "refusal detail lines"
-          ],
-          "name": "explains a stale write and an in-use refusal",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/CashAtBankScreen.test.tsx",
-      "status": "passed",
-      "durationMs": 4886,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "Cash at bank"
-          ],
-          "name": "is labelled \"Cash at bank at start of day\" and defaults to today (Europe/London)",
-          "status": "passed",
-          "durationMs": 139,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Cash at bank"
-          ],
-          "name": "saves every filled account in one bulk call, as DECIMAL strings for today",
-          "status": "passed",
-          "durationMs": 80,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Cash at bank"
-          ],
-          "name": "shows no combined figure when the accounts in view are not all GBP",
-          "status": "passed",
-          "durationMs": 25,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Cash at bank"
-          ],
-          "name": "keeps Save disabled while a row is wrong, and says which",
-          "status": "passed",
-          "durationMs": 30,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/items/grouping.test.ts",
-      "status": "passed",
-      "durationMs": 527,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "groups by the server's derivedStatus, in display order, leaving empty groups out",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "names the assumed-settled group and says what it means",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "never drops a row: a band this client does not know gets its own group, last",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "knows every D10 value",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "reads ?show= as a group id, or every group",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/items/itemForm.test.ts",
-      "status": "passed",
-      "durationMs": 59,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "sends the amount as the DECIMAL string it parses to, never through a float",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "refuses amounts the API would: zero, negative, three decimals, thirteen digits",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "requires the category to go the same way as the item (D14)",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "defaults the currency to the account's, and upper-cases a typed one",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "omits blank optional fields on create",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "itemChanges"
-          ],
-          "name": "sends only what changed — \"100\" is the same amount as \"100.00\"",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/items/ItemsScreen.test.tsx",
-      "status": "passed",
-      "durationMs": 5155,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "groups one-offs by the server's derivedStatus, with Assumed settled as its own group",
-          "status": "passed",
-          "durationMs": 164,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "offers Confirm paid and Didn't happen only on assumed-settled items",
-          "status": "passed",
-          "durationMs": 59,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "Didn't happen explains itself, sends settleMode manual, and the row moves to the group the server answers",
-          "status": "passed",
-          "durationMs": 85,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "Confirm paid opens the pay dialog at the due date and replaces the row from the response",
-          "status": "passed",
-          "durationMs": 85,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "filters to the assumed-settled group from the URL-held filter",
-          "status": "passed",
-          "durationMs": 44,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "opens with the filter from ?show=",
-          "status": "passed",
-          "durationMs": 8,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "unpay confirms first, listing the payments it removes",
-          "status": "passed",
-          "durationMs": 55,
-          "messages": []
-        }
-      ]
-    },
-    {
       "path": "src/screens/forecast/BalanceChart.test.ts",
       "status": "passed",
-      "durationMs": 67,
+      "durationMs": 537,
       "error": null,
       "tests": [
         {
@@ -1830,7 +1644,7 @@
     {
       "path": "src/screens/forecast/edit.test.ts",
       "status": "passed",
-      "durationMs": 45,
+      "durationMs": 58,
       "error": null,
       "tests": [
         {
@@ -2009,7 +1823,7 @@
     {
       "path": "src/screens/forecast/ForecastScreen.test.tsx",
       "status": "passed",
-      "durationMs": 6057,
+      "durationMs": 6438,
       "error": null,
       "tests": [
         {
@@ -2018,7 +1832,7 @@
           ],
           "name": "asks for the grid, every company, week buckets — and draws one line without a scenario",
           "status": "passed",
-          "durationMs": 273,
+          "durationMs": 283,
           "messages": []
         },
         {
@@ -2027,7 +1841,7 @@
           ],
           "name": "counts the starting-point accounts in capitals throughout: 2 ACCOUNTS, not 2 ACCOUNTs",
           "status": "passed",
-          "durationMs": 69,
+          "durationMs": 78,
           "messages": []
         },
         {
@@ -2036,7 +1850,7 @@
           ],
           "name": "takes the company from the URL",
           "status": "passed",
-          "durationMs": 68,
+          "durationMs": 60,
           "messages": []
         },
         {
@@ -2045,7 +1859,7 @@
           ],
           "name": "puts the Day / Week / Month toggle and the days picker side by side, below the chart and above the grid",
           "status": "passed",
-          "durationMs": 32,
+          "durationMs": 41,
           "messages": []
         },
         {
@@ -2054,7 +1868,7 @@
           ],
           "name": "flags negative cells: a closing below zero, and one whose bucket dips below zero",
           "status": "passed",
-          "durationMs": 116,
+          "durationMs": 139,
           "messages": []
         },
         {
@@ -2063,7 +1877,7 @@
           ],
           "name": "opens with categories collapsed, and a collapsed category says which of its lines need attention",
           "status": "passed",
-          "durationMs": 41,
+          "durationMs": 43,
           "messages": []
         },
         {
@@ -2072,7 +1886,7 @@
           ],
           "name": "adds up the figures picked: a click on a total, Ctrl-click on a line (which does not edit it), Clear to start again",
           "status": "passed",
-          "durationMs": 100,
+          "durationMs": 137,
           "messages": []
         },
         {
@@ -2081,7 +1895,7 @@
           ],
           "name": "hides a row or a category with its eye: re-reads without it, says what went, and shows everything again",
           "status": "passed",
-          "durationMs": 136,
+          "durationMs": 147,
           "messages": []
         },
         {
@@ -2090,7 +1904,7 @@
           ],
           "name": "renders every line of a key that appears several times — the payment and the remainder",
           "status": "passed",
-          "durationMs": 40,
+          "durationMs": 56,
           "messages": []
         },
         {
@@ -2099,7 +1913,7 @@
           ],
           "name": "shows the unresolved banner from the summary, listing unresolved[]",
           "status": "passed",
-          "durationMs": 43,
+          "durationMs": 57,
           "messages": []
         },
         {
@@ -2108,7 +1922,7 @@
           ],
           "name": "shows warnings[] in words",
           "status": "passed",
-          "durationMs": 45,
+          "durationMs": 48,
           "messages": []
         },
         {
@@ -2117,7 +1931,7 @@
           ],
           "name": "says which rate is missing when the forecast is refused with FX_RATE_MISSING",
           "status": "passed",
-          "durationMs": 19,
+          "durationMs": 9,
           "messages": []
         },
         {
@@ -2126,7 +1940,7 @@
           ],
           "name": "with no scenario, an edit changes the real one-off and the forecast is read again",
           "status": "passed",
-          "durationMs": 91,
+          "durationMs": 132,
           "messages": []
         },
         {
@@ -2135,7 +1949,7 @@
           ],
           "name": "with no scenario, an instance is tuned by its schedule id and natural date",
           "status": "passed",
-          "durationMs": 68,
+          "durationMs": 98,
           "messages": []
         },
         {
@@ -2145,7 +1959,7 @@
           ],
           "name": "draws the scenario and the baseline, shows the banner, and the delta row",
           "status": "passed",
-          "durationMs": 45,
+          "durationMs": 61,
           "messages": []
         },
         {
@@ -2155,7 +1969,7 @@
           ],
           "name": "writes an adjustment instead of real data — the whole change against the baseline",
           "status": "passed",
-          "durationMs": 68,
+          "durationMs": 117,
           "messages": []
         },
         {
@@ -2165,7 +1979,7 @@
           ],
           "name": "refuses a date before today in the dialog, and shows the server refusal when one comes",
           "status": "passed",
-          "durationMs": 69,
+          "durationMs": 103,
           "messages": []
         },
         {
@@ -2175,7 +1989,7 @@
           ],
           "name": "closes from the banner and goes back to the real plan",
           "status": "passed",
-          "durationMs": 59,
+          "durationMs": 86,
           "messages": []
         },
         {
@@ -2184,7 +1998,7 @@
           ],
           "name": "draws both lines when a scenario is open, and one when not",
           "status": "passed",
-          "durationMs": 2,
+          "durationMs": 7,
           "messages": []
         }
       ]
@@ -2192,7 +2006,7 @@
     {
       "path": "src/screens/forecast/ShipForecast.test.tsx",
       "status": "passed",
-      "durationMs": 7504,
+      "durationMs": 8791,
       "error": null,
       "tests": [
         {
@@ -2201,7 +2015,7 @@
           ],
           "name": "render from the server flags: estimated hatched and italic, blocked and planned marked, no mark for a derived amount, the name as sent",
           "status": "passed",
-          "durationMs": 320,
+          "durationMs": 313,
           "messages": []
         },
         {
@@ -2210,7 +2024,7 @@
           ],
           "name": "marks a SHIP_PLAN_STALE line and lists it; lists a SHIP_PLAN_ORPHANED plan with a way to clear it",
           "status": "passed",
-          "durationMs": 90,
+          "durationMs": 112,
           "messages": []
         },
         {
@@ -2219,7 +2033,7 @@
           ],
           "name": "says why SHIP_UNMAPPED rows are left out: no company linked, no company in shipping, no account to land on",
           "status": "passed",
-          "durationMs": 98,
+          "durationMs": 95,
           "messages": []
         },
         {
@@ -2228,7 +2042,7 @@
           ],
           "name": "sends an unresolved stock payment to the Stock payments screen",
           "status": "passed",
-          "durationMs": 41,
+          "durationMs": 67,
           "messages": []
         },
         {
@@ -2237,7 +2051,7 @@
           ],
           "name": "shows the last sync, open, undated with its £ total, and unmapped counts",
           "status": "passed",
-          "durationMs": 35,
+          "durationMs": 56,
           "messages": []
         },
         {
@@ -2246,7 +2060,7 @@
           ],
           "name": "says a feed that has never succeeded has never synced",
           "status": "passed",
-          "durationMs": 47,
+          "durationMs": 64,
           "messages": []
         },
         {
@@ -2255,7 +2069,7 @@
           ],
           "name": "posts a refresh, then reads the forecast again",
           "status": "passed",
-          "durationMs": 46,
+          "durationMs": 56,
           "messages": []
         },
         {
@@ -2264,7 +2078,7 @@
           ],
           "name": "says so when another refresh was already running (ran: false), and still reads again",
           "status": "passed",
-          "durationMs": 79,
+          "durationMs": 86,
           "messages": []
         },
         {
@@ -2273,7 +2087,7 @@
           ],
           "name": "shows a failed refresh (503 SHIPPING_UNAVAILABLE) with its reason and the snapshot still in use, and does not re-read",
           "status": "passed",
-          "durationMs": 69,
+          "durationMs": 91,
           "messages": []
         },
         {
@@ -2282,7 +2096,7 @@
           ],
           "name": "shows the reason and the last successful sync",
           "status": "passed",
-          "durationMs": 39,
+          "durationMs": 60,
           "messages": []
         },
         {
@@ -2291,7 +2105,7 @@
           ],
           "name": "says there are no stock payments when the feed has never synced",
           "status": "passed",
-          "durationMs": 35,
+          "durationMs": 55,
           "messages": []
         },
         {
@@ -2300,7 +2114,7 @@
           ],
           "name": "is absent when the refresh was fine",
           "status": "passed",
-          "durationMs": 36,
+          "durationMs": 49,
           "messages": []
         },
         {
@@ -2309,7 +2123,7 @@
           ],
           "name": "opening the category shows one line per supplier + container with the summed figure; the payments open on a click, or with Expand all",
           "status": "passed",
-          "durationMs": 85,
+          "durationMs": 137,
           "messages": []
         },
         {
@@ -2318,7 +2132,7 @@
           ],
           "name": "reads the row on open, and shows shipping's date and amount next to the planned ones, with the note",
           "status": "passed",
-          "durationMs": 105,
+          "durationMs": 166,
           "messages": []
         },
         {
@@ -2327,7 +2141,7 @@
           ],
           "name": "writes PUT /external-items/:key with only what changed and the row version, then reads the forecast again",
           "status": "passed",
-          "durationMs": 139,
+          "durationMs": 156,
           "messages": []
         },
         {
@@ -2336,7 +2150,7 @@
           ],
           "name": "clears the existing note with null",
           "status": "passed",
-          "durationMs": 109,
+          "durationMs": 147,
           "messages": []
         },
         {
@@ -2345,7 +2159,7 @@
           ],
           "name": "\"Use shipping's\" date clears the pinned date, so the line follows shipping again",
           "status": "passed",
-          "durationMs": 84,
+          "durationMs": 177,
           "messages": []
         },
         {
@@ -2354,7 +2168,7 @@
           ],
           "name": "pins a date equal to shipping's when the row already has a plan",
           "status": "passed",
-          "durationMs": 101,
+          "durationMs": 169,
           "messages": []
         },
         {
@@ -2363,7 +2177,7 @@
           ],
           "name": "pins shipping's own date on a planned row that follows it",
           "status": "passed",
-          "durationMs": 158,
+          "durationMs": 232,
           "messages": []
         },
         {
@@ -2372,7 +2186,7 @@
           ],
           "name": "skips a line",
           "status": "passed",
-          "durationMs": 97,
+          "durationMs": 121,
           "messages": []
         },
         {
@@ -2381,7 +2195,7 @@
           ],
           "name": "reverts to the feed with DELETE and the row version, offered only on a planned row",
           "status": "passed",
-          "durationMs": 142,
+          "durationMs": 259,
           "messages": []
         },
         {
@@ -2390,7 +2204,7 @@
           ],
           "name": "refuses a planned date before today, and an amount that is not a DECIMAL above zero, before the click",
           "status": "passed",
-          "durationMs": 103,
+          "durationMs": 107,
           "messages": []
         },
         {
@@ -2399,7 +2213,7 @@
           ],
           "name": "on 409 STALE_WRITE, reads the row again and saves against the new version",
           "status": "passed",
-          "durationMs": 128,
+          "durationMs": 185,
           "messages": []
         },
         {
@@ -2408,7 +2222,7 @@
           ],
           "name": "says so when the row cannot be read on open (gone), with nothing to save",
           "status": "passed",
-          "durationMs": 100,
+          "durationMs": 137,
           "messages": []
         },
         {
@@ -2417,7 +2231,7 @@
           ],
           "name": "shows a 404 TARGET_MISSING refusal in words, and keeps the dialog open",
           "status": "passed",
-          "durationMs": 110,
+          "durationMs": 174,
           "messages": []
         },
         {
@@ -2426,7 +2240,7 @@
           ],
           "name": "shows a 409 TARGET_SETTLED refusal in words, and keeps the dialog open",
           "status": "passed",
-          "durationMs": 112,
+          "durationMs": 206,
           "messages": []
         },
         {
@@ -2435,7 +2249,7 @@
           ],
           "name": "shows a 422 PLANNED_DATE_IN_PAST refusal in words, and keeps the dialog open",
           "status": "passed",
-          "durationMs": 97,
+          "durationMs": 144,
           "messages": []
         },
         {
@@ -2444,7 +2258,7 @@
           ],
           "name": "the plan dialog says who set shipping's date, in place of what, and tags the row",
           "status": "passed",
-          "durationMs": 80,
+          "durationMs": 146,
           "messages": []
         },
         {
@@ -2453,7 +2267,7 @@
           ],
           "name": "the scenario edit dialog says the same from the line's ship block, and a moved date says where from",
           "status": "passed",
-          "durationMs": 70,
+          "durationMs": 142,
           "messages": []
         },
         {
@@ -2462,7 +2276,7 @@
           ],
           "name": "writes an adjustment like any other line, and still shows what shipping says",
           "status": "passed",
-          "durationMs": 76,
+          "durationMs": 144,
           "messages": []
         }
       ]
@@ -2470,7 +2284,7 @@
     {
       "path": "src/screens/forecast/shipPlan.test.ts",
       "status": "passed",
-      "durationMs": 105,
+      "durationMs": 116,
       "error": null,
       "tests": [
         {
@@ -2479,7 +2293,7 @@
           ],
           "name": "knows the feed figures, the overlay as stored, the note and the version",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 2,
           "messages": []
         },
         {
@@ -2488,7 +2302,7 @@
           ],
           "name": "carries the feed's set-by-hand story and a recent move as flags and fields; a derived, unmoved date carries neither",
           "status": "passed",
-          "durationMs": 0,
+          "durationMs": 1,
           "messages": []
         },
         {
@@ -2650,7 +2464,7 @@
           ],
           "name": "set back to shipping's clears a planned amount (null)",
           "status": "passed",
-          "durationMs": 0,
+          "durationMs": 1,
           "messages": []
         },
         {
@@ -2704,7 +2518,7 @@
           ],
           "name": "refuses a key that is not a stock payment, before anything is sent",
           "status": "passed",
-          "durationMs": 0,
+          "durationMs": 1,
           "messages": []
         },
         {
@@ -2773,9 +2587,560 @@
       ]
     },
     {
+      "path": "src/screens/items/grouping.test.ts",
+      "status": "passed",
+      "durationMs": 1363,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "groupByDerivedStatus"
+          ],
+          "name": "groups by the server's derivedStatus, in display order, leaving empty groups out",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "groupByDerivedStatus"
+          ],
+          "name": "names the assumed-settled group and says what it means",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "groupByDerivedStatus"
+          ],
+          "name": "never drops a row: a band this client does not know gets its own group, last",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "groupByDerivedStatus"
+          ],
+          "name": "knows every D10 value",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "groupByDerivedStatus"
+          ],
+          "name": "reads ?show= as a group id, or every group",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/items/itemForm.test.ts",
+      "status": "passed",
+      "durationMs": 452,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "sends the amount as the DECIMAL string it parses to, never through a float",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "refuses amounts the API would: zero, negative, three decimals, thirteen digits",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "requires the category to go the same way as the item (D14)",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "defaults the currency to the account's, and upper-cases a typed one",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "omits blank optional fields on create",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "itemChanges"
+          ],
+          "name": "sends only what changed — \"100\" is the same amount as \"100.00\"",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/items/ItemsScreen.test.tsx",
+      "status": "passed",
+      "durationMs": 5281,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "groups one-offs by the server's derivedStatus, with Assumed settled as its own group",
+          "status": "passed",
+          "durationMs": 162,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "offers Confirm paid and Didn't happen only on assumed-settled items",
+          "status": "passed",
+          "durationMs": 71,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "Didn't happen explains itself, sends settleMode manual, and the row moves to the group the server answers",
+          "status": "passed",
+          "durationMs": 83,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "Confirm paid opens the pay dialog at the due date and replaces the row from the response",
+          "status": "passed",
+          "durationMs": 104,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "filters to the assumed-settled group from the URL-held filter",
+          "status": "passed",
+          "durationMs": 52,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "opens with the filter from ?show=",
+          "status": "passed",
+          "durationMs": 22,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "unpay confirms first, listing the payments it removes",
+          "status": "passed",
+          "durationMs": 72,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/scenarios/scenarios.test.tsx",
+      "status": "passed",
+      "durationMs": 5273,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "BASE_CHANGED shows its word, what happened and the fix",
+          "status": "passed",
+          "durationMs": 25,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "TARGET_SETTLED shows its word, what happened and the fix",
+          "status": "passed",
+          "durationMs": 4,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "TARGET_MISSING shows its word, what happened and the fix",
+          "status": "passed",
+          "durationMs": 2,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "DATE_PASSED shows its word, what happened and the fix",
+          "status": "passed",
+          "durationMs": 2,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "names each of the four reasons differently, and says rebase fixes only BASE_CHANGED",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "marks each adjustment on the scenario with its own reason",
+          "status": "passed",
+          "durationMs": 75,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "names and prices a target outside the forecast window from the server's `current` (§6.11)",
+          "status": "passed",
+          "durationMs": 26,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "apply"
+          ],
+          "name": "surfaces SCENARIO_STALE: every key and its reason, and that nothing was written",
+          "status": "passed",
+          "durationMs": 147,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "apply"
+          ],
+          "name": "on success, says what was written and closes the scenario if it was open",
+          "status": "passed",
+          "durationMs": 67,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario that is not a draft"
+          ],
+          "name": "says so, offers no rebase or apply, and asks for no comparison",
+          "status": "passed",
+          "durationMs": 12,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario that is not a draft"
+          ],
+          "name": "surfaces SCENARIO_NOT_DRAFT when the server says it changed under us",
+          "status": "passed",
+          "durationMs": 35,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "rebase"
+          ],
+          "name": "sends dropStale, keeps what was not dropped, and says what happened",
+          "status": "passed",
+          "durationMs": 50,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the effect on the forecast"
+          ],
+          "name": "shows the baseline against the scenario, and the delta per bucket from deltaByBucket",
+          "status": "passed",
+          "durationMs": 10,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the scenarios list"
+          ],
+          "name": "opens a scenario into the context and goes to the forecast",
+          "status": "passed",
+          "durationMs": 31,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the scenarios list"
+          ],
+          "name": "creates, duplicates and deletes",
+          "status": "passed",
+          "durationMs": 80,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/settings/dialogs.test.tsx",
+      "status": "passed",
+      "durationMs": 5043,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "the FX rate dialog"
+          ],
+          "name": "refuses GBP — the base currency is always 1 and never entered (D3)",
+          "status": "passed",
+          "durationMs": 155,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the FX rate dialog"
+          ],
+          "name": "sends a valid rate at six decimals",
+          "status": "passed",
+          "durationMs": 93,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the company dialog"
+          ],
+          "name": "stays disabled until the code and name are valid, and names the problem once typed",
+          "status": "passed",
+          "durationMs": 29,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the company dialog"
+          ],
+          "name": "on edit, sends only what changed, with the row version it read",
+          "status": "passed",
+          "durationMs": 64,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/settings/shipping.test.tsx",
+      "status": "passed",
+      "durationMs": 4976,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "Settings → Companies: the shipping company picker"
+          ],
+          "name": "offers the feed's companies from GET /external/status, saying which is already mapped",
+          "status": "passed",
+          "durationMs": 50,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Companies: the shipping company picker"
+          ],
+          "name": "writes PUT /companies/:id {shippingCompanyId} with the row version, and shows the row the server answered",
+          "status": "passed",
+          "durationMs": 22,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Companies: the shipping company picker"
+          ],
+          "name": "unmaps with null",
+          "status": "passed",
+          "durationMs": 22,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Companies: the shipping company picker"
+          ],
+          "name": "surfaces 409 SHIPPING_COMPANY_TAKEN, naming the company that holds it, and leaves the mapping as it was",
+          "status": "passed",
+          "durationMs": 16,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Companies: the shipping company picker"
+          ],
+          "name": "notes a feed that has never synced, and refreshes it from here",
+          "status": "passed",
+          "durationMs": 83,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Companies: the shipping company picker"
+          ],
+          "name": "says an unconfigured feed is not set up, with nothing to refresh",
+          "status": "passed",
+          "durationMs": 11,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Companies: the shipping company picker"
+          ],
+          "name": "still lets a mapping be cleared when the status read fails",
+          "status": "passed",
+          "durationMs": 22,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Companies: the shipping company picker"
+          ],
+          "name": "shippingOptions and takenText are plain helpers",
+          "status": "passed",
+          "durationMs": 2,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Categories: the system category"
+          ],
+          "name": "is marked SYSTEM and offers no remove",
+          "status": "passed",
+          "durationMs": 21,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Settings → Categories: the system category"
+          ],
+          "name": "keeps its direction fixed in the edit dialog; the name still edits",
+          "status": "passed",
+          "durationMs": 61,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/stock/stock.test.tsx",
+      "status": "passed",
+      "durationMs": 5116,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "grouping stock payments by the server’s derivedStatus"
+          ],
+          "name": "orders the bands, with null as \"Not in the forecast\", and drops empty ones",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "grouping stock payments by the server’s derivedStatus"
+          ],
+          "name": "keeps a band it does not know, last",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "grouping stock payments by the server’s derivedStatus"
+          ],
+          "name": "says why a null row is not in the forecast, from its own fields",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the Stock payments screen"
+          ],
+          "name": "lists every row in its group, with shipping’s marks and why a row is left out",
+          "status": "passed",
+          "durationMs": 97,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the Stock payments screen"
+          ],
+          "name": "marks a date set by hand in shipping as ShipLine does, says who and what it replaced, and says when shipping moved a date",
+          "status": "passed",
+          "durationMs": 27,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the Stock payments screen"
+          ],
+          "name": "plans a row with its note and row version known, and replaces it from the answer",
+          "status": "passed",
+          "durationMs": 176,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the Stock payments screen"
+          ],
+          "name": "unskips a skipped row from here (it is not on the Forecast)",
+          "status": "passed",
+          "durationMs": 78,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the Stock payments screen"
+          ],
+          "name": "shows gone rows on request, and clears a plan left on one",
+          "status": "passed",
+          "durationMs": 30,
+          "messages": []
+        }
+      ]
+    },
+    {
       "path": "src/screens/schedules/ScheduleDialog.test.tsx",
       "status": "passed",
-      "durationMs": 4902,
+      "durationMs": 4959,
       "error": null,
       "tests": [
         {
@@ -2784,7 +3149,7 @@
           ],
           "name": "says so before the click and offers \"Split from…\" carrying the change",
           "status": "passed",
-          "durationMs": 152,
+          "durationMs": 179,
           "messages": []
         },
         {
@@ -2793,7 +3158,7 @@
           ],
           "name": "still edits descriptive fields in place, sending only those",
           "status": "passed",
-          "durationMs": 92,
+          "durationMs": 98,
           "messages": []
         },
         {
@@ -2802,7 +3167,7 @@
           ],
           "name": "shows the server's SCHEDULE_STRUCTURE_LOCKED with its reason and the same call to action",
           "status": "passed",
-          "durationMs": 55,
+          "durationMs": 40,
           "messages": []
         }
       ]
@@ -2899,7 +3264,7 @@
     {
       "path": "src/screens/schedules/ScheduleScreen.test.tsx",
       "status": "passed",
-      "durationMs": 5055,
+      "durationMs": 5130,
       "error": null,
       "tests": [
         {
@@ -2908,7 +3273,7 @@
           ],
           "name": "shows where it was split from, and from when it is active",
           "status": "passed",
-          "durationMs": 195,
+          "durationMs": 185,
           "messages": []
         },
         {
@@ -2917,7 +3282,7 @@
           ],
           "name": "asks for instances in a bounded window, and groups them by the server's derivedStatus",
           "status": "passed",
-          "durationMs": 30,
+          "durationMs": 26,
           "messages": []
         },
         {
@@ -2926,7 +3291,7 @@
           ],
           "name": "Didn't happen on an assumed-settled instance tunes its settle mode to manual",
           "status": "passed",
-          "durationMs": 75,
+          "durationMs": 81,
           "messages": []
         },
         {
@@ -2935,7 +3300,7 @@
           ],
           "name": "explains OVERRIDE_HAS_PAYMENT when a revert is refused",
           "status": "passed",
-          "durationMs": 41,
+          "durationMs": 51,
           "messages": []
         },
         {
@@ -2944,7 +3309,7 @@
           ],
           "name": "pays an instance through the shared pay dialog, keyed by its natural date",
           "status": "passed",
-          "durationMs": 56,
+          "durationMs": 59,
           "messages": []
         }
       ]
@@ -2952,7 +3317,7 @@
     {
       "path": "src/screens/schedules/SplitWizard.test.tsx",
       "status": "passed",
-      "durationMs": 5035,
+      "durationMs": 5125,
       "error": null,
       "tests": [
         {
@@ -2961,7 +3326,7 @@
           ],
           "name": "offers only natural dates after the first active one, starting at the next one",
           "status": "passed",
-          "durationMs": 99,
+          "durationMs": 122,
           "messages": []
         },
         {
@@ -2970,7 +3335,7 @@
           ],
           "name": "turns SCHEDULE_HAS_OVERRIDES, then SCHEDULE_HAS_ADJUSTMENTS, into confirmations and resends with both flags",
           "status": "passed",
-          "durationMs": 187,
+          "durationMs": 176,
           "messages": []
         },
         {
@@ -2979,7 +3344,7 @@
           ],
           "name": "turns SCHEDULE_HAS_PAYMENTS into a refusal listing the dates, with nothing to resend",
           "status": "passed",
-          "durationMs": 28,
+          "durationMs": 34,
           "messages": []
         },
         {
@@ -2988,7 +3353,7 @@
           ],
           "name": "forgets a confirmation once the request changes",
           "status": "passed",
-          "durationMs": 25,
+          "durationMs": 28,
           "messages": []
         },
         {
@@ -3006,372 +3371,7 @@
           ],
           "name": "ends after the chosen instance, confirming adjustments with dropAdjustments",
           "status": "passed",
-          "durationMs": 80,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/scenarios/scenarios.test.tsx",
-      "status": "passed",
-      "durationMs": 5178,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "BASE_CHANGED shows its word, what happened and the fix",
-          "status": "passed",
-          "durationMs": 18,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "TARGET_SETTLED shows its word, what happened and the fix",
-          "status": "passed",
-          "durationMs": 2,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "TARGET_MISSING shows its word, what happened and the fix",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "DATE_PASSED shows its word, what happened and the fix",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "names each of the four reasons differently, and says rebase fixes only BASE_CHANGED",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "marks each adjustment on the scenario with its own reason",
-          "status": "passed",
-          "durationMs": 94,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "names and prices a target outside the forecast window from the server's `current` (§6.11)",
-          "status": "passed",
-          "durationMs": 16,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "apply"
-          ],
-          "name": "surfaces SCENARIO_STALE: every key and its reason, and that nothing was written",
-          "status": "passed",
-          "durationMs": 142,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "apply"
-          ],
-          "name": "on success, says what was written and closes the scenario if it was open",
-          "status": "passed",
-          "durationMs": 49,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario that is not a draft"
-          ],
-          "name": "says so, offers no rebase or apply, and asks for no comparison",
-          "status": "passed",
-          "durationMs": 9,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario that is not a draft"
-          ],
-          "name": "surfaces SCENARIO_NOT_DRAFT when the server says it changed under us",
-          "status": "passed",
-          "durationMs": 30,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "rebase"
-          ],
-          "name": "sends dropStale, keeps what was not dropped, and says what happened",
-          "status": "passed",
-          "durationMs": 43,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the effect on the forecast"
-          ],
-          "name": "shows the baseline against the scenario, and the delta per bucket from deltaByBucket",
-          "status": "passed",
-          "durationMs": 9,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the scenarios list"
-          ],
-          "name": "opens a scenario into the context and goes to the forecast",
-          "status": "passed",
-          "durationMs": 16,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the scenarios list"
-          ],
-          "name": "creates, duplicates and deletes",
-          "status": "passed",
-          "durationMs": 80,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/stock/stock.test.tsx",
-      "status": "passed",
-      "durationMs": 5073,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "grouping stock payments by the server’s derivedStatus"
-          ],
-          "name": "orders the bands, with null as \"Not in the forecast\", and drops empty ones",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "grouping stock payments by the server’s derivedStatus"
-          ],
-          "name": "keeps a band it does not know, last",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "grouping stock payments by the server’s derivedStatus"
-          ],
-          "name": "says why a null row is not in the forecast, from its own fields",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the Stock payments screen"
-          ],
-          "name": "lists every row in its group, with shipping’s marks and why a row is left out",
-          "status": "passed",
-          "durationMs": 102,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the Stock payments screen"
-          ],
-          "name": "marks a date set by hand in shipping as ShipLine does, says who and what it replaced, and says when shipping moved a date",
-          "status": "passed",
-          "durationMs": 46,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the Stock payments screen"
-          ],
-          "name": "plans a row with its note and row version known, and replaces it from the answer",
-          "status": "passed",
-          "durationMs": 172,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the Stock payments screen"
-          ],
-          "name": "unskips a skipped row from here (it is not on the Forecast)",
-          "status": "passed",
-          "durationMs": 62,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the Stock payments screen"
-          ],
-          "name": "shows gone rows on request, and clears a plan left on one",
-          "status": "passed",
-          "durationMs": 23,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/settings/dialogs.test.tsx",
-      "status": "passed",
-      "durationMs": 4998,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "the FX rate dialog"
-          ],
-          "name": "refuses GBP — the base currency is always 1 and never entered (D3)",
-          "status": "passed",
-          "durationMs": 143,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the FX rate dialog"
-          ],
-          "name": "sends a valid rate at six decimals",
-          "status": "passed",
-          "durationMs": 102,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the company dialog"
-          ],
-          "name": "stays disabled until the code and name are valid, and names the problem once typed",
-          "status": "passed",
-          "durationMs": 28,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the company dialog"
-          ],
-          "name": "on edit, sends only what changed, with the row version it read",
-          "status": "passed",
-          "durationMs": 80,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/settings/shipping.test.tsx",
-      "status": "passed",
-      "durationMs": 4899,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "Settings → Companies: the shipping company picker"
-          ],
-          "name": "offers the feed's companies from GET /external/status, saying which is already mapped",
-          "status": "passed",
-          "durationMs": 42,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Companies: the shipping company picker"
-          ],
-          "name": "writes PUT /companies/:id {shippingCompanyId} with the row version, and shows the row the server answered",
-          "status": "passed",
-          "durationMs": 14,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Companies: the shipping company picker"
-          ],
-          "name": "unmaps with null",
-          "status": "passed",
-          "durationMs": 9,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Companies: the shipping company picker"
-          ],
-          "name": "surfaces 409 SHIPPING_COMPANY_TAKEN, naming the company that holds it, and leaves the mapping as it was",
-          "status": "passed",
-          "durationMs": 16,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Companies: the shipping company picker"
-          ],
-          "name": "notes a feed that has never synced, and refreshes it from here",
-          "status": "passed",
-          "durationMs": 85,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Companies: the shipping company picker"
-          ],
-          "name": "says an unconfigured feed is not set up, with nothing to refresh",
-          "status": "passed",
-          "durationMs": 7,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Companies: the shipping company picker"
-          ],
-          "name": "still lets a mapping be cleared when the status read fails",
-          "status": "passed",
-          "durationMs": 21,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Companies: the shipping company picker"
-          ],
-          "name": "shippingOptions and takenText are plain helpers",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Categories: the system category"
-          ],
-          "name": "is marked SYSTEM and offers no remove",
-          "status": "passed",
-          "durationMs": 16,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Settings → Categories: the system category"
-          ],
-          "name": "keeps its direction fixed in the edit dialog; the name still edits",
-          "status": "passed",
-          "durationMs": 65,
+          "durationMs": 88,
           "messages": []
         }
       ]

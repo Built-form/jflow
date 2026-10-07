@@ -190,7 +190,7 @@ async function readPaymentsForecast({ today, paidSince } = {}) {
         const companies = await reads.loadCompanies(q, t);
         await conn.query('COMMIT');
 
-        const items = flowLib.toForecastRows(model.flow, model.paid, { pos, shipmentIdByRef: model.shipmentIdByRef });
+        const items = flowLib.toForecastRows(model.flow, model.paid, { pos, shipmentIdByRef: model.shipmentIdByRef, orders: model.input.orders });
         const countOf = (source) => (source?.read ? source.data.length : null);
         const dueDates = countOf(sources.paymentDueDates);
         const extras = countOf(sources.paymentExtras);

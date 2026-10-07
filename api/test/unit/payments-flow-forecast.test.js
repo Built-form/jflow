@@ -19,7 +19,7 @@ function fixtureFeed(name, { paidSince } = {}) {
     const flow = lib.buildPaymentsFlow(input, { claims: true });
     const shipmentIdByRef = H.shipmentIdByRef(fixture);
     const paid = lib.collectPaidRows(input, { paidSince: paidSince ?? lib.addDays(input.today, -60) });
-    const rows = lib.toForecastRows(flow, paid, { pos: lib.poDirectory(input.poBundles), shipmentIdByRef });
+    const rows = lib.toForecastRows(flow, paid, { pos: lib.poDirectory(input.poBundles), shipmentIdByRef, orders: input.orders });
     return { fixture, input, flow, paid, rows, shipmentIdByRef };
 }
 
@@ -204,5 +204,46 @@ describe('the re-pin (77577a1): extras, QC units, split parts, credits', () => {
         const co = Object.fromEntries(rows.filter((r) => r.kind === 'extra').map((r) => [r.id, r.companyId]));
         expect(co).toEqual({ 'ext-2': 1, 'ext-3': 2, 'ext-4': null, 'ext-5': null, 'ext-6': 1 });
         expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
+    });
+
+    test('a box\'s company is weighed by the goods in it, paid or not — a shipment keeps its company once its goods are paid (Dev, 2026-10-07)', () => {
+        const pos = new Map([
+            [333, { poNumber: 'PO_00333J', supplier: 'Sunmed', companyId: 1, currency: 'USD' }],
+            [901, { poNumber: 'PO-901', supplier: 'Other', companyId: 2, currency: 'USD' }],
+            [950, { poNumber: 'PO-950', supplier: 'Nobody', companyId: null, currency: 'USD' }],
+            [960, { poNumber: 'PO-960', supplier: 'Sterling', companyId: 2, currency: 'GBP' }],
+        ]);
+        const order = (id, purchaseOrderId, containerNumber, quantity, unitPrice) => ({ id, status: 'ON_SEA', purchaseOrderId, containerNumber, quantity, unitPrice });
+        const orders = [
+            // 126: Sunmed's goods, paid — nothing owed in the box.
+            order('1', 333, '126. Air Freight', 100, 5.84),
+            // 302: company 2 owes the bigger balance, but company 1 has the bigger goods value.
+            order('2', 333, '302', 1000, 2), order('3', 901, '302', 100, 10),
+            // 303: a PO with no company weighs nothing; 950's line is the biggest.
+            order('4', 950, '303', 5000, 1), order('5', 901, '303', 10, 1),
+            // 304: the goods carry no price — the owed items decide, as before.
+            order('6', 333, '304', 100, null), order('7', 901, '304', 100, 0),
+            // 305: two companies' goods in two currencies — nothing to weigh them by.
+            order('8', 333, '305', 10, 1), order('9', 960, '305', 10, 1),
+        ];
+        const item = (id, poId, box, amount) => ({ id, kind: 'balance', basis: 'derived', poId, poNumber: pos.get(poId)?.poNumber ?? '', supplier: 'X', currency: 'USD', amount, dueDate: '2026-10-20', contractualDate: '2026-10-20', trigger: 'bl', containerNumber: box, containerShare: 1, status: 'projected', blocked: null, shipmentPaymentId: null, flags: [], invoiceId: null, paymentId: null });
+        const freight = (n, box) => ({ ...item(`extra:${n}`, 0, box, 500), basis: 'stated', extraId: n, extraKind: 'freight', supplier: 'DCG', flags: ['shipment_cost'] });
+        const flow = { today: '2026-10-07', balanceClaims: [], currencies: [{ currency: 'USD', items: [
+            item('derived:bal:901:302', 901, '302', 900), item('derived:bal:333:302', 333, '302', 100),
+            item('derived:bal:901:304', 901, '304', 300),
+            freight(1, '126. Air Freight'), freight(2, '302'), freight(3, '303'), freight(4, '304'), freight(5, '305'),
+        ], qcItems: [] }] };
+        expect(Object.fromEntries(F.companiesByBox(flow, { pos, orders }))).toEqual({ '126. AIR FREIGHT': 1, 302: 1, 303: 2, 304: 2, 305: null });
+        const rows = lib.toForecastRows(flow, [], { pos, orders });
+        const co = Object.fromEntries(rows.filter((r) => r.kind === 'extra').map((r) => [r.id, r.companyId]));
+        expect(co).toEqual({ 'ext-1': 1, 'ext-2': 1, 'ext-3': 2, 'ext-4': 2, 'ext-5': null });
+        // Without the goods lines, the owed items decide, as they did.
+        expect(Object.fromEntries(F.companiesByBox(flow, { pos }))).toEqual({ 302: 2, 304: 2 });
+    });
+
+    test('poDirectory carries the PO\'s currency, for weighing a shared box\'s goods', () => {
+        const pos = lib.poDirectory({ 7: { id: 7, poNumber: 'PO-7', supplier: 'S', companyId: 3, currency: 'USD' }, 8: { id: 8, poNumber: '', companyId: 'x' } });
+        expect(pos.get(7)).toEqual({ poNumber: 'PO-7', supplier: 'S', companyId: 3, currency: 'USD' });
+        expect(pos.get(8)).toEqual({ poNumber: 'PO 8', supplier: null, companyId: null, currency: null });
     });
 });

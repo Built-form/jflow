@@ -182,8 +182,9 @@ describe('Forecast', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(bar.textContent).toContain('2 figures');
 
-    // A total already holds what is under it: Out picked on top of one of its categories
-    // counts that category once, and so does a row's Window figure over its own buckets.
+    // A total already holds what is under it, so the two are never picked together: Out
+    // lets go of a picked category of its own, its Window figure of a picked bucket — and a
+    // figure picked under a picked total lets go of the total.
     fireEvent.click(within(bar).getByRole('button', { name: 'Clear' }));
     const out = grid.querySelector('td[data-pick^="side:out:"]:not([data-pick$=":window"])') as Element;
     const col = (out.getAttribute('data-pick') as string).split(':')[2];
@@ -191,14 +192,20 @@ describe('Forecast', () => {
     fireEvent.click(part);
     fireEvent.click(out);
     const again = screen.getByTestId('sum-bar');
-    expect(again.textContent).toContain('2 figures · 1 already in a picked total, counted once');
+    expect(again.textContent).toContain('1 figure');
     expect(again.textContent).toContain(`Sum ${pounds(minorOf(out))}`);
-    expect(part.getAttribute('data-picked')).toBe('inside');
+    expect(part.getAttribute('data-picked')).toBeNull();
     expect(out.getAttribute('data-picked')).toBe('true');
     const outWindow = grid.querySelector('td[data-pick="side:out:window"]') as Element;
     fireEvent.click(outWindow);
-    expect(again.textContent).toContain('3 figures · 2 already in a picked total, counted once');
+    expect(again.textContent).toContain(`1 figure`);
     expect(again.textContent).toContain(`Sum ${pounds(minorOf(outWindow))}`);
+    expect(out.getAttribute('data-picked')).toBeNull();
+    // A child under the picked total: it is picked, and the total is let go.
+    fireEvent.click(part);
+    expect(part.getAttribute('data-picked')).toBe('true');
+    expect(outWindow.getAttribute('data-picked')).toBeNull();
+    expect(again.textContent).toContain(`Sum ${pounds(minorOf(part))}`);
     fireEvent.click(within(again).getByRole('button', { name: 'Clear' }));
     fireEvent.click(first);
     fireEvent.click(line, { ctrlKey: true });
