@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../../api';
 import type { ApiError } from '../../api/client';
@@ -27,13 +28,16 @@ import {
   flagTags,
   parseBucket,
   parseWindowDays,
+  sameColumns,
   signedMoney,
 } from '../../lib/grid';
+import type { GridColumns } from '../../lib/grid';
 import { formatMoney, toMinor } from '../../lib/money';
 import { PLAN_STALE_TAG, splitShipWarnings } from '../../lib/ship';
 import { toneOfScenarioStatus } from '../../lib/tone';
 import { SCENARIO_STATUS_LABEL, staleReason } from '../scenarios/stale';
 import { BalanceChart } from './BalanceChart';
+import type { ChartAlign } from './BalanceChart';
 import { EditLineDialog } from './EditLineDialog';
 import { ForecastGrid } from './ForecastGrid';
 import type { LineMarks } from './ForecastGrid';
@@ -106,6 +110,23 @@ export function ForecastScreen() {
 
   const res = data.data;
   const scenario = res?.scenario ?? null;
+
+  // The chart sits on the grid's columns (Dev, 2026-10-07): the grid reports them as laid
+  // out, the chart draws each bucket that wide, and the two scroll sideways as one.
+  const [columns, setColumns] = useState<GridColumns | null>(null);
+  const onColumns = useCallback((next: GridColumns) => setColumns((prev) => (sameColumns(prev, next) ? prev : next)), []);
+  const chartScroll = useRef<HTMLDivElement>(null);
+  const gridScroll = useRef<HTMLDivElement>(null);
+  const follow = (from: RefObject<HTMLDivElement | null>, to: RefObject<HTMLDivElement | null>) => () => {
+    if (from.current && to.current && to.current.scrollLeft !== from.current.scrollLeft) to.current.scrollLeft = from.current.scrollLeft;
+  };
+  const align: ChartAlign | null = useMemo(
+    () =>
+      res && res.rows !== undefined && columns && columns.total > 0
+        ? { kind: res.meta.bucket ?? bucket, buckets: res.buckets, columns }
+        : null,
+    [res, columns, bucket],
+  );
   const shipWarnings = useMemo(() => splitShipWarnings(res?.warnings), [res]);
   const lineMarks: LineMarks = useMemo(
     () => new Map(shipWarnings.stale.map((key) => [key, [PLAN_STALE_TAG]])),
@@ -150,12 +171,27 @@ export function ForecastScreen() {
           <SummaryTiles summary={res.summary} baseline={scenario?.baselineSummary ?? null} />
           <ShippingStatus shipping={res.shipping} onRefreshed={data.reload} />
 
-          <section className="panel" aria-label="Balance chart">
-            <div className="kicker">CLOSING BALANCE · GBP</div>
+          {/* Aligned, the chart runs edge to edge like the grid, so its columns start where the
+              grid's do; the panel's padding moves to the heading. */}
+          <section
+            className="panel"
+            aria-label="Balance chart"
+            style={align && res.days.length > 0 ? { padding: 0, overflow: 'hidden' } : undefined}
+          >
+            <div className="kicker" style={align && res.days.length > 0 ? { padding: '15px 15px 0' } : undefined}>
+              CLOSING BALANCE · GBP
+            </div>
             {res.days.length === 0 ? (
               <Empty>No days in the window.</Empty>
             ) : (
-              <BalanceChart days={res.days} withBaseline={scenario !== null} minDate={res.summary.minDate} />
+              <BalanceChart
+                days={res.days}
+                withBaseline={scenario !== null}
+                minDate={res.summary.minDate}
+                align={align}
+                scrollRef={chartScroll}
+                onScroll={follow(chartScroll, gridScroll)}
+              />
             )}
           </section>
 
@@ -192,6 +228,9 @@ export function ForecastScreen() {
                   delta={scenario?.deltaByBucket ?? null}
                   lineMarks={lineMarks}
                   onEdit={(item, row) => setEditing({ item, row })}
+                  onColumns={onColumns}
+                  scrollRef={gridScroll}
+                  onScroll={follow(gridScroll, chartScroll)}
                 />
                 {res.rows.length === 0 && <Empty>No money in or out in this window.</Empty>}
               </>

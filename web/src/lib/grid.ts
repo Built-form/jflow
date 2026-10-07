@@ -101,6 +101,38 @@ export function bucketIndexOf(date: string, buckets: Pick<ForecastBucket, 'start
   return -1;
 }
 
+/**
+ * The grid's columns as laid out, in CSS pixels: the sticky label column, each bucket's
+ * column and the whole table. The grid measures them; the chart above draws on them.
+ */
+export interface GridColumns {
+  label: number;
+  /** `widths[i]` = bucket `i`'s column. */
+  widths: number[];
+  total: number;
+}
+
+/** Each bucket column's left edge, from the table's own left. */
+export function columnLefts(columns: GridColumns): number[] {
+  const out: number[] = [];
+  let x = columns.label;
+  for (const w of columns.widths) {
+    out.push(x);
+    x += w;
+  }
+  return out;
+}
+
+export function sameColumns(a: GridColumns | null, b: GridColumns | null): boolean {
+  if (a === null || b === null) return a === b;
+  return (
+    a.label === b.label &&
+    a.total === b.total &&
+    a.widths.length === b.widths.length &&
+    a.widths.every((w, i) => w === b.widths[i])
+  );
+}
+
 /* ---------- lines into rows and cells ---------- */
 
 /**

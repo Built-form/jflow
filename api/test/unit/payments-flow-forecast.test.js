@@ -67,8 +67,10 @@ describe.each(H.listFixtures())('%s', (name) => {
                 settles: null,
             });
             expect(r.amount).toMatch(/^\d+\.\d{2}$/);
+            // A row's company is its PO's; a forwarder's cost names no PO and takes its box's
+            // (the companiesByBox tests below).
             const bundle = Object.values(input.poBundles).find((b) => b.id === it.poId);
-            expect(r.companyId).toBe(Number.isSafeInteger(bundle?.companyId) ? bundle.companyId : null);
+            if (r.poId !== null) expect(r.companyId).toBe(Number.isSafeInteger(bundle?.companyId) ? bundle.companyId : null);
         });
         for (const c of flow.currencies) {
             const sum = open.filter((r) => r.currency === c.currency).reduce((a, r) => a + cents(r.amount), 0);
@@ -139,13 +141,14 @@ describe('splitting and formatting', () => {
 describe('the re-pin (77577a1): extras, QC units, split parts, credits', () => {
     const F = require('../../src/lib/payments-flow/forecast');
 
-    test('extras-qc-credit: the mould cost rides as kind extra with its label; the forwarder cost names the forwarder, keeps its own currency and date, and has no company while the box holds two companies\' goods; the QC unit is a qc row; the credit is netted', () => {
+    test('extras-qc-credit: the mould cost rides as kind extra with its label; the forwarder cost names the forwarder, keeps its own currency and date, and falls to the company with the bigger share of its box\'s goods; the QC unit is a qc row; the credit is netted', () => {
         const { rows, flow } = fixtureFeed('extras-qc-credit');
         const open = rows.filter((r) => r.status === 'open');
         const byId = Object.fromEntries(open.map((r) => [r.id, r]));
         expect(Object.keys(byId).sort()).toEqual(['bal-812-s311', 'bal-901-s311', 'ext-44', 'ext-45', 'qc-81202']);
         expect(byId['ext-44']).toMatchObject({ kind: 'extra', label: 'Mould cost', supplier: 'Suzhou Sunmed Co.,Ltd.', poId: 812, companyId: 1, containerRef: '268', shipmentId: 311, currency: 'USD', amount: '300.00', flags: ['extra_charge'] });
-        expect(byId['ext-45']).toMatchObject({ kind: 'extra', label: 'Freight', supplier: 'Fast Forwarders Ltd', poId: null, poNumber: null, companyId: null, containerRef: '268', currency: 'GBP', amount: '1200.00', dueDate: '2026-10-20', flags: ['shipment_cost'] });
+        // Box 268 holds company 1's 1645 + 300 and company 2's 700, all USD: company 1's share is the bigger.
+        expect(byId['ext-45']).toMatchObject({ kind: 'extra', label: 'Freight', supplier: 'Fast Forwarders Ltd', poId: null, poNumber: null, companyId: 1, containerRef: '268', currency: 'GBP', amount: '1200.00', dueDate: '2026-10-20', flags: ['shipment_cost'] });
         expect(byId['qc-81202']).toMatchObject({ kind: 'qc', label: 'QC units JF-ABC', poId: 812, companyId: 1, containerRef: '268', shipmentId: 311, amount: '32.90', dueDate: '2026-09-20', flags: ['qc_unit'] });
         // The 150 credit note is forecast against Sunmed's most urgent payment and netted into it.
         expect(byId['bal-812-s311']).toMatchObject({ amount: '1495.00', flags: ['credit_netted'] });
@@ -171,5 +174,35 @@ describe('the re-pin (77577a1): extras, QC units, split parts, credits', () => {
         const co = Object.fromEntries(rows.map((r) => [r.id, r.companyId]));
         // <g> for '300' and '301' is the hash of the ref as spelt (no shipment maps them).
         expect(co).toEqual({ 'bal-812-r983bd614bb': 1, 'bal-813-r983bd614bb': 1, 'bal-812-rc3ea99f86b': 1, 'bal-901-rc3ea99f86b': 2, 'ext-1': 1, 'ext-2': null, 'ext-3': null });
+    });
+
+    test('a forwarder cost on a box two companies share takes the bigger share of its goods; a tie, or goods in two currencies, leaves it unmapped', () => {
+        const pos = new Map([[812, { poNumber: 'PO-812', supplier: 'Acme', companyId: 1 }], [813, { poNumber: 'PO-813', supplier: 'Acme', companyId: 1 }], [901, { poNumber: 'PO-901', supplier: 'Other', companyId: 2 }], [950, { poNumber: 'PO-950', supplier: 'Nobody', companyId: null }]]);
+        const item = (id, poId, box, amount, extra = {}) => ({ id, kind: 'balance', basis: 'derived', poId, poNumber: pos.get(poId)?.poNumber ?? '', supplier: 'Acme', currency: 'USD', amount, dueDate: '2026-10-20', contractualDate: '2026-10-20', trigger: 'bl', containerNumber: box, containerShare: 1, status: 'projected', blocked: null, shipmentPaymentId: null, flags: [], invoiceId: null, paymentId: null, ...extra });
+        const freight = (n, box) => item(`extra:${n}`, 0, box, 500, { basis: 'stated', extraId: n, extraKind: 'freight', supplier: 'Fwd', flags: ['shipment_cost'] });
+        const flow = { today: '2026-10-07', balanceClaims: [], currencies: [
+            { currency: 'USD', items: [
+                // 302: company 2 holds the biggest single payment, company 1 the bigger share (100 + 50).
+                item('derived:bal:812:302', 812, '302', 100), item('derived:bal:813:302', 813, '302', 50), item('derived:bal:901:302', 901, '302', 120),
+                // 303: company 2's share is the bigger; a PO with no company weighs nothing.
+                item('derived:bal:812:303', 812, '303', 100), item('derived:bal:901:303', 901, '303', 300), item('derived:bal:950:303', 950, '303', 900),
+                // 304: level.
+                item('derived:bal:812:304', 812, '304', 75.5), item('derived:bal:901:304', 901, '304', 75.5),
+                // 305 and 306: USD here, GBP below.
+                item('derived:bal:812:305', 812, '305', 100), item('derived:bal:812:306', 812, '306', 100),
+                freight(2, '302'), freight(3, '303'), freight(4, '304'), freight(5, '305'), freight(6, '306'),
+            ], qcItems: [] },
+            { currency: 'GBP', items: [
+                // 305: two companies in two currencies — no rates here to weigh them by.
+                item('derived:bal:901:305', 901, '305', 900, { currency: 'GBP' }),
+                // 306: two currencies, but all one company's.
+                item('derived:bal:813:306', 813, '306', 900, { currency: 'GBP' }),
+            ], qcItems: [] },
+        ] };
+        expect(Object.fromEntries(F.companiesByBox(flow, { pos }))).toEqual({ 302: 1, 303: 2, 304: null, 305: null, 306: 1 });
+        const rows = lib.toForecastRows(flow, [], { pos });
+        const co = Object.fromEntries(rows.filter((r) => r.kind === 'extra').map((r) => [r.id, r.companyId]));
+        expect(co).toEqual({ 'ext-2': 1, 'ext-3': 2, 'ext-4': null, 'ext-5': null, 'ext-6': 1 });
+        expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
     });
 });

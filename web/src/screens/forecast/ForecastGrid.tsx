@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode, Ref } from 'react';
 import type { BucketDelta, BucketKind, ForecastBucket, ForecastItem, ForecastRow, ForecastSummary } from '../../api/forecast';
 import { formatDay } from '../../lib/dates';
 import {
@@ -17,7 +17,7 @@ import {
   shortDay,
   signedMoney,
 } from '../../lib/grid';
-import type { BalanceFlag, FlagTag, LineGroup, ShipCombo } from '../../lib/grid';
+import type { BalanceFlag, FlagTag, GridColumns, LineGroup, ShipCombo } from '../../lib/grid';
 import { formatMoney, toMinor } from '../../lib/money';
 import { shipFlagNotes, shipLineStyle } from '../../lib/ship';
 import { toneStyle } from '../../lib/tone';
@@ -113,6 +113,9 @@ export function ForecastGrid({
   delta,
   lineMarks = NO_MARKS,
   onEdit,
+  onColumns,
+  scrollRef,
+  onScroll,
 }: {
   kind: BucketKind;
   buckets: ForecastBucket[];
@@ -123,7 +126,31 @@ export function ForecastGrid({
   /** Extra marks per key, from `warnings[]`. */
   lineMarks?: LineMarks;
   onEdit: (item: ForecastItem, row: ForecastRow) => void;
+  /** The columns as laid out, whenever they change — the chart above draws on them. */
+  onColumns?: (columns: GridColumns) => void;
+  /** The sideways scroller — the screen keeps the chart's in step with it. */
+  scrollRef?: Ref<HTMLDivElement>;
+  onScroll?: () => void;
 }) {
+  // The header cells are the columns: measured on every resize of any of them (a category
+  // opening can widen one), so the chart's buckets stay exactly as wide as the grid's.
+  const tableRef = useRef<HTMLTableElement>(null);
+  useLayoutEffect(() => {
+    const table = tableRef.current;
+    if (!table || !onColumns) return;
+    const heads = Array.from(table.querySelectorAll<HTMLElement>('thead th'));
+    const measure = () => {
+      const widths = heads.map((h) => h.getBoundingClientRect().width);
+      onColumns({ label: widths[0] ?? 0, widths: widths.slice(1, -1), total: table.getBoundingClientRect().width });
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(table);
+    for (const h of heads) observer.observe(h);
+    return () => observer.disconnect();
+  }, [onColumns, buckets]);
+
   // Categories open collapsed (Dev, 2026-09-30): the totals read first, and a category's
   // lines are one click away. This set holds the ones opened since.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -162,8 +189,13 @@ export function ForecastGrid({
   };
 
   return (
-    <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--panel)', boxShadow: 'var(--shadow)' }}>
+    <div
+      ref={scrollRef}
+      onScroll={onScroll}
+      style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--panel)', boxShadow: 'var(--shadow)' }}
+    >
       <table
+        ref={tableRef}
         className="ledger"
         data-testid="forecast-grid"
         style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%', fontSize: 13.5 }}

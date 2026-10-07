@@ -1072,3 +1072,27 @@ model grew by 1,332 lines in a week.
 suites (no database here); `migrate.test.js`'s first-two-files check still holds.
 **Deferred**: "History" from shipping's `audit_log`; QC units' sign-off key; the invoice-check
 verdict ("invoice on file, matches") as a feed field.
+
+## Phase 2 — Freight on a shared container goes to the bigger share (2026-10-07)
+
+Dev, on two DCG freight charges left out as `SHIP_UNMAPPED` (containers 314 and 316, each
+carrying JFA and Hangerworld goods): "map these to jfa", then chose the rule "biggest share
+wins". ShipLine has no company on a forwarder's cost, so this is JFlow's rule, not data.
+
+- `forecast.js companiesByBox` (+ `biggestShare`): a container's forwarder cost falls to the
+  only company with goods in it, as before, and when several have, to the one whose items
+  there add up to more (every open item naming a PO with a company: goods, charges, top-ups,
+  extras riding a PO). It stays unmapped on a tie, and when those items are in more than one
+  currency — the feed has no rates to weigh them by. This replaces "else it stays unmapped"
+  in the re-pin section above.
+- The share is of what is still **owed** in the container (the model's open items), not of the
+  goods' full value: a company whose goods there are all paid has no share.
+- Tests (written first): `payments-flow-forecast.test.js` — bigger share across several POs,
+  the other company winning, a PO with no company weighing nothing, a tie, two currencies,
+  two currencies of one company; `extras-qc-credit`'s forwarder cost now takes company 1.
+- Read against the live source: `ext-25` and `ext-26` resolve to JFA; the other ten open
+  forwarder costs keep their company.
+
+**Checks**: api unit 1072 green + eslint. **Not run**: the e2e suites — `api/.env` pointed at
+the production instance, and they create and drop schemas. **Not deployed**: the rows change
+at the first shipping refresh after Dev runs `deploy.sh`.

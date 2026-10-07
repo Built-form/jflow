@@ -926,6 +926,20 @@ h1.page-title {
   background-color: var(--accBg) !important;
 }
 
+/* Every other bucket column is banded, and the chart above bands the same buckets
+   (`.col-band`, BalanceChart), so a stretch of the line reads straight down to its figures.
+   A translucent layer over whatever the cell or its row already has; the label column
+   (first) and the Window column (last) are never banded. */
+.ledger tr > :nth-child(2n + 3):not(:last-child) {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--acc) 7%, transparent),
+    color-mix(in srgb, var(--acc) 7%, transparent)
+  );
+}
+.col-band {
+  fill: color-mix(in srgb, var(--acc) 7%, transparent);
+}
+
 .ledger tr.ledger-total > td,
 .ledger tr.ledger-total > th {
   border-top: 1px solid var(--mut) !important;

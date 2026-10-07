@@ -226,27 +226,44 @@ const creditOn = (item) => (item.creditForecast != null && item.creditForecast >
 const boxKey = (ref) => (ref == null ? '' : String(ref).trim().toUpperCase());
 
 /**
- * Container ref (upper-cased, as the model matches a shipment cost to its box) → the one
- * company whose POs have goods in it, or null when none or several do. Built from every
- * item of every currency that names a PO with a company.
+ * The company a box's forwarder cost falls to, from the cents each company's items there
+ * add up to: the only company, else the one with the biggest share (Dev, 2026-10-07).
+ * null on a tie, and when the companies' items are in more than one currency: there are
+ * no rates here to weigh one against the other.
+ * @param {{ cents: Map<number, number>, currencies: Set<string> }} box
+ * @returns {number|null}
+ */
+function biggestShare(box) {
+    if (box.cents.size === 1) return [...box.cents.keys()][0];
+    if (box.currencies.size > 1) return null;
+    const [first, second] = [...box.cents].sort((a, b) => b[1] - a[1]);
+    return first[1] > second[1] ? first[0] : null;
+}
+
+/**
+ * Container ref (upper-cased, as the model matches a shipment cost to its box) → the
+ * company whose POs have goods in it: the only one, or of several the one with the
+ * biggest share of what is owed there (biggestShare), else null. Built from every item
+ * of every currency that names a PO with a company.
  * @param {PaymentsFlow} flow
  * @param {FeedContext} ctx
  * @returns {Map<string, number|null>}
  */
 function companiesByBox(flow, ctx) {
-    const out = new Map();
+    const boxes = new Map();
     for (const c of flow.currencies ?? []) {
         for (const item of c.items) {
             const key = boxKey(item.containerNumber);
             if (!key || !isId(item.poId)) continue;
             const companyId = ctx.pos?.get(item.poId)?.companyId ?? null;
             if (companyId == null) continue;
-            const seen = out.get(key);
-            if (seen === undefined) out.set(key, companyId);
-            else if (seen !== companyId) out.set(key, null);
+            const box = boxes.get(key) ?? { cents: new Map(), currencies: new Set() };
+            box.cents.set(companyId, (box.cents.get(companyId) ?? 0) + Math.max(0, centsOf(item.amount)));
+            box.currencies.add(currencyOf(item.currency ?? c.currency));
+            boxes.set(key, box);
         }
     }
-    return out;
+    return new Map([...boxes].map(([key, box]) => [key, biggestShare(box)]));
 }
 
 const companyOfBox = (ref, ctx) => ctx.companiesByBox?.get(boxKey(ref)) ?? null;
@@ -261,7 +278,8 @@ function openRow(item, ctx) {
     const credit = creditOn(item);
     const net = money(item.amount - credit);
     // A forwarder's shipment cost names no PO (poId 0): its company is the company of the
-    // goods in that container, when they are all one company's (Dev, 2026-10-06).
+    // goods in that container (Dev, 2026-10-06), and when two companies share the
+    // container, the one with the bigger share of them (Dev, 2026-10-07).
     const companyId = po?.companyId ?? (item.poId ? null : companyOfBox(item.containerNumber, ctx));
     return {
         id: itemFeedId(item, { shipmentIdByRef: ctx.shipmentIdByRef ?? null }),
