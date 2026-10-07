@@ -325,6 +325,7 @@ describe('stock payments grouped by supplier + shipment (Dev, 2026-10-06)', () =
     stubApi({ forecast: withSecondBalance });
     renderForecast();
     const grid = await screen.findByTestId('forecast-grid');
+    fireEvent.click(within(grid).getByRole('button', { name: 'Out' }));
     fireEvent.click(within(grid).getByRole('button', { name: /Stock payments/ }));
 
     const combo = within(grid).getByTestId('combo-acme textiles|MSCU1234567');

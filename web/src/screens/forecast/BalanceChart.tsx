@@ -129,7 +129,7 @@ export function BalanceChart({
   minDate?: string | null;
   /** The grid's buckets and measured columns: the chart lines up with them. */
   align?: ChartAlign | null;
-  /** The sideways scroller, when aligned — the screen keeps it in step with the grid's. */
+  /** The sideways scroller (and its scrollbar), when aligned — the screen keeps it in step with the grid's. */
   scrollRef?: Ref<HTMLDivElement>;
   onScroll?: () => void;
 }) {
@@ -218,7 +218,9 @@ export function BalanceChart({
           ref={scrollRef}
           onScroll={onScroll}
           data-testid={aligned ? 'chart-scroll' : undefined}
-          style={aligned ? { overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none' } : undefined}
+          // Its scrollbar shows, under the chart: the grid's own is at the bottom of a long
+          // list (Dev, 2026-10-07). Either one moves both.
+          style={aligned ? { overflowX: 'auto', overflowY: 'hidden' } : undefined}
         >
           <div style={{ position: 'relative', width: aligned ? width : undefined }}>
             <svg

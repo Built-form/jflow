@@ -1,6 +1,14 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode, Ref } from 'react';
-import type { BucketDelta, BucketKind, ForecastBucket, ForecastItem, ForecastRow, ForecastSummary } from '../../api/forecast';
+import type {
+  BucketDelta,
+  BucketKind,
+  ForecastBucket,
+  ForecastItem,
+  ForecastRow,
+  ForecastSummary,
+  LineDirection,
+} from '../../api/forecast';
 import { formatDay } from '../../lib/dates';
 import {
   balanceFlag,
@@ -23,8 +31,8 @@ import { shipFlagNotes, shipLineStyle } from '../../lib/ship';
 import { toneStyle } from '../../lib/tone';
 
 /**
- * The timeline grid: one column per bucket, the balance rows on top (opening, in, out,
- * closing), then each category and the lines under it. Every figure is the server's —
+ * The timeline grid: one column per bucket and four balance rows (opening, in, out,
+ * closing); In and Out each open to their categories, and a category to its lines. Every figure is the server's —
  * the header rows are `buckets[]`, a category's cells are its `totals[]`, a line's cell
  * is its own `gbpMinor`. Nothing here adds money up, with one display-only exception:
  * the Stock payments category shows one line per supplier + shipment (Dev, 2026-10-06, as
@@ -158,13 +166,24 @@ export function ForecastGrid({
   // `<categoryId>:<combo key>`. They open collapsed too (the group's total reads first);
   // "Expand all" opens them with the categories.
   const [openCombos, setOpenCombos] = useState<Set<string>>(new Set());
-  const allOpen = rows.length > 0 && rows.every((r) => expanded.has(r.categoryId));
+  // In and Out open collapsed as well (Dev, 2026-10-07): their categories sit directly under
+  // them, behind the row's own arrow, so the four balance rows read as one block first.
+  const [openSides, setOpenSides] = useState<Set<LineDirection>>(new Set());
+  const allOpen =
+    rows.length > 0 && rows.every((r) => openSides.has(r.direction) && expanded.has(r.categoryId));
   const lowest = bucketIndexOf(summary.minDate, buckets);
   const toggle = (categoryId: number) =>
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(categoryId)) next.delete(categoryId);
       else next.add(categoryId);
+      return next;
+    });
+  const toggleSide = (side: LineDirection) =>
+    setOpenSides((prev) => {
+      const next = new Set(prev);
+      if (next.has(side)) next.delete(side);
+      else next.add(side);
       return next;
     });
   const toggleCombo = (comboId: string) =>
@@ -180,12 +199,69 @@ export function ForecastGrid({
     return groupShipCombos(groups, buckets.length).map((c) => `${row.categoryId}:${c.key}`);
   };
   const expandAll = () => {
+    setOpenSides(new Set<LineDirection>(['in', 'out']));
     setExpanded(new Set(rows.map((r) => r.categoryId)));
     setOpenCombos(new Set(rows.flatMap(comboIdsOf)));
   };
   const collapseAll = () => {
+    setOpenSides(new Set());
     setExpanded(new Set());
     setOpenCombos(new Set());
+  };
+
+  // One side of the ledger: its total row (the server's inflow / outflow), then, once opened,
+  // its categories. Closed, the row says which of the lines behind it need attention.
+  const side = (which: LineDirection, label: string, figure: (b: ForecastBucket) => number, total: number) => {
+    const mine = rows.filter((r) => r.direction === which);
+    const open = openSides.has(which);
+    return (
+      <>
+        <tr data-testid={`side-${which}`}>
+          <th scope="row" style={{ ...stickyLabel, fontWeight: 400, fontSize: 13.5, borderTop: '1px solid var(--line)' }}>
+            {mine.length === 0 ? (
+              label
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn-quiet"
+                  aria-expanded={open}
+                  onClick={() => toggleSide(which)}
+                  style={{ color: 'var(--text)', fontSize: 13.5, padding: 0, display: 'flex', gap: 8, alignItems: 'baseline', textAlign: 'left' }}
+                >
+                  <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10 }}>
+                    {open ? '▾' : '▸'}
+                  </span>
+                  {label}
+                </button>
+                {!open && <AttentionMarker id={which} tags={attentionTags(mine.flatMap((r) => r.items), lineMarks)} />}
+              </>
+            )}
+          </th>
+          {buckets.map((b) => (
+            <td key={b.start} style={cell}>
+              {cellMoney(figure(b), { blankZero: true })}
+            </td>
+          ))}
+          <td style={cell}>{cellMoney(total)}</td>
+        </tr>
+        {open &&
+          mine.map((row) => (
+            <CategoryBlock
+              key={`${row.direction}-${row.categoryId}`}
+              row={row}
+              open={expanded.has(row.categoryId)}
+              onToggle={() => toggle(row.categoryId)}
+              groups={groupLines(row.items, buckets.length)}
+              bucketCount={buckets.length}
+              lineMarks={lineMarks}
+              openCombos={openCombos}
+              onToggleCombo={toggleCombo}
+              onEdit={(item) => onEdit(item, row)}
+            />
+          ))}
+      </>
+    );
   };
 
   return (
@@ -256,22 +332,8 @@ export function ForecastGrid({
             ))}
             <BalanceCell value={summary.opening} />
           </HeaderRow>
-          <HeaderRow label="In">
-            {buckets.map((b) => (
-              <td key={b.start} style={cell}>
-                {cellMoney(b.inflow, { blankZero: true })}
-              </td>
-            ))}
-            <td style={cell}>{cellMoney(summary.inflow)}</td>
-          </HeaderRow>
-          <HeaderRow label="Out">
-            {buckets.map((b) => (
-              <td key={b.start} style={cell}>
-                {cellMoney(b.outflow, { blankZero: true })}
-              </td>
-            ))}
-            <td style={cell}>{cellMoney(summary.outflow)}</td>
-          </HeaderRow>
+          {side('in', 'In', (b) => b.inflow, summary.inflow)}
+          {side('out', 'Out', (b) => b.outflow, summary.outflow)}
           <HeaderRow label="Closing" strong>
             {buckets.map((b) => (
               <BalanceCell key={b.start} value={b.closing} minClosing={b.minClosing} minDate={b.minDate} />
@@ -296,25 +358,6 @@ export function ForecastGrid({
               <td style={cell} />
             </HeaderRow>
           )}
-
-          {rows.map((row) => {
-            const open = expanded.has(row.categoryId);
-            const groups = groupLines(row.items, buckets.length);
-            return (
-              <CategoryBlock
-                key={`${row.direction}-${row.categoryId}`}
-                row={row}
-                open={open}
-                onToggle={() => toggle(row.categoryId)}
-                groups={groups}
-                bucketCount={buckets.length}
-                lineMarks={lineMarks}
-                openCombos={openCombos}
-                onToggleCombo={toggleCombo}
-                onEdit={(item) => onEdit(item, row)}
-              />
-            );
-          })}
         </tbody>
       </table>
     </div>
@@ -347,7 +390,7 @@ function CategoryBlock({
   return (
     <>
       <tr data-testid={`category-${row.categoryId}`} style={{ background: 'var(--panel2)' }}>
-        <th scope="rowgroup" style={{ ...stickyLabel, background: 'var(--panel2)', borderTop: '1px solid var(--line2)' }}>
+        <th scope="rowgroup" style={{ ...stickyLabel, background: 'var(--panel2)', borderTop: '1px solid var(--line2)', paddingLeft: 30 }}>
           <button
             type="button"
             className="btn-quiet"
@@ -359,9 +402,6 @@ function CategoryBlock({
               {open ? '▾' : '▸'}
             </span>
             {row.categoryName}
-            <span className="mono" style={{ fontSize: 10.5, color: 'var(--dim)', letterSpacing: '.08em' }}>
-              {row.direction === 'in' ? 'IN' : 'OUT'}
-            </span>
           </button>
           {!open && <AttentionMarker id={row.categoryId} tags={attentionTags(row.items, lineMarks)} />}
         </th>
@@ -372,7 +412,7 @@ function CategoryBlock({
         ))}
         <td style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}>{cellMoney(row.total)}</td>
       </tr>
-      {open && !shipCategory && groups.map((group) => <LineRow key={group.key} group={group} indent={30} lineMarks={lineMarks} onEdit={onEdit} />)}
+      {open && !shipCategory && groups.map((group) => <LineRow key={group.key} group={group} indent={48} lineMarks={lineMarks} onEdit={onEdit} />)}
       {open &&
         shipCategory &&
         combos.map((combo) => {
@@ -396,17 +436,20 @@ function CategoryBlock({
 function LineRow({
   group,
   indent,
+  underCombo,
   lineMarks,
   onEdit,
 }: {
   group: LineGroup;
   indent: number;
+  /** Under its supplier + shipment group, which already names the container. */
+  underCombo?: boolean;
   lineMarks: LineMarks;
   onEdit: (item: ForecastItem) => void;
 }) {
   // A ship line's name already carries the supplier (§6.10); its container says more —
   // unless it sits under its supplier + shipment group, which already says both.
-  const sub = group.kind === 'ship' ? (indent > 30 ? null : group.lines[0]?.ship?.containerRef ?? null) : group.counterparty;
+  const sub = group.kind === 'ship' ? (underCombo ? null : group.lines[0]?.ship?.containerRef ?? null) : group.counterparty;
   return (
     <tr data-testid={`line-${group.key}`}>
       <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: indent }}>
@@ -454,7 +497,7 @@ function ShipComboRows({
   return (
     <>
       <tr data-testid={`combo-${combo.key}`}>
-        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 30 }}>
+        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 48 }}>
           <button
             type="button"
             className="btn-quiet"
@@ -481,7 +524,7 @@ function ShipComboRows({
         ))}
         <td style={{ ...cell, fontWeight: 500 }}>{cellMoney(combo.total)}</td>
       </tr>
-      {open && combo.groups.map((group) => <LineRow key={group.key} group={group} indent={46} lineMarks={lineMarks} onEdit={onEdit} />)}
+      {open && combo.groups.map((group) => <LineRow key={group.key} group={group} indent={64} underCombo lineMarks={lineMarks} onEdit={onEdit} />)}
     </>
   );
 }

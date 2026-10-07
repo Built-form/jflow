@@ -135,6 +135,15 @@ describe('Forecast', () => {
     renderForecast();
     const grid = await screen.findByTestId('forecast-grid');
     expect(screen.queryByTestId('line-item.88')).toBeNull();
+    // In and Out are closed too: no category shows, and Out says what is behind it.
+    expect(within(grid).queryByTestId('category-3')).toBeNull();
+    expect(within(grid).getByTestId('attention-out').textContent).toContain('OVERDUE 1');
+    expect(within(grid).queryByTestId('attention-in')).toBeNull();
+    fireEvent.click(within(grid).getByRole('button', { name: 'Out' }));
+    expect(within(grid).queryByTestId('attention-out')).toBeNull();
+    expect(within(grid).queryByTestId('category-1')).toBeNull();
+    fireEvent.click(within(grid).getByRole('button', { name: 'In' }));
+    expect(within(grid).getByTestId('category-1')).toBeTruthy();
     // Suppliers holds a REMAINDER and an OVERDUE line; Sales and Rent hold nothing to flag.
     const marker = within(grid).getByTestId('attention-3');
     expect(marker.textContent).toContain('REMAINDER 1');
