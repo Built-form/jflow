@@ -10,6 +10,11 @@
 // DATE_PASSED (an `adjust` whose new_date < today — D38). This file only adapts
 // loadTarget's shape onto the engine's target record and names the two questions the
 // routes ask.
+//
+// An `add` (2026-10-07, D39) has no target and no base: its adjustment JSON carries
+// `targetLive` (services/forecastLoad.js loadAddReferences' `live`), `target` is null, and
+// the engine answers TARGET_MISSING (references dead), DATE_PASSED or null — never
+// TARGET_SETTLED or BASE_CHANGED, so there is nothing for a rebase to refresh.
 
 const { parseMinor } = require('./money');
 const { staleReason } = require('./engine');
@@ -31,7 +36,8 @@ function engineTarget(target) {
 /**
  * Why `adj` (adjustment JSON: kind, newDate, baseDate, baseAmount) is stale against
  * `target` (loadTarget's result, or null) on `today`, or null. Apply's re-check (§10.9
- * step 3) and the scenario read's `stale` field.
+ * step 3) and the scenario read's `stale` field. For an `add`, `adj.targetLive` decides
+ * TARGET_MISSING and `target` is ignored (pass null).
  */
 function adjustmentStale(adj, target, today) {
     return staleReason(adj, engineTarget(target), today);
@@ -45,6 +51,7 @@ function adjustmentStale(adj, target, today) {
  * even when the base also changed) ask this.
  */
 function staleAfterRebase(adj, target, today) {
+    if (adj.kind === 'add') return adjustmentStale(adj, null, today);     // no base to refresh
     if (!target) return 'TARGET_MISSING';
     return adjustmentStale(
         { ...adj, baseDate: target.effectiveDate, baseAmount: target.effectiveAmount }, target, today

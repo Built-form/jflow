@@ -400,7 +400,13 @@ function overrideToJson(r) {
     };
 }
 
-/** A `scenario_adjustments` row (CONTRACT §6.11). `targetId` stays a string (D32). */
+/**
+ * A `scenario_adjustments` row (CONTRACT §6.11). `targetId` stays a string (D32). Since
+ * 2026-10-07 (D39–D41): an `add` row carries its one-off's `accountId, categoryId, direction,
+ * name, counterparty, currency` and null bases (null on `adjust` / `exclude`); `splitGroup` is
+ * the anchor adjustment's id on every row of a split (D40), else null. `applied_state` (D41)
+ * is un-apply's own record and is NEVER serialised (D42) — not here, not in an audit snapshot.
+ */
 function adjustmentToJson(r) {
     if (!r) return null;
     return {
@@ -416,6 +422,13 @@ function adjustmentToJson(r) {
         baseDate: r.base_date,
         baseAmount: r.base_amount,
         note: r.note,
+        accountId: id(r.account_id),
+        categoryId: id(r.category_id),
+        direction: r.direction ?? null,
+        name: r.name ?? null,
+        counterparty: r.counterparty ?? null,
+        currency: r.currency ?? null,
+        splitGroup: id(r.split_group),
         rowVersion: r.row_version,
         createdBy: r.created_by,
         createdAt: r.created_at,

@@ -183,12 +183,29 @@ describe('scheduleToJson / overrideToJson / adjustmentToJson (CONTRACT §6.8, §
         expect(shape.adjustmentToJson({
             id: 8, scenario_id: 2, item_key: 'sched.5.2026-03-31', target_kind: 'sched', target_id: '5',
             target_date: '2026-03-31', kind: 'adjust', new_date: null, new_amount: '1100.00',
-            base_date: '2026-03-31', base_amount: '1000.00', note: null, row_version: 0, created_by: 'a@b.c',
+            base_date: '2026-03-31', base_amount: '1000.00', note: null, account_id: null, category_id: null,
+            direction: null, name: null, counterparty: null, currency: null, split_group: null,
+            applied_state: { kind: 'sched', overrideId: 3 }, row_version: 0, created_by: 'a@b.c',
             created_at: null, updated_at: null,
         })).toEqual({
             id: 8, scenarioId: 2, itemKey: 'sched.5.2026-03-31', targetKind: 'sched', targetId: '5',
             targetDate: '2026-03-31', kind: 'adjust', newDate: null, newAmount: '1100.00', baseDate: '2026-03-31',
-            baseAmount: '1000.00', note: null, rowVersion: 0, createdBy: 'a@b.c', createdAt: null, updatedAt: null,
+            baseAmount: '1000.00', note: null, accountId: null, categoryId: null, direction: null, name: null,
+            counterparty: null, currency: null, splitGroup: null, rowVersion: 0, createdBy: 'a@b.c', createdAt: null,
+            updatedAt: null,
+        });
+        // 2026-10-07 (D39–D42): an add carries its one-off's fields and null bases; applied_state is never served.
+        expect(shape.adjustmentToJson({
+            id: 9, scenario_id: 2, item_key: 'new.9', target_kind: 'new', target_id: '9', target_date: null,
+            kind: 'add', new_date: '2026-04-01', new_amount: '75.00', base_date: null, base_amount: null, note: 'fine',
+            account_id: '4', category_id: '6', direction: 'out', name: 'Late fee', counterparty: 'HMRC', currency: 'GBP',
+            split_group: '8', applied_state: { kind: 'add', createdItemId: 31 }, row_version: 0, created_by: 'a@b.c',
+            created_at: null, updated_at: null,
+        })).toEqual({
+            id: 9, scenarioId: 2, itemKey: 'new.9', targetKind: 'new', targetId: '9', targetDate: null, kind: 'add',
+            newDate: '2026-04-01', newAmount: '75.00', baseDate: null, baseAmount: null, note: 'fine', accountId: 4,
+            categoryId: 6, direction: 'out', name: 'Late fee', counterparty: 'HMRC', currency: 'GBP', splitGroup: 8,
+            rowVersion: 0, createdBy: 'a@b.c', createdAt: null, updatedAt: null,
         });
         expect(shape.overrideToJson(null)).toBeNull();
         expect(shape.adjustmentToJson(null)).toBeNull();

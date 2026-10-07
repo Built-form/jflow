@@ -34,12 +34,14 @@ import {
   signedMoney,
 } from '../../lib/grid';
 import type { GridColumns } from '../../lib/grid';
+import { isNewKey } from '../../lib/keys';
 import { formatMoney, toMinor } from '../../lib/money';
 import { PLAN_STALE_TAG, splitShipWarnings } from '../../lib/ship';
 import { toneOfScenarioStatus } from '../../lib/tone';
 import { SCENARIO_STATUS_LABEL, staleReason } from '../scenarios/stale';
 import { BalanceChart } from './BalanceChart';
 import type { ChartAlign, ChartLabels } from './BalanceChart';
+import { AddLineDialog } from './AddLineDialog';
 import { EditLineDialog } from './EditLineDialog';
 import { ForecastGrid } from './ForecastGrid';
 import type { GridHide, LineMarks } from './ForecastGrid';
@@ -121,6 +123,12 @@ export function ForecastScreen() {
   );
 
   const [editing, setEditing] = useState<{ item: ForecastItem; row: ForecastRow } | null>(null);
+  const [adding, setAdding] = useState(false);
+  // A one-off added to a scenario goes on a live, active account in view (D39, D44).
+  const activeAccounts = useMemo(
+    () => (accounts.data?.data ?? []).filter((a: Account) => a.isActive && !a.deletedAt),
+    [accounts.data],
+  );
 
   const accountName = useMemo(() => {
     const names = new Map<number, string>((accounts.data?.data ?? []).map((a: Account) => [a.id, a.name]));
@@ -202,7 +210,7 @@ export function ForecastScreen() {
         <Loading what="Forecast" />
       ) : (
         <>
-          {scenario && <ScenarioPanel scenario={scenario} lineName={lineName} />}
+          {scenario && <ScenarioPanel scenario={scenario} lineName={lineName} onAdd={() => setAdding(true)} />}
           <ShippingUnavailableBanner warning={shipWarnings.unavailable} />
           <Warnings warnings={shipWarnings.other} accountName={accountName} />
           <ShipNotes warnings={shipWarnings} lineName={lineName} companyName={companyName} onChanged={data.reload} />
@@ -312,7 +320,7 @@ export function ForecastScreen() {
       {editing && res && !(editing.item.kind === 'ship' && !scenario) && (
         <EditLineDialog
           item={editing.item}
-          categoryName={editing.row.categoryName}
+          row={editing.row}
           scenario={scenario ? { id: scenario.id, name: scenario.name } : null}
           today={res.meta.today}
           onClose={() => setEditing(null)}
@@ -320,6 +328,20 @@ export function ForecastScreen() {
             setEditing(null);
             // The forecast is derived from every row at once; the write answered with one
             // row, so the honest replacement is the forecast as the server now computes it.
+            data.reload();
+          }}
+        />
+      )}
+
+      {adding && res && scenario?.status === 'draft' && (
+        <AddLineDialog
+          scenario={{ id: scenario.id, name: scenario.name }}
+          accounts={activeAccounts}
+          today={res.meta.today}
+          onClose={() => setAdding(false)}
+          onSaved={() => {
+            setAdding(false);
+            // The new line, its row and every balance after it are the server's: re-read.
             data.reload();
           }}
         />
@@ -367,7 +389,16 @@ function ForecastError({
   return <ErrorNote error={error} onRetry={onRetry} />;
 }
 
-function ScenarioPanel({ scenario, lineName }: { scenario: ForecastScenario; lineName: (key: string) => string | null }) {
+function ScenarioPanel({
+  scenario,
+  lineName,
+  onAdd,
+}: {
+  scenario: ForecastScenario;
+  lineName: (key: string) => string | null;
+  /** Opens "Add a one-off to this scenario" (D39); offered only on a draft. */
+  onAdd: () => void;
+}) {
   const draft = scenario.status === 'draft';
   return (
     <section
@@ -383,6 +414,11 @@ function ScenarioPanel({ scenario, lineName }: { scenario: ForecastScenario; lin
         <Link to={`/scenarios/${scenario.id}`} style={{ fontSize: 13.5 }}>
           Adjustments, rebase and apply
         </Link>
+        {draft && (
+          <button type="button" className="btn" style={{ marginLeft: 'auto' }} onClick={onAdd}>
+            Add a one-off…
+          </button>
+        )}
       </div>
       <div style={{ fontSize: 13.5, color: 'var(--mut)', lineHeight: 1.55 }}>
         {draft
@@ -392,14 +428,16 @@ function ScenarioPanel({ scenario, lineName }: { scenario: ForecastScenario; lin
       {draft && (
         <div style={{ fontSize: 13.5, lineHeight: 1.55 }} data-testid="scenario-how">
           <strong>To change a payment:</strong> open its category in the grid below (or Expand all), then click the
-          underlined amount. You can move its date, change the amount or leave it out. Only lines on the forecast
-          can be changed.
+          underlined amount. You can move its date, change the amount, split it into parts or leave it out. Only
+          lines on the forecast can be changed. <strong>Add a one-off…</strong> puts in a payment the real plan does
+          not have, such as interest or a fine.
         </div>
       )}
       {scenario.warnings.length > 0 && (
         <ul data-testid="scenario-warnings" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {scenario.warnings.map((w, i) => {
-            const reason = w.code === 'STALE' ? staleReason(w.reason) : null;
+            // A `new.` key is the scenario's own one-off: its MISSING means its account or category went.
+            const reason = w.code === 'STALE' ? staleReason(w.reason, isNewKey(w.key) ? 'add' : null) : null;
             return (
               <li key={`${w.code}-${w.key}-${i}`} style={{ fontSize: 13.5, display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
                 <Tag tone={w.code === 'STALE' ? 'fail' : 'warn'}>{reason ? `STALE · ${reason.label}` : w.code.replace(/_/g, ' ')}</Tag>

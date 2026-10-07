@@ -3,7 +3,8 @@
 // lib/keys.js (CONTRACT §4): the only builder and parser of forecast-line keys.
 // Pinned here:
 //
-//  - the three grammars, exactly: item.<id>, sched.<id>.<YYYY-MM-DD>, ship.<id>;
+//  - the four grammars, exactly: item.<id>, sched.<id>.<YYYY-MM-DD>, ship.<id> and, since
+//    2026-10-07 (D39), new.<adjustment id> — an `add` adjustment's own key;
 //  - parseKey → {targetKind, targetId, targetDate} or null, never a throw;
 //  - formatKey is parseKey's exact inverse, and every builder round-trips;
 //  - rejection of everything outside the unreserved set (#, :, /, spaces,
@@ -16,7 +17,7 @@ const path = require('path');
 
 const keys = require('../../src/lib/keys');
 const {
-    buildItemKey, buildSchedKey, buildShipKey, parseKey, isValidKey, formatKey, TARGET_KINDS,
+    buildItemKey, buildSchedKey, buildShipKey, buildNewKey, parseKey, isValidKey, formatKey, TARGET_KINDS,
 } = keys;
 
 describe('builders', () => {
@@ -72,6 +73,23 @@ describe('builders', () => {
     ])('buildShipKey rejects %s', (_label, id) => {
         expect(() => buildShipKey(id)).toThrow(TypeError);
     });
+
+    test.each([
+        [77, 'new.77'],
+        ['77', 'new.77'],
+        [77n, 'new.77'],
+        [1, 'new.1'],
+        ['999999999999999999', 'new.999999999999999999'],
+    ])('buildNewKey(%p) = %s (D39: the adjustment row id)', (id, want) => {
+        expect(buildNewKey(id)).toBe(want);
+    });
+
+    test.each([
+        ['zero', 0], ['a negative', -1], ['a fraction', 1.5], ['a leading zero', '077'], ['19 digits', '1000000000000000000'],
+        ['the empty string', ''], ['null', null], ['undefined', undefined], ['a ship-style id', 'PO-1'],
+    ])('buildNewKey rejects %s', (_label, id) => {
+        expect(() => buildNewKey(id)).toThrow(TypeError);
+    });
 });
 
 describe('parseKey', () => {
@@ -84,6 +102,9 @@ describe('parseKey', () => {
         ['ship.PO-778', { targetKind: 'ship', targetId: 'PO-778', targetDate: null }],
         ['ship.007', { targetKind: 'ship', targetId: '007', targetDate: null }],
         ['ship.a_B-9', { targetKind: 'ship', targetId: 'a_B-9', targetDate: null }],
+        ['new.77', { targetKind: 'new', targetId: '77', targetDate: null }],
+        ['new.1', { targetKind: 'new', targetId: '1', targetDate: null }],
+        ['new.999999999999999999', { targetKind: 'new', targetId: '999999999999999999', targetDate: null }],
     ])('%s', (key, want) => {
         expect(parseKey(key)).toEqual(want);
         expect(isValidKey(key)).toBe(true);
@@ -147,6 +168,16 @@ describe('parseKey', () => {
         ['a prefix before the kind', 'xitem.123'],
         // length
         ['a 65-character ship id', `ship.${'A'.repeat(65)}`],
+        // new.<adjustment id> (D39): a numeric id as item., nothing else
+        ['an empty new id', 'new.'],
+        ['a leading zero on a new id', 'new.077'],
+        ['new id zero', 'new.0'],
+        ['a negative new id', 'new.-1'],
+        ['a ship-style new id', 'new.PO-1'],
+        ['a new key with a date', 'new.7.2026-06-01'],
+        ['the placeholder of an add being created', 'new.pending.123e4567-e89b-12d3-a456-426614174000'],
+        ['19 digits on a new id', 'new.1000000000000000000'],
+        ['an upper-case new kind', 'NEW.7'],
     ])('rejects %s (%j)', (_label, key) => {
         expect(parseKey(key)).toBeNull();
         expect(isValidKey(key)).toBe(false);
@@ -165,6 +196,7 @@ describe('parseKey', () => {
             buildItemKey('999999999999999999'),
             buildSchedKey('999999999999999999', '2026-06-01'),
             buildShipKey('A'.repeat(64)),
+            buildNewKey('999999999999999999'),
         ];
         for (const k of longest) expect(k.length).toBeLessThanOrEqual(80);
     });
@@ -181,6 +213,7 @@ describe('formatKey (inverse of parseKey)', () => {
         'item.123', 'item.1', 'item.999999999999999999',
         'sched.45.2026-06-01', 'sched.1.2028-02-29',
         'ship.PO-778', 'ship.007', `ship.${'z'.repeat(64)}`,
+        'new.77', 'new.1',
     ];
 
     test.each(valid)('formatKey(parseKey(%s)) round-trips exactly', (key) => {
@@ -191,12 +224,13 @@ describe('formatKey (inverse of parseKey)', () => {
         { targetKind: 'item', targetId: '123', targetDate: null },
         { targetKind: 'sched', targetId: '45', targetDate: '2026-06-01' },
         { targetKind: 'ship', targetId: 'PO-778', targetDate: null },
+        { targetKind: 'new', targetId: '77', targetDate: null },
     ])('parseKey(formatKey(%j)) round-trips exactly', (parsed) => {
         expect(parseKey(formatKey(parsed))).toEqual(parsed);
     });
 
     test('every builder round-trips through parseKey and formatKey', () => {
-        const built = [buildItemKey(7), buildSchedKey(7, '2026-01-31'), buildShipKey('PO-1')];
+        const built = [buildItemKey(7), buildSchedKey(7, '2026-01-31'), buildShipKey('PO-1'), buildNewKey(7)];
         for (const k of built) {
             expect(isValidKey(k)).toBe(true);
             expect(formatKey(parseKey(k))).toBe(k);
@@ -206,6 +240,7 @@ describe('formatKey (inverse of parseKey)', () => {
     test('accepts an omitted targetDate on item and ship', () => {
         expect(formatKey({ targetKind: 'item', targetId: '5' })).toBe('item.5');
         expect(formatKey({ targetKind: 'ship', targetId: 'X' })).toBe('ship.X');
+        expect(formatKey({ targetKind: 'new', targetId: '9' })).toBe('new.9');
     });
 
     test.each([
@@ -213,6 +248,8 @@ describe('formatKey (inverse of parseKey)', () => {
         ['a leading-zero item id', { targetKind: 'item', targetId: '01', targetDate: null }],
         ['an item carrying a date', { targetKind: 'item', targetId: '1', targetDate: '2026-06-01' }],
         ['a ship carrying a date', { targetKind: 'ship', targetId: 'X', targetDate: '2026-06-01' }],
+        ['a new carrying a date', { targetKind: 'new', targetId: '7', targetDate: '2026-06-01' }],
+        ['a non-numeric new id', { targetKind: 'new', targetId: 'PO-1', targetDate: null }],
         ['a schedule with no date', { targetKind: 'sched', targetId: '45', targetDate: null }],
         ['a schedule with an impossible date', { targetKind: 'sched', targetId: '45', targetDate: '2026-02-30' }],
         ['a ship id with a slash', { targetKind: 'ship', targetId: 'a/b', targetDate: null }],
@@ -226,12 +263,12 @@ describe('formatKey (inverse of parseKey)', () => {
 
 describe('the module', () => {
     test('TARGET_KINDS is the vocabulary /meta/enums serves', () => {
-        expect(TARGET_KINDS).toEqual(['item', 'sched', 'ship']);
+        expect(TARGET_KINDS).toEqual(['item', 'sched', 'ship', 'new']);
     });
 
     test('exports the §4 surface plus TARGET_KINDS', () => {
         expect(Object.keys(keys).sort()).toEqual([
-            'TARGET_KINDS', 'buildItemKey', 'buildSchedKey', 'buildShipKey', 'formatKey',
+            'TARGET_KINDS', 'buildItemKey', 'buildNewKey', 'buildSchedKey', 'buildShipKey', 'formatKey',
             'isValidKey', 'parseKey',
         ]);
     });

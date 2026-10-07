@@ -265,6 +265,26 @@ row (no `due_date`, no `planned_date`) is not an adjustment target — `loadTarg
 the overlay first (`scenario_adjustments.base_date` is `NOT NULL`, so there is no base to
 record); and `POST /external/refresh` honours the 60-second claim (§6.12).
 
+
+### 1.2 Scenario adds, splits and un-apply — asked by Dev 2026-10-07
+
+Dev: "as part of a scenario, would it be possible to split a payment into multiple dates /
+amounts? and then revert if needed. also possible to add one-off payments as part of a
+scenario, e.g. an interest payment or a fine if I pay late". PLAN.md's deferred list had
+"hypothetical items added inside a scenario"; these decisions build it and the two things
+that follow from it. PLAN.md was edited to match (its routes list, schema table, web table
+and deferred list).
+
+| # | Decision | Reason |
+|---|---|---|
+| D39 | **A third adjustment kind, `add`**: a hypothetical one-off that exists only inside a draft scenario. Its key is **`new.<adjustment id>`** (§4: the row's own id, so there is no key before the row exists). `scenario_adjustments` gains the add's own `account_id, category_id, direction, name, counterparty, currency` (NULL on `adjust`/`exclude`); `new_date`/`new_amount` are its date and amount; **`base_date`/`base_amount` are NULL** (relaxed from NOT NULL) because there is nothing to compare with, so `BASE_CHANGED` never applies to it. Its stale reasons are `TARGET_MISSING` (its account is not live and active, or its category is not live) and `DATE_PASSED`. In `/forecast` it is a line of the **scenario set only**: `kind: 'new'`, `id` = the adjustment id, flag `added`, `baseline: null` (the case §6.10 had reserved), status `expected`, settle mode `auto`. Apply inserts a real `cash_items` row (`settle_mode 'auto'`, `notes` = the note) stamped `source_scenario_id`. | The reserved null baseline was the planned hook; an add is the smallest row that can become a one-off. `auto` is D13's default; the real item can be edited after apply. |
+| D40 | **A split is a group of ordinary adjustments, not a fourth kind.** `POST /scenarios/:id/adjustments/:itemKey/split {parts: [{newDate, newAmount}, …]}` writes one `adjust` on the target (part 1 is the line itself, resized and possibly moved) plus one `add` per further part, copying the target's account, category, direction, name, counterparty and currency; every row of the group carries **`split_group`** = the anchor adjustment's id (the anchor carries its own id). The parts must **sum to the target's current effective amount** (422 `SPLIT_AMOUNTS_MISMATCH`), at least two parts, each `> 0`, each date `>= today`. Deleting the anchor deletes the whole group ("revert the split") — **wherever the server deletes an anchor**: the DELETE route, rebase's `dropStale` (§10.8), a schedule split's or end's `dropAdjustments` (§10.5 step 6); deleting a part removes that part alone; a PUT on the anchor keeps its group. Apply needs nothing new: the anchor edits the real line and the parts insert one-offs. | The engine and apply already know `adjust` and `add`; one group id gives the UI its grouping and a one-click revert without a third representation. Summing to the base is what "split" means — a part can be resized afterwards with the ordinary edit. |
+| D41 | **Un-apply.** `POST /scenarios/:id/unapply` returns an `applied` scenario to `draft` and puts the real data back, **all or nothing**. Apply records on every adjustment, in **`applied_state`** (JSON, not served), the before image of what it wrote (and the id of the one-off an `add` created). Un-apply re-checks under the standing-order locks that every target still carries exactly what apply wrote — the same `source_scenario_id`, date, amount and status (the overlay for `ship.`), no payment state, the created one-off still live and `expected` — and refuses the whole thing with 409 `SCENARIO_UNAPPLY_BLOCKED {blocked: [{itemKey, reason}]}` otherwise (`reason` one of `TARGET_MISSING`, `TARGET_SETTLED`, `CHANGED`, `NO_RECORD`). Otherwise it restores from the before image (an override apply created is deleted; a one-off apply created is soft-deleted), clears `applied_state`, and sets `status = 'draft'`, `applied_at = applied_by = NULL`. The bases then equal the real data again, so the draft reads up to date and can be edited and re-applied. A scenario applied before this change has no record → `NO_RECORD` on every row. | Dev: "and then revert if needed". Restoring a recorded before image is exact; reconstructing from the bases would have to guess whether an override existed. Refuse, never skip — as apply. |
+| D42 | `applied[].wrote` gains no new value (an `add` writes a `cash_item`); `unapplied[]` mirrors `applied[]`. `GET /scenarios/:id` on an `applied` scenario still answers `stale: null, current: null`; `applied_state` is internal to un-apply and never serialised. | The row JSON stays small; the screen needs the status, not the before image. |
+| D43 | `POST /scenarios/:id/adjustments` is the **only** way to create an `add` (the id is server-assigned, so there is no key to PUT). `PUT …/adjustments/new.<id>` replaces an existing add (a full replace: every required field again, `kind` must be `add`). `kind: 'add'` on an `item.`/`sched.`/`ship.` key, and `adjust`/`exclude` on a `new.` key, are 400. An add cannot itself be split (400). | One creation route per kind of row; the key grammar stays a pure function of the row id. |
+| D44 | An `add` is in scope when its account is in the requested account set, else `ADJUSTMENT_OUT_OF_SCOPE` (D20); its currency joins **currencies in scope** (§3.4) while its references are live; its category is loaded with the others so its row has a name and an order. | The same rule as every target. |
+
+
 ---
 
 ## 2. Conventions
@@ -408,14 +428,14 @@ inside the mutation's transaction. Snapshots are the row's JSON shape (camelCase
 |---|---|
 | `company`, `bank_account`, `category`, `fx_rate` | `create`, `update`, `delete` |
 | `bank_balance` | `create`, `update`, `delete` |
-| `cash_item` | `create`, `update`, `delete`, `pay`, `unpay`, `apply` |
+| `cash_item` | `create`, `update`, `delete`, `pay`, `unpay`, `apply`, `unapply` (restored, or the one-off an `add` created soft-deleted — D41) |
 | `schedule` | `create`, `update`, `delete`, `split`, `end` |
-| `schedule_override` | `create`, `update` (tune), `delete` (revert or dropped by split), `pay`, `unpay`, `apply` |
+| `schedule_override` | `create`, `update` (tune), `delete` (revert, dropped by split, or un-apply of an override apply created), `pay`, `unpay`, `apply`, `unapply` |
 | `payment` | `create` (pay), `delete` (unpay) — `before`/`after` = `{cashItemId, overrideId, paidOn, amount, note}` |
-| `scenario` | `create`, `update`, `delete`, `duplicate`, `rebase`, `apply` |
-| `scenario_adjustment` | `create`, `update` (edit, rebase, re-key), `delete` |
+| `scenario` | `create`, `update`, `delete`, `duplicate`, `rebase`, `apply`, `unapply` (D41) |
+| `scenario_adjustment` | `create`, `update` (edit, rebase, re-key), `delete` (its own, or with its split anchor — D40) |
 | `allowed_email` | `create`, `update`, `delete` — `entity_id` 0, email in the JSON |
-| `external_item` (Phase 2) | `plan` (user edit), `unplan` (revert), `apply` — `entity_id` = `external_items.id`, `key` in the JSON. **The refresh writes no audit rows** (P8): feed columns are shipping's data, and `feed_hash` / `updated_at` say when they moved |
+| `external_item` (Phase 2) | `plan` (user edit), `unplan` (revert), `apply`, `unapply` (D41) — `entity_id` = `external_items.id`, `key` in the JSON. **The refresh writes no audit rows** (P8): feed columns are shipping's data, and `feed_hash` / `updated_at` say when they moved |
 
 ### 2.9 `row_version`, `created_by`
 
@@ -714,7 +734,8 @@ SELECT 'HW', 'Hangerworld', 2 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM companie
   transaction as every `payments` write under the parent's lock, the guard needs no join.
 - **Currencies in scope** (for `FX_RATE_MISSING` and `meta.ratesUsed`) = the in-scope
   accounts' currencies ∪ the currencies of every loaded item, schedule **and ship row**
-  (§8 rule 11, undated rows included), adjustment targets included. Defined once here;
+  (§8 rule 11, undated rows included), adjustment targets included, and the currency of
+  every `add` adjustment whose references are live (2026-10-07, D44). Defined once here;
   §6.10, §8 and §9.7 refer to it. A ship currency with no rate is the same 422
   `FX_RATE_MISSING` as any other — one rule (Dev, Q4).
 - **Phase 2, derived at load time and never stored:** a ship row's company = the live
@@ -810,6 +831,31 @@ WHERE NOT EXISTS (SELECT 1 FROM categories WHERE system_key = 'ship');
 - `external_items` has no `account_id` and no `company_id` of its own: both are derived
   (§3.4), so a re-mapped company or a new account moves every ship line with it.
 
+### 3.6 Scenario adds migration — `src/db/migrations/2026-10-07_jflow_scenario_adds.sql` (D39–D41)
+
+Applied by `tools/migrate.js` on every stage and replayed by local `ensureSchema`; sorts
+after the freight file. Every statement sits behind the `information_schema` guard
+(§3.1): `COLUMNS` for a column, `COLUMNS.IS_NULLABLE` for the two relaxed columns,
+`STATISTICS` for the index. No foreign keys.
+
+```sql
+ALTER TABLE scenario_adjustments
+  MODIFY base_date DATE NULL,                              -- NULL on an `add` (D39)
+  MODIFY base_amount DECIMAL(14,2) NULL,
+  ADD COLUMN account_id BIGINT UNSIGNED NULL AFTER note,   -- the `add`'s own one-off (D39); NULL otherwise
+  ADD COLUMN category_id BIGINT UNSIGNED NULL AFTER account_id,
+  ADD COLUMN direction VARCHAR(8) NULL AFTER category_id,  -- in | out, equals the category's
+  ADD COLUMN name VARCHAR(255) NULL AFTER direction,
+  ADD COLUMN counterparty VARCHAR(255) NULL AFTER name,
+  ADD COLUMN currency CHAR(3) NULL AFTER counterparty,
+  ADD COLUMN split_group BIGINT UNSIGNED NULL AFTER currency,   -- the anchor adjustment's id (D40); NULL when not in a split
+  ADD COLUMN applied_state JSON NULL AFTER split_group,         -- what apply wrote, for un-apply (D41); NULL while draft
+  ADD KEY idx_split_group (split_group);
+```
+
+`target_kind` now also takes `new` (with `target_id` = the row's own id, `target_date`
+NULL), and `kind` takes `add`. The `applied_state` shapes are in §10.9 step 5.
+
 ---
 
 ## 4. Item keys (`lib/keys.js`)
@@ -825,6 +871,7 @@ pattern-matches a key string itself.
 | one-off item | `^item\.([1-9][0-9]{0,17})$` | `item.123` | `{targetKind: 'item', targetId: '123', targetDate: null}` |
 | schedule instance | `^sched\.([1-9][0-9]{0,17})\.([0-9]{4}-[0-9]{2}-[0-9]{2})$` and the date is a real calendar date | `sched.45.2026-06-01` | `{targetKind: 'sched', targetId: '45', targetDate: '2026-06-01'}` |
 | shipping payment (Phase 2, live) | `^ship\.([A-Za-z0-9_-]{1,64})$` | `ship.bal-812-s311` | `{targetKind: 'ship', targetId: 'bal-812-s311', targetDate: null}` |
+| hypothetical item (2026-10-07, D39) | `^new\.([1-9][0-9]{0,17})$` | `new.77` | `{targetKind: 'new', targetId: '77', targetDate: null}` — `77` is the **adjustment row's own id**; the key names no real row |
 
 - `targetDate` is the instance's **natural** date, never its effective date.
 - **`ship.` keys are live from Phase 2 (P2, D8 retired).** `buildShipKey(extId)` →
@@ -832,9 +879,16 @@ pattern-matches a key string itself.
   `external_items` row with `source = 'ship' AND ext_id = ?`. The feed grammar is exactly
   this table's, so nothing is escaped and the feed validator (`validateFeed`) rejects any
   id `parseKey` would. Every feed id form (P2) is built from `[A-Za-z0-9-]` only.
+- **`new.` keys (2026-10-07, D39)** name an `add` adjustment by its **own row id**:
+  `buildNewKey(adjustmentId)`. The route that creates an add inserts the row and, in the
+  same transaction, writes `item_key = new.<id>`, `target_kind = 'new'`, `target_id =
+  '<id>'`, `target_date = NULL`. A `new.` key names no real row: `/forecast` gives it to the
+  line the add makes in the scenario set, and `PUT`/`DELETE …/adjustments/new.<id>` address
+  that adjustment inside its own scenario (404 from another scenario). `loadTarget` is never
+  called with one; the routes branch on `kind = 'add'` first (§8 `loadAddReferences`).
 - Total length ≤ 80 (`item_key VARCHAR(80)`).
 - API:
-  `buildItemKey(id)`, `buildSchedKey(scheduleId, naturalDate)`, `buildShipKey(id)`,
+  `buildItemKey(id)`, `buildSchedKey(scheduleId, naturalDate)`, `buildShipKey(id)`, `buildNewKey(adjustmentId)`,
   `parseKey(key)` → the parsed form or `null`, `isValidKey(key)`,
   `formatKey(parsed)` (the inverse of `parseKey`; round-trips exactly).
 - Any route receiving a key that `parseKey` rejects answers **422 `ITEM_KEY_INVALID`**
@@ -1052,7 +1106,7 @@ the client knows before it tries — a split's successor is born locked.
 | `GET /schedules/:id` | any | — | row; 404 | — |
 | `PUT /schedules/:id` | any | descriptive `{name?, counterparty?, categoryId?, notes?}` always; structural `{amount?, currency?, accountId?, frequency?, intervalCount?, startDate?, occurrenceCount?, endDate?, weekendRule?, settleMode?}` only while unlocked; `baseVersion?` | row; 409 `SCHEDULE_STRUCTURE_LOCKED {fields, reason: 'started' \| 'has_overrides', split: '/schedules/:id/split'}` (`fields` are JSON names, e.g. `amount`, `startDate`) when a structural field **changes** and the schedule is locked (an unchanged structural value in the body is not a change) | `update` |
 | `DELETE /schedules/:id` | any | `{baseVersion?}` | 204 soft | `delete` |
-| `POST /schedules/:id/split` | any | `{fromNaturalDate, changes: {…structural fields…}, dropOverrides?, dropAdjustments?, baseVersion?}` — `changes` must contain at least one structural field; `activeFrom` is never accepted in `changes` (server-set, D21) | 201 `{ended: <old row>, successor: <new row>, deletedOverrides: [naturalDate…], rekeyedAdjustments: [{scenarioId, from, to}], droppedAdjustments: [{scenarioId, itemKey}]}`. §10.5. 400 `fromNaturalDate` not an occurrence strictly after the first active occurrence (D21); 409 `SCHEDULE_HAS_PAYMENTS {naturalDates}`; 409 `SCHEDULE_HAS_OVERRIDES {naturalDates}`; 409 `SCHEDULE_HAS_ADJUSTMENTS {adjustments: [{scenarioId, scenarioName, itemKey, naturalDate}]}` listing only the adjustments that cannot be re-keyed (§10.5 step 5) | `schedule`/`split` on the old row, `create` on the successor, one `schedule_override`/`delete` per dropped override, one `scenario_adjustment`/`update` per re-key or `delete` per drop |
+| `POST /schedules/:id/split` | any | `{fromNaturalDate, changes: {…structural fields…}, dropOverrides?, dropAdjustments?, baseVersion?}` — `changes` must contain at least one structural field; `activeFrom` is never accepted in `changes` (server-set, D21) | 201 `{ended: <old row>, successor: <new row>, deletedOverrides: [naturalDate…], rekeyedAdjustments: [{scenarioId, from, to}], droppedAdjustments: [{scenarioId, itemKey}]}` (a dropped split anchor's parts are listed too, D40). §10.5. 400 `fromNaturalDate` not an occurrence strictly after the first active occurrence (D21); 409 `SCHEDULE_HAS_PAYMENTS {naturalDates}`; 409 `SCHEDULE_HAS_OVERRIDES {naturalDates}`; 409 `SCHEDULE_HAS_ADJUSTMENTS {adjustments: [{scenarioId, scenarioName, itemKey, naturalDate}]}` listing only the adjustments that cannot be re-keyed (§10.5 step 5) | `schedule`/`split` on the old row, `create` on the successor, one `schedule_override`/`delete` per dropped override, one `scenario_adjustment`/`update` per re-key or `delete` per drop |
 | `POST /schedules/:id/end` | any | `{lastNaturalDate, dropOverrides?, dropAdjustments?, baseVersion?}` | 200 `{ended: <row>, deletedOverrides, droppedAdjustments}`; same guards from *k* = `nextOccurrenceAfter(schedule, lastNaturalDate)` (400 when `lastNaturalDate` is not an occurrence; 200 no-op when nothing follows it, body `{ended: <row unchanged>, deletedOverrides: [], droppedAdjustments: []}`); the old row is ended through `endBefore(schedule, k)` exactly as a split (D22); an end never re-keys, so `SCHEDULE_HAS_ADJUSTMENTS` always applies unless `dropAdjustments` | `schedule`/`end` + the per-row audits |
 
 ### 6.9 Instances (virtual, expanded at read time)
@@ -1134,7 +1188,7 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   buckets: [ { start, end, opening, inflow, outflow, net, closing, minClosing, minDate } ],
   rows:    [ { categoryId, categoryName, direction, sortOrder,
                totals: [ perBucketGbp… ], total,
-               items: [ { key, kind: 'item' | 'sched' | 'ship', id, scheduleId?, naturalDate?,
+               items: [ { key, kind: 'item' | 'sched' | 'ship' | 'new', id, scheduleId?, naturalDate?,
                           name, counterparty, accountId, currency,
                           amountMinor, accountMinor, gbpMinor, date, dueDate, bucketIndex,
                           status, settleMode, flags: [...], editable, paymentId?,
@@ -1142,7 +1196,8 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
                                    dateBasis, amountBasis, blocked, feedDate, feedAmountMinor,
                                    dueSet: { by, email, at, derivedDate, scope, note } | null,   // 2026-10-06
                                    dateMovedFrom: 'YYYY-MM-DD' | null, dateMovedAt: ISO | null },
-                          baseline: { date, amountMinor, gbpMinor, flags } | null } ] } ],
+                          baseline: { date, amountMinor, gbpMinor, flags } | null,   // null = a hypothetical line (D39)
+                          splitGroup: <anchor adjustment id> | null } ] } ],        // with scenarioId only (D40)
   summary: { opening, inflow, outflow, net, closing, minClosing, minDate,
              unresolvedCount, unresolvedTotal, absorbedCount },
   scenario: { id, name, status, baselineSummary: { …same shape as summary… },
@@ -1223,7 +1278,9 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
 - Item `flags` (§9.5, §9.6): `tuned` (override row exists), `overdue`, `paid` (a payment
   line placed at its `paidOn`, only when `paidOn = today`), `partial` (that payment line
   belongs to a `part_paid` parent), `remainder` (the owed part of a `part_paid`),
-  `adjusted` (scenario set: an adjustment applied), `excluded` (scenario set, D30), `stale`
+  `adjusted` (scenario set: an adjustment applied), `excluded` (scenario set, D30), `added` (scenario set: a hypothetical
+  line, 2026-10-07 D39), `split` (scenario set: the line is the anchor or a part of a split,
+  D40), `stale`
   (an adjustment exists for this key but was not applied), `fromScenario`
   (`sourceScenarioId` set), `hidden` (left out of this read by `hide` / `hideCategories`;
   always last). `assumed` and pre-today payment lines never appear in
@@ -1239,9 +1296,11 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
   With a scenario open the client writes adjustments; without one it tunes or edits the
   real row. No client holds an engine rule; both `flags` and `editable` come from here.
 - `baseline` on an item is present only with `scenarioId`: the item's values in the baseline
-  set. In phase 1 every scenario item is a baseline item (adjusted or excluded), so it is
-  never null there; the null case is reserved for hypothetical items (§11).
-- `scenario.warnings` entries: `{code: 'STALE', key, reason: 'BASE_CHANGED' | 'TARGET_SETTLED' | 'TARGET_MISSING' | 'DATE_PASSED'}` and `{code: 'ADJUSTMENT_OUT_OF_SCOPE', key}` (D20; reachable because adjustments are matched against the loaded targets, not the in-scope set — §9.5).
+  set, or **null for a hypothetical line** (`kind: 'new'`, an `add` adjustment — 2026-10-07,
+  D39), which has no baseline. `splitGroup` is present only with `scenarioId` too: the anchor
+  adjustment's id when the line is the anchor or a part of a split (D40), else null. A `new`
+  line's `id` is its adjustment's id; it never carries `paymentId`, `scheduleId` or `ship`.
+- `scenario.warnings` entries: `{code: 'STALE', key, reason: 'BASE_CHANGED' | 'TARGET_SETTLED' | 'TARGET_MISSING' | 'DATE_PASSED'}` (a `new.` key reads only `TARGET_MISSING` or `DATE_PASSED`, D39) and `{code: 'ADJUSTMENT_OUT_OF_SCOPE', key}` (D20; reachable because adjustments are matched against the loaded targets, not the in-scope set — §9.5).
 - `unresolved[]` and `summary.unresolvedCount/unresolvedTotal` describe the set the response
   is built on (the scenario's when `scenarioId` is given); `scenario.baselineSummary` keeps
   the baseline's counts. An adjustment that moves an unresolved item to `>= today` removes
@@ -1252,7 +1311,9 @@ below is **integer minor units**; GBP unless the name says `Native`/`amountMinor
 Row JSON: `{id, name, description, companyId, status, appliedAt, appliedBy, adjustmentCount,
 rowVersion, createdBy, createdAt, updatedAt, deletedAt}`. Adjustment JSON: `{id, scenarioId,
 itemKey, targetKind, targetId, targetDate, kind, newDate, newAmount, baseDate, baseAmount,
-note, rowVersion, createdBy, createdAt, updatedAt}`; on reads that resolve targets
+note, accountId, categoryId, direction, name, counterparty, currency, splitGroup, rowVersion,
+createdBy, createdAt, updatedAt}` (the six one-off fields and the null bases belong to
+`kind: 'add'`, `splitGroup` to a split — 2026-10-07, see the paragraph after the table); on reads that resolve targets
 (`GET /scenarios/:id`, rebase) each adjustment also carries
 `stale: null | 'BASE_CHANGED' | 'TARGET_SETTLED' | 'TARGET_MISSING' | 'DATE_PASSED'` and
 `current: {date, amount, status, name, currency} | null`. Both are resolved **only while the scenario is
@@ -1263,14 +1324,17 @@ are history, not a live comparison.
 |---|---|---|---|---|
 | `GET /scenarios?status&companyId&q&includeDeleted&page&limit` | any | `status` comma list | list sorted `created_at DESC, id DESC` | — |
 | `POST /scenarios` | any | `{name, description?, companyId?}` | 201 draft; 400 (`companyId` not live) | `scenario`/`create` |
-| `GET /scenarios/:id` | any | — | `{...row, adjustments: [...]}` with `stale`/`current` resolved against `today` while `draft`, `null` otherwise; 404 | — |
+| `GET /scenarios/:id` | any | — | `{...row, adjustments: [...]}` with `stale`/`current` resolved against `today` while `draft`, `null` otherwise; an `add`'s `current` is always null and its `stale` is `TARGET_MISSING`, `DATE_PASSED` or null (D39); 404 | — |
 | `PUT /scenarios/:id` | any | `{name?, description?, companyId?, status?, baseVersion?}` | row; `status` only to `archived` from `draft`/`applied` (D36), anything else 400; name/description/companyId editable in any status | `update` |
 | `DELETE /scenarios/:id` | any | `{baseVersion?}` | 204 soft, any status; adjustments kept | `delete` |
-| `POST /scenarios/:id/duplicate` | any | `{name?}` (default the source name plus " (copy)") | 201 new `draft` with every adjustment copied as-is (bases untouched — the first read shows what is stale); source may be any status | `scenario`/`duplicate` on the new row (`after.copiedFrom`), `scenario_adjustment`/`create` per copy |
-| `PUT /scenarios/:id/adjustments/:itemKey` | any | `{kind, newDate?, newAmount?, note?, baseVersion?}` — `kind` is `adjust` or `exclude`; `adjust` needs at least one of `newDate`/`newAmount`; `exclude` takes neither | 200 (updated) / 201 (created) adjustment, carrying `stale` and `current` like a read. The PUT is a **full replace**: an omitted `newDate`, `newAmount` or `note` is cleared. `baseVersion` is checked against an existing adjustment and ignored on create. §10.7. 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT {status}`; 404 `TARGET_MISSING {key}`; 409 `TARGET_SETTLED {key, status}`; 422 `ADJUSTMENT_DATE_IN_PAST {newDate, today}`; 400 amount grammar. `baseDate`/`baseAmount` are set by the server from the loader, never from the body | `scenario_adjustment`/`create` or `update` |
-| `DELETE /scenarios/:id/adjustments/:itemKey` | any | `{baseVersion?}` | 204 hard; 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT`; 404 | `delete` |
-| `POST /scenarios/:id/rebase` | any | `{dropStale?}` (boolean) | 200 `{scenario, adjustments: [{...adjustment, rebased, stale, dropped}]}`. §10.8. `dropStale: true` removes `TARGET_SETTLED`, `TARGET_MISSING` and `DATE_PASSED` adjustments (D38); `BASE_CHANGED` ones are rebased. 409 `SCENARIO_NOT_DRAFT` | `scenario`/`rebase`; `scenario_adjustment`/`update` per rebased row, `delete` per dropped |
-| `POST /scenarios/:id/apply` | any | `{baseVersion?}` | 200 `{scenario, applied: [{itemKey, kind, wrote, entityId}]}` where `wrote` is `cash_item`, `schedule_override` or (Phase 2) `external_item`. §10.9. 409 `SCENARIO_NOT_DRAFT {status}` (a second apply lands here); 409 `SCENARIO_STALE {stale: [{itemKey, reason}]}` — nothing written | `scenario`/`apply`; `cash_item`/`apply`, `schedule_override`/`apply` or `external_item`/`apply` per target |
+| `POST /scenarios/:id/duplicate` | any | `{name?}` (default the source name plus " (copy)") | 201 new `draft` with every adjustment copied as-is (bases untouched — the first read shows what is stale); source may be any status; an `add` gets a fresh key (`new.<new id>`) and `splitGroup` is re-pointed at the copied anchor; `applied_state` is not copied (D39–D41) | `scenario`/`duplicate` on the new row (`after.copiedFrom`), `scenario_adjustment`/`create` per copy |
+| `PUT /scenarios/:id/adjustments/:itemKey` | any | `{kind, newDate?, newAmount?, note?, baseVersion?}` — `kind` is `adjust` or `exclude`; `adjust` needs at least one of `newDate`/`newAmount`; `exclude` takes neither. On a `new.` key the body is the add's own: `{kind: 'add', accountId, categoryId, name, newDate, newAmount, direction?, counterparty?, currency?, note?, baseVersion?}` (D43) | 200 (updated) / 201 (created) adjustment, carrying `stale` and `current` like a read. The PUT is a **full replace**: an omitted `newDate`, `newAmount` or `note` is cleared. `baseVersion` is checked against an existing adjustment and ignored on create. §10.7. 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT {status}`; 404 `TARGET_MISSING {key}`; 409 `TARGET_SETTLED {key, status}`; 422 `ADJUSTMENT_DATE_IN_PAST {newDate, today}`; 400 amount grammar. `baseDate`/`baseAmount` are set by the server from the loader, never from the body. A `new.` key: 404 when this scenario has no such add (adds are created by `POST …/adjustments`), 400 for a `kind` other than `add`; `kind: 'add'` on any other key is 400; a PUT on a split's anchor keeps its `splitGroup` (D40, §10.7a) | `scenario_adjustment`/`create` or `update` |
+| `DELETE /scenarios/:id/adjustments/:itemKey` | any | `{baseVersion?}` | 204 hard — deleting a split's **anchor** deletes its parts too (D40); deleting a part removes that part alone; 422 `ITEM_KEY_INVALID`; 409 `SCENARIO_NOT_DRAFT`; 404 | `delete` per row |
+| `POST /scenarios/:id/rebase` | any | `{dropStale?}` (boolean) | 200 `{scenario, adjustments: [{...adjustment, rebased, stale, dropped}]}`. §10.8. `dropStale: true` removes `TARGET_SETTLED`, `TARGET_MISSING` and `DATE_PASSED` adjustments (D38); `BASE_CHANGED` ones are rebased; an `add` has no base and is never rebased, only dropped when stale (D39). 409 `SCENARIO_NOT_DRAFT` | `scenario`/`rebase`; `scenario_adjustment`/`update` per rebased row, `delete` per dropped |
+| `POST /scenarios/:id/apply` | any | `{baseVersion?}` | 200 `{scenario, applied: [{itemKey, kind, wrote, entityId}]}` where `wrote` is `cash_item`, `schedule_override` or (Phase 2) `external_item`; an `add` inserts a `cash_items` row (`wrote: 'cash_item'`, `entityId` the new id, D39), and every row records its `applied_state` for un-apply (D41). §10.9. 409 `SCENARIO_NOT_DRAFT {status}` (a second apply lands here); 409 `SCENARIO_STALE {stale: [{itemKey, reason}]}` — nothing written | `scenario`/`apply`; `cash_item`/`apply`, `schedule_override`/`apply` or `external_item`/`apply` per target |
+| `POST /scenarios/:id/adjustments` (2026-10-07, D39, D43) | any | `{kind: 'add', accountId, categoryId, name, newDate, newAmount, direction?, counterparty?, currency?, note?}` — `currency` defaults to the account's, `direction` to the category's | 201 the adjustment, with `stale` (null: both references were just checked live and the date is today or later) and `current: null` (there is no target). §10.7a. 400: `kind` other than `add`, account not live or inactive, category not live, `direction` given but ≠ the category's (D14), `name` blank or over 255, `newAmount` grammar or `<= 0`, `currency` grammar, `newDate` grammar, `note` over 500; 409 `SCENARIO_NOT_DRAFT {status}`; 422 `ADJUSTMENT_DATE_IN_PAST {newDate, today}` | `scenario_adjustment`/`create` |
+| `POST /scenarios/:id/adjustments/:itemKey/split` (2026-10-07, D40) | any | `{parts: [{newDate, newAmount}, …], note?, baseVersion?}` — at least two parts, each `newAmount > 0`, each `newDate` today or later; `note` goes on every row of the group | 201 `{splitGroup, adjustments: [anchor, …parts]}`, each adjustment as a PUT answers it (`stale`, `current`). §10.7b. 400: fewer than two parts, a part's grammar, a `new.` key (an add cannot be split, D43), a target with no account (an unmapped `ship.` row); 422 `ITEM_KEY_INVALID`; 422 `ADJUSTMENT_DATE_IN_PAST {newDate, today}`; 422 `SPLIT_AMOUNTS_MISMATCH {total, expected}` (DECIMAL strings; `expected` is the target's current effective amount); 404 `TARGET_MISSING {key}`; 409 `TARGET_SETTLED {key, status}`; 409 `SCENARIO_NOT_DRAFT`. A split **replaces** whatever adjustment the key had, and the parts of the group it anchored; `baseVersion` is checked against that existing adjustment | `scenario_adjustment`/`create` or `update` on the anchor, `create` per part, `delete` per part of a replaced group |
+| `POST /scenarios/:id/unapply` (2026-10-07, D41) | any | `{baseVersion?}` | 200 `{scenario, unapplied: [{itemKey, kind, wrote, entityId}]}` — the scenario is `draft` again, `appliedAt`/`appliedBy` null. §10.13. 409 `SCENARIO_NOT_APPLIED {status}`; 409 `SCENARIO_UNAPPLY_BLOCKED {blocked: [{itemKey, reason}]}` with `reason` one of `TARGET_MISSING`, `TARGET_SETTLED`, `CHANGED`, `NO_RECORD` — nothing written | `scenario`/`unapply`; per target `cash_item`/`unapply` (the restored or soft-deleted one-off), `schedule_override`/`unapply` or `/delete` (an override apply had created), `external_item`/`unapply` |
 
 `:itemKey` arrives un-encoded (unreserved characters only, §4); Express matches it as one
 path segment. Every adjustment route parses it with `parseKey` before touching the DB.
@@ -1278,6 +1342,18 @@ A `ship.` key is an ordinary target from Phase 2 (§10.7): the base is the row's
 date and amount (overlay included, as D11), and because ETAs drift `BASE_CHANGED` is common
 on estimated lines — rebase, then apply. An applied `ship.` adjustment lives only in the
 overlay (nothing is written back to shipping).
+
+**Adds and splits (2026-10-07, D39–D44).** An `add` row's JSON carries `kind: 'add'`,
+`targetKind: 'new'`, `targetId` = its own id, `baseDate: null`, `baseAmount: null`, and
+its one-off's `accountId, categoryId, direction, name, counterparty, currency`; `newDate`
+and `newAmount` are the one-off's date and amount. On `adjust`/`exclude` rows those six
+fields are null. `splitGroup` is the anchor adjustment's id on every row of a split (the
+anchor's own id on the anchor), null otherwise. Reads resolve an add's `stale` against its
+references, not a target: `TARGET_MISSING` when its account is not live and active or its
+category is not live, `DATE_PASSED` when `newDate < today`, else null; `current` is always
+null. Rebase never touches an add (no base); `dropStale` removes a stale one. Duplicate
+copies an add under a fresh key (`new.<new id>`) and re-points `splitGroup` at the copied
+anchor; `applied_state` is never copied.
 
 ### 6.12 External items and the shipping feed (Phase 2)
 
@@ -1369,6 +1445,11 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 | `TARGET_SETTLED` | 409 | refusal | Adjustment `PUT` against such a target; `details {key, status}`. Phase 2: also `PUT /external-items/:key` on a paid row |
 | `TARGET_MISSING` | — | reason | The target is gone: deleted, not an occurrence, orphaned; a `ship.` row that is absent, `gone`, or undated (no `due_date` and no `planned_date` — nothing to adjust, §8 `loadTarget`) |
 | `TARGET_MISSING` | 404 | refusal | Adjustment `PUT` against such a target; `details {key}`. Phase 2: also `PUT /external-items/:key` on a gone row |
+| `SPLIT_AMOUNTS_MISMATCH` | 422 | refusal | 2026-10-07: `POST …/adjustments/:itemKey/split` whose parts do not sum to the target's current effective amount; `details {total, expected}` (DECIMAL strings) |
+| `SCENARIO_NOT_APPLIED` | 409 | refusal | 2026-10-07: `POST /scenarios/:id/unapply` on a scenario that is not `applied`; `details {status}` |
+| `SCENARIO_UNAPPLY_BLOCKED` | 409 | refusal | 2026-10-07: un-apply when at least one target no longer carries what apply wrote; `details {blocked: [{itemKey, reason}]}` with `reason` one of `TARGET_MISSING`, `TARGET_SETTLED`, `CHANGED`, `NO_RECORD`; nothing written |
+| `CHANGED` | — | reason | Un-apply: the target's `source_scenario_id` is not this scenario's, or its date, amount or status (for `ship.`: planned date, amount or skipped) differs from the after image apply recorded |
+| `NO_RECORD` | — | reason | Un-apply: the adjustment has no `applied_state` (the scenario was applied before 2026-10-07) |
 | `NO_ANCHOR` | 200 | warning | `/forecast`: an in-scope account has no recorded balance and is excluded; `{accountId}` |
 | `ORPHAN_OVERRIDE` | 200 | warning | `/forecast` and `/instances`: an override row whose `natural_date` is not an occurrence; `{scheduleId, naturalDate, overrideId}` |
 | `STALE` | 200 | warning | `/forecast` `scenario.warnings`: an adjustment not applied; `{key, reason}` |
@@ -1378,7 +1459,9 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 `NO_ANCHOR`, `ORPHAN_OVERRIDE`, `STALE`, `ADJUSTMENT_OUT_OF_SCOPE` and, from Phase 2,
 `SHIPPING_UNAVAILABLE`, `SHIP_UNMAPPED`, `SHIP_PLAN_ORPHANED`, `SHIP_PLAN_STALE`;
 `staleReasons` lists `BASE_CHANGED`, `TARGET_SETTLED`, `TARGET_MISSING`, `DATE_PASSED`
-(Phase 2 adds no stale reason). Phase 2 also adds `feedKinds` (`deposit, balance`, and since the 2026-10-06 re-pin `extra, qc`),
+(Phase 2 adds no stale reason). Since 2026-10-07 `adjustmentKinds` lists `adjust, exclude,
+add`, `targetKinds` lists `item, sched, ship, new` (D39) and `unapplyReasons` lists
+`TARGET_MISSING, TARGET_SETTLED, CHANGED, NO_RECORD` (D41). Phase 2 also adds `feedKinds` (`deposit, balance`, and since the 2026-10-06 re-pin `extra, qc`),
 `feedStatuses` (`open, paid`), `dateBases` (`firm, estimated, undated`), `amountBases`
 (`stated, derived`) and `shippingReasons` (the `SHIPPING_UNAVAILABLE` reasons:
 `source_schema, source_error, bad_response`).
@@ -1435,7 +1518,10 @@ It loads, for the in-scope accounts (`account_id IN (…)`, live rows only):
    row with `source = 'ship' AND ext_id = target_id`, **gone or not**, whatever its dates,
    status or mapping (a gone, undated or absent row reads `TARGET_MISSING` in §9.5; an
    unmapped one carries `inScope: false`). Targets whose account is outside the scope are
-   loaded too (D20).
+   loaded too (D20). **A `new.` adjustment (2026-10-07, D39)** has no target row: the loader
+   reads its account (live, active) and category (live) with `loadAddReferences` and hands
+   the engine the adjustment with `targetLive: true | false`; its account is in scope when
+   it is in the account set (D44), and its category joins `categories` so the row has a name.
 7. **Schedule rows** for every override or instance loaded by rules 2–6 (then rule 3 runs
    again for any schedule that joined here), so the engine can run `isOccurrence` on each
    (orphan detection) and resolve settle modes.
@@ -1443,7 +1529,7 @@ It loads, for the in-scope accounts (`account_id IN (…)`, live rows only):
    the latest `effective_from <= today` (one query, `ROW_NUMBER` or a correlated max).
    Missing → the route answers `FX_RATE_MISSING` before the engine runs.
 9. **Anchors**: per account, the `bank_balances` row with the latest `balance_date`.
-10. **Adjustments**: every `scenario_adjustments` row of the scenario, ascending id — **only while the scenario is `draft`**. An `applied` or `archived` scenario is history: `adjustments: []` and no rule-6 targets, so `/forecast?scenarioId=` shows the real data with no `STALE` warnings (its `scenario` block still renders; nothing is `editable`).
+10. **Adjustments**: every `scenario_adjustments` row of the scenario, ascending id — **only while the scenario is `draft`**. An `applied` or `archived` scenario is history: `adjustments: []` and no rule-6 targets, so `/forecast?scenarioId=` shows the real data with no `STALE` warnings (its `scenario` block still renders; nothing is `editable`). An `add` row's JSON carries its one-off fields and `targetLive` (rule 6).
 11. **Ship rows (Phase 2, P5/P9).** `external_items` rows with `source = 'ship'` and
     `gone_at IS NULL` whose resolved account (§3.4, computed in the same SQL: company by
     `shipping_company_id`, then the currency-matched active account, else the default) is
@@ -1461,7 +1547,7 @@ Output shape (`engineInput`, the JSDoc typedef at the top of `lib/engine.js` is 
 form): `{today, from, to, bucket, include, companyId, accounts: [{id, companyId, name,
 currency, anchorDate, anchorBalance}], rates: {CUR: {rateToGbp, effectiveFrom}},
 categories: [{id, name, direction, sortOrder, systemKey}] (every category of a loaded item,
-schedule or ship row — the rows need names and order), items: [rows],
+schedule, ship row or `add` adjustment — the rows need names and order), items: [rows],
 schedules: [rows], overrides: [rows], payments: [rows], adjustments: [rows],
 externalItems: [rows] (rule 11 plus rule-6 `ship.` targets, each with `accountId`,
 `companyId`, `inScope`), shipping: {lastSuccessAt, feedToday, unmappedCounts} | null,
@@ -1484,6 +1570,13 @@ overlay first); otherwise `{kind: 'ship', id: extId, naturalDate: null, status: 
 'skipped' | 'expected' (§3.4), effectiveDate: planned_date ?? due_date, effectiveAmount
 (P6), currency, accountId (resolved, or null when unmapped), settleMode: 'manual',
 hasPaymentState: feed_status = 'paid', overrideId: null}`.
+`loadAddReferences(conn, adjustment)` (2026-10-07, D39) is the counterpart for an `add`
+row, which has no target: it reads the add's `bank_accounts` row (live, `is_active`, with
+`company_id` and `currency`) and its `categories` row (live, with `direction`), each `null`
+when not live (the account also when inactive), and returns `{account, category, live}`
+with `live = account !== null && category !== null`. The routes lock those two rows `FOR
+SHARE` first when they are about to write (§10.1's exception), and read them plainly on a
+`GET`. Rule 6 uses it to set `targetLive` on each `add` adjustment it hands the engine.
 
 ---
 
@@ -1554,12 +1647,25 @@ matching against the in-scope set would make every out-of-scope target read
 | target's account outside the requested scope (`inScope: false`) | `ADJUSTMENT_OUT_OF_SCOPE`; not applied; the target stays out of both sets |
 | `kind = 'adjust'` | scenario line's date := `new_date` when set, amount := `new_amount` when set; flag `adjusted` |
 | `kind = 'exclude'` | scenario line flagged `excluded`, contributes nothing (D30) |
+| `kind = 'add'` (2026-10-07, D39) and `targetLive` is false (the loader found its account not live or inactive, or its category not live — §8 rule 6) | stale `TARGET_MISSING`; nothing added |
+| `kind = 'add'` and `new_date < today` | stale `DATE_PASSED`; nothing added |
+| `kind = 'add'` and its `accountId` is not one of `input.accounts` (the requested account set) | `ADJUSTMENT_OUT_OF_SCOPE`; nothing added (D44) |
+| `kind = 'add'` and its account has no anchor | nothing added; `NO_ANCHOR` already says why |
+| `kind = 'add'` | a **new line in the scenario set only**: key `new.<adjustment id>`, `kind: 'new'`, `id` the adjustment id, the add's `accountId`, `categoryId`, `direction`, `name`, `counterparty`, `currency`, date `new_date`, amount `new_amount`, status `expected`, settle mode `auto`, no payments, `tuned` false, no `sourceScenarioId`; flag `added`; its `baseline` is null (§6.10) |
 
 A stale adjustment flags its line `stale` in the scenario set and adds `{code: 'STALE',
 key, reason}` to `scenario.warnings`. From here on **every step runs twice**, once per set,
 and the response is built from the scenario set with the baseline's summary in
 `scenario.baselineSummary`. Because adjustments come first, moving an overdue item to next
 week makes it a normal future item in the scenario while it stays overdue in the baseline.
+
+**Split groups (D40).** Every scenario line whose adjustment carries `split_group` — the
+anchor (an `adjust`) and its parts (`add`s) — is flagged `split`, and its row item carries
+`splitGroup` (the anchor adjustment's id). Adjustments are applied ascending by id, so an
+anchor (the lower id) is applied before its parts. An `add` has no `BASE_CHANGED` and no
+`TARGET_SETTLED`: `staleReason` answers, for `kind = 'add'`, `TARGET_MISSING` when
+`adj.targetLive === false`, then `DATE_PASSED`, else null — the same function the routes
+use through `lib/stale.js`, so a scenario read, an apply and `/forecast` agree.
 
 ### 9.6 Classify each set — `lib/classify.js`
 
@@ -1702,9 +1808,12 @@ fx_rates, bank_balances) sit outside the order: they are locked alone by their o
 when a reference route locks several rows of one table (`POST /balances/bulk`, `isDefault`
 clearing siblings) it locks them **ascending by id**. **One exception, and it comes
 first:** an item or schedule write that sets or changes `account_id` / `category_id`
-(create, structural edit, split) takes `SELECT … FROM bank_accounts WHERE id = ? FOR
+(create, structural edit, split), and a scenario `add` write or the apply of one (D39), takes `SELECT … FROM bank_accounts WHERE id = ? FOR
 SHARE` and the same on `categories`, then re-checks that both are live (and the account
-active), **before any lock in the standing order**. Account deactivation / delete and
+active), **before any lock in the standing order**. Apply, which must hold its scenario row
+first (§10.9 step 1), takes an `add`'s two shared locks right after that row and before every
+target lock; nothing that holds a reference lock ever waits on a scenario row, so no cycle
+(2026-10-07). Account deactivation / delete and
 category delete take `FOR UPDATE` on their own row before reading the in-use sets, so the
 two serialise and an item can never slip onto an account that is being deactivated.
 Reference rows are never locked after a standing-order row, so no cycle is possible.
@@ -1830,10 +1939,11 @@ the schedule is read in step 2, so step 1 binds the request's date directly.
    into `rekey[]` and `drop[]`. If `drop[]` is empty, every adjustment is re-keyed. If
    `drop[]` is non-empty and `dropAdjustments` is not `true` → `409 SCHEDULE_HAS_ADJUSTMENTS
    {adjustments}` listing **only** `drop[]`. With `dropAdjustments: true`, `drop[]` is
-   deleted and `rekey[]` still re-keyed.
+   deleted — and a `drop[]` row that anchors a split takes the group's parts (adds, which this
+   step never selects or re-keys) with it (D40, 2026-10-07) — and `rekey[]` still re-keyed.
 6. **Deletes.** `DELETE FROM schedule_overrides WHERE schedule_id = <old> AND natural_date
    >= <k>` — one audit row per deleted override (`schedule_override`/`delete`,
-   before-snapshot); `DELETE` each `drop[]` adjustment — one `scenario_adjustment`/`delete`
+   before-snapshot); `DELETE` each `drop[]` adjustment, and each part of a dropped split anchor — one `scenario_adjustment`/`delete`
    each.
 7. **End the old schedule, insert the successor, then re-key.** Old: `endBefore(schedule,
    k)` → `end_date = k − 1 day`, `occurrence_count = NULL`, `status = 'ended'`,
@@ -1883,6 +1993,67 @@ structural fields together, `row_version + 1`, audit `update`.
    (draft), `DELETE` by `(scenario_id, item_key)` → 404 when none; audit `delete`; 204 (no
    target lock — nothing about the target is read).
 
+### 10.7a Add write — `POST /scenarios/:id/adjustments`, `PUT …/adjustments/new.<id>` (2026-10-07, D39, D43)
+1. Body grammar before the transaction (400): `kind` must be `add`; `accountId`, `categoryId`
+   positive integers; `name` 1–255 after trim; `newAmount` a DECIMAL string `> 0`; `newDate` a
+   real date; `direction` in the enum when sent; `currency` `^[A-Z]{3}$` when sent;
+   `counterparty` ≤ 255, `note` ≤ 500. `newDate < today` → 422 `ADJUSTMENT_DATE_IN_PAST`
+   (before the transaction, as §10.7).
+2. **§10.1's exception, first:** `shareReferences` — `FOR SHARE` on the `bank_accounts` row
+   and the `categories` row; `requireAccount` (live and active) / `requireCategory` (live) →
+   400 as `POST /items`; `assertDirection` (D14). `direction` := the category's; `currency` :=
+   the body's or the account's.
+3. Lock the `scenarios` row (live) → 404; `status ≠ 'draft'` → `SCENARIO_NOT_DRAFT`.
+4. **POST:** `INSERT` the row with `kind = 'add'`, `target_kind = 'new'`, the add's six
+   fields, `new_date`, `new_amount`, `note`, `base_date = base_amount = NULL`, `created_by`,
+   and a placeholder `item_key` (`new.pending.<uuid>` — never visible: the next statement
+   replaces it in the same transaction); then `UPDATE … SET item_key = 'new.<id>', target_id
+   = '<id>' WHERE id = ?` with `buildNewKey(id)`. Audit `scenario_adjustment`/`create` with the
+   final row. 201.
+   **PUT on a `new.` key:** the row by `(scenario_id, item_key)` `FOR UPDATE` → 404 when
+   absent; `baseVersion`; replace `account_id, category_id, direction, name, counterparty,
+   currency, new_date, new_amount, note` (a full replace — an omitted `counterparty` or `note`
+   is cleared); `split_group` is kept; `row_version + 1`; audit `update` when anything changed.
+   200. A PUT with `kind` `adjust`/`exclude` on a `new.` key, or `kind: 'add'` on any other key,
+   is 400 before the transaction.
+5. Answer the adjustment JSON with `stale: null` (both references were just checked live and
+   the date is today or later) and `current: null`.
+
+### 10.7b Split — `POST /scenarios/:id/adjustments/:itemKey/split` (2026-10-07, D40)
+1. Before the transaction: `parseKey` → 422 `ITEM_KEY_INVALID`; a `new.` key → 400 (D43);
+   `parts` an array of at least two `{newDate, newAmount}`, each `newAmount` a DECIMAL string
+   `> 0`, each `newDate` a real date (400), and `>= today` (422 `ADJUSTMENT_DATE_IN_PAST`
+   naming the first offending date); `note` ≤ 500; `baseVersion` grammar.
+2. Lock the `scenarios` row (live) → 404; draft → else `SCENARIO_NOT_DRAFT`.
+3. `lockTargets([parsed])` in the standing order, then `loadCurrent` → `TARGET_MISSING` 404 /
+   `TARGET_SETTLED` 409 as §10.7 step 4. A target with `accountId` null (an unmapped `ship.`
+   row) → 400: a part needs an account to sit on.
+4. `Σ parts.newAmount ≠ target.effectiveAmount` (parsed minor units) → 422
+   `SPLIT_AMOUNTS_MISMATCH {total, expected}`.
+5. The target's descriptive fields, read under its lock: `item.` → the `cash_items` row's
+   `category_id, direction, name, counterparty`; `sched.` → the `schedules` row's; `ship.` →
+   the `system_key = 'ship'` category (or `'freight'` for a forwarder's shipment cost, as
+   §9.3.1 places the line), direction `out`, name `shipName(row)`, counterparty the supplier.
+   Account and currency come from `loadCurrent`.
+6. The existing adjustment for the key, if any (`FOR UPDATE`): `baseVersion` against it; when
+   it anchors a group (`split_group = its id`), `DELETE` the group's other rows (audit
+   `delete` each). Upsert the anchor as `kind = 'adjust'`, `new_date = parts[0].newDate` when
+   it differs from the base date else NULL, `new_amount = parts[0].newAmount` (always below the
+   base, since every other part is `> 0`), `note`, bases from the loader, `split_group = its
+   own id` (set after the insert when created); audit `create` or `update`.
+7. For each further part, `INSERT` an `add` (fields from step 5, `new_date`/`new_amount` the
+   part's, `note`, `split_group` = the anchor's id) and key it as §10.7a step 4; audit `create`
+   each.
+8. 201 `{splitGroup, adjustments: [anchor, …parts]}`, each with `stale` and `current` as a
+   PUT answers them (the parts: `stale: null, current: null`).
+No reference lock is taken: the parts copy the target's account and category, which apply
+re-checks (§10.9 step 2) before it inserts anything.
+
+**Delete (§10.7, amended):** the row by `(scenario_id, item_key)` `FOR UPDATE` → 404;
+`baseVersion`; when it anchors a group, `DELETE` every row with that `split_group` (audit
+`delete` each, the anchor last); otherwise `DELETE` that row alone (a part leaves its group
+short — the user's choice). 204.
+
 ### 10.8 Rebase
 1. Lock the scenario (live, draft) → 404 / `SCENARIO_NOT_DRAFT`.
 2. Read the adjustments ascending id; **lock every target in the standing order** exactly
@@ -1895,13 +2066,18 @@ structural fields together, `row_version + 1`, audit `update`.
    else set `base_date`/`base_amount` to the current values (`rebased: true` when they
    changed; audit `update`).
 4. `dropStale: true` → delete every `TARGET_SETTLED`, `TARGET_MISSING` and `DATE_PASSED` row
-   (audit `delete`, `dropped: true`); `BASE_CHANGED` rows are rebased, never dropped.
+   (audit `delete`, `dropped: true`); `BASE_CHANGED` rows are rebased, never dropped. A dropped
+   row that anchors a split takes its parts with it (D40): each part is deleted, reported
+   `dropped: true` with `stale: null`, and counted in `dropped`.
 5. Audit `scenario`/`rebase` with the counts; return.
 
 ### 10.9 Apply — all or nothing
 1. Lock the `scenarios` row (live) → 404; **require `draft`** → else `SCENARIO_NOT_DRAFT`;
    `baseVersion`.
-2. Read the adjustments ascending id; collect target ids. Lock, in the standing order:
+2. Read the adjustments ascending id; collect target ids. **First, §10.1's exception
+   (2026-10-07, D39): for every `add` row, `FOR SHARE` on its account and its category,
+   ascending by id** — a reference that is not live (or an inactive account) makes that row
+   stale `TARGET_MISSING` at step 3. Then lock, in the standing order:
    `schedules` rows for every `sched.` target, ascending id, `FOR UPDATE` (live); then
    `cash_items` rows for every `item.` target, ascending id, `FOR UPDATE` (live); then
    (Phase 2) `external_items` rows for every `ship.` target, ascending `id`, `FOR UPDATE`
@@ -1916,7 +2092,9 @@ structural fields together, `row_version + 1`, audit `update`.
    `planned_skipped`), `BASE_CHANGED` (current effective date ≠ `base_date` as strings, or
    current effective amount ≠ `base_amount` as parsed minor units — for `ship.` the
    effective values of §3.4, overlay and P6 included), `DATE_PASSED` (`adjust` with
-   `new_date < today` — D38).
+   `new_date < today` — D38). An `add` (D39): `TARGET_MISSING` when its account or category
+   is not live (an inactive account included), `DATE_PASSED` when `new_date < today`; never
+   `TARGET_SETTLED` or `BASE_CHANGED`.
 4. **Any stale → throw `409 SCENARIO_STALE {stale: [{itemKey, reason}]}`** listing each key
    and reason; the transaction rolls back and nothing is written. An apply can never
    quietly skip part of a scenario.
@@ -1933,9 +2111,21 @@ structural fields together, `row_version + 1`, audit `update`.
    `planned_at = UTC_TIMESTAMP()`, `row_version + 1`; audit `external_item`/`apply`;
    `applied[].wrote = 'external_item'`. Feed columns are never written here. Nothing goes
    back to shipping, so the overlay is the only home of an applied `ship.` adjustment.
+   **`add` (2026-10-07, D39)** → `INSERT INTO cash_items (account_id, category_id, direction,
+   name, counterparty, amount, currency, due_date, status, settle_mode, notes,
+   source_scenario_id, created_by) VALUES (…, new_date, 'expected', 'auto', note, scenario id,
+   caller)`; audit `cash_item`/`apply` with `before: null`; `applied[].wrote = 'cash_item'`,
+   `entityId` the new id.
+   **`applied_state` (D41)** — written on every adjustment row in the same statement order,
+   `row_version` untouched (the adjustments are immutable now; this column is apply's own):
+   - `item.`: `{kind: 'item', id, before: {dueDate, amount, status, sourceScenarioId}, after: {dueDate, amount, status}}`;
+   - `sched.`: `{kind: 'sched', overrideId, created: true | false, before: {dueDate, amount, status, sourceScenarioId} | null, after: {dueDate, amount, status}}` (`before` null when apply inserted the override);
+   - `ship.`: `{kind: 'ship', id, before: {plannedDate, plannedAmount, plannedBaseAmount, plannedSkipped, sourceScenarioId, plannedBy, plannedAt}, after: {plannedDate, plannedAmount, plannedSkipped}}` (`plannedAt` as an ISO instant);
+   - `add`: `{kind: 'add', createdItemId}`.
+   Money as DECIMAL strings, dates as `YYYY-MM-DD`, nothing derived.
 6. `status = 'applied'`, `applied_at = NOW()`, `applied_by` = caller, `row_version + 1`; audit
    `scenario`/`apply`. Adjustments are now immutable (`SCENARIO_NOT_DRAFT` on every write)
-   and are the audit trail of what was applied. Return `{scenario, applied}`.
+   and are the audit trail of what was applied. Un-apply (§10.13) is the one way back. Return `{scenario, applied}`.
 
 ### 10.10 Duplicate
 1. Read the source scenario (live, any status; plain read — nothing on it is written).
@@ -2024,6 +2214,42 @@ shadow source tables with `CREATE TABLE … LIKE jfa.<table>` in a per-run schem
 on the source connection fails) and a **live read-only smoke** against explorer-test's `jfa`
 (0 `validateFeed` rejects) are part of the source-swap step (PHASE2.md step 18a).
 
+### 10.13 Un-apply — `POST /scenarios/:id/unapply` (2026-10-07, D41) — all or nothing
+1. Lock the `scenarios` row (live) → 404; **require `applied`** → else 409
+   `SCENARIO_NOT_APPLIED {status}`; `baseVersion`.
+2. Read the adjustments ascending id (`FOR UPDATE`). The target of an `adjust`/`exclude` is
+   its key's; the target of an `add` is the one-off it created, `applied_state.createdItemId`,
+   as an `item.` target (a row with no `applied_state` has no target to lock and reads
+   `NO_RECORD` at step 3). `lockTargets` in the standing order (§10.1).
+3. **Re-check every row under those locks**, reasons in this order: no `applied_state` →
+   `NO_RECORD`; the row gone (a deleted `cash_items` row; no override row with
+   `applied_state.overrideId`; a `ship.` row absent or `gone_at` set; the created one-off
+   deleted) → `TARGET_MISSING`; payment state, or status `paid`/`part_paid` (`ship.`:
+   `feed_status = 'paid'`) → `TARGET_SETTLED`; `source_scenario_id ≠` this scenario's id, or
+   the current date/amount/status (`ship.`: `planned_date`, `planned_amount`, `planned_skipped`;
+   the created one-off: `due_date`, `amount`, `status = 'expected'`) ≠ the after image →
+   `CHANGED`. Dates compare as `YYYY-MM-DD` strings, money as parsed minor units.
+4. **Any → 409 `SCENARIO_UNAPPLY_BLOCKED {blocked: [{itemKey, reason}]}`**; the transaction
+   rolls back and nothing is written.
+5. Otherwise restore, ascending id, from the before image: `item.` → `due_date, amount,
+   status, source_scenario_id`, `row_version + 1`, audit `cash_item`/`unapply`. `sched.` →
+   `created` ? `DELETE` the override row (audit `schedule_override`/`delete`, `before` = the
+   full row) : the same four columns from `before`, `row_version + 1`, audit
+   `schedule_override`/`unapply`. `ship.` → `planned_date, planned_amount, planned_base_amount,
+   planned_skipped, source_scenario_id, planned_by, planned_at` from `before`, `row_version +
+   1`, audit `external_item`/`unapply` (`auditOverlay`); feed columns untouched. `add` → the
+   created one-off gets `deleted_at = UTC_TIMESTAMP()`, `row_version + 1`, audit
+   `cash_item`/`unapply` (a soft delete, §2.7: the row stays for the audit trail). Then
+   `applied_state = NULL` on the adjustment.
+6. `status = 'draft'`, `applied_at = NULL`, `applied_by = NULL`, `row_version + 1`; audit
+   `scenario`/`unapply`. Return `{scenario, unapplied: [{itemKey, kind, wrote, entityId}]}` in
+   `applied[]`'s shape.
+After step 5 every target's effective values equal the adjustment's bases again (apply's
+re-check made base = effective before it wrote), so the draft reads up to date and may be
+edited and re-applied. A schedule split or end that ran meanwhile (§10.5) may have dropped
+or re-keyed what apply wrote; that reads `TARGET_MISSING` or `CHANGED` here, never a silent
+partial revert.
+
 ---
 
 ## 11. Deferred
@@ -2031,7 +2257,8 @@ on the source connection fails) and a **live read-only smoke** against explorer-
 Recorded so nothing is dropped silently. PLAN.md's list:
 
 - Transfers between accounts.
-- Hypothetical items added inside a scenario (`rows[].items[].baseline` reserves `null`).
+- ~~Hypothetical items added inside a scenario~~ — **built 2026-10-07** (D39–D44: `add`, split,
+  un-apply; §10.7a–b, §10.13).
 - Bank holidays (the weekend rule knows only Saturday and Sunday).
 - Bank-feed import.
 - Forecast snapshots.
@@ -2044,6 +2271,20 @@ BUILD_PLAN.md's additions:
   with `remainderDueDate`).
 - Re-keying draft adjustments across a currency split.
 - Anchor-age warnings (`anchorAgeDays` is served; no threshold, no warning code).
+
+Scenario adds, splits and un-apply (Dev, 2026-10-07; D39–D44) — left out:
+
+- Splitting a `new.` line (an add) into further parts (D43): remove it and add the parts.
+- A split whose parts do not sum to the line (`SPLIT_AMOUNTS_MISMATCH`): split first, then
+  resize a part with the ordinary edit.
+- Un-apply of a scenario applied before 2026-10-07 (`NO_RECORD`: nothing was recorded).
+- An add's `settleMode` (always `auto` at apply, D13) and `notes` beyond the adjustment note:
+  edit the real one-off after apply.
+- A category whose direction flips while only adds use it (`CATEGORY_IN_USE` counts items and
+  schedules, not adds): the add keeps the direction it was written with and apply inserts it
+  so; re-pick the category in the scenario first.
+- Serving `applied_state` (D42), and un-apply of a scenario whose targets have moved on
+  (`SCENARIO_UNAPPLY_BLOCKED` lists them; the user reverts by hand).
 
 Phase 2 deferrals (Dev, 2026-09-29):
 
@@ -2102,5 +2343,8 @@ Consciously left out of this contract:
 | `src/lib/engine.js` | §9 |
 | `src/services/forecastLoad.js` | §8 — rows in, engine input out, `loadTarget` (incl. the `ship.` branch); no logic |
 | `src/routes/{companies,accounts,balances,fxRates,categories,items,schedules,forecast,scenarios}.js` | §6; router factories `({schemaReady, fail, serverError}) => router` as workflows; `schedules.js` owns instances, split and end; `forecast.js` calls the refresh (§10.12) before its read transaction; `companies.js` owns `shippingCompanyId` |
+| `src/db/migrations/2026-10-07_jflow_scenario_adds.sql` | §3.6: the `add` columns, `split_group`, `applied_state`, the bases made nullable (D39–D41) |
+| `src/routes/scenarios.js` (2026-10-07) | adds `POST …/adjustments`, `POST …/adjustments/:itemKey/split`, `POST …/unapply`, and the `add` / group branches of PUT, DELETE, rebase, apply and duplicate (§6.11, §10.7a–b, §10.13); `services/forecastLoad.js` gains `loadAddReferences`; `lib/keys.js` the `new.` kind |
+| `test/e2e/scenario-adds.test.js` (2026-10-07) | adds, splits, apply with adds and `applied_state`, un-apply (restore, blocked, re-apply), duplicate and rebase of adds |
 | `test/unit` | dates, money, keys, recurrence, classify (the matrix), engine, loader shaping; Phase 2: the payments-flow goldens (Golden A, run under both `TZ=UTC` and `TZ=Europe/London`), the 27 terms vectors, id grammar |
 | `test/e2e` | per-run `jflow_test_<runid>` schema; the headline flow and every refusal in §7; Phase 2: a per-run shadow source schema built with `CREATE TABLE … LIKE jfa.<table>` (`SHIPPING_DB_SCHEMA` pointed at it), the `source_schema` failure, the read-only proof |

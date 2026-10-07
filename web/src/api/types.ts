@@ -60,6 +60,8 @@ export interface MetaEnums {
   buckets: string[];
   includeModes: string[];
   targetKinds: string[];
+  /** 2026-10-07 (D41): `SCENARIO_UNAPPLY_BLOCKED`'s reasons; absent from an older API. */
+  unapplyReasons?: string[];
   userTypes: UserType[];
   errorCodes: string[];
   warningCodes: string[];

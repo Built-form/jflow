@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Company } from '../../api/types';
-import type { ApplyResult, RebaseResult, Scenario, ScenarioCreate } from '../../api/scenarios';
+import type { ApplyResult, RebaseResult, Scenario, ScenarioCreate, UnapplyResult } from '../../api/scenarios';
 import { scenarios } from '../../api/scenarios';
 import { sortCompanies } from '../../app/companyFilter';
 import { useSubmit, useTouched } from '../../app/useSubmit';
@@ -168,7 +168,7 @@ export function RebaseDialog({
       <DialogBody>
         Every adjustment takes the real item's current date and amount as its new starting point
         — so one whose base changed can be applied again. Settled or missing items, and new dates
-        that have passed, cannot be rebased.
+        that have passed, cannot be rebased. A one-off added in the scenario has nothing to rebase.
         {staleCount > 0 && ` ${plural(staleCount, 'adjustment')} ${staleCount === 1 ? 'is' : 'are'} stale now.`}
       </DialogBody>
       <Toggle
@@ -221,8 +221,54 @@ export function ApplyDialog({
       onClose={onClose}
     >
       <DialogBody>
-        Moves and amount changes become real; lines left out are marked skipped. Each change is
-        recorded against this scenario.
+        Moves and amount changes become real; lines left out are marked skipped. New one-offs in
+        the scenario are created for real. Each change is recorded against this scenario.
+      </DialogBody>
+      {submit.error && <RefusalNote error={submit.error} nameOf={nameOf} />}
+    </Dialog>
+  );
+}
+
+/**
+ * Un-apply (2026-10-07, D41): every write apply made goes back to what it was before, the
+ * one-offs it created are removed, and the scenario is a draft again. All or nothing — a
+ * refusal (`SCENARIO_UNAPPLY_BLOCKED`) lists each line that changed since, and nothing moves.
+ */
+export function UnapplyDialog({
+  scenario,
+  nameOf,
+  onClose,
+  onUnapplied,
+  onRefused,
+}: {
+  scenario: Scenario;
+  nameOf: (itemKey: string) => string | null;
+  onClose: () => void;
+  onUnapplied: (result: UnapplyResult) => void;
+  /** The server refused: the screen re-reads the scenario. */
+  onRefused: () => void;
+}) {
+  const submit = useSubmit();
+  const unapply = () =>
+    void submit
+      .run(async () => onUnapplied(await scenarios.unapply(scenario.id, scenario.rowVersion)))
+      .then((ok) => {
+        if (!ok) onRefused();
+      });
+  return (
+    <Dialog
+      kicker={`SCENARIO · ${scenario.name.toUpperCase()}`}
+      title="Un-apply from the real plan"
+      confirmLabel="Un-apply it"
+      busy={submit.busy}
+      warnTone="warn"
+      warning="Every item, instance and stock payment goes back to what it was before this scenario was applied, and the one-offs it created are removed. All or nothing: it is refused if anything has been paid, deleted or changed since."
+      onConfirm={unapply}
+      onClose={onClose}
+    >
+      <DialogBody>
+        The scenario becomes a draft again, with its adjustments, so it can be changed and applied
+        once more.
       </DialogBody>
       {submit.error && <RefusalNote error={submit.error} nameOf={nameOf} />}
     </Dialog>

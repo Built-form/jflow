@@ -278,6 +278,10 @@ export const FLAG_LABEL: Record<string, { label: string; tone: Tone }> = {
   tuned: { label: 'TUNED', tone: 'idle' },
   adjusted: { label: 'ADJUSTED', tone: 'live' },
   excluded: { label: 'LEFT OUT', tone: 'idle' },
+  // 2026-10-07: a hypothetical one-off that exists only in the scenario (D39), and a line
+  // that is the anchor or a part of a split (D40).
+  added: { label: 'NEW', tone: 'live' },
+  split: { label: 'SPLIT', tone: 'idle' },
   stale: { label: 'STALE', tone: 'fail' },
   fromScenario: { label: 'FROM SCENARIO', tone: 'idle' },
   // Left out of this read with the grid's eye (§6.10 `hide`): shown, counts nothing.

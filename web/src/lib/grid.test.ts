@@ -129,6 +129,15 @@ describe('flags as words', () => {
   it('still shows a flag it does not know', () => {
     expect(flagTags(['somethingNew']).map((t) => t.label)).toEqual(['SOMETHINGNEW']);
   });
+
+  it("names a scenario's hypothetical one-off NEW and a split line SPLIT (D39, D40)", () => {
+    expect(flagTags(['added'])).toEqual([{ flag: 'added', label: 'NEW', tone: 'live' }]);
+    expect(flagTags(['adjusted', 'split'])).toEqual([
+      { flag: 'adjusted', label: 'ADJUSTED', tone: 'live' },
+      { flag: 'split', label: 'SPLIT', tone: 'idle' },
+    ]);
+    expect(flagTags(['added', 'split']).map((t) => t.label)).toEqual(['NEW', 'SPLIT']);
+  });
 });
 
 describe('a collapsed category says what needs attention', () => {

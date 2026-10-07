@@ -5,14 +5,23 @@
  *
  * `:itemKey` goes into the path as-is: keys use unreserved URL characters only (§4), so
  * there is nothing to encode — and the screen has already checked it with `lib/keys.ts`.
+ *
+ * 2026-10-07 (D39–D44): a third kind, `add` — a hypothetical one-off that exists only inside
+ * a draft, keyed `new.<its own id>` — created by `POST …/adjustments` and replaced by a PUT
+ * on its key; a split (`POST …/adjustments/:itemKey/split`) is a group of ordinary
+ * adjustments sharing `splitGroup`; and un-apply (`POST …/unapply`) puts back what an apply
+ * wrote and makes the scenario a draft again.
  */
 
 import { request } from './client';
-import type { Decimal, IsoDate, IsoDateTime, ListEnvelope } from './types';
+import type { Decimal, Direction, IsoDate, IsoDateTime, ListEnvelope } from './types';
 import type { StaleReason } from './forecast';
 
 export type ScenarioStatus = 'draft' | 'applied' | 'archived';
-export type AdjustmentKind = 'adjust' | 'exclude';
+/** `add` (2026-10-07, D39): a hypothetical one-off, keyed `new.<id>`, that exists only in the scenario. */
+export type AdjustmentKind = 'adjust' | 'exclude' | 'add';
+/** Why un-apply refused a line (§7, D41) — inside `SCENARIO_UNAPPLY_BLOCKED`, never a code of its own. */
+export type UnapplyReason = 'TARGET_MISSING' | 'TARGET_SETTLED' | 'CHANGED' | 'NO_RECORD';
 
 export interface Scenario {
   id: number;
@@ -35,22 +44,34 @@ export interface Adjustment {
   id: number;
   scenarioId: number;
   itemKey: string;
-  targetKind: 'item' | 'sched' | 'ship';
+  /** `new` on an `add`: `targetId` is the row's own id and names no real row (§4). */
+  targetKind: 'item' | 'sched' | 'ship' | 'new';
   targetId: string;
   targetDate: IsoDate | null;
   kind: AdjustmentKind;
+  /** On an `add`, the one-off's own date and amount. */
   newDate: IsoDate | null;
   newAmount: Decimal | null;
-  baseDate: IsoDate;
-  baseAmount: Decimal;
+  /** Null on an `add`: there is no real line to compare with (D39). */
+  baseDate: IsoDate | null;
+  baseAmount: Decimal | null;
   note: string | null;
+  /** The `add`'s own one-off (D39); null on `adjust` / `exclude`. */
+  accountId: number | null;
+  categoryId: number | null;
+  direction: Direction | null;
+  name: string | null;
+  counterparty: string | null;
+  currency: string | null;
+  /** The anchor adjustment's id on every row of a split (the anchor's own id on the anchor), else null (D40). */
+  splitGroup: number | null;
   rowVersion: number;
   createdBy: string | null;
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;
   /** Resolved on reads that resolve targets, and only while the scenario is a draft. */
   stale?: StaleReason | null;
-  /** CONTRACT §6.11: the target's current values, with its `name` and `currency`. */
+  /** CONTRACT §6.11: the target's current values, with its `name` and `currency`. Always null on an `add`. */
   current?: { date: IsoDate; amount: Decimal; status: string; name?: string | null; currency?: string | null } | null;
 }
 
@@ -68,9 +89,29 @@ export interface RebaseResult {
   adjustments: RebasedAdjustment[];
 }
 
+/** One row apply wrote (§10.9) — or un-apply put back (§10.13, the same shape). An `add` writes a `cash_item`. */
+export interface AppliedEntry {
+  itemKey: string;
+  kind: AdjustmentKind;
+  wrote: 'cash_item' | 'schedule_override' | 'external_item';
+  entityId: number;
+}
+
 export interface ApplyResult {
   scenario: Scenario;
-  applied: { itemKey: string; kind: AdjustmentKind; wrote: 'cash_item' | 'schedule_override'; entityId: number }[];
+  applied: AppliedEntry[];
+}
+
+/** `POST /scenarios/:id/unapply` (D41): the scenario is a draft again. */
+export interface UnapplyResult {
+  scenario: Scenario;
+  unapplied: AppliedEntry[];
+}
+
+/** `POST …/adjustments/:itemKey/split` (D40): the anchor first, then one `add` per further part. */
+export interface SplitAdjustmentResult {
+  splitGroup: number;
+  adjustments: Adjustment[];
 }
 
 export interface ScenarioCreate {
@@ -87,9 +128,39 @@ export interface ScenarioUpdate {
 }
 
 export interface AdjustmentWrite {
-  kind: AdjustmentKind;
+  kind: 'adjust' | 'exclude';
   newDate?: IsoDate;
   newAmount?: Decimal;
+  note?: string;
+}
+
+/**
+ * An `add`'s body (§6.11, D43): `POST …/adjustments` creates one, a PUT on its `new.` key
+ * replaces it — a FULL replace, so an omitted `counterparty` or `note` is cleared.
+ * `currency` defaults to the account's and `direction` to the category's.
+ */
+export interface AddAdjustmentWrite {
+  kind: 'add';
+  accountId: number;
+  categoryId: number;
+  name: string;
+  newDate: IsoDate;
+  newAmount: Decimal;
+  direction?: Direction;
+  counterparty?: string;
+  currency?: string;
+  note?: string;
+}
+
+/** One part of a split (D40): `> 0`, today or later. */
+export interface SplitPart {
+  newDate: IsoDate;
+  newAmount: Decimal;
+}
+
+/** At least two parts, adding up to the line's real amount; `note` goes on every row of the group. */
+export interface SplitWrite {
+  parts: SplitPart[];
   note?: string;
 }
 
@@ -97,6 +168,12 @@ export interface AdjustmentWrite {
 export interface StaleEntry {
   itemKey: string;
   reason: StaleReason | (string & {});
+}
+
+/** `SCENARIO_UNAPPLY_BLOCKED` details (§7): each key and why; nothing was written. */
+export interface UnapplyBlockedEntry {
+  itemKey: string;
+  reason: UnapplyReason | (string & {});
 }
 
 const versioned = <T extends object>(body: T, baseVersion?: number) =>
@@ -133,17 +210,39 @@ export const scenarios = {
   /** A new draft with every adjustment copied as-is (§10.10). */
   duplicate: (id: number, name?: string) =>
     request<Scenario>(`/scenarios/${id}/duplicate`, { method: 'POST', body: name ? { name } : {} }),
-  /** Create or replace the adjustment for one key (§10.7); the server sets the bases. */
-  putAdjustment: (id: number, itemKey: string, body: AdjustmentWrite, baseVersion?: number) =>
+  /**
+   * Create or replace the adjustment for one key (§10.7); the server sets the bases. On a
+   * `new.` key the body is the add's own, in full (§10.7a, D43).
+   */
+  putAdjustment: (id: number, itemKey: string, body: AdjustmentWrite | AddAdjustmentWrite, baseVersion?: number) =>
     request<Adjustment>(`/scenarios/${id}/adjustments/${itemKey}`, {
       method: 'PUT',
       body: versioned(body, baseVersion),
     }),
+  /** The only way to create an `add` (D43): the server assigns its id, and so its `new.` key. */
+  addAdjustment: (id: number, body: AddAdjustmentWrite) =>
+    request<Adjustment>(`/scenarios/${id}/adjustments`, { method: 'POST', body }),
+  /** Hard delete. A split's ANCHOR takes its parts with it; a part goes alone (D40). */
   removeAdjustment: (id: number, itemKey: string, baseVersion?: number) =>
     request<void>(`/scenarios/${id}/adjustments/${itemKey}`, { method: 'DELETE', body: deleteBody(baseVersion) }),
+  /**
+   * Split one line into dated parts (§10.7b): part 1 resizes (and may move) the line, each
+   * further part is a new `add`. Replaces whatever adjustment the key had.
+   */
+  splitAdjustment: (id: number, itemKey: string, body: SplitWrite, baseVersion?: number) =>
+    request<SplitAdjustmentResult>(`/scenarios/${id}/adjustments/${itemKey}/split`, {
+      method: 'POST',
+      body: versioned(body, baseVersion),
+    }),
   rebase: (id: number, dropStale: boolean) =>
     request<RebaseResult>(`/scenarios/${id}/rebase`, { method: 'POST', body: { dropStale } }),
   /** All or nothing (§10.9): a stale adjustment answers 409 `SCENARIO_STALE` and nothing is written. */
   apply: (id: number, baseVersion?: number) =>
     request<ApplyResult>(`/scenarios/${id}/apply`, { method: 'POST', body: versioned({}, baseVersion) }),
+  /**
+   * All or nothing (§10.13): puts the real plan back as it was before apply and makes the
+   * scenario a draft again; 409 `SCENARIO_UNAPPLY_BLOCKED` when anything changed since.
+   */
+  unapply: (id: number, baseVersion?: number) =>
+    request<UnapplyResult>(`/scenarios/${id}/unapply`, { method: 'POST', body: versioned({}, baseVersion) }),
 };

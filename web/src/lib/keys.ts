@@ -1,10 +1,14 @@
 /**
  * Item keys on the client: a PARSE-ONLY mirror of `api/src/lib/keys.js` (CONTRACT §4).
  *
- * A key names one forecast line — `item.123`, `sched.45.2026-06-01`, `ship.PO-778`. The
- * server builds every key; the client never assembles one. It only reads a key it was
- * given, to find the row behind it: a one-off's id, or an instance's schedule id and
- * NATURAL date (never its effective date) for `PUT /schedules/:id/instances/:naturalDate`.
+ * A key names one forecast line — `item.123`, `sched.45.2026-06-01`, `ship.PO-778`,
+ * `new.77`. The server builds every key; the client never assembles one. It only reads a
+ * key it was given, to find the row behind it: a one-off's id, or an instance's schedule id
+ * and NATURAL date (never its effective date) for `PUT /schedules/:id/instances/:naturalDate`.
+ *
+ * A `new.` key (2026-10-07, D39) names a scenario's hypothetical one-off — an `add`
+ * adjustment — by the adjustment's own id. It names no real row: it is only ever written
+ * to inside its scenario (`PUT` / `DELETE …/adjustments/new.<id>`).
  *
  * The grammar is copied exactly, so a key the server would refuse with
  * `422 ITEM_KEY_INVALID` is refused here first — nothing is sent for it.
@@ -12,11 +16,11 @@
 
 import { isValidDate } from './dates';
 
-export type TargetKind = 'item' | 'sched' | 'ship';
+export type TargetKind = 'item' | 'sched' | 'ship' | 'new';
 
 export interface ParsedKey {
   targetKind: TargetKind;
-  /** The decimal string of the id (`item`/`sched`), or the raw id (`ship`) — CONTRACT D32. */
+  /** The decimal string of the id (`item`/`sched`/`new`), or the raw id (`ship`) — CONTRACT D32. */
   targetId: string;
   /** The instance's natural date for `sched`, else null. */
   targetDate: string | null;
@@ -28,6 +32,7 @@ export const KEY_MAX_LENGTH = 80;
 const ITEM = /^item\.([1-9][0-9]{0,17})$/;
 const SCHED = /^sched\.([1-9][0-9]{0,17})\.([0-9]{4}-[0-9]{2}-[0-9]{2})$/;
 const SHIP = /^ship\.([A-Za-z0-9_-]{1,64})$/;
+const NEW = /^new\.([1-9][0-9]{0,17})$/;
 
 /** The parsed form, or null for anything CONTRACT §4 rejects. */
 export function parseKey(key: unknown): ParsedKey | null {
@@ -38,9 +43,16 @@ export function parseKey(key: unknown): ParsedKey | null {
   if (m) return isValidDate(m[2]) ? { targetKind: 'sched', targetId: m[1], targetDate: m[2] } : null;
   m = SHIP.exec(key);
   if (m) return { targetKind: 'ship', targetId: m[1], targetDate: null };
+  m = NEW.exec(key);
+  if (m) return { targetKind: 'new', targetId: m[1], targetDate: null };
   return null;
 }
 
 export function isValidKey(key: unknown): key is string {
   return parseKey(key) !== null;
+}
+
+/** A scenario's hypothetical one-off (D39): its key is a `new.` key. */
+export function isNewKey(key: unknown): boolean {
+  return parseKey(key)?.targetKind === 'new';
 }

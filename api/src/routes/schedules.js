@@ -405,9 +405,26 @@ async function splitOrEnd(conn, {
             before: overrideToJson(o), after: null, userEmail,
         })));
     }
-    if (drop.length) {
-        await conn.query(`DELETE FROM scenario_adjustments WHERE id IN (${marks(drop)})`, drop.map(({ row: a }) => a.id));
-        await recordAuditBulk(conn, drop.map(({ row: a }) => ({
+    // D40 (2026-10-07): a dropped row that anchors a split takes the group's parts — adds,
+    // which step 1 never selects (target_kind 'new') and step 5 never re-keys — with it.
+    // A part sits in its anchor's scenario, one of the rows locked in step 1.
+    const anchorIds = drop
+        .filter(({ row: a }) => a.split_group != null && Number(a.split_group) === Number(a.id))
+        .map(({ row: a }) => a.id);
+    let parts = [];
+    if (anchorIds.length) {
+        [parts] = await conn.query(
+            `SELECT * FROM scenario_adjustments
+              WHERE split_group IN (${marks(anchorIds)}) AND id NOT IN (${marks(anchorIds)})
+              ORDER BY id ASC
+              FOR UPDATE`,
+            [...anchorIds, ...anchorIds]
+        );
+    }
+    const dropped = [...drop.map(({ row: a }) => a), ...parts];
+    if (dropped.length) {
+        await conn.query(`DELETE FROM scenario_adjustments WHERE id IN (${marks(dropped)})`, dropped.map((a) => a.id));
+        await recordAuditBulk(conn, dropped.map((a) => ({
             entityType: 'scenario_adjustment', entityId: Number(a.id), action: 'delete',
             before: adjustmentToJson(a), after: null, userEmail,
         })));
@@ -427,7 +444,7 @@ async function splitOrEnd(conn, {
         before: scheduleToJson(row), after: scheduleToJson(endedRow), userEmail,
     });
     const deletedOverrides = overrides.map((o) => o.natural_date);
-    const droppedAdjustments = drop.map(({ row: a }) => ({ scenarioId: Number(a.scenario_id), itemKey: a.item_key }));
+    const droppedAdjustments = dropped.map((a) => ({ scenarioId: Number(a.scenario_id), itemKey: a.item_key }));
     if (!isSplit) {
         return { ended: (await decorateSchedules(conn, [endedRow], today))[0], deletedOverrides, droppedAdjustments };
     }

@@ -143,8 +143,11 @@ const SETTLE_MODES = ['auto', 'manual'];
 const { FREQUENCIES, WEEKEND_RULES } = require('../lib/recurrence');
 const SCHEDULE_STATUSES = ['active', 'ended'];
 const SCENARIO_STATUSES = ['draft', 'applied', 'archived'];
-const ADJUSTMENT_KINDS = ['adjust', 'exclude'];
+// `add` (2026-10-07, D39): a hypothetical one-off inside a draft scenario, key new.<id>.
+const ADJUSTMENT_KINDS = ['adjust', 'exclude', 'add'];
 const STALE_REASONS = ['BASE_CHANGED', 'TARGET_SETTLED', 'TARGET_MISSING', 'DATE_PASSED'];
+// Why an un-apply is blocked (SCENARIO_UNAPPLY_BLOCKED's `reason`, D41), in §10.13's order.
+const UNAPPLY_REASONS = ['TARGET_MISSING', 'TARGET_SETTLED', 'CHANGED', 'NO_RECORD'];
 const { DERIVED_STATUSES } = require('../lib/classify');
 const BUCKETS = ['day', 'week', 'month'];
 const INCLUDE_MODES = ['summary', 'grid'];
@@ -170,6 +173,8 @@ const ERROR_CODES = [
     'SCHEDULE_HAS_OVERRIDES', 'SCHEDULE_HAS_ADJUSTMENTS',
     // Scenarios.
     'SCENARIO_NOT_DRAFT', 'SCENARIO_STALE', 'TARGET_SETTLED', 'TARGET_MISSING',
+    // Scenario adds, splits and un-apply (2026-10-07, D40, D41).
+    'SPLIT_AMOUNTS_MISMATCH', 'SCENARIO_NOT_APPLIED', 'SCENARIO_UNAPPLY_BLOCKED',
     // Phase 2: the shipping feed (§6.2, §6.12).
     'SHIPPING_COMPANY_TAKEN', 'PLANNED_DATE_IN_PAST', 'SHIPPING_UNAVAILABLE',
 ];
@@ -192,6 +197,7 @@ const ENUMS = {
     scenarioStatuses: SCENARIO_STATUSES,
     adjustmentKinds: ADJUSTMENT_KINDS,
     staleReasons: STALE_REASONS,
+    unapplyReasons: UNAPPLY_REASONS,
     derivedStatuses: DERIVED_STATUSES,
     buckets: BUCKETS,
     includeModes: INCLUDE_MODES,

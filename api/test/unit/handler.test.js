@@ -92,9 +92,18 @@ describe('meta/enums', () => {
             'adjustmentKinds', 'amountBases', 'buckets', 'dateBases', 'derivedStatuses', 'directions', 'errorCodes',
             'feedKinds', 'feedStatuses', 'frequencies', 'includeModes', 'itemStatuses', 'overrideStatuses',
             'scenarioStatuses', 'scheduleStatuses', 'settleModes', 'shippingReasons', 'staleReasons', 'targetKinds',
-            'userTypes', 'warningCodes', 'weekendRules',
+            'unapplyReasons', 'userTypes', 'warningCodes', 'weekendRules',
         ]);
         expect(res.body.userTypes).toEqual(['standard', 'admin']);
+    });
+
+    test('scenario adds, splits and un-apply (2026-10-07, CONTRACT §7, D39–D41)', () => {
+        expect(ENUMS.adjustmentKinds).toEqual(['adjust', 'exclude', 'add']);
+        expect(ENUMS.targetKinds).toEqual(['item', 'sched', 'ship', 'new']);
+        expect(ENUMS.unapplyReasons).toEqual(['TARGET_MISSING', 'TARGET_SETTLED', 'CHANGED', 'NO_RECORD']);
+        expect(ENUMS.errorCodes).toEqual(expect.arrayContaining(['SPLIT_AMOUNTS_MISMATCH', 'SCENARIO_NOT_APPLIED', 'SCENARIO_UNAPPLY_BLOCKED']));
+        expect(ENUMS.staleReasons).toEqual(['BASE_CHANGED', 'TARGET_SETTLED', 'TARGET_MISSING', 'DATE_PASSED']);
+        for (const reason of ['CHANGED', 'NO_RECORD']) expect(ENUMS.errorCodes).not.toContain(reason);
     });
 
     test('Phase 2 vocabularies (CONTRACT §7) come from services/shipping.js, which enforces them', () => {

@@ -15,7 +15,7 @@ export const TO = '2026-10-18';
 
 export function line(overrides: Partial<ForecastItem> & Pick<ForecastItem, 'key' | 'name'>): ForecastItem {
   return {
-    kind: overrides.key.startsWith('sched.') ? 'sched' : 'item',
+    kind: overrides.key.startsWith('sched.') ? 'sched' : overrides.key.startsWith('new.') ? 'new' : 'item',
     id: 1,
     counterparty: null,
     accountId: 1,
@@ -233,12 +233,67 @@ function days(withBaseline: boolean): ForecastDay[] {
   return out;
 }
 
+/**
+ * The scenario's adds and split (2026-10-07, D39/D40), as `/forecast` would place them with
+ * `scenarioId`: Invoice 1041 (`item.10`, £1,000.00 on 6 Oct) split into £600.00 on 6 Oct (the
+ * anchor, adjustment 21) and £400.00 on 13 Oct (the part, `new.22`); and a £75.00 late-filing
+ * penalty to HMRC on 13 Oct (`new.23`), a hypothetical one-off of its own.
+ */
+export const SPLIT_GROUP = 21;
+
+function addScenarioLines(r: ForecastRow[]): void {
+  const sales = r[0];
+  const invoice = sales.items[0];
+  invoice.amountMinor = 60000;
+  invoice.accountMinor = 60000;
+  invoice.gbpMinor = 60000;
+  invoice.flags = ['adjusted', 'split'];
+  invoice.splitGroup = SPLIT_GROUP;
+  sales.items.push(
+    line({
+      key: 'new.22',
+      id: 22,
+      name: 'Invoice 1041',
+      counterparty: 'Brightside Ltd',
+      amountMinor: 40000,
+      accountMinor: 40000,
+      gbpMinor: 40000,
+      date: '2026-10-13',
+      bucketIndex: 2,
+      flags: ['added', 'split'],
+      baseline: null,
+      splitGroup: SPLIT_GROUP,
+    }),
+  );
+  sales.totals = [0, 60000, 40000];
+  const suppliers = r[2];
+  suppliers.items.push(
+    line({
+      key: 'new.23',
+      id: 23,
+      name: 'Late filing penalty',
+      counterparty: 'HMRC',
+      amountMinor: 7500,
+      accountMinor: 7500,
+      gbpMinor: 7500,
+      date: '2026-10-13',
+      bucketIndex: 2,
+      flags: ['added'],
+      baseline: null,
+      splitGroup: null,
+    }),
+  );
+  suppliers.totals = [45000, 0, 67500];
+  suppliers.total = 112500;
+}
+
 export function forecastFixture({
   scenario = false,
   unresolved = false,
   warnings = [],
   ship = false,
   shipping = null,
+  adds = false,
 }: {
   scenario?: boolean;
   unresolved?: boolean;
@@ -246,6 +301,8 @@ export function forecastFixture({
   /** Add the Stock payments row. */
   ship?: boolean;
   shipping?: ForecastShipping | null;
+  /** With `scenario`: the scenario's split of Invoice 1041 and its late-filing penalty (`addScenarioLines`). */
+  adds?: boolean;
 } = {}): ForecastResponse {
   const summary = {
     opening: 100000,
@@ -261,11 +318,17 @@ export function forecastFixture({
   };
   const r = ship ? [...rows(), shipRow()] : rows();
   if (scenario) {
-    for (const row of r) for (const item of row.items) item.baseline = { date: item.date, amountMinor: item.amountMinor, gbpMinor: item.gbpMinor, flags: [] };
+    for (const row of r) {
+      for (const item of row.items) {
+        item.baseline = { date: item.date, amountMinor: item.amountMinor, gbpMinor: item.gbpMinor, flags: [] };
+        item.splitGroup = null;
+      }
+    }
     // The rent has been moved a week later in the scenario.
     const rent = r[1].items[0];
     rent.flags = ['tuned', 'adjusted'];
     rent.baseline = { date: '2026-09-24', amountMinor: 120000, gbpMinor: 120000, flags: ['tuned'] };
+    if (adds) addScenarioLines(r);
   }
   return {
     meta: {

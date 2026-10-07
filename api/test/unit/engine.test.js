@@ -12,6 +12,9 @@
 //  - scenarios: adjustments before classification (overdue cleared in the scenario only),
 //    an out-of-window target moved in, the four stale reasons, ADJUSTMENT_OUT_OF_SCOPE,
 //    exclude (D30), baselineClosing (D34), baseline on each row item;
+//  - hypothetical lines (2026-10-07, D39, D40, D44): an `add` is a `new` line of the scenario
+//    set only (baseline null, flag added), its stale reasons, scope and anchor, its currency
+//    in scope; a split group's anchor and parts flagged split with their splitGroup;
 //  - money: the rounding invariant at 1.234567 and 0.005234, item → GBP → account currency,
 //    FX_RATE_MISSING;
 //  - the window: from clamped, to capped at 730 days, day / week (Monday, clipped) / month
@@ -25,7 +28,7 @@
 const fs = require('fs');
 
 const {
-    run, clampWindow, currenciesInScope, MAX_WINDOW_DAYS, DEFAULT_WINDOW_DAYS, BUCKETS, INCLUDES,
+    run, clampWindow, currenciesInScope, staleReason, MAX_WINDOW_DAYS, DEFAULT_WINDOW_DAYS, BUCKETS, INCLUDES,
 } = require('../../src/lib/engine');
 const { parseKey } = require('../../src/lib/keys');
 const { toGbp, fromGbp, parseRate } = require('../../src/lib/money');
@@ -663,6 +666,159 @@ describe('scenario adjustments, applied before classification (§9.5)', () => {
         expect(forecast({ items }).scenario).toBeNull();
         const res = forecast({ items, scenario: DRAFT });
         expect(res.days.every((d) => d.baselineClosing === d.closing)).toBe(true);
+    });
+});
+
+// ── Hypothetical lines and split groups (2026-10-07, D39, D40, D44) ────────────────────────
+
+describe('hypothetical lines (D39, D40)', () => {
+    const EUR = { EUR: { rateToGbp: '1.234567', effectiveFrom: '2026-09-01' } };
+
+    /** An `add` adjustment as the loader hands it over (§8 rule 10): its one-off's fields and targetLive. */
+    function addAdj(id, over = {}) {
+        return {
+            id, scenarioId: 7, itemKey: `new.${id}`, targetKind: 'new', targetId: String(id), targetDate: null,
+            kind: 'add', newDate: '2026-10-05', newAmount: '250.00', baseDate: null, baseAmount: null, note: null,
+            accountId: 1, categoryId: 20, direction: 'out', name: `Add ${id}`, counterparty: null, currency: 'GBP',
+            splitGroup: null, targetLive: true, ...over,
+        };
+    }
+
+    test('an add is a line of the scenario set only: kind new, baseline null, flag added, its row, bucket and GBP', () => {
+        const over = {
+            rates: EUR,
+            scenario: DRAFT,
+            adjustments: [
+                addAdj(41, { categoryId: 21, name: 'Late-payment fine', counterparty: 'HMRC', currency: 'EUR', newAmount: '100.00' }),
+                addAdj(46, { categoryId: 10, direction: 'in', name: 'Interest', newDate: '2026-10-01' }),
+            ],
+        };
+        const res = forecast(over);
+        const gbp = Number(toGbp(10000n, parseRate('1.234567')));
+        expect(gbp).toBe(12346);
+        expect(lineOf(res, 'new.41')).toEqual({
+            key: 'new.41', kind: 'new', id: 41, name: 'Late-payment fine', counterparty: 'HMRC', accountId: 1, currency: 'EUR',
+            amountMinor: 10000, accountMinor: gbp, gbpMinor: gbp, date: '2026-10-05', dueDate: '2026-10-05', bucketIndex: 6,
+            status: 'expected', settleMode: 'auto', flags: ['added'], editable: true, baseline: null, splitGroup: null,
+        });
+        expect(lineOf(res, 'new.46')).toMatchObject({
+            kind: 'new', id: 46, amountMinor: 25000, gbpMinor: 25000, date: '2026-10-01', bucketIndex: 2,
+            flags: ['added'], baseline: null, splitGroup: null,
+        });
+        expect(res.rows.map((r) => [r.categoryId, r.categoryName, r.totals[2], r.totals[6]])).toEqual([
+            [10, 'Sales', 25000, 0], [21, 'Payroll', 0, gbp],
+        ]);
+        expect(res.meta.ratesUsed).toEqual({
+            EUR: { rateToGbp: '1.234567', effectiveFrom: '2026-09-01' }, GBP: { rateToGbp: '1.000000', effectiveFrom: null },
+        });
+        expect(res.summary).toMatchObject({ inflow: 25000, outflow: gbp, closing: 100000 + 25000 - gbp });
+        expect(res.scenario.baselineSummary).toMatchObject({ inflow: 0, outflow: 0, closing: 100000 });
+        expect(res.scenario.warnings).toEqual([]);
+        expect(dayOf(res, '2026-10-05')).toMatchObject({ outflow: gbp, closing: 125000 - gbp, baselineClosing: 100000 });
+        expect(res.scenario.deltaByBucket[2]).toMatchObject({ inflow: 25000, outflow: 0, closing: 25000 });
+        expect(res.scenario.deltaByBucket[6]).toMatchObject({ inflow: 0, outflow: gbp, closing: 25000 - gbp });
+        // §3.4 (D44): a live add's currency is in scope, so a missing rate refuses the run.
+        expect(currenciesInScope(input(over))).toEqual(['EUR', 'GBP']);
+        const err = thrown(() => run(input({ ...over, rates: {} })));
+        expect(err).toMatchObject({ status: 422, code: 'FX_RATE_MISSING', details: { currencies: ['EUR'] } });
+        // Without a scenario there is no such line (the baseline never sees an add).
+        expect(linesOf(forecast({ ...over, scenario: null }), 'new.41')).toEqual([]);
+    });
+
+    test('a stale add — DATE_PASSED, TARGET_MISSING — is warned and not placed; an add is never BASE_CHANGED or TARGET_SETTLED', () => {
+        const res = forecast({
+            scenario: DRAFT,
+            adjustments: [
+                addAdj(42, { newDate: '2026-09-28' }),                                       // before today
+                addAdj(43, { targetLive: false, newDate: '2026-09-01', currency: 'USD' }),   // references gone: first reason wins
+                addAdj(44, { baseDate: '2020-01-01', baseAmount: '1.00', newDate: TODAY }),  // bases are meaningless on an add
+            ],
+        });
+        expect(res.scenario.warnings).toEqual([
+            { code: 'STALE', key: 'new.42', reason: 'DATE_PASSED' },
+            { code: 'STALE', key: 'new.43', reason: 'TARGET_MISSING' },
+        ]);
+        expect(linesOf(res, 'new.42')).toEqual([]);
+        expect(linesOf(res, 'new.43')).toEqual([]);
+        expect(lineOf(res, 'new.44')).toMatchObject({ date: TODAY, bucketIndex: 0, amountMinor: 25000, flags: ['added'] });
+        // A dead add's currency is not in scope: no USD rate is needed.
+        expect(res.meta.ratesUsed).toEqual({ GBP: { rateToGbp: '1.000000', effectiveFrom: null } });
+
+        // staleReason, the one definition the routes share through lib/stale.js.
+        const settled = { status: 'paid', hasPaymentState: true, date: '2026-01-01', amountMinor: 1n };
+        expect(staleReason(addAdj(1, { targetLive: false, newDate: '2026-09-01' }), null, TODAY)).toBe('TARGET_MISSING');
+        expect(staleReason(addAdj(1, { newDate: '2026-09-28' }), null, TODAY)).toBe('DATE_PASSED');
+        expect(staleReason(addAdj(1, { newDate: TODAY }), null, TODAY)).toBeNull();
+        expect(staleReason(addAdj(1, { newDate: TODAY }), settled, TODAY)).toBeNull();
+        expect(staleReason(addAdj(1, { newDate: TODAY, targetLive: undefined }), null, TODAY)).toBeNull();
+    });
+
+    test('an add on an account outside the set → ADJUSTMENT_OUT_OF_SCOPE; on an unanchored one, nothing (NO_ANCHOR says why)', () => {
+        const res = forecast({
+            accounts: [account(), account({ id: 3, name: 'Unanchored', anchorDate: null, anchorBalance: null })],
+            scenario: DRAFT,
+            adjustments: [addAdj(45, { accountId: 2 }), addAdj(47, { accountId: 3 })],
+        });
+        expect(res.scenario.warnings).toEqual([{ code: 'ADJUSTMENT_OUT_OF_SCOPE', key: 'new.45' }]);
+        expect(res.warnings).toEqual([{ code: 'NO_ANCHOR', accountId: 3 }]);
+        expect(res.rows).toEqual([]);
+        expect(res.summary).toEqual(res.scenario.baselineSummary);
+    });
+
+    test('a split group: the anchor and its parts are flagged split and carry splitGroup; the total is unchanged', () => {
+        const over = {
+            items: [item(50, { dueDate: '2026-10-05', amount: '300.00' }), item(54, { dueDate: '2026-10-06' })],
+            scenario: DRAFT,
+            adjustments: [
+                adjustment(51, 'item.50', { newAmount: '100.00', baseDate: '2026-10-05', baseAmount: '300.00', splitGroup: 51 }),
+                addAdj(52, { newDate: '2026-10-12', newAmount: '120.00', name: 'Item 50', splitGroup: 51 }),
+                addAdj(53, { newDate: '2026-10-19', newAmount: '80.00', name: 'Item 50', splitGroup: 51 }),
+            ],
+        };
+        const res = forecast(over);
+        expect(lineOf(res, 'item.50')).toMatchObject({
+            date: '2026-10-05', amountMinor: 10000, flags: ['adjusted', 'split'], splitGroup: 51,
+            baseline: { date: '2026-10-05', amountMinor: 30000, gbpMinor: 30000, flags: [] },
+        });
+        expect(lineOf(res, 'new.52')).toMatchObject({ date: '2026-10-12', amountMinor: 12000, flags: ['added', 'split'], splitGroup: 51, baseline: null });
+        expect(lineOf(res, 'new.53')).toMatchObject({ date: '2026-10-19', amountMinor: 8000, flags: ['added', 'split'], splitGroup: 51, baseline: null });
+        expect(lineOf(res, 'item.54')).toMatchObject({ flags: [], splitGroup: null });
+        expect(res.summary.outflow).toBe(res.scenario.baselineSummary.outflow);
+        expect(res.summary.closing).toBe(res.scenario.baselineSummary.closing);
+        expect(dayOf(res, '2026-10-05')).toMatchObject({ outflow: 10000, baselineClosing: 70000, closing: 90000 });
+        expect(res.scenario.deltaByBucket[diffDays('2026-10-05', TODAY)]).toMatchObject({ outflow: -20000 });
+        expect(res.scenario.deltaByBucket[diffDays('2026-10-12', TODAY)]).toMatchObject({ outflow: 12000 });
+        expect(res.scenario.deltaByBucket[diffDays('2026-10-19', TODAY)]).toMatchObject({ outflow: 8000, closing: 0 });
+
+        // splitGroup rides only with a scenario (§6.10).
+        const plain = forecast({ items: over.items });
+        expect('splitGroup' in lineOf(plain, 'item.50')).toBe(false);
+        expect('baseline' in lineOf(plain, 'item.50')).toBe(false);
+
+        // A stale anchor still belongs to its group; its parts are independent adds.
+        const staleAnchor = forecast({
+            ...over,
+            adjustments: [{ ...over.adjustments[0], baseAmount: '299.00' }, ...over.adjustments.slice(1)],
+        });
+        expect(lineOf(staleAnchor, 'item.50')).toMatchObject({ amountMinor: 30000, flags: ['split', 'stale'], splitGroup: 51 });
+        expect(lineOf(staleAnchor, 'new.52').flags).toEqual(['added', 'split']);
+        expect(staleAnchor.scenario.warnings).toEqual([{ code: 'STALE', key: 'item.50', reason: 'BASE_CHANGED' }]);
+    });
+
+    test('a hidden add is hidden like any line; the engine stays pure and repeatable', () => {
+        const over = { scenario: DRAFT, adjustments: [addAdj(48, { newDate: '2026-10-02' })] };
+        const res = forecast({ ...over, hide: { keys: ['new.48'], categoryIds: [] } });
+        expect(lineOf(res, 'new.48').flags).toEqual(['added', 'hidden']);
+        expect(res.summary.outflow).toBe(0);
+        expect(res.hidden).toMatchObject({ count: 1, outflow: 25000 });
+        expect(forecast(over)).toEqual(forecast(over));      // forecast() deep-freezes its input
+    });
+
+    test('the adjustment kind is still validated: add is accepted, anything else throws', () => {
+        expect(() => forecast({ scenario: DRAFT, adjustments: [addAdj(49)] })).not.toThrow();
+        const err = thrown(() => run(input({ scenario: DRAFT, adjustments: [{ ...addAdj(49), kind: 'merge' }] })));
+        expect(err).toBeInstanceOf(TypeError);
+        expect(err.message).toMatch(/add/);
     });
 });
 

@@ -2,10 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { isValidKey, parseKey } from './keys';
 
 describe('parseKey (CONTRACT §4, parse only)', () => {
-  it('reads the three kinds', () => {
+  it('reads the four kinds', () => {
     expect(parseKey('item.123')).toEqual({ targetKind: 'item', targetId: '123', targetDate: null });
     expect(parseKey('sched.45.2026-06-01')).toEqual({ targetKind: 'sched', targetId: '45', targetDate: '2026-06-01' });
     expect(parseKey('ship.PO-778')).toEqual({ targetKind: 'ship', targetId: 'PO-778', targetDate: null });
+    expect(parseKey('new.77')).toEqual({ targetKind: 'new', targetId: '77', targetDate: null });
+  });
+
+  it("reads a scenario add's `new.` key back to the adjustment id the server built it from (D39)", () => {
+    for (const id of ['1', '77', '123456789012345678']) {
+      const parsed = parseKey(`new.${id}`);
+      expect(parsed).toEqual({ targetKind: 'new', targetId: id, targetDate: null });
+      expect(isValidKey(`new.${id}`)).toBe(true);
+    }
+    expect(parseKey('new.1234567890123456789')).toBeNull();
   });
 
   it('keeps the id as the decimal string, up to 18 digits', () => {
@@ -26,6 +36,13 @@ describe('parseKey (CONTRACT §4, parse only)', () => {
     'ship.PO 778',
     'ship.PO#778',
     'ship.',
+    'new.0',
+    'new.01',
+    'new.-1',
+    'new.',
+    'new.7.2026-10-01',
+    'new.abc',
+    'NEW.7',
     'item:123',
     'item/123',
     'ITEM.123',

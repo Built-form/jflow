@@ -316,6 +316,32 @@ describe('split and end', () => {
         expect(await naturalDates(s.id, '2026-01-01', '2026-12-31')).toEqual(['2026-01-15', '2026-02-15', '2026-03-15']);
     });
 
+    test('a dropped anchor takes its split parts with it (D40): the parts are adds the split never selects or re-keys', async () => {
+        const s = await makeSchedule({ name: 'Grouped', startDate: '2026-01-20' });
+        const draft = await scenario('Grouped');
+        const key = `sched.${s.id}.2026-05-20`;
+        const group = (await post(`/scenarios/${draft}/adjustments/${key}/split`, {
+            parts: [{ newDate: '2026-05-20', newAmount: '400.00' }, { newDate: '2026-06-05', newAmount: '600.00' }],
+        }).expect(201)).body;
+        const [anchor, part] = group.adjustments;
+        expect(part).toMatchObject({ kind: 'add', itemKey: `new.${part.id}`, splitGroup: anchor.id });
+        const body = { fromNaturalDate: '2026-04-20', changes: { frequency: 'quarterly' } };
+
+        // Only the anchor is a sched. adjustment from k; the part has no target and is not listed.
+        const refused = await split(s.id, body).expect(409);
+        expect(refused.body.details.adjustments).toEqual([{ scenarioId: draft, scenarioName: 'Grouped', itemKey: key, naturalDate: '2026-05-20' }]);
+        expect(await adjustmentRow(part.id)).toMatchObject({ item_key: part.itemKey });
+
+        const res = (await split(s.id, { ...body, dropAdjustments: true }).expect(201)).body;
+        expect(res.droppedAdjustments).toEqual([{ scenarioId: draft, itemKey: key }, { scenarioId: draft, itemKey: part.itemKey }]);
+        expect(await adjustmentRow(anchor.id)).toBeUndefined();
+        expect(await adjustmentRow(part.id)).toBeUndefined();
+        for (const id of [anchor.id, part.id]) {
+            const [audit] = await h.audit('scenario_adjustment', id);
+            expect(audit).toMatchObject({ action: 'delete', after: null, before: { id } });
+        }
+    });
+
     test('SCHEDULE_HAS_PAYMENTS on split and end, whatever the drops; payments before k do not block', async () => {
         const s = await makeSchedule({ name: 'Paid ahead', startDate: '2026-01-25' });
         await pay(s.id, '2026-02-25', { paidOn: '2026-02-26' }).expect(200);                        // before k

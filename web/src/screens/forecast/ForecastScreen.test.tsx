@@ -6,6 +6,7 @@ import { ApiError, __setTestTransport } from '../../api/client';
 import type { ForecastResponse } from '../../api/forecast';
 import { ScenarioBanner, ScenarioContext, createScenarioStore } from '../../app/ScenarioContext';
 import type { ScenarioStore } from '../../app/ScenarioContext';
+import { category } from '../items/testFixtures';
 import { BalanceChart } from './BalanceChart';
 import { ForecastScreen } from './ForecastScreen';
 import { forecastFixture } from './fixtures';
@@ -33,12 +34,30 @@ function stubApi(answer: () => ForecastResponse | ApiError) {
     }
     if (method === 'GET' && path.startsWith('/companies')) return ok(list([]));
     if (method === 'GET' && path.startsWith('/accounts')) return ok(list([accountRow(1, 'Barclays'), accountRow(2, 'Lloyds')]));
-    if (method === 'PUT') return ok({});
+    if (method === 'GET' && path.startsWith('/categories')) return ok(list(CATEGORIES));
+    if (method === 'GET' && path === '/scenarios/9') return ok(SCENARIO_DETAIL);
+    if (method === 'PUT' || method === 'POST') return ok({});
     if (method === 'DELETE') return ok(undefined);
     return Promise.reject(new Error(`unexpected ${method} ${path}`));
   });
   return calls;
 }
+
+const CATEGORIES = [category(1, 'Sales', 'in'), category(2, 'Rent', 'out'), category(3, 'Suppliers', 'out')];
+
+/** `GET /scenarios/9` for the `adds` fixture: the penalty's add carries a note the forecast line does not. */
+const SCENARIO_DETAIL = {
+  id: 9, name: 'Delay the rent', description: null, companyId: null, status: 'draft', appliedAt: null, appliedBy: null,
+  adjustmentCount: 1, rowVersion: 3, createdBy: null, createdAt: stamp, updatedAt: stamp, deletedAt: null,
+  adjustments: [
+    {
+      id: 23, scenarioId: 9, itemKey: 'new.23', targetKind: 'new', targetId: '23', targetDate: null, kind: 'add',
+      newDate: '2026-10-13', newAmount: '75.00', baseDate: null, baseAmount: null, note: 'If the return is late',
+      accountId: 1, categoryId: 3, direction: 'out', name: 'Late filing penalty', counterparty: 'HMRC', currency: 'GBP',
+      splitGroup: null, rowVersion: 0, createdBy: null, createdAt: stamp, updatedAt: stamp, stale: null, current: null,
+    },
+  ],
+};
 
 function renderForecast(store: ScenarioStore = createScenarioStore(), path = '/forecast') {
   return render(
@@ -409,6 +428,196 @@ describe('Forecast', () => {
       expect(store.get()).toBeNull();
       expect(forecastCalls(calls).at(-1)?.path).not.toMatch(/scenarioId/);
     });
+
+    it('offers "Add a one-off…" only on a draft, and posts the add from its dialog (D39)', async () => {
+      const calls = stubApi(() => forecastFixture({ scenario: true }));
+      renderForecast(openStore());
+      const panel = await screen.findByTestId('forecast-scenario');
+      fireEvent.click(within(panel).getByRole('button', { name: 'Add a one-off…' }));
+
+      const dialog = screen.getByRole('dialog', { name: 'Add a one-off to this scenario' });
+      expect(dialog.textContent).toContain('SCENARIO · DELAY THE RENT');
+      expect(dialog.textContent).toContain('It exists only in this scenario. Apply writes it to the real plan as a new one-off.');
+      const add = within(dialog).getByRole('button', { name: 'Add to scenario' }) as HTMLButtonElement;
+      expect(add.disabled).toBe(true);
+      // The first active account, money out, today.
+      expect((within(dialog).getByLabelText('Account') as HTMLSelectElement).value).toBe('1');
+      expect((within(dialog).getByLabelText('Currency') as HTMLInputElement).value).toBe('GBP');
+      expect((within(dialog).getByLabelText('Date') as HTMLInputElement).value).toBe('2026-09-29');
+      // Money out offers the money-out categories only.
+      await waitFor(() => expect(within(dialog).getAllByRole('option').map((o) => o.textContent)).toContain('Suppliers'));
+      expect(within(dialog).queryByRole('option', { name: 'Sales' })).toBeNull();
+
+      fireEvent.change(within(dialog).getByLabelText('Category'), { target: { value: '3' } });
+      fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Late filing penalty' } });
+      fireEvent.change(within(dialog).getByLabelText('Counterparty'), { target: { value: 'HMRC' } });
+      fireEvent.change(within(dialog).getByLabelText('Amount'), { target: { value: '75' } });
+      fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-09-28' } });
+      expect(within(dialog).getByRole('alert').textContent).toBe('Today or later: a scenario cannot add a one-off in the past.');
+      expect(add.disabled).toBe(true);
+      fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-10-13' } });
+      fireEvent.change(within(dialog).getByLabelText('Note'), { target: { value: 'If the return is late' } });
+      fireEvent.click(add);
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(calls.filter((c) => c.method === 'POST')).toEqual([
+        {
+          method: 'POST',
+          path: '/scenarios/9/adjustments',
+          body: {
+            kind: 'add',
+            accountId: 1,
+            categoryId: 3,
+            direction: 'out',
+            name: 'Late filing penalty',
+            counterparty: 'HMRC',
+            newDate: '2026-10-13',
+            newAmount: '75.00',
+            currency: 'GBP',
+            note: 'If the return is late',
+          },
+        },
+      ]);
+      await waitFor(() => expect(forecastCalls(calls)).toHaveLength(2));
+    });
+
+    it('offers no "Add a one-off…" on a scenario that is not a draft', async () => {
+      stubApi(() => {
+        const res = forecastFixture({ scenario: true });
+        if (res.scenario) res.scenario.status = 'applied';
+        return res;
+      });
+      renderForecast(openStore());
+      const panel = await screen.findByTestId('forecast-scenario');
+      expect(within(panel).queryByRole('button', { name: 'Add a one-off…' })).toBeNull();
+    });
+
+    it('splits a line into parts from its edit dialog, and posts them to …/split (D40)', async () => {
+      const calls = stubApi(() => forecastFixture({ scenario: true }));
+      renderForecast(openStore());
+      await expandGrid();
+      fireEvent.click(await screen.findByRole('button', { name: /Edit Invoice 1041/ }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Split into parts…' }));
+
+      const dialog = screen.getByRole('dialog', { name: 'Split Invoice 1041' });
+      expect(dialog.textContent).toContain('The line becomes part 1; each further part is a new one-off in this scenario');
+      expect(within(dialog).getByTestId('split-base').textContent).toBe('£1,000.00');
+      expect(within(dialog).getByTestId('split-left').textContent).toBe('£0.00');
+      expect((within(dialog).getByLabelText('Part 1 amount') as HTMLInputElement).value).toBe('500.00');
+      expect((within(dialog).getByLabelText('Part 2 date') as HTMLInputElement).value).toBe('2026-11-05');
+      const confirm = within(dialog).getByRole('button', { name: 'Split it' }) as HTMLButtonElement;
+
+      // A third part at zero holds the split back until the money is shared out again.
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Add a part' }));
+      expect((within(dialog).getByLabelText('Part 3 date') as HTMLInputElement).value).toBe('2026-12-05');
+      expect(confirm.disabled).toBe(true);
+      fireEvent.change(within(dialog).getByLabelText('Part 2 amount'), { target: { value: '300' } });
+      expect(within(dialog).getByTestId('split-left').textContent).toBe('£200.00');
+      expect(within(dialog).getByTestId('split-error').textContent).toBe('The parts must add up to £1,000.00.');
+      fireEvent.change(within(dialog).getByLabelText('Part 3 amount'), { target: { value: '200' } });
+      expect(within(dialog).getByTestId('split-left').textContent).toBe('£0.00');
+      expect(confirm.disabled).toBe(false);
+      fireEvent.click(confirm);
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(calls.filter((c) => c.method === 'POST')).toEqual([
+        {
+          method: 'POST',
+          path: '/scenarios/9/adjustments/item.10/split',
+          body: {
+            parts: [
+              { newDate: '2026-10-06', newAmount: '500.00' },
+              { newDate: '2026-11-05', newAmount: '300.00' },
+              { newDate: '2026-12-05', newAmount: '200.00' },
+            ],
+          },
+        },
+      ]);
+      await waitFor(() => expect(forecastCalls(calls)).toHaveLength(2));
+    });
+
+    it("shows a split's refusal in the line's currency", async () => {
+      __setTestTransport(<T,>(method: string, path: string): Promise<T> => {
+        if (method === 'GET' && path.startsWith('/forecast')) return Promise.resolve(forecastFixture({ scenario: true }) as T);
+        if (method === 'GET') return Promise.resolve(list([]) as T);
+        return Promise.reject(
+          new ApiError(422, { error: 'The parts do not add up.', code: 'SPLIT_AMOUNTS_MISMATCH', details: { total: '1000.00', expected: '1100.00' } }),
+        );
+      });
+      renderForecast(openStore());
+      await expandGrid();
+      fireEvent.click(await screen.findByRole('button', { name: /Edit Invoice 1041/ }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Split into parts…' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Split it' }));
+      expect((await screen.findByTestId('refusal-lines')).textContent).toContain('The parts add up to £1,000.00, but the line is £1,100.00.');
+    });
+
+    it("a scenario's own one-off: only in this scenario, nothing to leave out, and an edit sends the add whole, note kept", async () => {
+      const calls = stubApi(() => forecastFixture({ scenario: true, adds: true }));
+      renderForecast(openStore());
+      await expandGrid();
+      fireEvent.click(await screen.findByRole('button', { name: /Edit Late filing penalty/ }));
+      const dialog = screen.getByRole('dialog', { name: 'Late filing penalty' });
+      expect(await within(dialog).findByText(/Note: If the return is late/)).toBeTruthy();
+      expect(within(dialog).getByTestId('edit-new').textContent).toContain('Only in this scenario.');
+      expect(within(dialog).queryByTestId('edit-baseline')).toBeNull();
+      expect(within(dialog).queryByRole('switch', { name: /Leave it out/ })).toBeNull();
+      expect(within(dialog).queryByRole('button', { name: 'Split into parts…' })).toBeNull();
+      expect(within(dialog).getByRole('button', { name: 'Remove it from the scenario' })).toBeTruthy();
+
+      fireEvent.change(within(dialog).getByLabelText('Amount'), { target: { value: '90' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save to scenario' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(calls.filter((c) => c.method === 'PUT')).toEqual([
+        {
+          method: 'PUT',
+          path: '/scenarios/9/adjustments/new.23',
+          body: {
+            kind: 'add',
+            accountId: 1,
+            categoryId: 3,
+            direction: 'out',
+            name: 'Late filing penalty',
+            counterparty: 'HMRC',
+            currency: 'GBP',
+            newDate: '2026-10-13',
+            newAmount: '90.00',
+            note: 'If the return is late',
+          },
+        },
+      ]);
+    });
+
+    it("a split's anchor undoes the whole split; a part removes itself alone", async () => {
+      const calls = stubApi(() => forecastFixture({ scenario: true, adds: true }));
+      renderForecast(openStore());
+      await expandGrid();
+
+      fireEvent.click(await screen.findByRole('button', { name: /Edit Invoice 1041, £600\.00/ }));
+      let dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByTestId('edit-baseline').textContent).toContain('split into parts');
+      expect(dialog.textContent).toContain('Removes its parts too.');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Undo the split' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+      fireEvent.click(await screen.findByRole('button', { name: /Edit Invoice 1041, £400\.00/ }));
+      dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByTestId('edit-new').textContent).toBe('Only in this scenario. Part of a split.');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Remove this part' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+      expect(calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual([
+        '/scenarios/9/adjustments/item.10',
+        '/scenarios/9/adjustments/new.22',
+      ]);
+    });
+  });
+
+  it('offers no "Add a one-off…" without a scenario open', async () => {
+    stubApi(() => forecastFixture());
+    renderForecast();
+    await screen.findByTestId('forecast-grid');
+    expect(screen.queryByRole('button', { name: 'Add a one-off…' })).toBeNull();
   });
 });
 

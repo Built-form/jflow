@@ -39,7 +39,9 @@ const { splitStatements } = require('./sql');
 // due_date_prev, due_date_moved_at — dates set by hand in ShipLine).
 // 2026-10-06.4: 2026-10-06_jflow_freight.sql (external_items.label; the
 // "Freight and forwarders" system category — the re-pin to ShipLine 77577a1).
-const SCHEMA_VERSION = '2026-10-06.4';
+// 2026-10-07.5: 2026-10-07_jflow_scenario_adds.sql (scenario_adjustments: the `add`
+// columns, split_group, applied_state, nullable bases — CONTRACT §3.6, D39–D41).
+const SCHEMA_VERSION = '2026-10-07.5';
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'db', 'migrations');
 

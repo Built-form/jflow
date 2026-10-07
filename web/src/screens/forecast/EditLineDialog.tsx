@@ -1,18 +1,21 @@
 import { useState } from 'react';
-import type { ForecastItem } from '../../api/forecast';
+import type { ForecastItem, ForecastRow } from '../../api/forecast';
 import { forecast } from '../../api/forecast';
 import { scenarios } from '../../api/scenarios';
+import { useQuery } from '../../app/useQuery';
 import { useSubmit } from '../../app/useSubmit';
 import { Dialog, DialogBody } from '../../components/Dialog';
 import { FormField, inputStyle } from '../../components/FormField';
-import { Tag, Toggle } from '../../components/ui';
+import { ErrorNote, Tag, Toggle } from '../../components/ui';
 import { formatDay, isValidDate } from '../../lib/dates';
 import { flagTags, shortDay } from '../../lib/grid';
+import { isNewKey } from '../../lib/keys';
 import { formatMoney, toMinor } from '../../lib/money';
 import { dueSetClause, shipFlagNotes } from '../../lib/ship';
 import { RefusalNote } from '../scenarios/RefusalNote';
-import type { EditAction, EditForm } from './edit';
-import { QUICK_SHIFTS, checkEdit, initialForm, shiftedDate } from './edit';
+import type { EditAction, EditForm, NewLineContext } from './edit';
+import { QUICK_SHIFTS, canSplit, checkEdit, initialForm, shiftedDate, splitRole, undoChoice } from './edit';
+import { SplitLineDialog } from './SplitLineDialog';
 
 /** Send what `checkEdit` decided. The answers are rows; the forecast is re-read after. */
 export async function sendEdit(action: EditAction, scenarioId: number | null): Promise<void> {
@@ -37,17 +40,23 @@ export async function sendEdit(action: EditAction, scenarioId: number | null): P
  * Change one line's amount or date. With no scenario open this edits the REAL item or
  * instance; with one open it writes an adjustment to the scenario and the real data is
  * untouched. The dialog says which, in its kicker, its button and its warning.
+ *
+ * Inside a scenario (2026-10-07, D39/D40): a line can also be split into dated parts (the
+ * dialog swaps for `SplitLineDialog`), and a `new` line — a one-off of the scenario's own —
+ * is edited as itself: no real plan to compare with, nothing to leave out, and its undo
+ * removes it. Its note is read from the scenario so the full-replace PUT keeps it.
  */
 export function EditLineDialog({
   item,
-  categoryName,
+  row,
   scenario,
   today,
   onClose,
   onSaved,
 }: {
   item: ForecastItem;
-  categoryName: string;
+  /** The grid row the line sits in: its category's name, id and direction. */
+  row: Pick<ForecastRow, 'categoryId' | 'categoryName' | 'direction'>;
   scenario: { id: number; name: string } | null;
   /** The server's today (`meta.today`). */
   today: string;
@@ -55,10 +64,25 @@ export function EditLineDialog({
   onSaved: () => void;
 }) {
   const [form, setForm] = useState<EditForm>(() => initialForm(item));
+  const [splitting, setSplitting] = useState(false);
   const submit = useSubmit();
-  const check = checkEdit(item, form, { scenario, today });
+  const isNew = isNewKey(item.key);
+
+  // A `new` line's note lives on its adjustment, not on the forecast line (§6.10, §6.11).
+  const own = useQuery(
+    () => (isNew && scenario ? scenarios.get(scenario.id) : Promise.resolve(null)),
+    [isNew, scenario?.id ?? null],
+  );
+  const ownAdjustment = own.data?.adjustments.find((a) => a.itemKey === item.key) ?? null;
+  const newLine: NewLineContext | null =
+    isNew && own.data ? { categoryId: row.categoryId, direction: row.direction, note: ownAdjustment?.note ?? null } : null;
+  const readingNote = isNew && !!scenario && !own.data && !own.error;
+
+  const check = checkEdit(item, form, { scenario, today, newLine });
   const adjusted = item.flags.includes('adjusted') || item.flags.includes('excluded');
   const notGbp = item.currency !== 'GBP';
+  const role = splitRole(item);
+  const undo = undoChoice(item, scenario !== null);
 
   const save = (action: EditAction | null) => {
     if (!action) return;
@@ -68,19 +92,25 @@ export function EditLineDialog({
     });
   };
 
-  const what = item.kind === 'sched' ? 'instance' : item.kind === 'ship' ? 'stock payment' : 'item';
+  if (splitting && scenario) {
+    return <SplitLineDialog item={item} scenario={scenario} today={today} onClose={onClose} onSaved={onSaved} />;
+  }
+
+  const what = isNew ? 'one-off' : item.kind === 'sched' ? 'instance' : item.kind === 'ship' ? 'stock payment' : 'item';
   const ship = item.kind === 'ship' ? item.ship ?? null : null;
   const confirmLabel = scenario
-    ? form.exclude
+    ? form.exclude && !isNew
       ? 'Leave it out'
       : check.action?.kind === 'unadjust'
-        ? 'Back to the real plan'
+        ? role === 'anchor'
+          ? 'Undo the split'
+          : 'Back to the real plan'
         : 'Save to scenario'
     : `Change the ${what}`;
 
   return (
     <Dialog
-      kicker={scenario ? `SCENARIO · ${scenario.name.toUpperCase()}` : `FORECAST · ${categoryName.toUpperCase()}`}
+      kicker={scenario ? `SCENARIO · ${scenario.name.toUpperCase()}` : `FORECAST · ${row.categoryName.toUpperCase()}`}
       title={item.name}
       width={540}
       confirmLabel={confirmLabel}
@@ -89,7 +119,9 @@ export function EditLineDialog({
       warnTone={scenario ? 'waived' : 'warn'}
       warning={
         scenario
-          ? `This writes an adjustment to "${scenario.name}". The real ${what} does not change unless the scenario is applied.`
+          ? isNew
+            ? `This one-off exists only in "${scenario.name}". Apply writes it to the real plan as a new one-off.`
+            : `This writes an adjustment to "${scenario.name}". The real ${what} does not change unless the scenario is applied.`
           : `This changes the real ${what}${item.kind === 'sched' ? ' (just this one date of the schedule)' : ''}. To try it out first, open a scenario.`
       }
       onConfirm={() => save(check.action)}
@@ -121,10 +153,20 @@ export function EditLineDialog({
             </div>
           )}
           {ship && shipFlagNotes(item.flags, ship).map((n) => <div key={n} style={{ fontSize: 13 }}>{n}</div>)}
-          {scenario && item.baseline && adjusted && (
-            <div data-testid="edit-baseline">
-              Real plan: {formatMoney(toMinor(item.baseline.amountMinor), item.currency)} on {formatDay(item.baseline.date)}
+          {scenario && isNew ? (
+            <div data-testid="edit-new">
+              Only in this scenario.{role === 'part' ? ' Part of a split.' : ''}
+              {ownAdjustment?.note && <span style={{ color: 'var(--dim)' }}> Note: {ownAdjustment.note}</span>}
             </div>
+          ) : (
+            scenario &&
+            item.baseline &&
+            adjusted && (
+              <div data-testid="edit-baseline">
+                Real plan: {formatMoney(toMinor(item.baseline.amountMinor), item.currency)} on {formatDay(item.baseline.date)}
+                {role === 'anchor' ? ' · split into parts' : ''}
+              </div>
+            )
           )}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             <span className="mono" style={{ fontSize: 12, color: 'var(--dim)' }}>
@@ -139,7 +181,7 @@ export function EditLineDialog({
         </div>
       </DialogBody>
 
-      {scenario && (
+      {scenario && !isNew && (
         <Toggle
           on={form.exclude}
           label="Leave it out of this scenario"
@@ -148,7 +190,7 @@ export function EditLineDialog({
         />
       )}
 
-      {!(scenario && form.exclude) && (
+      {!(scenario && form.exclude && !isNew) && (
         <>
           <FormField label={`AMOUNT · ${item.currency}`} error={check.errors.amount}>
             <input
@@ -200,26 +242,36 @@ export function EditLineDialog({
         </>
       )}
 
-      {scenario && adjusted && (
-        <div>
-          <button
-            type="button"
-            className="btn"
-            disabled={submit.busy}
-            onClick={() => save({ kind: 'unadjust', itemKey: item.key })}
-          >
-            Undo this adjustment
-          </button>
+      {(undo || canSplit(item, scenario !== null)) && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          {canSplit(item, scenario !== null) && (
+            <button type="button" className="btn" disabled={submit.busy} onClick={() => setSplitting(true)}>
+              Split into parts…
+            </button>
+          )}
+          {undo && (
+            <>
+              <button type="button" className="btn" disabled={submit.busy} onClick={() => save(undo.action)}>
+                {undo.label}
+              </button>
+              {undo.detail && <span style={{ fontSize: 12.5, color: 'var(--dim)' }}>{undo.detail}</span>}
+            </>
+          )}
         </div>
       )}
 
-      {check.errors.form && (
+      {readingNote && <div style={{ fontSize: 13, color: 'var(--dim)' }}>Reading this one-off from the scenario…</div>}
+      {own.error && <ErrorNote error={own.error} onRetry={own.reload} />}
+      {check.errors.form && !readingNote && !own.error && (
         <div role="alert" style={{ fontSize: 13.5, color: 'var(--fail)' }}>
           {check.errors.form}
         </div>
       )}
       {check.unchanged && (
         <div style={{ fontSize: 13, color: 'var(--dim)' }}>Nothing changed yet.</div>
+      )}
+      {check.action?.kind === 'unadjust' && role === 'anchor' && (
+        <div style={{ fontSize: 13, color: 'var(--mut)' }}>That is the real plan's value again, so the split is undone: its parts go too.</div>
       )}
       {submit.error && <RefusalNote error={submit.error} nameOf={(key) => (key === item.key ? item.name : null)} />}
     </Dialog>

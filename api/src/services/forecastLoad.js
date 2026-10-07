@@ -31,6 +31,12 @@
 //   loadShipTargets       rule 6 (ship. keys) — rows by ext_id, gone or not, any scope
 //   loadShipCategory, loadShipSync   the systemKey 'ship' category; external_sync
 //   loadTarget's `ship.` branch
+//
+// Scenario adds (2026-10-07, D39, D44):
+//   loadAddReferences     an `add` adjustment's account (live, active) and category (live);
+//                         rule 6 sets `targetLive` on each add from it, and the add's
+//                         category joins `categories`. An add has no target row, so
+//                         loadTarget is never called with a `new.` key.
 
 const {
     itemToJson, paymentToJson, scheduleToJson, overrideToJson, adjustmentToJson, externalItemToJson,
@@ -443,12 +449,48 @@ async function loadScenario(conn, scenarioId) {
     return rows.length ? { id: Number(rows[0].id), name: rows[0].name, status: rows[0].status } : null;
 }
 
-/** Rule 10: every adjustment of the scenario, ascending id, in the adjustment JSON (§6.11). */
+/**
+ * Rule 10: every adjustment of the scenario, ascending id, in the adjustment JSON (§6.11).
+ * Rule 6 for an `add` (D39): each add row also carries `targetLive`, loadAddReferences' `live`.
+ */
 async function loadAdjustments(conn, scenarioId) {
     const [rows] = await conn.query(
         'SELECT * FROM scenario_adjustments WHERE scenario_id = ? ORDER BY id ASC', [scenarioId]
     );
-    return rows.map(adjustmentToJson);
+    const out = [];
+    for (const row of rows) {
+        const adj = adjustmentToJson(row);
+        out.push(adj.kind === 'add' ? { ...adj, targetLive: (await loadAddReferences(conn, adj)).live } : adj);
+    }
+    return out;
+}
+
+/**
+ * §8 (2026-10-07, D39): an `add` adjustment has no target row; this is its counterpart of
+ * loadTarget. `adjustment` is the adjustment JSON (accountId, categoryId). Reads the
+ * add's `bank_accounts` row — live and active, with its company and currency — and its
+ * `categories` row — live, with its direction — each null when not so. → {account:
+ * {id, companyId, currency} | null, category: {id, direction} | null, live}, live = both
+ * found. Plain reads: a writer locks the two rows FOR SHARE first (§10.1's exception) and
+ * reads them here after; a GET reads them as they are.
+ */
+async function loadAddReferences(conn, adjustment) {
+    let account = null;
+    let category = null;
+    if (adjustment.accountId != null) {
+        const [rows] = await conn.query(
+            'SELECT id, company_id, currency FROM bank_accounts WHERE id = ? AND deleted_at IS NULL AND is_active = 1',
+            [adjustment.accountId]
+        );
+        if (rows.length) account = { id: Number(rows[0].id), companyId: Number(rows[0].company_id), currency: rows[0].currency };
+    }
+    if (adjustment.categoryId != null) {
+        const [rows] = await conn.query(
+            'SELECT id, direction FROM categories WHERE id = ? AND deleted_at IS NULL', [adjustment.categoryId]
+        );
+        if (rows.length) category = { id: Number(rows[0].id), direction: rows[0].direction };
+    }
+    return { account, category, live: account !== null && category !== null };
 }
 
 /** First occurrence wins, by `keyOf(row)`: §8's de-duplication across overlapping rules. */
@@ -472,7 +514,9 @@ function uniqueBy(rows, keyOf) {
  * today (NO_ANCHOR, and none of its rows are loaded). With no anchor anywhere there is
  * no minA and nothing dated is loaded; a draft scenario's targets still are (rule 6), so
  * its warnings stay truthful. A scenario that is not `draft` brings no adjustments and
- * no targets. No instance lists: the engine expands the schedules.
+ * no targets. No instance lists: the engine expands the schedules. An `add` adjustment
+ * (D39) carries `targetLive` and its category joins `categories` (D44: so its row has a
+ * name and an order); its currency joins the rates through currenciesInScope.
  */
 async function loadEngineInput(conn, { today, from, to, bucket, include, companyId, scenario = null }) {
     const bound = clampWindow(today, from, to).to;
@@ -519,8 +563,9 @@ async function loadEngineInput(conn, { today, from, to, bucket, include, company
         ...await loadShipTargets(conn, targetIds('ship'), scopeIds),
     ], (e) => e.extId);
     const sync = await loadShipSync(conn);
+    const adds = adjustments.filter((a) => a.kind === 'add');
     const categories = uniqueBy([
-        ...await loadCategories(conn, [...items, ...schedules].map((r) => r.categoryId)),
+        ...await loadCategories(conn, [...items, ...schedules, ...adds].map((r) => r.categoryId)),
         ...(externalItems.length ? await loadShipCategory(conn) : []),
     ], (c) => c.id);
 
@@ -653,6 +698,7 @@ module.exports = {
     loadRates,
     loadScenario,
     loadAdjustments,
+    loadAddReferences,
     shipResolvedSelect,
     loadShipRows,
     loadShipTargets,

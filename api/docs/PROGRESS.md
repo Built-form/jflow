@@ -1182,3 +1182,84 @@ a second all-time `GET /items?status=expected&settleMode=auto&to=<yesterday>` be
 windowed read (an automatic one-off still expected and dated before today is assumed, whatever
 its anchor), merged by id with the windowed rows winning; the instances read always spans the
 server's 730 days. The window note says so. `ItemsScreen.test.tsx` covers the second read.
+
+## Scenario adds, splits and un-apply (2026-10-07)
+
+Dev: "as part of a scenario, would it be possible to split a payment into multiple dates /
+amounts? and then revert if needed. also possible to add one-off payments as part of a
+scenario, e.g. an interest payment or a fine if I pay late". None of it existed: a scenario
+held one `adjust`/`exclude` per real line, hypothetical items were on PLAN.md's deferred
+list, and the only revert after apply was per instance by hand. Contract first (Fable, as
+step 0), then the API on the xhigh JFlow agent and the web on Opus, per CLAUDE.md's table;
+the coordinator reviewed both, added the D40 cascade (below) and ran the checks again.
+
+- **Contract**: CONTRACT.md §1.2 (D39–D44), §2.8 (new audit actions), §3.6 (migration), §4
+  (`new.` keys), §6.10, §6.11, §7, §8, §9.5, §10.1, §10.5, §10.7a (add write), §10.7b
+  (split), §10.8, §10.9 (apply amendments and `applied_state`), §10.13 (un-apply), §11, §12.
+  PLAN.md edited to match (schema table, routes list, a scenarios paragraph, the web table,
+  the deferred list).
+- **`add`** (D39): a third adjustment kind — a hypothetical one-off keyed `new.<adjustment
+  id>`, with its own account, category, direction, name, counterparty and currency on the
+  adjustment row and null bases. The engine makes a line for it in the scenario set only
+  (`kind: 'new'`, flag `added`, `baseline: null` — the case §6.10 had reserved); its stale
+  reasons are `TARGET_MISSING` (account not live/active or category not live) and
+  `DATE_PASSED`. Apply inserts the real `cash_items` row stamped `source_scenario_id`.
+  `POST /scenarios/:id/adjustments` creates one; `PUT`/`DELETE …/adjustments/new.<id>` edit
+  and remove it.
+- **Split** (D40): `POST /scenarios/:id/adjustments/:itemKey/split {parts}` writes one
+  `adjust` on the line (part 1) plus one `add` per further part, all stamped `split_group` =
+  the anchor's id; the parts must sum to the line's current amount (422
+  `SPLIT_AMOUNTS_MISMATCH`). Wherever the server deletes the anchor — the DELETE route,
+  rebase's `dropStale`, a schedule split's or end's `dropAdjustments` — its parts go with it
+  (revert the split); deleting a part removes it alone. Lines in a group carry flag `split`
+  and `splitGroup`.
+- **Un-apply** (D41): apply now records on every adjustment, in `applied_state` (JSON, not
+  served), the before image of what it wrote. `POST /scenarios/:id/unapply` re-checks every
+  target under the standing-order locks and refuses the whole thing with 409
+  `SCENARIO_UNAPPLY_BLOCKED {blocked: [{itemKey, reason}]}` (`TARGET_MISSING`,
+  `TARGET_SETTLED`, `CHANGED`, `NO_RECORD`) when anything moved on; otherwise it restores the
+  before images (an override apply created is deleted, a one-off apply created is
+  soft-deleted) and the scenario is a `draft` again with its adjustments, ready to edit and
+  re-apply.
+- **Migration** `2026-10-07_jflow_scenario_adds.sql`: nullable bases, the six add columns,
+  `split_group`, `applied_state`, `idx_split_group`; every statement guarded (§3.1).
+  `lib/schema.js` `SCHEMA_VERSION` is `2026-10-07.5`, so the next local `npm run dev`
+  replays it onto the shared `jflow` schema (additive and nullable: the deployed test API
+  keeps working against it until it is redeployed).
+- **Web**: Forecast — with a draft scenario open, "Add a one-off…" on the scenario panel,
+  "Split into parts…" in the line dialog (parts with dates and amounts, a running "left to
+  allocate", the odd penny on part 1), a `new` line edits or is removed from the scenario
+  (its note read from the scenario so the full-replace PUT keeps it), an anchor's undo is
+  "Undo the split". Scenario — `add` rows read "NEW ONE-OFF · amount on date · not in the
+  real plan", anchors wear SPLIT, removing an anchor warns that its parts go too, and an
+  applied scenario has "Un-apply…" with the refusal's blocked lines listed. Flags `NEW` and
+  `SPLIT` on the grid. A `new.` key with no scenario open is now a form error (it fell
+  through to the instance-tune path before).
+
+**Checks** (coordinator's run unless noted). API: `npm run lint` clean; unit 26 suites /
+1126 tests; e2e `scenario-adds` 20, `split` 14, `scenarios` + `scenario-headline` 23; the
+builder's run of `forecast` + `items` (47) and `forecast-input` + `forecast-load` (16) also
+green. Web: `tsc --noEmit` clean; vitest 30 files / 422 tests; `vite build` green (builder's
+run). **Pre-existing e2e failures, not from this work** (their files are untouched by it and
+the tree was clean at the start): `migrate.test.js` 1 (expects only "Stock payments"; the
+2026-10-06 freight migration also seeds "Freight and forwarders"), `ship-overlay.test.js` 3
+(`ROW_KEYS` order of `dateMoved`), `schedules.test.js` 1 (`GET /instances` count). They
+date from the 2026-10-07 commits whose notes say "written, not run".
+
+**Not deployed**: until Dev runs `bash deploy.sh test` (it migrates first), the deployed
+API has none of the three routes and the deployed web's new buttons would get 404s. Run the
+migration on prod the same way (`deploy.sh prod`) before the web is promoted.
+
+**Deferred** (CONTRACT §11): splitting a `new.` line; a split whose parts do not sum to the
+line; un-apply of a scenario applied before 2026-10-07 (`NO_RECORD`); an add's `settleMode`
+(always `auto`) and `notes`; serving `applied_state`; a category direction flip while only
+adds use it. Web: no note field on the split dialog (a split clears the line's previous
+adjustment note); while a stock payment is split, its `new` parts put the Stock payments row
+on the plain name-sorted view instead of the supplier-and-shipment grouping; a stale split
+anchor still wears `split`.
+
+**Housekeeping found, not fixed**: `api/docs/CONTRACT.md` carries a truncated duplicate of
+its first ~147 lines before the real heading (a past edit pasted the head twice; the first
+copy stops mid-sentence in §2.1). The permission classifier refused the rewrite that would
+drop it; Dev can delete everything before the second `# JFlow — API and engine contract`
+line. The genuine copy is complete and is the one edited today.

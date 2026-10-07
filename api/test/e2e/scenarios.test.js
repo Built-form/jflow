@@ -47,9 +47,12 @@ const ROW_KEYS = [
     'adjustmentCount', 'appliedAt', 'appliedBy', 'companyId', 'createdAt', 'createdBy', 'deletedAt', 'description',
     'id', 'name', 'rowVersion', 'status', 'updatedAt',
 ];
+// 2026-10-07 (D39, D40): an adjustment also carries the add's one-off fields and splitGroup
+// (null on adjust / exclude); scenario-adds.test.js covers them.
 const ADJ_KEYS = [
-    'baseAmount', 'baseDate', 'createdAt', 'createdBy', 'id', 'itemKey', 'kind', 'newAmount', 'newDate', 'note',
-    'rowVersion', 'scenarioId', 'targetDate', 'targetId', 'targetKind', 'updatedAt',
+    'accountId', 'baseAmount', 'baseDate', 'categoryId', 'counterparty', 'createdAt', 'createdBy', 'currency', 'direction',
+    'id', 'itemKey', 'kind', 'name', 'newAmount', 'newDate', 'note', 'rowVersion', 'scenarioId', 'splitGroup',
+    'targetDate', 'targetId', 'targetKind', 'updatedAt',
 ];
 
 const pause = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });

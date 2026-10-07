@@ -6,10 +6,13 @@
 //   item.<id>                 one-off item      {targetKind: 'item',  targetId: '123', targetDate: null}
 //   sched.<id>.<YYYY-MM-DD>   schedule instance {targetKind: 'sched', targetId: '45',  targetDate: '2026-06-01'}
 //   ship.<id>                 shipping (ph. 2)  {targetKind: 'ship',  targetId: 'PO-778', targetDate: null}
+//   new.<id>                  hypothetical      {targetKind: 'new',   targetId: '77',  targetDate: null}
+//                             (2026-10-07, D39: an `add` adjustment's OWN row id — the key
+//                             names no real row, only that adjustment inside its scenario)
 //
 // Keys use unreserved URL characters only, so they pass through a path, a log
-// line and API Gateway unencoded. Numeric ids have no sign and no leading zero
-// (at most 18 digits); a ship id is 1–64 of [A-Za-z0-9_-]; a schedule's date is
+// line and API Gateway unencoded. Numeric ids (item, sched, new) have no sign and no
+// leading zero (at most 18 digits); a ship id is 1–64 of [A-Za-z0-9_-]; a schedule's date is
 // the instance's NATURAL date and must be a real calendar date. `targetId` is
 // always a string (D32: target_id is VARCHAR(64)).
 //
@@ -19,13 +22,14 @@
 
 const { isValidDate } = require('./dates');
 
-const TARGET_KINDS = ['item', 'sched', 'ship'];
+const TARGET_KINDS = ['item', 'sched', 'ship', 'new'];
 const MAX_KEY_LENGTH = 80;   // item_key VARCHAR(80)
 
 // The grammars, verbatim from CONTRACT §4.
 const ITEM_RE = /^item\.([1-9][0-9]{0,17})$/;
 const SCHED_RE = /^sched\.([1-9][0-9]{0,17})\.([0-9]{4}-[0-9]{2}-[0-9]{2})$/;
 const SHIP_RE = /^ship\.([A-Za-z0-9_-]{1,64})$/;
+const NEW_RE = /^new\.([1-9][0-9]{0,17})$/;
 
 const NUMERIC_ID_RE = /^[1-9][0-9]{0,17}$/;
 const SHIP_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -73,6 +77,11 @@ function buildShipKey(id) {
     return `ship.${shipId(id)}`;
 }
 
+/** new.<adjustmentId> (D39): an `add` adjustment's key, its own row id. */
+function buildNewKey(adjustmentId) {
+    return `new.${numericId(adjustmentId)}`;
+}
+
 /** key → {targetKind, targetId, targetDate}, or null when it is not a valid key. Never throws. */
 function parseKey(key) {
     if (typeof key !== 'string' || key.length > MAX_KEY_LENGTH) return null;
@@ -82,6 +91,8 @@ function parseKey(key) {
     if (m) return isValidDate(m[2]) ? { targetKind: 'sched', targetId: m[1], targetDate: m[2] } : null;
     m = SHIP_RE.exec(key);
     if (m) return { targetKind: 'ship', targetId: m[1], targetDate: null };
+    m = NEW_RE.exec(key);
+    if (m) return { targetKind: 'new', targetId: m[1], targetDate: null };
     return null;
 }
 
@@ -92,8 +103,8 @@ function isValidKey(key) {
 
 /**
  * {targetKind, targetId, targetDate} → key: the exact inverse of parseKey, so
- * formatKey(parseKey(k)) === k. `targetDate` must be null (or absent) on item
- * and ship and a real date on sched; anything else throws TypeError.
+ * formatKey(parseKey(k)) === k. `targetDate` must be null (or absent) on item,
+ * ship and new and a real date on sched; anything else throws TypeError.
  */
 function formatKey(parsed) {
     if (parsed === null || typeof parsed !== 'object') {
@@ -107,6 +118,7 @@ function formatKey(parsed) {
         case 'item': return buildItemKey(targetId);
         case 'sched': return buildSchedKey(targetId, targetDate);
         case 'ship': return buildShipKey(targetId);
+        case 'new': return buildNewKey(targetId);
         default: throw new TypeError(`Unknown targetKind ${show(targetKind)}: expected one of ${TARGET_KINDS.join(', ')}`);
     }
 }
@@ -116,6 +128,7 @@ module.exports = {
     buildItemKey,
     buildSchedKey,
     buildShipKey,
+    buildNewKey,
     parseKey,
     isValidKey,
     formatKey,

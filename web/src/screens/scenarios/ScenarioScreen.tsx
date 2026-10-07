@@ -17,11 +17,14 @@ import { BUCKET_OPTIONS, bucketLabel, parseBucket, signedMoney } from '../../lib
 import { formatDecimal, formatMinor, formatMoney, parseMinor, toMinor } from '../../lib/money';
 import { toneOfScenarioStatus } from '../../lib/tone';
 import { RemoveDialog } from '../settings/RemoveDialog';
-import { ApplyDialog, DiscardDialog, DuplicateScenarioDialog, RebaseDialog } from './dialogs';
+import { ApplyDialog, DiscardDialog, DuplicateScenarioDialog, RebaseDialog, UnapplyDialog } from './dialogs';
 import { forecastLink } from './ScenariosScreen';
 import { SCENARIO_STATUS_LABEL, staleReason } from './stale';
 
-type DialogName = 'rebase' | 'apply' | 'discard' | 'duplicate' | 'delete' | null;
+type DialogName = 'rebase' | 'apply' | 'unapply' | 'discard' | 'duplicate' | 'delete' | null;
+
+/** A split's anchor carries its own id as `splitGroup`; its parts carry the anchor's (D40). */
+const isSplitAnchor = (a: Adjustment) => a.splitGroup !== null && a.splitGroup === a.id;
 
 /** `:id` as a positive integer, else null (a malformed id is a 404, as on the API — §2.3). */
 export function parseScenarioId(raw: string | undefined): number | null {
@@ -41,7 +44,11 @@ function amountText(value: string | null | undefined, currency: string | null): 
  * One scenario: its adjustments with their stale markers, what it does to the forecast
  * (`scenario.deltaByBucket`), and the draft's three ways forward — rebase, apply, discard.
  * Applied and archived scenarios are read-only; the server answers `SCENARIO_NOT_DRAFT` to
- * any change, and the screen says so before anyone tries.
+ * any change, and the screen says so before anyone tries. An applied scenario can be
+ * un-applied (2026-10-07, D41): the real plan goes back and the scenario is a draft again.
+ *
+ * Its one-offs (`add`, D39) are listed with the rest, by their own name; a split (D40) shows
+ * on its anchor, and its parts are one-offs marked as parts.
  */
 export function ScenarioScreen() {
   const id = parseScenarioId(useParams().id);
@@ -87,7 +94,17 @@ function ScenarioDetailView({ id }: { id: number }) {
     }
     return map;
   }, [effect.data]);
-  const nameOf = (key: string) => lines.get(key)?.name ?? null;
+  // The forecast's line names while it is open; otherwise what the adjustments themselves
+  // carry — an add's own name, a target's `current` name (null once applied).
+  const ownNames = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of s?.adjustments ?? []) {
+      const name = a.kind === 'add' ? a.name : a.current?.name;
+      if (name) map.set(a.itemKey, name);
+    }
+    return map;
+  }, [s]);
+  const nameOf = (key: string) => lines.get(key)?.name ?? ownNames.get(key) ?? null;
 
   // Keep the open scenario's banner name in step with the server's.
   useEffect(() => {
@@ -149,6 +166,11 @@ function ScenarioDetailView({ id }: { id: number }) {
                 </button>
               </>
             )}
+            {s.status === 'applied' && (
+              <button type="button" className="btn" onClick={() => setDialog('unapply')}>
+                Un-apply…
+              </button>
+            )}
             {s.status !== 'archived' && (
               <button type="button" className="btn" onClick={() => setDialog('discard')}>
                 {isDraft ? 'Discard…' : 'Archive…'}
@@ -181,6 +203,7 @@ function ScenarioDetailView({ id }: { id: number }) {
               ? `Applied ${shortStamp(s.appliedAt)} by ${shortEmail(s.appliedBy)}. Its adjustments are the record of what was written to the real plan, and can no longer change.`
               : 'This scenario is archived. It can be read and duplicated, never changed or applied.'}{' '}
             Only a draft takes adjustments, a rebase or an apply — duplicate it to keep working.
+            {s.status === 'applied' && ' Un-apply puts the real plan back and makes it a draft again.'}
           </div>
         </div>
       )}
@@ -205,7 +228,8 @@ function ScenarioDetailView({ id }: { id: number }) {
         </div>
         {adjustments.length === 0 ? (
           <Empty>
-            No adjustments yet. {isDraft ? 'Open the scenario, then change amounts and dates on the Forecast.' : ''}
+            No adjustments yet.{' '}
+            {isDraft ? 'Open the scenario, then change amounts and dates, split lines or add one-offs on the Forecast.' : ''}
           </Empty>
         ) : (
           <div className="card-table">
@@ -220,8 +244,8 @@ function ScenarioDetailView({ id }: { id: number }) {
               <AdjustmentRow
                 key={a.id}
                 adjustment={a}
-                name={a.current?.name ?? nameOf(a.itemKey)}
-                currency={a.current?.currency ?? lines.get(a.itemKey)?.currency ?? null}
+                name={a.kind === 'add' ? a.name : a.current?.name ?? nameOf(a.itemKey)}
+                currency={a.kind === 'add' ? a.currency : a.current?.currency ?? lines.get(a.itemKey)?.currency ?? null}
                 draft={isDraft}
                 onRemove={() => setRemovingAdjustment(a)}
               />
@@ -291,6 +315,21 @@ function ScenarioDetailView({ id }: { id: number }) {
           onRefused={() => detail.reload()}
         />
       )}
+      {dialog === 'unapply' && (
+        <UnapplyDialog
+          scenario={s}
+          nameOf={nameOf}
+          onClose={() => setDialog(null)}
+          onUnapplied={(res) => {
+            replaceRow(res.scenario);
+            setNotice(`Un-applied: ${plural(res.unapplied.length, 'change')} reverted. The scenario is a draft again.`);
+            setDialog(null);
+            // A draft again: its adjustments' stale markers and current values are live once more.
+            detail.reload();
+          }}
+          onRefused={() => detail.reload()}
+        />
+      )}
       {dialog === 'discard' && (
         <DiscardDialog
           scenario={s}
@@ -331,11 +370,26 @@ function ScenarioDetailView({ id }: { id: number }) {
       {removingAdjustment && (
         <RemoveDialog
           kicker={`SCENARIO · ${s.name.toUpperCase()}`}
-          title={`Remove the adjustment to ${nameOf(removingAdjustment.itemKey) ?? removingAdjustment.itemKey}?`}
-          warning="The line goes back to the real plan's values in this scenario."
+          title={
+            removingAdjustment.kind === 'add'
+              ? `Remove ${removingAdjustment.name ?? removingAdjustment.itemKey} from this scenario?`
+              : `Remove the adjustment to ${nameOf(removingAdjustment.itemKey) ?? removingAdjustment.itemKey}?`
+          }
+          warning={
+            isSplitAnchor(removingAdjustment)
+              ? "This undoes the split: its parts go too. The line goes back to the real plan's values in this scenario."
+              : removingAdjustment.kind === 'add'
+                ? removingAdjustment.splitGroup !== null
+                  ? 'This part of a split goes; the line and the other parts stay as they are.'
+                  : 'The one-off goes from this scenario. The real plan never had it.'
+                : "The line goes back to the real plan's values in this scenario."
+          }
           remove={() => scenarios.removeAdjustment(s.id, removingAdjustment.itemKey, removingAdjustment.rowVersion)}
           onRemoved={() => {
-            detail.set({ ...s, adjustments: s.adjustments.filter((a) => a.id !== removingAdjustment.id) });
+            // Deleting a split's anchor deletes its group on the server (D40); the list follows.
+            const gone = (a: Adjustment) =>
+              a.id === removingAdjustment.id || (isSplitAnchor(removingAdjustment) && a.splitGroup === removingAdjustment.id);
+            detail.set({ ...s, adjustments: s.adjustments.filter((a) => !gone(a)) });
             setRemovingAdjustment(null);
             effect.reload();
           }}
@@ -348,9 +402,12 @@ function ScenarioDetailView({ id }: { id: number }) {
 
 const ADJ_COLUMNS = 'minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.4fr) 70px';
 
-/** A stale marker: the reason's word, and what happened in a sentence. */
-export function StaleMarker({ reason }: { reason: string }) {
-  const r = staleReason(reason);
+/**
+ * A stale marker: the reason's word, and what happened in a sentence. `kind` is the
+ * adjustment's: an `add` has no target, so its MISSING means its account or category went.
+ */
+export function StaleMarker({ reason, kind }: { reason: string; kind?: Adjustment['kind'] }) {
+  const r = staleReason(reason, kind);
   if (!r) return null;
   return (
     <div data-testid="stale-marker" data-reason={reason} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -376,16 +433,37 @@ function AdjustmentRow({
   draft: boolean;
   onRemove: () => void;
 }) {
+  const add = a.kind === 'add';
+  const anchor = isSplitAnchor(a);
+  const part = add && a.splitGroup !== null && a.splitGroup !== a.id;
   return (
     <div className="table-row" style={{ gridTemplateColumns: ADJ_COLUMNS, alignItems: 'start' }} data-testid={`adjustment-${a.itemKey}`}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 14 }}>{name ?? (a.targetKind === 'sched' ? 'Schedule instance' : 'Item')}</div>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <div style={{ fontSize: 14 }}>{name ?? (add ? 'One-off' : a.targetKind === 'sched' ? 'Schedule instance' : 'Item')}</div>
+        {(add || anchor) && (
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+            {add && <Tag tone="live">NEW ONE-OFF</Tag>}
+            {part && <Tag>SPLIT PART</Tag>}
+            {anchor && (
+              <>
+                <Tag>SPLIT</Tag>
+                <span style={{ fontSize: 12, color: 'var(--dim)' }}>split into parts</span>
+              </>
+            )}
+          </div>
+        )}
         <div className="mono" style={{ fontSize: 11.5, color: 'var(--dim)' }}>
           {a.itemKey}
         </div>
       </div>
       <div style={{ fontSize: 13, lineHeight: 1.6 }}>
-        {a.kind === 'exclude' ? (
+        {add ? (
+          // A one-off of the scenario's own: what it is, not a change from anything (D39).
+          <div data-testid="add-change">
+            <span className="mono">{amountText(a.newAmount, currency)}</span> on{' '}
+            <span className="mono">{formatDay(a.newDate)}</span>
+          </div>
+        ) : a.kind === 'exclude' ? (
           <Tag>LEFT OUT</Tag>
         ) : (
           <>
@@ -405,7 +483,10 @@ function AdjustmentRow({
         {a.note && <div style={{ fontSize: 12.5, color: 'var(--dim)' }}>{a.note}</div>}
       </div>
       <div style={{ fontSize: 12.5, color: 'var(--mut)', lineHeight: 1.6 }}>
-        {a.current ? (
+        {add ? (
+          // `current` is always null on an add: there is no real line, which is not "gone".
+          <span style={{ color: 'var(--dim)' }}>not in the real plan</span>
+        ) : a.current ? (
           <>
             <div className="mono">{formatDay(a.current.date)}</div>
             <div className="mono">{amountText(a.current.amount, currency)}</div>
@@ -417,7 +498,7 @@ function AdjustmentRow({
       </div>
       <div>
         {a.stale ? (
-          <StaleMarker reason={a.stale} />
+          <StaleMarker reason={a.stale} kind={a.kind} />
         ) : draft ? (
           <Tag tone="done">UP TO DATE</Tag>
         ) : (

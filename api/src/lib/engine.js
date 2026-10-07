@@ -12,7 +12,9 @@
 //                      schedule's instances itself (see "Instances" below)
 //   4 effective values lib/recurrence.js effectiveValues; an override that is not an
 //                      occurrence → ORPHAN_OVERRIDE, never projected
-//   5 adjustments      before classifying; baseline and scenario are two line sets from here
+//   5 adjustments      before classifying; baseline and scenario are two line sets from here;
+//                      an `add` (2026-10-07, D39) is a `new` line of the scenario set only,
+//                      and every line of a split group (D40) carries flag `split`
 //   6 classify         lib/classify.js, one call per line per set. THE TABLE LIVES THERE:
 //                      this file only routes the bands it returns (absorbed, placed in the
 //                      series, unresolved, or nowhere) and never compares a date with an
@@ -179,12 +181,21 @@ const { itemLine, shipLine, shipName, shipEffectiveValues, hasShipOverlay, shipD
  *
  * @typedef {object} EngineAdjustment  the adjustment JSON (§6.11)
  * @property {number} id
- * @property {string} itemKey
- * @property {'adjust'|'exclude'} kind
- * @property {string|null} newDate
- * @property {string|null} newAmount
- * @property {string} baseDate
- * @property {string} baseAmount
+ * @property {string} itemKey                new.<id> on an `add` (§4, D39)
+ * @property {'adjust'|'exclude'|'add'} kind
+ * @property {string|null} newDate           an add's date
+ * @property {string|null} newAmount         an add's amount
+ * @property {string|null} baseDate          null on an add (nothing to compare with)
+ * @property {string|null} baseAmount        null on an add
+ * @property {number|null} [accountId]       an add's one-off: account, category, direction, name,
+ * @property {number|null} [categoryId]      counterparty, currency (null on adjust / exclude)
+ * @property {'in'|'out'|null} [direction]
+ * @property {string|null} [name]
+ * @property {string|null} [counterparty]
+ * @property {string|null} [currency]
+ * @property {number|null} [splitGroup]      the anchor adjustment's id on every row of a split (D40)
+ * @property {boolean} [targetLive]          an add only: false when the loader found its account not
+ *                                           live and active or its category not live (§8 rule 6)
  *
  * @typedef {object} EngineScenario
  * @property {number} id
@@ -271,8 +282,9 @@ function clampWindow(today, from, to) {
 /**
  * §3.4's currencies in scope: the in-scope accounts' currencies ∪ the currencies of every
  * loaded item, schedule and ship row (undated rows included), adjustment targets
- * included. A gone ship row makes no line and is converted nowhere, so it needs no rate.
- * Sorted.
+ * included, and (2026-10-07, D44) the currency of every `add` adjustment whose references
+ * are live. A gone ship row makes no line and is converted nowhere, so it needs no rate;
+ * nor does a dead add. Sorted.
  */
 function currenciesInScope(input) {
     const set = new Set();
@@ -280,6 +292,9 @@ function currenciesInScope(input) {
     for (const i of input.items || []) set.add(i.currency);
     for (const s of input.schedules || []) set.add(s.currency);
     for (const e of input.externalItems || []) if (e.goneAt == null) set.add(e.currency);
+    for (const adj of input.adjustments || []) {
+        if (adj.kind === 'add' && adj.targetLive !== false && adj.currency) set.add(adj.currency);
+    }
     return [...set].sort();
 }
 
@@ -432,6 +447,8 @@ const isFreightRow = (row) => row.feedKind === 'extra' && Array.isArray(row.flag
  * The category a ship row's line sits in: the systemKey 'ship' category (P10) for every row
  * but a forwarder's shipment cost, which sits in the systemKey 'freight' category
  * ("Freight and forwarders", Dev 2026-10-06) when one is seeded, else with the rest.
+ * `categories` is a Map id → category. Also used by the scenario split (§10.7b step 5), so
+ * the parts of a split ship line sit where the line does.
  */
 function shipCategoryOf(categories, row) {
     let ship = null;
@@ -510,8 +527,18 @@ function buildRecords(input, { today, window, anchors, minA, categories }) {
 
 // ── Scenario adjustments, before classifying (§9.5) ─────────────────────────────────────
 
-/** The first stale reason of §9.5's table, on the target's native pre-adjustment values; null when none. */
+/**
+ * The first stale reason of §9.5's table, on the target's native pre-adjustment values; null
+ * when none. An `add` (D39) has no target and no base, so never BASE_CHANGED or
+ * TARGET_SETTLED: TARGET_MISSING when the loader found its references dead
+ * (`targetLive === false`), then DATE_PASSED, else null — `target` is ignored.
+ */
 function staleReason(adj, target, today) {
+    if (adj.kind === 'add') {
+        if (adj.targetLive === false) return 'TARGET_MISSING';
+        if (adj.newDate != null && adj.newDate < today) return 'DATE_PASSED';
+        return null;
+    }
     if (!target) return 'TARGET_MISSING';
     if (target.status !== 'expected' || target.hasPaymentState) return 'TARGET_SETTLED';
     if (adj.baseDate !== target.date || parseMinor(adj.baseAmount) !== target.amountMinor) return 'BASE_CHANGED';
@@ -519,18 +546,62 @@ function staleReason(adj, target, today) {
     return null;
 }
 
-/** The scenario set: a copy of the baseline with each adjustment applied or flagged. */
-function applyAdjustments(baseline, records, adjustments, today) {
+const ADJUSTMENT_KINDS = ['adjust', 'exclude', 'add'];
+
+/**
+ * §9.5 (D39): an `add`'s line — a one-off that exists only in the scenario set: key
+ * new.<adjustment id>, kind 'new', `id` the adjustment's, status expected, settle mode auto,
+ * no payments, not tuned, no sourceScenarioId; flag `added`. Its baseline is null (§6.10).
+ */
+function addRecord(adj) {
+    return {
+        key: adj.itemKey, kind: 'new', id: adj.id, scheduleId: null, naturalDate: null,
+        ...describe(adj),
+        inScope: true,
+        status: 'expected', settleMode: 'auto', date: requireDate(adj.newDate, 'add newDate'),
+        amountMinor: parseMinor(adj.newAmount), paidAmountMinor: 0n, payments: [],
+        tuned: false, sourceScenarioId: null, hasPaymentState: false,
+        added: true,
+    };
+}
+
+/**
+ * The scenario set: a copy of the baseline with each adjustment applied or flagged, ascending
+ * by id (so a split's anchor, the lower id, comes before its parts). `accountIds` is the
+ * requested account set (input.accounts); `anchors` the anchored ones.
+ */
+function applyAdjustments(baseline, records, adjustments, { today, anchors, accountIds }) {
     const lines = baseline.map((l) => ({ ...l }));
     const byKey = new Map(lines.map((l) => [l.key, l]));
     const warnings = [];
     for (const adj of [...(adjustments || [])].sort((a, b) => a.id - b.id)) {
-        if (adj.kind !== 'adjust' && adj.kind !== 'exclude') {
-            throw new TypeError(`engine: adjustment kind must be 'adjust' or 'exclude', got ${JSON.stringify(adj.kind)}`);
+        if (!ADJUSTMENT_KINDS.includes(adj.kind)) {
+            throw new TypeError(`engine: adjustment kind must be one of ${ADJUSTMENT_KINDS.join(', ')}, got ${JSON.stringify(adj.kind)}`);
         }
         const key = adj.itemKey;
+        const splitGroup = adj.splitGroup ?? null;
+        if (adj.kind === 'add') {
+            const reason = staleReason(adj, null, today);
+            if (reason) {
+                warnings.push({ code: 'STALE', key, reason });
+                continue;
+            }
+            if (!accountIds.has(adj.accountId)) {      // D44: the same scope rule as every target
+                warnings.push({ code: 'ADJUSTMENT_OUT_OF_SCOPE', key });
+                continue;
+            }
+            if (!anchors.has(adj.accountId)) continue;  // NO_ANCHOR already says why
+            const line = { ...addRecord(adj), splitGroup, split: splitGroup !== null };
+            lines.push(line);
+            byKey.set(key, line);
+            continue;
+        }
         const target = records.get(key);
         const line = byKey.get(key);
+        if (line && splitGroup !== null) {              // D40: the anchor, applied or stale
+            line.split = true;
+            line.splitGroup = splitGroup;
+        }
         const reason = staleReason(adj, target, today);
         if (reason) {
             warnings.push({ code: 'STALE', key, reason });
@@ -623,6 +694,8 @@ function rowFlags(line, piece) {
     if (piece.band === 'overdue') flags.push('overdue');
     if (line.adjusted) flags.push('adjusted');
     if (line.excluded) flags.push('excluded');
+    if (line.added) flags.push('added');
+    if (line.split) flags.push('split');
     if (line.stale) flags.push('stale');
     if (line.hidden) flags.push('hidden');
     return flags;
@@ -876,8 +949,10 @@ function buildRows(set, baseline, ranges, { window, categories, scenario }) {
         if (p.isPayment && p.paymentId != null) out.paymentId = p.paymentId;
         if (l.kind === 'ship') out.ship = shipJson(l.ship);
         if (scenario !== null) {
-            const b = baseline.byIdentity.get(p.identity);
+            // A hypothetical line (kind 'new', D39) has no baseline.
+            const b = l.kind === 'new' ? null : baseline.byIdentity.get(p.identity);
             out.baseline = b ? { date: b.date, amountMinor: num(b.amountMinor), gbpMinor: num(b.gbpMinor), flags: b.flags } : null;
+            out.splitGroup = l.splitGroup ?? null;      // D40: the anchor's id on every line of a split
         }
         row.items.push(out);
     }
@@ -1004,7 +1079,11 @@ function run(input) {
     // §9.4–9.5: lines with effective values; the scenario set is the baseline adjusted.
     const { records, orphans } = buildRecords(input, ctx);
     const baselineLines = [...records.values()].filter((r) => r.inScope && anchors.has(r.accountId));
-    const adjusted = scenario ? applyAdjustments(baselineLines, records, input.adjustments, today) : null;
+    const adjusted = scenario
+        ? applyAdjustments(baselineLines, records, input.adjustments, {
+            today, anchors, accountIds: new Set((input.accounts || []).map((a) => a.id)),
+        })
+        : null;
 
     // §9.6–9.9 per set; the response is built from the scenario set when there is one.
     // With a hide, `full` is that set with nothing hidden and `main` the one shown.
@@ -1079,6 +1158,7 @@ module.exports = {
     run,
     clampWindow,
     currenciesInScope,
+    shipCategoryOf,
     // §9.5's stale table, shared with the adjustment write, rebase and apply
     // (services/scenarios.js through lib/stale.js) so both sides use one definition.
     staleReason,

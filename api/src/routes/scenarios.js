@@ -13,11 +13,20 @@
 //   - Apply is all or nothing: every adjustment is re-checked under the locks and any
 //     stale one refuses the whole apply (409 SCENARIO_STALE), nothing written.
 //   - `archived` is terminal and set only by PUT from draft or applied (D36); soft delete
-//     keeps the adjustments (D18). Rework an applied scenario by duplicating it.
+//     keeps the adjustments (D18). Rework an applied scenario by duplicating it, or
+//     un-apply it (below).
+//   - Adds, splits and un-apply (Dev, 2026-10-07; D39–D44, §10.7a, §10.7b, §10.13): an `add`
+//     is a hypothetical one-off keyed new.<its own id>, created only by POST …/adjustments
+//     and replaced by PUT on its key; a split writes one `adjust` on the line (the anchor)
+//     plus one `add` per further part, all in one split_group, and deleting the anchor
+//     deletes the group; apply inserts an add's one-off and records on every adjustment, in
+//     applied_state, the before image of what it wrote; un-apply puts that back, all or
+//     nothing, and makes the scenario a draft again.
 //
 // Locks (§10.1): scenario row → schedules (asc id) → cash_items (asc id) → external_items
 // (asc id, Phase 2 P11) → overrides, through services/scenarios.js lockScenario /
-// lockTargets. Every read that the re-check depends on happens after those locks (see that
+// lockTargets. An add's account and category are shared (FOR SHARE) first in the add write
+// (§10.1's exception, before the scenario lock) and, in apply, before lockTargets. Every read that the re-check depends on happens after those locks (see that
 // file's header). No network I/O in any transaction: a `ship.` target is checked against the
 // snapshot in external_items, never live shipping, and its apply writes only the overlay
 // (§10.9 step 5, P6, P7) — nothing goes back to shipping.
@@ -35,10 +44,12 @@ const {
 } = require('../lib/shape');
 const { adjustmentStale, staleAfterRebase } = require('../lib/stale');
 const { readItem } = require('../services/items');
-const { loadTarget } = require('../services/forecastLoad');
-const { lockExternalItem, auditOverlay } = require('../services/externalItems');
+const { loadTarget, loadAddReferences } = require('../services/forecastLoad');
+const { lockExternalItem, auditOverlay, overlaySnapshot } = require('../services/externalItems');
+const { shareReferences, requireAccount, requireCategory, assertDirection } = require('../services/references');
 const {
     SCENARIO_SELECT, readScenario, readScenarioRow, lockScenario, requireDraft, readAdjustments,
+    readAdjustmentRow, insertAdjustment, shareAddReferences, addStale, targetDescription,
     targetOf, lockTargets, loadCurrent, currentJson, resolveAdjustments,
 } = require('../services/scenarios');
 
@@ -47,6 +58,7 @@ const MAX_TEXT = 16000;        // scenarios.description TEXT (16,000 four-byte c
 const MAX_NOTE = 500;          // scenario_adjustments.note VARCHAR(500)
 const COPY_SUFFIX = ' (copy)';
 const PUT_FIELDS = ['name', 'description', 'companyId', 'status'];
+const CURRENCY_RE = /^[A-Z]{3}$/;
 
 function parseName(value) {
     if (typeof value !== 'string') return null;
@@ -92,6 +104,152 @@ function copyName(name) {
 
 const scenarioOut = async (conn, id) => scenarioToJson(await readScenario(conn, id, { includeDeleted: true }));
 
+const bad = (message) => apiError(400, undefined, message);
+
+/**
+ * §10.7a step 1 (D39): an add's body → its fields, mirroring POST /items' grammar; a 400 on
+ * a malformed field and 422 ADJUSTMENT_DATE_IN_PAST on a newDate before today — all before
+ * the transaction. `kind` is the caller's check. `direction` / `currency` stay undefined
+ * when omitted (the category's and the account's, resolved under the reference locks).
+ */
+function parseAddBody(body, today, directions) {
+    const accountId = bodyId(body.accountId);
+    if (!accountId) throw bad('accountId is required (a positive integer).');
+    const categoryId = bodyId(body.categoryId);
+    if (!categoryId) throw bad('categoryId is required (a positive integer).');
+    const name = parseName(body.name);
+    if (!name) throw bad(`name is required (at most ${MAX_NAME} characters).`);
+    const amount = parseMoney(body.newAmount);
+    if (amount === null || amount <= 0n) {
+        throw bad('newAmount is required: a decimal string greater than zero, e.g. "1024.00".');
+    }
+    if (!isValidDate(body.newDate)) throw bad('newDate is required: a real date, YYYY-MM-DD.');
+    if (body.direction !== undefined && !directions.includes(body.direction)) {
+        throw bad(`direction must be one of: ${directions.join(', ')}.`);
+    }
+    if (body.currency !== undefined && !(typeof body.currency === 'string' && CURRENCY_RE.test(body.currency))) {
+        throw bad('currency must be three capital letters, e.g. GBP.');
+    }
+    const counterparty = parseText(body.counterparty, MAX_NAME);
+    if (Number.isNaN(counterparty)) throw bad(`counterparty must be text of at most ${MAX_NAME} characters.`);
+    const note = parseText(body.note, MAX_NOTE);
+    if (Number.isNaN(note)) throw bad(`note must be text of at most ${MAX_NOTE} characters.`);
+    if (body.newDate < today) {
+        throw apiError(422, 'ADJUSTMENT_DATE_IN_PAST', 'An added line cannot be dated before today.', { newDate: body.newDate, today });
+    }
+    return {
+        accountId, categoryId, name, newDate: body.newDate, newAmount: formatMinor(amount),
+        direction: body.direction, currency: body.currency, counterparty: counterparty ?? null, note: note ?? null,
+    };
+}
+
+/**
+ * §10.7a step 2: §10.1's exception, before any standing-order lock — FOR SHARE on the add's
+ * account and category, re-checked live (and the account active) with POST /items' 400s;
+ * D14 on a sent direction. → the add's direction (the category's) and currency (the
+ * body's, else the account's).
+ */
+async function shareAddRefs(conn, add) {
+    const refs = await shareReferences(conn, { accountId: add.accountId, categoryId: add.categoryId });
+    const account = requireAccount(refs.account);
+    const category = requireCategory(refs.category);
+    assertDirection(add.direction, category);
+    return { direction: category.direction, currency: add.currency ?? account.currency };
+}
+
+/**
+ * §10.7 step 4, D33: the stale reasons a write cannot stand on, as refusals — 404
+ * TARGET_MISSING, 409 TARGET_SETTLED. A fresh base cannot be BASE_CHANGED, and a past
+ * newDate was refused before the transaction.
+ */
+function requireLiveTarget(target, key, adj, today) {
+    const reason = staleAfterRebase(adj, target, today);
+    if (reason === 'TARGET_MISSING') {
+        throw apiError(404, 'TARGET_MISSING', 'There is no live forecast line with that key.', { key });
+    }
+    if (reason === 'TARGET_SETTLED') {
+        throw apiError(409, 'TARGET_SETTLED',
+            `That line is ${target.status.replace('_', ' ')}: only an expected line can be adjusted.`,
+            { key, status: target.status });
+    }
+    if (reason) throw new Error(`scenarios: unexpected stale reason ${reason} on write`);
+}
+
+/**
+ * §10.7b step 1: `parts` → [{newDate, newAmount (canonical DECIMAL), amountMinor}], at least
+ * two, each a real date and an amount > 0 (400 otherwise). The dates' "today or later" is
+ * the caller's 422.
+ */
+function parseParts(value) {
+    if (!Array.isArray(value) || value.length < 2) {
+        throw bad('parts must be a list of at least two {newDate, newAmount}.');
+    }
+    return value.map((p, i) => {
+        if (!p || typeof p !== 'object' || Array.isArray(p)) throw bad(`parts[${i}] must be {newDate, newAmount}.`);
+        if (!isValidDate(p.newDate)) throw bad(`parts[${i}].newDate must be a real date, YYYY-MM-DD.`);
+        const amountMinor = parseMoney(p.newAmount);
+        if (amountMinor === null || amountMinor <= 0n) {
+            throw bad(`parts[${i}].newAmount must be a decimal string greater than zero, e.g. "80.00".`);
+        }
+        return { newDate: p.newDate, newAmount: formatMinor(amountMinor), amountMinor };
+    });
+}
+
+/** Hard-delete one adjustment row with its audit row (§2.7: only while the scenario is draft). */
+async function deleteAdjustment(conn, row, userEmail) {
+    await conn.query('DELETE FROM scenario_adjustments WHERE id = ?', [row.id]);
+    await recordAudit(conn, {
+        entityType: 'scenario_adjustment', entityId: Number(row.id), action: 'delete',
+        before: adjustmentToJson(row), after: null, userEmail,
+    });
+}
+
+/** D40: the row anchors a split group (its split_group is its own id). */
+const isAnchor = (row) => row.split_group != null && Number(row.split_group) === Number(row.id);
+
+/** The other rows of the group `anchor` anchors, ascending id, locked. */
+async function groupParts(conn, scenarioId, anchor) {
+    const [rows] = await conn.query(
+        `SELECT * FROM scenario_adjustments WHERE scenario_id = ? AND split_group = ? AND id <> ?
+          ORDER BY id ASC FOR UPDATE`,
+        [scenarioId, anchor.id, anchor.id]
+    );
+    return rows;
+}
+
+// ── applied_state (D41, §10.9 step 5): the before image apply records, un-apply restores ──
+
+const sourceOf = (r) => (r.source_scenario_id == null ? null : Number(r.source_scenario_id));
+/** A cash_items or schedule_overrides row's date, amount and status, verbatim (nothing derived). */
+const lineImage = (r) => ({ dueDate: r.due_date ?? null, amount: r.amount ?? null, status: r.status ?? null });
+/** An external_items row's overlay as apply recorded it (plannedAt as an ISO instant). */
+function shipBeforeImage(r) {
+    const o = overlaySnapshot(r);
+    return {
+        plannedDate: o.plannedDate, plannedAmount: o.plannedAmount, plannedBaseAmount: o.plannedBaseAmount,
+        plannedSkipped: o.plannedSkipped, sourceScenarioId: o.sourceScenarioId, plannedBy: o.plannedBy, plannedAt: o.plannedAt,
+    };
+}
+const shipAfterImage = (r) => ({
+    plannedDate: r.planned_date ?? null, plannedAmount: r.planned_amount ?? null, plannedSkipped: Number(r.planned_skipped) === 1,
+});
+
+/** A row's applied_state (mysql2 parses a JSON column; a string is parsed here), or null. */
+function appliedStateOf(row) {
+    const v = row.applied_state;
+    if (v == null) return null;
+    if (typeof v === 'object') return v;
+    try {
+        return JSON.parse(v);
+    } catch {
+        return null;
+    }
+}
+
+/** §3.4's "payment state" on a cash_items or schedule_overrides row's cache columns. */
+const hasPaymentState = (r) => r.status === 'paid' || r.status === 'part_paid'
+    || (r.paid_amount != null && parseMinor(r.paid_amount) > 0n) || r.paid_on != null;
+
 /**
  * §10.9 step 5 for an `item.` target: `adjust` moves due_date / amount, `exclude` skips;
  * both stamp source_scenario_id. The item row is already locked (lockTargets).
@@ -114,7 +272,10 @@ async function applyToItem(conn, adj, target, scenarioId, userEmail) {
         entityType: 'cash_item', entityId: target.id, action: 'apply',
         before: itemToJson(before), after: itemToJson(after), userEmail,
     });
-    return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'cash_item', entityId: target.id };
+    return {
+        applied: { itemKey: adj.itemKey, kind: adj.kind, wrote: 'cash_item', entityId: target.id },
+        state: { kind: 'item', id: target.id, before: { ...lineImage(before), sourceScenarioId: sourceOf(before) }, after: lineImage(after) },
+    };
 }
 
 /**
@@ -159,7 +320,14 @@ async function applyToInstance(conn, adj, target, scenarioId, userEmail) {
         entityType: 'schedule_override', entityId: overrideId, action: 'apply',
         before: overrideToJson(before), after: overrideToJson(after), userEmail,
     });
-    return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'schedule_override', entityId: Number(overrideId) };
+    return {
+        applied: { itemKey: adj.itemKey, kind: adj.kind, wrote: 'schedule_override', entityId: Number(overrideId) },
+        state: {
+            kind: 'sched', overrideId: Number(overrideId), created: before === null,
+            before: before ? { ...lineImage(before), sourceScenarioId: sourceOf(before) } : null,
+            after: lineImage(after),
+        },
+    };
 }
 
 /**
@@ -192,15 +360,178 @@ async function applyToShip(conn, adj, target, scenarioId, userEmail) {
     }
     const after = await lockExternalItem(conn, target.id);
     await auditOverlay(conn, { action: 'apply', before, after, userEmail });
-    return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'external_item', entityId: Number(before.id) };
+    return {
+        applied: { itemKey: adj.itemKey, kind: adj.kind, wrote: 'external_item', entityId: Number(before.id) },
+        state: { kind: 'ship', id: Number(before.id), before: shipBeforeImage(before), after: shipAfterImage(after) },
+    };
 }
 
-const APPLY_TO = { item: applyToItem, sched: applyToInstance, ship: applyToShip };
+/**
+ * §10.9 step 5 for an `add` (D39): insert its one-off — status expected, settle mode auto
+ * (D13), notes = the adjustment's note — stamped source_scenario_id; audit
+ * `cash_item`/`apply` with `before: null`. Its references were shared (FOR SHARE) and
+ * re-checked live before the targets were locked.
+ */
+async function applyAdd(conn, adj, _target, scenarioId, userEmail) {
+    const [ins] = await conn.query(
+        `INSERT INTO cash_items
+            (account_id, category_id, direction, name, counterparty, amount, currency, due_date, status,
+             settle_mode, notes, source_scenario_id, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'expected', 'auto', ?, ?, ?)`,
+        [adj.accountId, adj.categoryId, adj.direction, adj.name, adj.counterparty, adj.newAmount, adj.currency,
+            adj.newDate, adj.note, scenarioId, userEmail]
+    );
+    const id = Number(ins.insertId);
+    await recordAudit(conn, {
+        entityType: 'cash_item', entityId: id, action: 'apply',
+        before: null, after: itemToJson(await readItem(conn, id)), userEmail,
+    });
+    return {
+        applied: { itemKey: adj.itemKey, kind: adj.kind, wrote: 'cash_item', entityId: id },
+        state: { kind: 'add', createdItemId: id },
+    };
+}
+
+// §10.9 step 5 by target kind → {applied: the applied[] entry, state: the row's applied_state (D41)}.
+const APPLY_TO = { item: applyToItem, sched: applyToInstance, ship: applyToShip, new: applyAdd };
+
+// ── Un-apply (§10.13, D41) ──────────────────────────────────────────────────────────────
+
+/**
+ * The target an un-apply locks for one adjustment (§10.13 step 2): an `adjust`/`exclude`'s key;
+ * an `add`'s created one-off as an `item.` target; none without a record (NO_RECORD).
+ */
+function unapplyTargetOf({ row, state }) {
+    if (!state) return null;
+    if (state.kind === 'add') return { targetKind: 'item', targetId: String(state.createdItemId), targetDate: null };
+    return targetOf(row);
+}
+
+/**
+ * §10.13 step 3, under the locks: why this row cannot be put back, in the contract's order —
+ * NO_RECORD (no applied_state), TARGET_MISSING (the row apply wrote is gone), TARGET_SETTLED
+ * (payment state; a ship row paid), CHANGED (not this scenario's any more, or its date,
+ * amount or status — a ship row's planned date, amount or skipped — is not what apply
+ * wrote) — or null. Dates compare as strings, money as minor units.
+ */
+async function unapplyReason(conn, { adj, state }, scenarioId) {
+    if (!state) return 'NO_RECORD';
+    const ours = (r) => sourceOf(r) === scenarioId;
+    if (state.kind === 'item' || state.kind === 'add') {
+        const [[r]] = await conn.query('SELECT * FROM cash_items WHERE id = ?', [state.kind === 'add' ? state.createdItemId : state.id]);
+        if (!r || r.deleted_at != null) return 'TARGET_MISSING';
+        if (hasPaymentState(r)) return 'TARGET_SETTLED';
+        const after = state.kind === 'add' ? { dueDate: adj.newDate, amount: adj.newAmount, status: 'expected' } : state.after;
+        if (!ours(r) || r.due_date !== after.dueDate || !sameMoney(r.amount, after.amount) || r.status !== after.status) return 'CHANGED';
+        return null;
+    }
+    if (state.kind === 'sched') {
+        const [[r]] = await conn.query('SELECT * FROM schedule_overrides WHERE id = ?', [state.overrideId]);
+        if (!r) return 'TARGET_MISSING';
+        if (hasPaymentState(r)) return 'TARGET_SETTLED';
+        const a = state.after;
+        if (!ours(r) || (r.due_date ?? null) !== (a.dueDate ?? null) || !sameMoney(r.amount, a.amount)
+            || (r.status ?? null) !== (a.status ?? null)) return 'CHANGED';
+        return null;
+    }
+    if (state.kind === 'ship') {
+        const [[r]] = await conn.query('SELECT * FROM external_items WHERE id = ?', [state.id]);
+        if (!r || r.gone_at != null) return 'TARGET_MISSING';
+        if (r.feed_status === 'paid') return 'TARGET_SETTLED';
+        const a = state.after;
+        if (!ours(r) || (r.planned_date ?? null) !== (a.plannedDate ?? null) || !sameMoney(r.planned_amount, a.plannedAmount)
+            || (Number(r.planned_skipped) === 1) !== Boolean(a.plannedSkipped)) return 'CHANGED';
+        return null;
+    }
+    return 'NO_RECORD';                 // a record this version cannot read: nothing to restore from
+}
+
+/** §10.13 step 5, `item.`: due_date, amount, status and source_scenario_id from the before image. */
+async function unapplyItem(conn, { adj, state }, userEmail) {
+    const id = Number(state.id);
+    const before = await readItem(conn, id);
+    const b = state.before;
+    await conn.query(
+        'UPDATE cash_items SET due_date = ?, amount = ?, status = ?, source_scenario_id = ?, row_version = row_version + 1 WHERE id = ?',
+        [b.dueDate, b.amount, b.status, b.sourceScenarioId ?? null, id]
+    );
+    await recordAudit(conn, {
+        entityType: 'cash_item', entityId: id, action: 'unapply',
+        before: itemToJson(before), after: itemToJson(await readItem(conn, id)), userEmail,
+    });
+    return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'cash_item', entityId: id };
+}
+
+/**
+ * §10.13 step 5, `sched.`: an override apply created is deleted (audit `delete`, before = the
+ * full row); one apply updated gets due_date, amount, status and source_scenario_id back.
+ */
+async function unapplyInstance(conn, { adj, state }, userEmail) {
+    const id = Number(state.overrideId);
+    const [[before]] = await conn.query('SELECT * FROM schedule_overrides WHERE id = ?', [id]);
+    if (state.created) {
+        await conn.query('DELETE FROM schedule_overrides WHERE id = ?', [id]);
+        await recordAudit(conn, {
+            entityType: 'schedule_override', entityId: id, action: 'delete', before: overrideToJson(before), after: null, userEmail,
+        });
+    } else {
+        const b = state.before;
+        await conn.query(
+            `UPDATE schedule_overrides SET due_date = ?, amount = ?, status = ?, source_scenario_id = ?, row_version = row_version + 1
+              WHERE id = ?`,
+            [b.dueDate ?? null, b.amount ?? null, b.status ?? null, b.sourceScenarioId ?? null, id]
+        );
+        const [[after]] = await conn.query('SELECT * FROM schedule_overrides WHERE id = ?', [id]);
+        await recordAudit(conn, {
+            entityType: 'schedule_override', entityId: id, action: 'unapply',
+            before: overrideToJson(before), after: overrideToJson(after), userEmail,
+        });
+    }
+    return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'schedule_override', entityId: id };
+}
+
+/**
+ * §10.13 step 5, `ship.`: the overlay columns apply touched, from the before image
+ * (planned_at back from its ISO instant); feed columns untouched; audit
+ * `external_item`/`unapply` through auditOverlay.
+ */
+async function unapplyShip(conn, { adj, state }, userEmail) {
+    const id = Number(state.id);
+    const [[before]] = await conn.query('SELECT * FROM external_items WHERE id = ?', [id]);
+    const b = state.before;
+    await conn.query(
+        `UPDATE external_items
+            SET planned_date = ?, planned_amount = ?, planned_base_amount = ?, planned_skipped = ?, source_scenario_id = ?,
+                planned_by = ?, planned_at = ?, row_version = row_version + 1
+          WHERE id = ?`,
+        [b.plannedDate ?? null, b.plannedAmount ?? null, b.plannedBaseAmount ?? null, b.plannedSkipped ? 1 : 0,
+            b.sourceScenarioId ?? null, b.plannedBy ?? null, b.plannedAt ? new Date(b.plannedAt) : null, id]
+    );
+    const [[after]] = await conn.query('SELECT * FROM external_items WHERE id = ?', [id]);
+    await auditOverlay(conn, { action: 'unapply', before, after, userEmail });
+    return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'external_item', entityId: id };
+}
+
+/** §10.13 step 5, `add`: the one-off apply created is soft-deleted (§2.7: it stays for the audit trail). */
+async function unapplyAdd(conn, { adj, state }, userEmail) {
+    const id = Number(state.createdItemId);
+    const before = await readItem(conn, id);
+    await conn.query('UPDATE cash_items SET deleted_at = UTC_TIMESTAMP(), row_version = row_version + 1 WHERE id = ?', [id]);
+    await recordAudit(conn, {
+        entityType: 'cash_item', entityId: id, action: 'unapply',
+        before: itemToJson(before), after: itemToJson(await readItem(conn, id, { includeDeleted: true })), userEmail,
+    });
+    return { itemKey: adj.itemKey, kind: adj.kind, wrote: 'cash_item', entityId: id };
+}
+
+// §10.13 step 5 by applied_state.kind → the unapplied[] entry (applied[]'s shape, D42).
+const UNAPPLY = { item: unapplyItem, sched: unapplyInstance, ship: unapplyShip, add: unapplyAdd };
 
 module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
     const router = express.Router();
     const STATUSES = enums.scenarioStatuses;
     const KINDS = enums.adjustmentKinds;
+    const DIRECTIONS = enums.directions;
 
     // Adjustment routes parse the key first (§4, §6.11): it arrives un-encoded, as one
     // path segment, and a key lib/keys.js rejects is 422 before anything else is read.
@@ -209,7 +540,7 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
         const parsed = parseKey(key);
         if (!parsed) {
             throw apiError(422, 'ITEM_KEY_INVALID',
-                'That is not a forecast key: expected item.<id>, sched.<id>.<YYYY-MM-DD> or ship.<id>.', { key });
+                'That is not a forecast key: expected item.<id>, sched.<id>.<YYYY-MM-DD>, ship.<id> or new.<id>.', { key });
         }
         return { key, parsed };
     }
@@ -393,6 +724,9 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
 
     // §10.10: a new draft with every adjustment copied as-is. The bases are not refreshed,
     // so the first read shows what is stale. The source is only read (any status, live).
+    // An `add` gets a fresh key (new.<its new id>), a split group is re-pointed at the copied
+    // anchor (ascending id: an anchor is always older than its parts), and applied_state is
+    // never copied (D39–D41).
     router.post('/scenarios/:id/duplicate', async (req, res) => {
         try {
             await schemaReady;
@@ -414,19 +748,21 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
                     entityType: 'scenario', entityId: copyId, action: 'duplicate', before: null,
                     after: { ...scenarioToJson(await readScenarioRow(conn, copyId)), copiedFrom: id }, userEmail: req.userEmail,
                 });
+                const copies = new Map();      // source adjustment id → its copy's id
                 for (const a of await readAdjustments(conn, id)) {
-                    const [copy] = await conn.query(
-                        `INSERT INTO scenario_adjustments
-                            (scenario_id, item_key, target_kind, target_id, target_date, kind, new_date, new_amount,
-                             base_date, base_amount, note, created_by)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [copyId, a.item_key, a.target_kind, a.target_id, a.target_date, a.kind, a.new_date, a.new_amount,
-                            a.base_date, a.base_amount, a.note, req.userEmail]
-                    );
-                    const [[row]] = await conn.query('SELECT * FROM scenario_adjustments WHERE id = ?', [copy.insertId]);
+                    const adjCopyId = await insertAdjustment(conn, {
+                        scenarioId: copyId, itemKey: a.item_key, targetKind: a.target_kind, targetId: a.target_id,
+                        targetDate: a.target_date, kind: a.kind, newDate: a.new_date, newAmount: a.new_amount,
+                        baseDate: a.base_date, baseAmount: a.base_amount, note: a.note,
+                        accountId: a.account_id, categoryId: a.category_id, direction: a.direction, name: a.name,
+                        counterparty: a.counterparty, currency: a.currency,
+                        splitGroup: a.split_group == null ? null : copies.get(Number(a.split_group)) ?? null,
+                        createdBy: req.userEmail,
+                    }, { anchor: isAnchor(a) });
+                    copies.set(Number(a.id), adjCopyId);
                     await recordAudit(conn, {
-                        entityType: 'scenario_adjustment', entityId: copy.insertId, action: 'create',
-                        before: null, after: adjustmentToJson(row), userEmail: req.userEmail,
+                        entityType: 'scenario_adjustment', entityId: adjCopyId, action: 'create',
+                        before: null, after: adjustmentToJson(await readAdjustmentRow(conn, adjCopyId)), userEmail: req.userEmail,
                     });
                 }
                 return scenarioOut(conn, copyId);
@@ -438,9 +774,92 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
         }
     });
 
+    // §10.7a (D39, D43): the only way to create an `add` — a hypothetical one-off inside a
+    // draft scenario, keyed new.<its own id>. The references come first (§10.1's exception),
+    // then the scenario row. 201 with stale null (both references were just checked live and
+    // the date is today or later) and current null (there is no target).
+    router.post('/scenarios/:id/adjustments', async (req, res) => {
+        try {
+            await schemaReady;
+            const id = parseId(req.params.id);
+            if (!id) return fail(res, 404, 'Scenario not found.');
+            const body = req.body || {};
+            if (body.kind !== 'add') {
+                return fail(res, 400, 'kind must be add: this route adds a hypothetical one-off (adjust and exclude are a PUT on the line\'s key).');
+            }
+            const add = parseAddBody(body, todayFor(req), DIRECTIONS);
+
+            const out = await withTransaction(async (conn) => {
+                const refs = await shareAddRefs(conn, add);
+                requireDraft(await lockScenario(conn, id));
+                const adjId = await insertAdjustment(conn, {
+                    scenarioId: id, kind: 'add', newDate: add.newDate, newAmount: add.newAmount, note: add.note,
+                    accountId: add.accountId, categoryId: add.categoryId, direction: refs.direction, name: add.name,
+                    counterparty: add.counterparty, currency: refs.currency, createdBy: req.userEmail,
+                });
+                const row = adjustmentToJson(await readAdjustmentRow(conn, adjId));
+                await recordAudit(conn, {
+                    entityType: 'scenario_adjustment', entityId: adjId, action: 'create', before: null, after: row, userEmail: req.userEmail,
+                });
+                return { ...row, stale: null, current: null };
+            });
+            res.status(201).json(out);
+        } catch (err) {
+            if (isApiError(err)) return sendApiError(res, err);
+            serverError(res, 'scenarios-add-create', err);
+        }
+    });
+
+    /**
+     * §10.7a step 4, PUT on a new.<id> key (D43): a full replace of an existing add of this
+     * scenario — every field again; an omitted counterparty or note is cleared; split_group is
+     * kept. References first, then the scenario, then the row (404 when this scenario has no
+     * such add). Audit `update` when anything changed. 200.
+     */
+    async function putAdd(req, res, { id, key }) {
+        const body = req.body || {};
+        const add = parseAddBody(body, todayFor(req), DIRECTIONS);
+        const baseVersion = parseBaseVersion(body);
+        if (Number.isNaN(baseVersion)) return fail(res, 400, 'baseVersion must be a non-negative integer.');
+        const out = await withTransaction(async (conn) => {
+            const refs = await shareAddRefs(conn, add);
+            requireDraft(await lockScenario(conn, id));
+            const [[existing]] = await conn.query(
+                'SELECT * FROM scenario_adjustments WHERE scenario_id = ? AND item_key = ? FOR UPDATE', [id, key]
+            );
+            if (!existing || existing.kind !== 'add') {
+                throw apiError(404, undefined, 'This scenario has no added line with that key; POST /scenarios/:id/adjustments adds one.');
+            }
+            assertBaseVersion(existing, baseVersion);
+            const next = [
+                ['account_id', add.accountId], ['category_id', add.categoryId], ['direction', refs.direction],
+                ['name', add.name], ['counterparty', add.counterparty], ['currency', refs.currency],
+                ['new_date', add.newDate], ['new_amount', add.newAmount], ['note', add.note],
+            ];
+            const changed = next.some(([column, value]) => (column === 'new_amount' ? !sameMoney(existing[column], value)
+                : column.endsWith('_id') ? Number(existing[column]) !== value : (existing[column] ?? null) !== value));
+            if (changed) {
+                await conn.query(
+                    `UPDATE scenario_adjustments SET ${next.map(([column]) => `${column} = ?`).join(', ')}, row_version = row_version + 1
+                      WHERE id = ?`,
+                    [...next.map(([, value]) => value), existing.id]
+                );
+                await recordAudit(conn, {
+                    entityType: 'scenario_adjustment', entityId: Number(existing.id), action: 'update',
+                    before: adjustmentToJson(existing), after: adjustmentToJson(await readAdjustmentRow(conn, existing.id)),
+                    userEmail: req.userEmail,
+                });
+            }
+            return { ...adjustmentToJson(await readAdjustmentRow(conn, existing.id)), stale: null, current: null };
+        });
+        return res.json(out);
+    }
+
     // §10.7: create or replace the adjustment for one key. A full replace — an omitted
     // newDate, newAmount or note is cleared. The bases are the target's current effective
     // values from the loader, read under the target's locks; the body cannot set them.
+    // A new.<id> key takes only kind add, the add's whole body (D43, putAdd above); kind add
+    // on any other key is 400. A PUT on a split's anchor keeps its split_group (D40).
     router.put('/scenarios/:id/adjustments/:itemKey', async (req, res) => {
         try {
             await schemaReady;
@@ -450,6 +869,15 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
             const body = req.body || {};
             const kind = body.kind;
             if (!KINDS.includes(kind)) return fail(res, 400, `kind is required: one of ${KINDS.join(', ')}.`);
+            if (parsed.targetKind === 'new') {
+                if (kind !== 'add') {
+                    return fail(res, 400, 'A new.<id> key is an added line: send kind add with the whole line (accountId, categoryId, name, newDate, newAmount).');
+                }
+                return await putAdd(req, res, { id, key });
+            }
+            if (kind === 'add') {
+                return fail(res, 400, 'kind add is only for a new.<id> key: POST /scenarios/:id/adjustments adds a line.');
+            }
             const newDate = body.newDate ?? null;
             if (newDate !== null && !isValidDate(newDate)) return fail(res, 400, 'newDate must be a real date, YYYY-MM-DD.');
             const newAmountMinor = body.newAmount == null ? null : parseMoney(body.newAmount);
@@ -476,18 +904,7 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
                 requireDraft(await lockScenario(conn, id));
                 await lockTargets(conn, [parsed]);
                 const target = await loadCurrent(conn, parsed, today);
-                // D33: the stale reasons as refusals. A fresh base cannot be BASE_CHANGED,
-                // and a past newDate was refused above.
-                const reason = staleAfterRebase({ kind, newDate }, target, today);
-                if (reason === 'TARGET_MISSING') {
-                    throw apiError(404, 'TARGET_MISSING', 'There is no live forecast line with that key.', { key });
-                }
-                if (reason === 'TARGET_SETTLED') {
-                    throw apiError(409, 'TARGET_SETTLED',
-                        `That line is ${target.status.replace('_', ' ')}: only an expected line can be adjusted.`,
-                        { key, status: target.status });
-                }
-                if (reason) throw new Error(`scenarios: unexpected stale reason ${reason} on write`);
+                requireLiveTarget(target, key, { kind, newDate }, today);      // D33
 
                 const next = {
                     kind, newDate, newAmount, note: note ?? null,
@@ -547,6 +964,8 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
     });
 
     // §10.7 delete: hard, draft only; nothing about the target is read, so no target lock.
+    // Deleting a split's anchor deletes its whole group, the anchor last ("revert the split",
+    // D40); deleting a part removes that part alone.
     router.delete('/scenarios/:id/adjustments/:itemKey', async (req, res) => {
         try {
             await schemaReady;
@@ -562,11 +981,8 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
                 );
                 if (!row) throw apiError(404, undefined, 'This scenario has no adjustment for that key.');
                 assertBaseVersion(row, baseVersion);
-                await conn.query('DELETE FROM scenario_adjustments WHERE id = ?', [row.id]);
-                await recordAudit(conn, {
-                    entityType: 'scenario_adjustment', entityId: Number(row.id), action: 'delete',
-                    before: adjustmentToJson(row), after: null, userEmail: req.userEmail,
-                });
+                const parts = isAnchor(row) ? await groupParts(conn, id, row) : [];
+                for (const victim of [...parts, row]) await deleteAdjustment(conn, victim, req.userEmail);
             });
             res.status(204).end();
         } catch (err) {
@@ -575,8 +991,131 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
         }
     });
 
+    // §10.7b (D40): split one line into dated parts — an `adjust` on the line (part 1: the line
+    // itself, resized and maybe moved) plus one `add` per further part copying the line's
+    // account, category, direction, name, counterparty and currency, all in one split_group
+    // (the anchor's id). The parts must sum to the line's current effective amount. A split
+    // replaces whatever adjustment the key had, and the parts of the group it anchored. No
+    // reference lock: the parts copy the target's references, which apply re-checks.
+    router.post('/scenarios/:id/adjustments/:itemKey/split', async (req, res) => {
+        try {
+            await schemaReady;
+            const id = parseId(req.params.id);
+            if (!id) return fail(res, 404, 'Scenario not found.');
+            const { key, parsed } = keyOf(req);
+            if (parsed.targetKind === 'new') {
+                return fail(res, 400, 'An added line cannot be split (D43): delete it and add the parts instead.');
+            }
+            const body = req.body || {};
+            const parts = parseParts(body.parts);
+            const note = parseText(body.note, MAX_NOTE);
+            if (Number.isNaN(note)) return fail(res, 400, `note must be text of at most ${MAX_NOTE} characters.`);
+            const baseVersion = parseBaseVersion(body);
+            if (Number.isNaN(baseVersion)) return fail(res, 400, 'baseVersion must be a non-negative integer.');
+            const today = todayFor(req);
+            const early = parts.find((p) => p.newDate < today);
+            if (early) {
+                throw apiError(422, 'ADJUSTMENT_DATE_IN_PAST', 'A part cannot be dated before today.', { newDate: early.newDate, today });
+            }
+
+            const out = await withTransaction(async (conn) => {
+                requireDraft(await lockScenario(conn, id));
+                await lockTargets(conn, [parsed]);
+                const target = await loadCurrent(conn, parsed, today);
+                requireLiveTarget(target, key, { kind: 'adjust', newDate: parts[0].newDate }, today);
+                if (target.accountId == null) {
+                    throw apiError(400, undefined,
+                        'That line has no account to sit on (its company maps to no account), so its parts would have none: it cannot be split.',
+                        { key });
+                }
+                const expected = parseMinor(target.effectiveAmount);
+                const total = parts.reduce((acc, p) => acc + p.amountMinor, 0n);
+                if (total !== expected) {
+                    throw apiError(422, 'SPLIT_AMOUNTS_MISMATCH',
+                        `The parts add up to ${formatMinor(total)} but the line is ${formatMinor(expected)}: a split must add up to the line.`,
+                        { total: formatMinor(total), expected: formatMinor(expected) });
+                }
+                const described = await targetDescription(conn, target);
+
+                // 6. The key's existing adjustment, if any, becomes the anchor; a group it
+                //    anchored loses its old parts first.
+                const [[existing]] = await conn.query(
+                    'SELECT * FROM scenario_adjustments WHERE scenario_id = ? AND item_key = ? FOR UPDATE', [id, key]
+                );
+                if (existing) {
+                    assertBaseVersion(existing, baseVersion);
+                    if (isAnchor(existing)) {
+                        for (const old of await groupParts(conn, id, existing)) await deleteAdjustment(conn, old, req.userEmail);
+                    }
+                }
+                const first = parts[0];
+                const anchor = {
+                    kind: 'adjust', newDate: first.newDate === target.effectiveDate ? null : first.newDate,
+                    newAmount: first.newAmount, note: note ?? null,
+                    baseDate: target.effectiveDate, baseAmount: target.effectiveAmount,
+                };
+                let anchorId;
+                if (existing) {
+                    anchorId = Number(existing.id);
+                    await conn.query(
+                        `UPDATE scenario_adjustments
+                            SET kind = ?, new_date = ?, new_amount = ?, base_date = ?, base_amount = ?, note = ?, split_group = ?,
+                                row_version = row_version + 1
+                          WHERE id = ?`,
+                        [anchor.kind, anchor.newDate, anchor.newAmount, anchor.baseDate, anchor.baseAmount, anchor.note,
+                            anchorId, anchorId]
+                    );
+                    await recordAudit(conn, {
+                        entityType: 'scenario_adjustment', entityId: anchorId, action: 'update',
+                        before: adjustmentToJson(existing), after: adjustmentToJson(await readAdjustmentRow(conn, anchorId)),
+                        userEmail: req.userEmail,
+                    });
+                } else {
+                    anchorId = await insertAdjustment(conn, {
+                        scenarioId: id, itemKey: key, targetKind: parsed.targetKind, targetId: parsed.targetId,
+                        targetDate: parsed.targetDate, ...anchor, createdBy: req.userEmail,
+                    }, { anchor: true });
+                    await recordAudit(conn, {
+                        entityType: 'scenario_adjustment', entityId: anchorId, action: 'create',
+                        before: null, after: adjustmentToJson(await readAdjustmentRow(conn, anchorId)), userEmail: req.userEmail,
+                    });
+                }
+
+                // 7. One add per further part, in the anchor's group.
+                const added = [];
+                for (const part of parts.slice(1)) {
+                    const partId = await insertAdjustment(conn, {
+                        scenarioId: id, kind: 'add', newDate: part.newDate, newAmount: part.newAmount, note: note ?? null,
+                        accountId: target.accountId, categoryId: described.categoryId, direction: described.direction,
+                        name: described.name, counterparty: described.counterparty, currency: target.currency,
+                        splitGroup: anchorId, createdBy: req.userEmail,
+                    });
+                    const row = adjustmentToJson(await readAdjustmentRow(conn, partId));
+                    await recordAudit(conn, {
+                        entityType: 'scenario_adjustment', entityId: partId, action: 'create', before: null, after: row,
+                        userEmail: req.userEmail,
+                    });
+                    added.push({ ...row, stale: null, current: null });
+                }
+                const anchorAdj = adjustmentToJson(await readAdjustmentRow(conn, anchorId));
+                return {
+                    splitGroup: anchorId,
+                    adjustments: [
+                        { ...anchorAdj, stale: adjustmentStale(anchorAdj, target, today), current: currentJson(target) },
+                        ...added,
+                    ],
+                };
+            });
+            res.status(201).json(out);
+        } catch (err) {
+            if (isApiError(err)) return sendApiError(res, err);
+            serverError(res, 'scenarios-adjustment-split', err);
+        }
+    });
+
     // §10.8: refresh every base that changed; TARGET_SETTLED / TARGET_MISSING / DATE_PASSED
-    // cannot be fixed by a rebase and are reported, or removed with dropStale (D38).
+    // cannot be fixed by a rebase and are reported, or removed with dropStale (D38). An `add`
+    // has no base and is never rebased; dropStale removes a stale one (D39).
     router.post('/scenarios/:id/rebase', async (req, res) => {
         try {
             await schemaReady;
@@ -596,22 +1135,34 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
                 requireDraft(scenario);
                 assertBaseVersion(scenario, baseVersion);
                 const rows = await readAdjustments(conn, id, { lock: true });
-                await lockTargets(conn, rows.map(targetOf));
+                await lockTargets(conn, rows.filter((r) => r.kind !== 'add').map(targetOf));
                 const adjustments = [];
                 const counts = { rebased: 0, dropped: 0, stale: 0 };
+                // D40: a stale anchor dropped here takes its parts with it (wherever the server
+                // deletes an anchor, its group goes). A part's own id is higher than its anchor's,
+                // so it is met later in this loop and reported then as dropped, not stale.
+                const gone = new Set();
                 for (const row of rows) {
                     const adj = adjustmentToJson(row);
-                    const target = await loadCurrent(conn, targetOf(row), today);
+                    if (gone.has(Number(row.id))) {
+                        adjustments.push({ ...adj, stale: null, current: null, rebased: false, dropped: true });
+                        continue;
+                    }
+                    const isAdd = adj.kind === 'add';
+                    const target = isAdd ? null : await loadCurrent(conn, targetOf(row), today);
                     const current = currentJson(target);
-                    const stale = staleAfterRebase(adj, target, today);
+                    const stale = isAdd ? await addStale(conn, adj, today) : staleAfterRebase(adj, target, today);
                     if (stale) {
                         counts.stale += 1;
                         if (dropStale) {
-                            await conn.query('DELETE FROM scenario_adjustments WHERE id = ?', [row.id]);
-                            await recordAudit(conn, {
-                                entityType: 'scenario_adjustment', entityId: Number(row.id), action: 'delete',
-                                before: adj, after: null, userEmail: req.userEmail,
-                            });
+                            if (isAnchor(row)) {
+                                for (const part of await groupParts(conn, id, row)) {
+                                    await deleteAdjustment(conn, part, req.userEmail);
+                                    gone.add(Number(part.id));
+                                    counts.dropped += 1;
+                                }
+                            }
+                            await deleteAdjustment(conn, row, req.userEmail);
                             counts.dropped += 1;
                         }
                         adjustments.push({ ...adj, stale, current, rebased: false, dropped: dropStale });
@@ -648,6 +1199,9 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
 
     // §10.9: all or nothing. Every adjustment is re-checked under the locks with the
     // engine's §9.5 definitions; any stale one refuses the whole apply, nothing written.
+    // An `add` (D39): its account and category are shared first, before the targets; it is
+    // TARGET_MISSING or DATE_PASSED, never settled or base-changed; it inserts its one-off.
+    // Every row records its applied_state (D41) for un-apply; row_version stays as it is.
     router.post('/scenarios/:id/apply', async (req, res) => {
         try {
             await schemaReady;
@@ -662,14 +1216,22 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
                 requireDraft(scenario);
                 assertBaseVersion(scenario, baseVersion);
                 const rows = await readAdjustments(conn, id, { lock: true });
-                await lockTargets(conn, rows.map(targetOf));
+                await shareAddReferences(conn, rows.filter((r) => r.kind === 'add'));
+                await lockTargets(conn, rows.filter((r) => r.kind !== 'add').map(targetOf));
 
                 const checked = [];
                 const stale = [];
                 for (const row of rows) {
                     const adj = adjustmentToJson(row);
-                    const target = await loadTarget(conn, targetOf(row), today);
-                    const reason = adjustmentStale(adj, target, today);
+                    let target = null;
+                    let reason;
+                    if (adj.kind === 'add') {
+                        const refs = await loadAddReferences(conn, adj);
+                        reason = adjustmentStale({ ...adj, targetLive: refs.live }, null, today);
+                    } else {
+                        target = await loadTarget(conn, targetOf(row), today);
+                        reason = adjustmentStale(adj, target, today);
+                    }
                     if (reason) stale.push({ itemKey: adj.itemKey, reason });
                     checked.push({ adj, target });
                 }
@@ -681,7 +1243,9 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
 
                 const applied = [];
                 for (const { adj, target } of checked) {
-                    applied.push(await APPLY_TO[adj.targetKind](conn, adj, target, id, req.userEmail));
+                    const wrote = await APPLY_TO[adj.targetKind](conn, adj, target, id, req.userEmail);
+                    await conn.query('UPDATE scenario_adjustments SET applied_state = ? WHERE id = ?', [JSON.stringify(wrote.state), adj.id]);
+                    applied.push(wrote.applied);
                 }
                 await conn.query(
                     `UPDATE scenarios SET status = 'applied', applied_at = UTC_TIMESTAMP(), applied_by = ?,
@@ -699,6 +1263,65 @@ module.exports = ({ schemaReady, fail, serverError, todayFor, enums }) => {
         } catch (err) {
             if (isApiError(err)) return sendApiError(res, err);
             serverError(res, 'scenarios-apply', err);
+        }
+    });
+
+    // §10.13 (D41): all or nothing. Every adjustment is re-checked under the standing-order
+    // locks against what apply recorded (applied_state); any row that cannot be put back
+    // refuses the whole un-apply (409 SCENARIO_UNAPPLY_BLOCKED), nothing written. Otherwise
+    // each target gets its before image back (an override apply created is deleted, a
+    // one-off an add created is soft-deleted), applied_state is cleared, and the scenario is
+    // a draft again whose bases equal the real data.
+    router.post('/scenarios/:id/unapply', async (req, res) => {
+        try {
+            await schemaReady;
+            const id = parseId(req.params.id);
+            if (!id) return fail(res, 404, 'Scenario not found.');
+            const baseVersion = parseBaseVersion(req.body);
+            if (Number.isNaN(baseVersion)) return fail(res, 400, 'baseVersion must be a non-negative integer.');
+
+            const out = await withTransaction(async (conn) => {
+                const scenario = await lockScenario(conn, id);
+                if (scenario.status !== 'applied') {
+                    throw apiError(409, 'SCENARIO_NOT_APPLIED',
+                        `This scenario is ${scenario.status}: only an applied scenario can be un-applied.`, { status: scenario.status });
+                }
+                assertBaseVersion(scenario, baseVersion);
+                const records = (await readAdjustments(conn, id, { lock: true }))
+                    .map((row) => ({ row, adj: adjustmentToJson(row), state: appliedStateOf(row) }));
+                await lockTargets(conn, records.map(unapplyTargetOf).filter(Boolean));
+
+                const blocked = [];
+                for (const rec of records) {
+                    const reason = await unapplyReason(conn, rec, id);
+                    if (reason) blocked.push({ itemKey: rec.adj.itemKey, reason });
+                }
+                if (blocked.length) {
+                    throw apiError(409, 'SCENARIO_UNAPPLY_BLOCKED',
+                        `${blocked.length} line${blocked.length === 1 ? ' has' : 's have'} changed since this scenario was applied; nothing was put back. Revert ${blocked.length === 1 ? 'it' : 'them'} by hand, or leave the scenario applied.`,
+                        { blocked });
+                }
+
+                const unapplied = [];
+                for (const rec of records) {
+                    unapplied.push(await UNAPPLY[rec.state.kind](conn, rec, req.userEmail));
+                    await conn.query('UPDATE scenario_adjustments SET applied_state = NULL WHERE id = ?', [rec.row.id]);
+                }
+                await conn.query(
+                    `UPDATE scenarios SET status = 'draft', applied_at = NULL, applied_by = NULL, row_version = row_version + 1
+                      WHERE id = ?`,
+                    [id]
+                );
+                await recordAudit(conn, {
+                    entityType: 'scenario', entityId: id, action: 'unapply',
+                    before: scenarioToJson(scenario), after: scenarioToJson(await readScenarioRow(conn, id)), userEmail: req.userEmail,
+                });
+                return { scenario: await scenarioOut(conn, id), unapplied };
+            });
+            res.json(out);
+        } catch (err) {
+            if (isApiError(err)) return sendApiError(res, err);
+            serverError(res, 'scenarios-unapply', err);
         }
     });
 

@@ -110,7 +110,7 @@ Later ALTERs use the `information_schema` guard pattern from
 | `schedule_overrides` | schedule_id, **natural_date**, amount NULL, due_date NULL, status NULL, **settle_mode NULL**, paid_on, paid_amount, note, source_scenario_id NULL. `UNIQUE(schedule_id, natural_date)`. **Hard delete** = revert to predicted; refused while the row carries payment state |
 | `payments` | cash_item_id NULL, override_id NULL (exactly one set), paid_on, amount, note, created_by. `KEY(cash_item_id)`, `KEY(override_id)`. One row per pay. **Hard delete** (unpay removes all of the parent's rows) |
 | `scenarios` | name, description, company_id NULL (view scope), status `draft\|applied\|archived`, applied_at, applied_by, deleted_at |
-| `scenario_adjustments` | scenario_id, item_key, **target_kind, target_id, target_date NULL**, kind `adjust\|exclude`, new_date NULL, new_amount NULL, base_date, base_amount, note. `UNIQUE(scenario_id, item_key)`, `KEY(target_kind, target_id)`. **Hard delete while the scenario is `draft` only**; immutable afterwards |
+| `scenario_adjustments` | scenario_id, item_key, **target_kind, target_id, target_date NULL**, kind `adjust\|exclude\|add`, new_date NULL, new_amount NULL, base_date NULL, base_amount NULL (NULL on an `add`), note; since 2026-10-07 also the `add`'s own account_id, category_id, direction, name, counterparty, currency, its split_group (the anchor adjustment's id) and the applied_state apply recorded for un-apply. `UNIQUE(scenario_id, item_key)`, `KEY(target_kind, target_id)`, `KEY(split_group)`. **Hard delete while the scenario is `draft` only**; immutable afterwards |
 
 - **No `company_id` on items or schedules.** Company is derived through the account, so
   the two can never disagree.
@@ -289,6 +289,9 @@ scenarios   CRUD + duplicate
 PUT|DELETE /scenarios/:id/adjustments/:itemKey
 POST /scenarios/:id/rebase            refresh bases; dropStale:true removes settled/missing/date-passed
 POST /scenarios/:id/apply
+POST /scenarios/:id/adjustments                   add a hypothetical one-off to a draft (kind add, key new.<id>)    2026-10-07
+POST /scenarios/:id/adjustments/:itemKey/split    split a line into dated parts: one adjust + adds, one group      2026-10-07
+POST /scenarios/:id/unapply                       put the real data back as apply recorded it; applied → draft     2026-10-07
 ```
 
 **Forecast response** (camelCase, money in minor units): `meta` (today, window, bucket,
@@ -311,15 +314,25 @@ locks. If any is stale by the definition in step 5, the whole apply answers
 rebase answers `409 SCENARIO_NOT_DRAFT` unless the parent is `draft`. Deleting an applied
 scenario is a soft delete that keeps its adjustments. To rework one, duplicate it.
 
+**Adds, splits and un-apply (Dev, 2026-10-07; CONTRACT D39–D44).** A draft scenario may
+**add** a hypothetical one-off (kind `add`, key `new.<adjustment id>`; it has no base, shows
+in the scenario set only with `baseline: null`, and apply inserts the real `cash_items`
+row); **split** a line into dated parts (one `adjust` on the line plus one `add` per further
+part, summing to the line, all in one `split_group`; deleting the anchor reverts the split);
+and an applied scenario may be **un-applied**: apply records the before image of every
+write in `applied_state`, and un-apply restores it, all or nothing, refusing with
+`SCENARIO_UNAPPLY_BLOCKED` when anything has been paid, deleted or changed since. The
+scenario is then a draft again.
+
 ## Web (`web/`)
 
 | Screen | Purpose |
 |---|---|
-| Forecast | Balance chart (hand-rolled SVG, baseline vs scenario) + timeline grid: columns = day/week/month buckets, rows = categories → items, header rows opening/in/out/closing, negative cells flagged. Click an item to change amount or date (date picker, +7/+14/+30). Unresolved banner |
+| Forecast | Balance chart (hand-rolled SVG, baseline vs scenario) + timeline grid: columns = day/week/month buckets, rows = categories → items, header rows opening/in/out/closing, negative cells flagged. Click an item to change amount or date (date picker, +7/+14/+30); with a scenario open, add a one-off to it or split a line into dated parts (2026-10-07). Unresolved banner |
 | Cash at bank | Start-of-day balance entry for all accounts on one date. History is the **recorded** balances, per account in its own currency. A combined history line only when every account in view is GBP |
 | Income & outgoings | One-off items; mark paid / part paid; "assumed settled" group |
 | Schedules / Schedule | Recurring rules; instance table showing predicted vs tuned, revert, pay, split, end; "assumed settled" group |
-| Scenarios / Scenario | Named sandboxes; while one is open, Forecast edits write adjustments instead of real data, with a banner and stale markers; rebase, apply or discard |
+| Scenarios / Scenario | Named sandboxes; while one is open, Forecast edits write adjustments instead of real data, with a banner and stale markers; rebase, apply or discard; un-apply an applied scenario (2026-10-07) |
 | Settings | Companies, accounts, categories, FX rates |
 | People, About, Sign-in | from workflows |
 
@@ -453,9 +466,10 @@ Consequences:
 
 ## Deferred
 
-Transfers between accounts, hypothetical items added inside a scenario, bank holidays,
+Transfers between accounts, bank holidays,
 bank-feed import, forecast snapshots, openapi + `spec:diff`, and a combined GBP
-**history** line across currencies (needs daily FX snapshots).
+**history** line across currencies (needs daily FX snapshots). Hypothetical items inside a
+scenario were built on 2026-10-07 (CONTRACT D39–D44: `add`, split, un-apply).
 
 ## Verification
 

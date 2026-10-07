@@ -15,11 +15,22 @@
 // before schedule_overrides, ascending id (P11). Their ids are found with a plain read, so
 // for them the snapshot comes BEFORE the lock; lockTargets closes that gap with a
 // row_version check and a restart (see there).
+//
+// Scenario adds (2026-10-07, D39–D41): an `add` row has no target. Its references (account,
+// category) are read with forecastLoad.js loadAddReferences — plainly on a read, after a
+// FOR SHARE on both when a write depends on them (§10.1's exception, which comes before any
+// standing-order lock in the add write, §10.7a, and before lockTargets in apply, §10.9).
+// lockTargets never sees a `new.` key (it locks item, sched and ship targets only).
 
-const { apiError, adjustmentToJson } = require('../lib/shape');
+const { randomUUID } = require('crypto');
+
+const { apiError, adjustmentToJson, externalItemToJson } = require('../lib/shape');
+const { buildNewKey } = require('../lib/keys');
 const { shipName } = require('../lib/lines');
+const { shipCategoryOf } = require('../lib/engine');
 const { adjustmentStale } = require('../lib/stale');
-const { loadTarget } = require('./forecastLoad');
+const { loadTarget, loadAddReferences, loadShipCategory } = require('./forecastLoad');
+const { readExternalItem } = require('./externalItems');
 
 /** A scenario row with its derived `adjustment_count` (§6.11 row JSON). Callers append `WHERE …`. */
 const SCENARIO_SELECT = `SELECT s.*,
@@ -69,6 +80,89 @@ async function readAdjustments(conn, scenarioId, { lock = false } = {}) {
     return rows;
 }
 
+/** One adjustment row by id, or null. */
+async function readAdjustmentRow(conn, id) {
+    const [rows] = await conn.query('SELECT * FROM scenario_adjustments WHERE id = ?', [id]);
+    return rows.length ? rows[0] : null;
+}
+
+/**
+ * INSERT one scenario_adjustments row → its id. `f` is in the adjustment JSON's names. An
+ * `add` (D39) is keyed by its own id, so it goes in under a placeholder key
+ * (`new.pending.<uuid>`, never visible) and target_id '0', and the same transaction then
+ * writes item_key = new.<id>, target_kind 'new', target_id = '<id>' (§4, §10.7a step 4); its
+ * bases are NULL. `anchor: true` makes the row its own split group (D40: split_group = its
+ * id, §10.7b step 6); otherwise `f.splitGroup` (or NULL). No audit here: the caller writes
+ * `create` with the final row.
+ */
+async function insertAdjustment(conn, f, { anchor = false } = {}) {
+    const isAdd = f.kind === 'add';
+    const [ins] = await conn.query(
+        `INSERT INTO scenario_adjustments
+            (scenario_id, item_key, target_kind, target_id, target_date, kind, new_date, new_amount, base_date,
+             base_amount, note, account_id, category_id, direction, name, counterparty, currency, split_group,
+             created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [f.scenarioId, isAdd ? `new.pending.${randomUUID()}` : f.itemKey, isAdd ? 'new' : f.targetKind,
+            isAdd ? '0' : f.targetId, isAdd ? null : f.targetDate ?? null, f.kind, f.newDate ?? null,
+            f.newAmount ?? null, isAdd ? null : f.baseDate, isAdd ? null : f.baseAmount, f.note ?? null,
+            f.accountId ?? null, f.categoryId ?? null, f.direction ?? null, f.name ?? null, f.counterparty ?? null,
+            f.currency ?? null, anchor ? null : f.splitGroup ?? null, f.createdBy]
+    );
+    const id = ins.insertId;
+    if (isAdd) {
+        await conn.query('UPDATE scenario_adjustments SET item_key = ?, target_id = ? WHERE id = ?', [buildNewKey(id), String(id), id]);
+    }
+    if (anchor) await conn.query('UPDATE scenario_adjustments SET split_group = ? WHERE id = ?', [id, id]);
+    return id;
+}
+
+/**
+ * §10.9 step 2 (D39): FOR SHARE on the accounts and the categories of these `add` rows,
+ * each ascending by id — §10.1's exception, taken before lockTargets so a reference is
+ * never locked after a standing-order target. A row that is not live is simply not
+ * locked; loadAddReferences then reads it dead (TARGET_MISSING).
+ */
+async function shareAddReferences(conn, addRows) {
+    const ids = (column) => [...new Set(addRows.map((r) => r[column]).filter((v) => v != null).map(String))].sort(byId);
+    for (const accountId of ids('account_id')) {
+        await conn.query('SELECT id FROM bank_accounts WHERE id = ? AND deleted_at IS NULL FOR SHARE', [accountId]);
+    }
+    for (const categoryId of ids('category_id')) {
+        await conn.query('SELECT id FROM categories WHERE id = ? AND deleted_at IS NULL FOR SHARE', [categoryId]);
+    }
+}
+
+/**
+ * An `add`'s `stale` (§6.11, D39): its references through loadAddReferences, then the
+ * engine's rule — TARGET_MISSING, DATE_PASSED or null. `adj` is the adjustment JSON.
+ */
+async function addStale(conn, adj, today) {
+    const refs = await loadAddReferences(conn, adj);
+    return adjustmentStale({ ...adj, targetLive: refs.live }, null, today);
+}
+
+/**
+ * §10.7b step 5: the descriptive fields a split's parts copy from the target, read under
+ * the target's lock (`target` is loadCurrent's): `item.` → the cash_items row's category,
+ * direction, name and counterparty; `sched.` → the schedules row's; `ship.` → the category
+ * the forecast places the line in (the systemKey 'ship' category, or 'freight' for a
+ * forwarder's shipment cost — lib/engine.js shipCategoryOf, §9.3.1), direction out, the
+ * forecast's name (lib/lines.js shipName) and the supplier. Account and currency come from
+ * the target itself.
+ */
+async function targetDescription(conn, target) {
+    if (target.kind === 'ship') {
+        const row = externalItemToJson(await readExternalItem(conn, target.id));
+        const categories = new Map((await loadShipCategory(conn)).map((c) => [c.id, c]));
+        const category = shipCategoryOf(categories, row);
+        return { categoryId: category.id, direction: 'out', name: shipName(row), counterparty: row.supplier ?? null };
+    }
+    const table = target.kind === 'item' ? 'cash_items' : 'schedules';
+    const [[row]] = await conn.query(`SELECT category_id, direction, name, counterparty FROM ${table} WHERE id = ?`, [target.id]);
+    return { categoryId: Number(row.category_id), direction: row.direction, name: row.name, counterparty: row.counterparty ?? null };
+}
+
 /** An adjustment row's parsed key, from its `target_*` columns (§4: lookups never parse strings). */
 const targetOf = (row) => ({
     targetKind: row.target_kind,
@@ -97,7 +191,8 @@ function shipLockRestart(id) {
  * `item.` targets ascending by id, then (Phase 2, P11) the `external_items` rows of the
  * `ship.` targets ascending by id, gone or not, then the `schedule_overrides` rows of the
  * `sched.` targets that exist. A row that is not live (or absent) is simply not there;
- * loadTarget then answers null (TARGET_MISSING).
+ * loadTarget then answers null (TARGET_MISSING). A `new.` key (an `add`, D39) has no target
+ * and is ignored here.
  *
  * The ship rows are named by (source, ext_id) but ordered by id, so their ids are found
  * first — with a plain read, which is then the transaction's first non-locking read and
@@ -183,7 +278,8 @@ function currentJson(target) {
 /**
  * Adjustment rows → JSON with `stale` and `current` (§6.11): resolved against `today`
  * while the scenario is a draft, null on an applied or archived one (history, not a live
- * comparison).
+ * comparison). An `add` (D39) resolves against its references — TARGET_MISSING,
+ * DATE_PASSED or null — and its `current` is always null.
  */
 async function resolveAdjustments(conn, scenario, rows, today) {
     const out = [];
@@ -191,6 +287,10 @@ async function resolveAdjustments(conn, scenario, rows, today) {
         const adj = adjustmentToJson(row);
         if (scenario.status !== 'draft') {
             out.push({ ...adj, stale: null, current: null });
+            continue;
+        }
+        if (adj.kind === 'add') {
+            out.push({ ...adj, stale: await addStale(conn, adj, today), current: null });
             continue;
         }
         const target = await loadCurrent(conn, targetOf(row), today);
@@ -206,7 +306,13 @@ module.exports = {
     lockScenario,
     requireDraft,
     readAdjustments,
+    readAdjustmentRow,
+    insertAdjustment,
+    shareAddReferences,
+    addStale,
+    targetDescription,
     targetOf,
+    byId,
     lockTargets,
     loadCurrent,
     currentJson,

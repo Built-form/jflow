@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { TODAY, line } from './fixtures';
-import { checkEdit, initialForm, shiftedDate } from './edit';
+import { SPLIT_GROUP, TODAY, line } from './fixtures';
+import { canSplit, checkEdit, initialForm, shiftedDate, splitRole, undoChoice } from './edit';
 
 const invoice = line({ key: 'item.10', id: 10, name: 'Invoice', amountMinor: 102450, date: '2026-10-06', bucketIndex: 1 });
 const rent = line({ key: 'sched.45.2026-10-01', id: 45, name: 'Rent', amountMinor: 120000, date: '2026-10-02' });
@@ -124,5 +124,117 @@ describe('adjustments', () => {
     const check = checkEdit(bad, { ...initialForm(bad), amount: '5' }, inScenario);
     expect(check.action).toBeNull();
     expect(check.errors.form).toMatch(/not one JFlow can edit/);
+  });
+});
+
+describe("a scenario's own one-off (a `new` line, D39)", () => {
+  const penalty = line({
+    key: 'new.23',
+    id: 23,
+    name: 'Late filing penalty',
+    counterparty: 'HMRC',
+    amountMinor: 7500,
+    date: '2026-10-13',
+    flags: ['added'],
+    baseline: null,
+    splitGroup: null,
+  });
+  const newLine = { categoryId: 3, direction: 'out' as const, note: 'If the return is late' };
+  const withAdd = { ...inScenario, newLine };
+
+  it('sends the whole add again: its own fields, the amount and date as edited, and the note it carries', () => {
+    const check = checkEdit(penalty, { ...initialForm(penalty), amount: '100', date: '2026-10-20' }, withAdd);
+    expect(check.action).toEqual({
+      kind: 'adjustment',
+      itemKey: 'new.23',
+      body: {
+        kind: 'add',
+        accountId: 1,
+        categoryId: 3,
+        direction: 'out',
+        name: 'Late filing penalty',
+        counterparty: 'HMRC',
+        currency: 'GBP',
+        newDate: '2026-10-20',
+        newAmount: '100.00',
+        note: 'If the return is late',
+      },
+    });
+  });
+
+  it('sends the amount on a date-only change too — a PUT on an add is a full replace', () => {
+    const check = checkEdit(penalty, { ...initialForm(penalty), date: '2026-10-20' }, withAdd);
+    expect(check.action?.kind === 'adjustment' && check.action.body).toMatchObject({ newDate: '2026-10-20', newAmount: '75.00' });
+  });
+
+  it('leaves out a counterparty and a note it does not have', () => {
+    const bare = { ...penalty, counterparty: null };
+    const check = checkEdit(bare, { ...initialForm(bare), amount: '80' }, { ...inScenario, newLine: { ...newLine, note: null } });
+    const body = check.action?.kind === 'adjustment' ? check.action.body : null;
+    expect(body).not.toBeNull();
+    expect(body && 'counterparty' in body).toBe(false);
+    expect(body && 'note' in body).toBe(false);
+  });
+
+  it('holds the save back while nothing has changed, and never leaves the line out', () => {
+    expect(checkEdit(penalty, initialForm(penalty), withAdd)).toMatchObject({ action: null, unchanged: true });
+    expect(checkEdit(penalty, { ...initialForm(penalty), exclude: true }, withAdd)).toMatchObject({ action: null, unchanged: true });
+  });
+
+  it('is never sent back to a baseline — it has none — and may not be dated before today', () => {
+    const back = checkEdit(penalty, { ...initialForm(penalty), amount: '50' }, withAdd);
+    expect(back.action?.kind).toBe('adjustment');
+    const past = checkEdit(penalty, { ...initialForm(penalty), date: '2026-09-28' }, withAdd);
+    expect(past.action).toBeNull();
+    expect(past.errors.date).toBe('A scenario cannot move a line to before today.');
+  });
+
+  it('sends nothing until the note has been read from the scenario', () => {
+    const check = checkEdit(penalty, { ...initialForm(penalty), amount: '100' }, inScenario);
+    expect(check.action).toBeNull();
+    expect(check.errors.form).toMatch(/not been read/);
+  });
+
+  it('is a form error with no scenario open (the server makes no such line)', () => {
+    const check = checkEdit(penalty, { ...initialForm(penalty), amount: '100' }, real);
+    expect(check.action).toBeNull();
+    expect(check.errors.form).toMatch(/only inside its scenario/);
+  });
+});
+
+describe('the undo button, and which lines offer a split (D40)', () => {
+  const anchor = line({ key: 'item.10', id: 10, name: 'Invoice 1041', flags: ['adjusted', 'split'], splitGroup: SPLIT_GROUP });
+  const part = line({ key: 'new.22', id: 22, name: 'Invoice 1041', flags: ['added', 'split'], baseline: null, splitGroup: SPLIT_GROUP });
+  const added = line({ key: 'new.23', id: 23, name: 'Late filing penalty', flags: ['added'], baseline: null, splitGroup: null });
+  const moved = line({ key: 'item.11', id: 11, name: 'Moved', flags: ['adjusted'], splitGroup: null });
+  const plain = line({ key: 'item.12', id: 12, name: 'Plain', splitGroup: null });
+  const leftOut = line({ key: 'item.13', id: 13, name: 'Left out', flags: ['excluded'], splitGroup: null });
+
+  it('says what a split line is', () => {
+    expect(splitRole(anchor)).toBe('anchor');
+    expect(splitRole(part)).toBe('part');
+    expect(splitRole(added)).toBeNull();
+    expect(splitRole(moved)).toBeNull();
+  });
+
+  it('removes an add, undoes a split from its anchor, removes one part, or undoes an adjustment — always a DELETE', () => {
+    expect(undoChoice(added, true)).toEqual({ label: 'Remove it from the scenario', detail: null, action: { kind: 'unadjust', itemKey: 'new.23' } });
+    expect(undoChoice(anchor, true)).toEqual({ label: 'Undo the split', detail: 'Removes its parts too.', action: { kind: 'unadjust', itemKey: 'item.10' } });
+    expect(undoChoice(part, true)).toMatchObject({ label: 'Remove this part', action: { kind: 'unadjust', itemKey: 'new.22' } });
+    expect(undoChoice(moved, true)).toMatchObject({ label: 'Undo this adjustment', action: { kind: 'unadjust', itemKey: 'item.11' } });
+    expect(undoChoice(leftOut, true)?.label).toBe('Undo this adjustment');
+    expect(undoChoice(plain, true)).toBeNull();
+    expect(undoChoice(moved, false)).toBeNull();
+  });
+
+  it('offers a split on an editable line in a scenario — not on a one-off of its own, a line left out, or real data', () => {
+    expect(canSplit(plain, true)).toBe(true);
+    expect(canSplit(anchor, true)).toBe(true);
+    expect(canSplit(moved, true)).toBe(true);
+    expect(canSplit(added, true)).toBe(false);
+    expect(canSplit(part, true)).toBe(false);
+    expect(canSplit(leftOut, true)).toBe(false);
+    expect(canSplit({ ...plain, editable: false }, true)).toBe(false);
+    expect(canSplit(plain, false)).toBe(false);
   });
 });

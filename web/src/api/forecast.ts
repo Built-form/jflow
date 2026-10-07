@@ -64,6 +64,10 @@ export type ItemFlag =
   | 'remainder'
   | 'adjusted'
   | 'excluded'
+  /** Scenario set (2026-10-07, D39): a hypothetical one-off, `kind: 'new'`, that exists only in the scenario. */
+  | 'added'
+  /** Scenario set (D40): the anchor or a part of a split; `splitGroup` says which group. */
+  | 'split'
   | 'stale'
   | 'fromScenario'
   /** Left out of this read by `hide` / `hideCategories`: shown, counts nothing. */
@@ -179,8 +183,11 @@ export interface BaselineLine {
 export interface ForecastItem {
   key: string;
   /** `ship` from Phase 2: a stock payment from the shipping feed (§6.10). */
-  kind: 'item' | 'sched' | 'ship';
-  /** The row id; for a ship line the feed's `ext_id` (a string, CONTRACT D32). */
+  kind: 'item' | 'sched' | 'ship' | 'new';
+  /**
+   * The row id; for a ship line the feed's `ext_id` (a string, CONTRACT D32); for a `new`
+   * line (a scenario's hypothetical one-off, D39) its adjustment's id.
+   */
   id: number | string;
   scheduleId?: number;
   naturalDate?: IsoDate;
@@ -204,8 +211,13 @@ export interface ForecastItem {
   paymentId?: number;
   /** `kind: 'ship'` only. */
   ship?: ShipInfo;
-  /** Present only with a scenario: the line's values in the baseline set. */
+  /**
+   * Present only with a scenario: the line's values in the baseline set — null on a `new`
+   * line, which has no baseline (D39).
+   */
   baseline?: BaselineLine | null;
+  /** Present only with a scenario: the anchor adjustment's id when the line is the anchor or a part of a split (D40), else null. */
+  splitGroup?: number | null;
 }
 
 export interface ForecastRow {
@@ -276,7 +288,7 @@ export interface ForecastHidden {
 
 export interface UnresolvedLine {
   key: string;
-  kind: 'item' | 'sched' | 'ship';
+  kind: 'item' | 'sched' | 'ship' | 'new';
   name: string;
   categoryId: number;
   accountId: number;

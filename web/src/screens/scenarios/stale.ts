@@ -2,9 +2,13 @@
  * Why an adjustment cannot stand — the four stale reasons of CONTRACT §7 / §9.5 (D38) —
  * in words, with what fixes each. The reason itself is always the server's: it comes on
  * `adjustment.stale`, on a `STALE` forecast warning, or in a `SCENARIO_STALE` refusal.
+ *
+ * Also why un-apply refused (2026-10-07, D41): the four reasons inside
+ * `SCENARIO_UNAPPLY_BLOCKED`.
  */
 
 import type { StaleReason } from '../../api/forecast';
+import type { AdjustmentKind, UnapplyReason } from '../../api/scenarios';
 
 export interface StaleReasonText {
   /** The marker's word. */
@@ -44,9 +48,19 @@ export const STALE_REASONS: Record<StaleReason, StaleReasonText> = {
   },
 };
 
-/** The words for a reason — an unknown one (a newer server) still says something true. */
-export function staleReason(reason: string | null | undefined): StaleReasonText | null {
+/**
+ * An `add` has no real item behind it (D39): its `TARGET_MISSING` means its own account or
+ * category went, not a target.
+ */
+const ADD_TARGET_MISSING = 'Its account or category is gone — deleted, or the account is inactive.';
+
+/**
+ * The words for a reason — an unknown one (a newer server) still says something true.
+ * `kind` is the adjustment's kind when known: an `add`'s missing target reads differently.
+ */
+export function staleReason(reason: string | null | undefined, kind?: AdjustmentKind | (string & {}) | null): StaleReasonText | null {
   if (!reason) return null;
+  if (kind === 'add' && reason === 'TARGET_MISSING') return { ...STALE_REASONS.TARGET_MISSING, text: ADD_TARGET_MISSING };
   return (
     STALE_REASONS[reason as StaleReason] ?? {
       label: reason.replace(/_/g, ' '),
@@ -55,6 +69,23 @@ export function staleReason(reason: string | null | undefined): StaleReasonText 
       rebaseFixes: false,
     }
   );
+}
+
+/** Why un-apply refused a line (§7, D41): the marker's word and what happened. Nothing was written. */
+export const UNAPPLY_REASONS: Record<UnapplyReason, { label: string; text: string }> = {
+  TARGET_MISSING: { label: 'MISSING', text: 'That item is gone (deleted, or its instance no longer exists).' },
+  TARGET_SETTLED: { label: 'SETTLED', text: 'That item has been paid or part paid since the scenario was applied.' },
+  CHANGED: { label: 'CHANGED', text: "That item's date, amount or status has been changed since the scenario was applied." },
+  NO_RECORD: {
+    label: 'NO RECORD',
+    text: 'This scenario was applied before un-apply existed, so there is nothing to restore from.',
+  },
+};
+
+/** The words for an un-apply reason; an unknown one still says something true. */
+export function unapplyReason(reason: string | null | undefined): { label: string; text: string } {
+  if (reason && reason in UNAPPLY_REASONS) return UNAPPLY_REASONS[reason as UnapplyReason];
+  return { label: reason ? reason.replace(/_/g, ' ') : 'BLOCKED', text: `The server refused to put this one back${reason ? ` (${reason})` : ''}.` };
 }
 
 export const SCENARIO_STATUS_LABEL: Record<string, string> = {
