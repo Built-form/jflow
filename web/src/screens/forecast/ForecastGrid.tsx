@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, MouseEvent, ReactNode, Ref } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode, Ref, UIEvent } from 'react';
 import type {
   BucketDelta,
   BucketKind,
@@ -300,7 +300,9 @@ export function ForecastGrid({
   // a long list or under the chart: a bar in a table row, pinned to the visible width, that
   // moves the grid (and, through `onScroll`, the chart). The scrollers' own bars are hidden.
   const scrollerEl = useRef<HTMLDivElement | null>(null);
+  // Two bars, the second at the foot of the list, for when Closing has scrolled out of sight.
   const barEl = useRef<HTMLDivElement>(null);
+  const footBarEl = useRef<HTMLDivElement>(null);
   const setScroller = (el: HTMLDivElement | null) => {
     scrollerEl.current = el;
     if (typeof scrollRef === 'function') scrollRef(el);
@@ -329,13 +331,30 @@ export function ForecastGrid({
   const scrollable = view.total > view.client + 1;
   const onGridScroll = () => {
     const scroller = scrollerEl.current;
-    if (scroller && barEl.current && barEl.current.scrollLeft !== scroller.scrollLeft) barEl.current.scrollLeft = scroller.scrollLeft;
+    for (const bar of [barEl.current, footBarEl.current]) {
+      if (scroller && bar && bar.scrollLeft !== scroller.scrollLeft) bar.scrollLeft = scroller.scrollLeft;
+    }
     onScroll?.();
   };
-  const onBarScroll = () => {
+  // A bar moves the grid; the grid's own scroll event then brings the other bar along.
+  const onBarScroll = (e: UIEvent<HTMLDivElement>) => {
     const scroller = scrollerEl.current;
-    if (scroller && barEl.current && scroller.scrollLeft !== barEl.current.scrollLeft) scroller.scrollLeft = barEl.current.scrollLeft;
+    if (scroller && scroller.scrollLeft !== e.currentTarget.scrollLeft) scroller.scrollLeft = e.currentTarget.scrollLeft;
   };
+  const scrollRow = (ref: Ref<HTMLDivElement>, testId: string) => (
+    <tr className="ledger-scroll-row" data-testid={testId}>
+      <td colSpan={buckets.length + 2}>
+        <div style={{ position: 'sticky', left: 0, width: view.client, display: 'flex', alignItems: 'center' }}>
+          <span className="kicker" style={{ width: view.label, flexShrink: 0, padding: '0 12px' }}>
+            ◂ SCROLL DATES ▸
+          </span>
+          <div ref={ref} className="ledger-scroll" aria-hidden="true" onScroll={onBarScroll}>
+            <div style={{ width: view.total - view.label, height: 1 }} />
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
 
   useLayoutEffect(() => {
     const table = tableRef.current;
@@ -551,28 +570,11 @@ export function ForecastGrid({
               <td style={cell} />
             </HeaderRow>
           )}
-          {scrollable && (
-            <tr className="ledger-scroll-row" data-testid="grid-scroll">
-              <td colSpan={buckets.length + 2}>
-                <div style={{ position: 'sticky', left: 0, width: view.client, display: 'flex', alignItems: 'center' }}>
-                  <span className="kicker" style={{ width: view.label, flexShrink: 0, padding: '0 12px' }}>
-                    ◂ SCROLL DATES ▸
-                  </span>
-                  <div
-                    ref={barEl}
-                    className="ledger-scroll"
-                    aria-hidden="true"
-                    onScroll={onBarScroll}
-                  >
-                    <div style={{ width: view.total - view.label, height: 1 }} />
-                  </div>
-                </div>
-              </td>
-            </tr>
-          )}
+          {scrollable && scrollRow(barEl, 'grid-scroll')}
 
           {section('in', 'Money in')}
           {section('out', 'Money out')}
+          {scrollable && rows.length > 0 && scrollRow(footBarEl, 'grid-scroll-foot')}
         </tbody>
       </table>
     </div>

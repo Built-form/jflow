@@ -26,6 +26,15 @@ const COLUMNS = 'minmax(0, 1.5fr) minmax(0, 1fr) 140px minmax(0, 1.2fr) 150px';
  * paid, split or ended. A split leaves two rows — the ended one and its successor — linked
  * both ways.
  */
+const SIDES = [
+  { direction: 'in', label: 'MONEY IN', color: 'var(--pass)' },
+  { direction: 'out', label: 'MONEY OUT', color: 'var(--fail)' },
+] as const;
+
+/** A to Z, ignoring case, with numbers in order ("Rent 2" before "Rent 10"); then oldest first. */
+const byName = (a: Schedule, b: Schedule) =>
+  a.name.localeCompare(b.name, 'en-GB', { sensitivity: 'base', numeric: true }) || a.id - b.id;
+
 export function SchedulesScreen() {
   const [today] = useState(() => londonToday());
   const [params, setParams] = useSearchParams();
@@ -61,6 +70,12 @@ export function SchedulesScreen() {
     );
 
   const open = (s: Schedule) => navigate(...openDetail(`/schedules/${s.id}`, location));
+
+  // Money in, then money out, each A to Z by name (Dev, 2026-10-07) — the API lists newest first.
+  const sides = SIDES.map((side) => ({
+    ...side,
+    rows: (list.data?.data ?? []).filter((s) => s.direction === side.direction).sort(byName),
+  })).filter((side) => side.rows.length > 0);
 
   return (
     <div className="page" style={{ maxWidth: 1240 }}>
@@ -115,7 +130,16 @@ export function SchedulesScreen() {
             <div>WHEN</div>
             <div />
           </div>
-          {list.data.data.map((s) => {
+          {sides.flatMap((side) => [
+            <div
+              key={side.direction}
+              data-testid={`schedules-${side.direction}`}
+              className="table-row"
+              style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.1em', color: side.color, paddingTop: 14, paddingBottom: 6 }}
+            >
+              {side.label} · {side.rows.length}
+            </div>,
+            ...side.rows.map((s) => {
             const account = accountRows.find((a) => a.id === s.accountId);
             const category = categoryRows.find((c) => c.id === s.categoryId);
             return (
@@ -178,7 +202,8 @@ export function SchedulesScreen() {
                 </div>
               </div>
             );
-          })}
+            }),
+          ])}
         </div>
       )}
 

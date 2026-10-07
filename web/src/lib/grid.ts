@@ -178,7 +178,12 @@ export function groupLines(items: ForecastItem[], bucketCount: number): LineGrou
     group.lines.push(item);
     if (item.bucketIndex >= 0 && item.bucketIndex < bucketCount) group.cells[item.bucketIndex].push(item);
   }
-  return [...groups.values()];
+  // Rows read A to Z by name (Dev, 2026-10-07) — with every company in view the server's
+  // order, by date, scatters one company's lines among another's. Same names keep that order.
+  // Stock payments stay as sent: their supplier + shipment groups are in date order.
+  const out = [...groups.values()];
+  if (out.every((g) => g.kind === 'ship')) return out;
+  return out.sort((a, b) => a.name.localeCompare(b.name, 'en-GB', { sensitivity: 'base', numeric: true }));
 }
 
 /* ---------- stock payments by supplier + shipment ---------- */

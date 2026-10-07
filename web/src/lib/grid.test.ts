@@ -104,6 +104,13 @@ describe('lines into rows and cells', () => {
     expect(groups[1].keys).toEqual(['sched.46.2026-10-01']);
   });
 
+  it('lists the rows A to Z by name, whatever order the lines came in (Dev, 2026-10-07)', () => {
+    const [oct] = rows()[1].items;
+    const named = (id: number, name: string) => ({ ...oct, key: `item.${id}`, kind: 'item' as const, id, scheduleId: undefined, name });
+    const groups = groupLines([named(1, 'JFA Amazon UK'), named(2, 'HW Amazon USA'), named(3, 'hw Amazon EUR'), named(4, 'JFA Amazon Euro')], 3);
+    expect(groups.map((g) => g.name)).toEqual(['hw Amazon EUR', 'HW Amazon USA', 'JFA Amazon Euro', 'JFA Amazon UK']);
+  });
+
   it('gives each line its own React key even when the item key repeats', () => {
     const [paid, remainder] = rows()[2].items;
     expect(lineId(paid, 0)).toBe('item.77:p5:0');
