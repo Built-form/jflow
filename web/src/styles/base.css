@@ -940,6 +940,43 @@ h1.page-title {
   fill: color-mix(in srgb, var(--acc) 7%, transparent);
 }
 
+/* A figure picked for the sum bar under the grid (ForecastGrid `SumBar`): boxed in accent,
+   as a selected spreadsheet cell is. */
+.ledger [data-picked] {
+  background-color: var(--accBg) !important;
+  box-shadow: inset 0 0 0 2px var(--acc) !important;
+}
+
+/* The category list's two sides (ForecastGrid `section`): a band names each — MONEY IN,
+   MONEY OUT — in its own colour, and every category under it carries that colour down its
+   left edge, so the side still reads once the band has scrolled away. */
+.ledger tr.ledger-section > th,
+.ledger tr.ledger-section > td {
+  padding: 16px 12px 6px;
+  border-top: 1px solid var(--line2);
+  background: var(--panel);
+}
+.ledger tr.ledger-section > th {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+}
+.ledger tr.ledger-section[data-direction='in'] > th {
+  color: var(--pass);
+}
+.ledger tr.ledger-section[data-direction='out'] > th {
+  color: var(--fail);
+}
+.ledger tr.ledger-category[data-direction='in'] > th {
+  box-shadow: inset 3px 0 0 var(--pass);
+}
+.ledger tr.ledger-category[data-direction='out'] > th {
+  box-shadow: inset 3px 0 0 var(--fail);
+}
+
 .ledger tr.ledger-total > td,
 .ledger tr.ledger-total > th {
   border-top: 1px solid var(--mut) !important;

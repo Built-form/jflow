@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, ReactNode, Ref } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode, Ref } from 'react';
 import type {
   BucketDelta,
   BucketKind,
@@ -31,8 +31,9 @@ import { shipFlagNotes, shipLineStyle } from '../../lib/ship';
 import { toneStyle } from '../../lib/tone';
 
 /**
- * The timeline grid: one column per bucket and four balance rows (opening, in, out,
- * closing); In and Out each open to their categories, and a category to its lines. Every figure is the server's —
+ * The timeline grid: one column per bucket, the balance rows on top (opening, in, out,
+ * closing), then the categories — money in, then money out, each under its own band — and
+ * the lines under each category. Every figure is the server's —
  * the header rows are `buckets[]`, a category's cells are its `totals[]`, a line's cell
  * is its own `gbpMinor`. Nothing here adds money up, with one display-only exception:
  * the Stock payments category shows one line per supplier + shipment (Dev, 2026-10-06, as
@@ -72,6 +73,110 @@ const cell: CSSProperties = {
   fontSize: 12.5,
   whiteSpace: 'nowrap',
 };
+
+/**
+ * Adding figures up, as a spreadsheet's status bar does (Dev, 2026-10-07): click an In, Out,
+ * category or supplier-group figure — or Ctrl/⌘-click a line's, whose plain click edits it —
+ * and the bar under the grid shows what the picked figures come to. Display only: every
+ * figure picked is one already on screen, and nothing is sent anywhere.
+ */
+interface Picked {
+  minor: bigint;
+  direction: LineDirection;
+}
+const PickedContext = createContext<ReadonlyMap<string, Picked>>(new Map());
+/** The side a category's rows are on — a line does not carry its own. */
+const DirectionContext = createContext<LineDirection>('out');
+const PICK_HINT ='Click to add to the sum';
+const PICK_LINE_HINT = 'Ctrl-click to add to the sum';
+
+/** The attributes that make a figure pickable; the grid's one click handler reads them. */
+function pickProps(id: string, minor: number | bigint, direction: LineDirection, picked: ReadonlyMap<string, Picked>) {
+  const on = picked.has(id);
+  return {
+    'data-pick': id,
+    'data-pick-minor': String(toMinor(minor)),
+    'data-pick-direction': direction,
+    'data-picked': on ? 'true' : undefined,
+  };
+}
+
+/** A total's cell (In, Out, a category, a supplier group): pickable unless it is blank. */
+function TotalCell({
+  id,
+  value,
+  direction,
+  blankZero,
+  style,
+}: {
+  id: string;
+  value: number;
+  direction: LineDirection;
+  blankZero?: boolean;
+  style: CSSProperties;
+}) {
+  const picked = useContext(PickedContext);
+  if (blankZero && toMinor(value) === 0n) return <td style={style} />;
+  return (
+    <td style={{ ...style, cursor: 'cell' }} title={PICK_HINT} {...pickProps(id, value, direction, picked)}>
+      {cellMoney(value)}
+    </td>
+  );
+}
+
+/** What the picked figures come to: one sum, or money in, money out and the net of the two. */
+function SumBar({ picked, onClear }: { picked: ReadonlyMap<string, Picked>; onClear: () => void }) {
+  if (picked.size === 0) return null;
+  let moneyIn = 0n;
+  let moneyOut = 0n;
+  let ins = 0;
+  for (const p of picked.values()) {
+    if (p.direction === 'in') {
+      moneyIn += p.minor;
+      ins += 1;
+    } else moneyOut += p.minor;
+  }
+  const mixed = ins > 0 && ins < picked.size;
+  return (
+    <div
+      role="status"
+      data-testid="sum-bar"
+      style={{
+        position: 'sticky',
+        bottom: 12,
+        zIndex: 2,
+        alignSelf: 'flex-end',
+        marginLeft: 'auto',
+        width: 'fit-content',
+        display: 'flex',
+        gap: 14,
+        alignItems: 'baseline',
+        padding: '8px 12px',
+        background: 'var(--raise)',
+        border: '1px solid var(--acc)',
+        borderRadius: 'var(--radius)',
+        boxShadow: 'var(--shadow)',
+        fontSize: 13.5,
+      }}
+    >
+      <span style={{ color: 'var(--mut)' }}>
+        {picked.size} {picked.size === 1 ? 'figure' : 'figures'}
+      </span>
+      {mixed ? (
+        <>
+          <span className="mono">In {formatMoney(moneyIn, 'GBP')}</span>
+          <span className="mono">Out {formatMoney(moneyOut, 'GBP')}</span>
+          <strong className="mono">Net {signedMoney(moneyIn - moneyOut)}</strong>
+        </>
+      ) : (
+        <strong className="mono">Sum {formatMoney(moneyIn + moneyOut, 'GBP')}</strong>
+      )}
+      <button type="button" className="link-btn" style={{ fontSize: 12.5 }} onClick={onClear}>
+        Clear
+      </button>
+    </div>
+  );
+}
 
 function flagStyle(flag: BalanceFlag): CSSProperties {
   if (flag === 'negative') {
@@ -166,24 +271,13 @@ export function ForecastGrid({
   // `<categoryId>:<combo key>`. They open collapsed too (the group's total reads first);
   // "Expand all" opens them with the categories.
   const [openCombos, setOpenCombos] = useState<Set<string>>(new Set());
-  // In and Out open collapsed as well (Dev, 2026-10-07): their categories sit directly under
-  // them, behind the row's own arrow, so the four balance rows read as one block first.
-  const [openSides, setOpenSides] = useState<Set<LineDirection>>(new Set());
-  const allOpen =
-    rows.length > 0 && rows.every((r) => openSides.has(r.direction) && expanded.has(r.categoryId));
+  const allOpen = rows.length > 0 && rows.every((r) => expanded.has(r.categoryId));
   const lowest = bucketIndexOf(summary.minDate, buckets);
   const toggle = (categoryId: number) =>
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(categoryId)) next.delete(categoryId);
       else next.add(categoryId);
-      return next;
-    });
-  const toggleSide = (side: LineDirection) =>
-    setOpenSides((prev) => {
-      const next = new Set(prev);
-      if (next.has(side)) next.delete(side);
-      else next.add(side);
       return next;
     });
   const toggleCombo = (comboId: string) =>
@@ -199,72 +293,69 @@ export function ForecastGrid({
     return groupShipCombos(groups, buckets.length).map((c) => `${row.categoryId}:${c.key}`);
   };
   const expandAll = () => {
-    setOpenSides(new Set<LineDirection>(['in', 'out']));
     setExpanded(new Set(rows.map((r) => r.categoryId)));
     setOpenCombos(new Set(rows.flatMap(comboIdsOf)));
   };
   const collapseAll = () => {
-    setOpenSides(new Set());
     setExpanded(new Set());
     setOpenCombos(new Set());
   };
 
-  // One side of the ledger: its total row (the server's inflow / outflow), then, once opened,
-  // its categories. Closed, the row says which of the lines behind it need attention.
-  const side = (which: LineDirection, label: string, figure: (b: ForecastBucket) => number, total: number) => {
+  // The figures picked for the sum bar, by cell. A fresh forecast (an edit, another window)
+  // changes what the cells hold, so it starts the sum again.
+  const [picked, setPicked] = useState<ReadonlyMap<string, Picked>>(new Map());
+  useEffect(() => setPicked(new Map()), [rows, buckets]);
+  const onPick = (e: MouseEvent<HTMLTableElement>) => {
+    const target = e.target as HTMLElement;
+    const el = target.closest<HTMLElement>('[data-pick]');
+    if (!el) return;
+    // A plain click on a line's figure edits it (or does nothing); picking one takes Ctrl/⌘.
+    if (el.tagName !== 'TD' && !(e.ctrlKey || e.metaKey)) return;
+    const id = el.dataset.pick as string;
+    const minor = BigInt(el.dataset.pickMinor ?? '0');
+    const direction: LineDirection = el.dataset.pickDirection === 'in' ? 'in' : 'out';
+    setPicked((prev) => {
+      const next = new Map(prev);
+      if (next.has(id)) next.delete(id);
+      else next.set(id, { minor, direction });
+      return next;
+    });
+  };
+
+  // One side of the category list (Dev, 2026-10-07): the categories sit under the balance
+  // rows, as they did, but each side under a band that names it and with its own edge colour —
+  // the small IN / OUT tag beside every name was too easy to miss.
+  const section = (which: LineDirection, label: string) => {
     const mine = rows.filter((r) => r.direction === which);
-    const open = openSides.has(which);
+    if (mine.length === 0) return null;
     return (
       <>
-        <tr data-testid={`side-${which}`}>
-          <th scope="row" style={{ ...stickyLabel, fontWeight: 400, fontSize: 13.5, borderTop: '1px solid var(--line)' }}>
-            {mine.length === 0 ? (
-              label
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="btn-quiet"
-                  aria-expanded={open}
-                  onClick={() => toggleSide(which)}
-                  style={{ color: 'var(--text)', fontSize: 13.5, padding: 0, display: 'flex', gap: 8, alignItems: 'baseline', textAlign: 'left' }}
-                >
-                  <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10 }}>
-                    {open ? '▾' : '▸'}
-                  </span>
-                  {label}
-                </button>
-                {!open && <AttentionMarker id={which} tags={attentionTags(mine.flatMap((r) => r.items), lineMarks)} />}
-              </>
-            )}
+        <tr data-testid={`section-${which}`} className="ledger-section" data-direction={which}>
+          <th scope="rowgroup" style={{ position: 'sticky', left: 0, zIndex: 1 }}>
+            {label}
           </th>
-          {buckets.map((b) => (
-            <td key={b.start} style={cell}>
-              {cellMoney(figure(b), { blankZero: true })}
-            </td>
-          ))}
-          <td style={cell}>{cellMoney(total)}</td>
+          <td colSpan={buckets.length + 1} />
         </tr>
-        {open &&
-          mine.map((row) => (
-            <CategoryBlock
-              key={`${row.direction}-${row.categoryId}`}
-              row={row}
-              open={expanded.has(row.categoryId)}
-              onToggle={() => toggle(row.categoryId)}
-              groups={groupLines(row.items, buckets.length)}
-              bucketCount={buckets.length}
-              lineMarks={lineMarks}
-              openCombos={openCombos}
-              onToggleCombo={toggleCombo}
-              onEdit={(item) => onEdit(item, row)}
-            />
-          ))}
+        {mine.map((row) => (
+          <CategoryBlock
+            key={`${row.direction}-${row.categoryId}`}
+            row={row}
+            open={expanded.has(row.categoryId)}
+            onToggle={() => toggle(row.categoryId)}
+            groups={groupLines(row.items, buckets.length)}
+            bucketCount={buckets.length}
+            lineMarks={lineMarks}
+            openCombos={openCombos}
+            onToggleCombo={toggleCombo}
+            onEdit={(item) => onEdit(item, row)}
+          />
+        ))}
       </>
     );
   };
 
   return (
+    <PickedContext.Provider value={picked}>
     <div
       ref={scrollRef}
       onScroll={onScroll}
@@ -274,6 +365,7 @@ export function ForecastGrid({
         ref={tableRef}
         className="ledger"
         data-testid="forecast-grid"
+        onClick={onPick}
         style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%', fontSize: 13.5 }}
       >
         <thead>
@@ -332,8 +424,18 @@ export function ForecastGrid({
             ))}
             <BalanceCell value={summary.opening} />
           </HeaderRow>
-          {side('in', 'In', (b) => b.inflow, summary.inflow)}
-          {side('out', 'Out', (b) => b.outflow, summary.outflow)}
+          <HeaderRow label="In">
+            {buckets.map((b, i) => (
+              <TotalCell key={b.start} id={`side:in:${i}`} value={b.inflow} direction="in" blankZero style={cell} />
+            ))}
+            <TotalCell id="side:in:window" value={summary.inflow} direction="in" style={cell} />
+          </HeaderRow>
+          <HeaderRow label="Out">
+            {buckets.map((b, i) => (
+              <TotalCell key={b.start} id={`side:out:${i}`} value={b.outflow} direction="out" blankZero style={cell} />
+            ))}
+            <TotalCell id="side:out:window" value={summary.outflow} direction="out" style={cell} />
+          </HeaderRow>
           <HeaderRow label="Closing" strong>
             {buckets.map((b) => (
               <BalanceCell key={b.start} value={b.closing} minClosing={b.minClosing} minDate={b.minDate} />
@@ -358,9 +460,14 @@ export function ForecastGrid({
               <td style={cell} />
             </HeaderRow>
           )}
+
+          {section('in', 'Money in')}
+          {section('out', 'Money out')}
         </tbody>
       </table>
     </div>
+    <SumBar picked={picked} onClear={() => setPicked(new Map())} />
+    </PickedContext.Provider>
   );
 }
 
@@ -388,9 +495,14 @@ function CategoryBlock({
   const shipCategory = isShipCategory(groups);
   const combos = shipCategory ? groupShipCombos(groups, bucketCount) : [];
   return (
-    <>
-      <tr data-testid={`category-${row.categoryId}`} style={{ background: 'var(--panel2)' }}>
-        <th scope="rowgroup" style={{ ...stickyLabel, background: 'var(--panel2)', borderTop: '1px solid var(--line2)', paddingLeft: 30 }}>
+    <DirectionContext.Provider value={row.direction}>
+      <tr
+        data-testid={`category-${row.categoryId}`}
+        className="ledger-category"
+        data-direction={row.direction}
+        style={{ background: 'var(--panel2)' }}
+      >
+        <th scope="rowgroup" style={{ ...stickyLabel, background: 'var(--panel2)', borderTop: '1px solid var(--line2)' }}>
           <button
             type="button"
             className="btn-quiet"
@@ -406,13 +518,23 @@ function CategoryBlock({
           {!open && <AttentionMarker id={row.categoryId} tags={attentionTags(row.items, lineMarks)} />}
         </th>
         {Array.from({ length: bucketCount }, (_, i) => (
-          <td key={i} style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}>
-            {cellMoney(row.totals[i] ?? 0, { blankZero: true })}
-          </td>
+          <TotalCell
+            key={i}
+            id={`category:${row.categoryId}:${i}`}
+            value={row.totals[i] ?? 0}
+            direction={row.direction}
+            blankZero
+            style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}
+          />
         ))}
-        <td style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}>{cellMoney(row.total)}</td>
+        <TotalCell
+          id={`category:${row.categoryId}:window`}
+          value={row.total}
+          direction={row.direction}
+          style={{ ...cell, borderTop: '1px solid var(--line2)', fontWeight: 600 }}
+        />
       </tr>
-      {open && !shipCategory && groups.map((group) => <LineRow key={group.key} group={group} indent={48} lineMarks={lineMarks} onEdit={onEdit} />)}
+      {open && !shipCategory && groups.map((group) => <LineRow key={group.key} group={group} indent={30} lineMarks={lineMarks} onEdit={onEdit} />)}
       {open &&
         shipCategory &&
         combos.map((combo) => {
@@ -428,7 +550,7 @@ function CategoryBlock({
             />
           );
         })}
-    </>
+    </DirectionContext.Provider>
   );
 }
 
@@ -465,7 +587,7 @@ function LineRow({
       {group.cells.map((lines, i) => (
         <td key={i} style={cell}>
           {lines.map((line, j) => (
-            <LineCell key={lineId(line, j)} line={line} marks={lineMarks.get(line.key)} onEdit={onEdit} />
+            <LineCell key={lineId(line, j)} pickId={`line:${i}:${lineId(line, j)}`} line={line} marks={lineMarks.get(line.key)} onEdit={onEdit} />
           ))}
         </td>
       ))}
@@ -493,11 +615,12 @@ function ShipComboRows({
   onEdit: (item: ForecastItem) => void;
 }) {
   const count = combo.lines.length;
+  const direction = useContext(DirectionContext);
   const sub = `${combo.containerRef ?? 'No container'} · ${count} ${count === 1 ? 'payment' : 'payments'}`;
   return (
     <>
       <tr data-testid={`combo-${combo.key}`}>
-        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 48 }}>
+        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 30 }}>
           <button
             type="button"
             className="btn-quiet"
@@ -518,13 +641,11 @@ function ShipComboRows({
           {!open && <AttentionMarker id={`combo:${combo.key}`} tags={attentionTags(combo.lines, lineMarks)} />}
         </th>
         {combo.cells.map((sum, i) => (
-          <td key={i} style={{ ...cell, fontWeight: 500 }}>
-            {cellMoney(sum, { blankZero: true })}
-          </td>
+          <TotalCell key={i} id={`combo:${combo.key}:${i}`} value={sum} direction={direction} blankZero style={{ ...cell, fontWeight: 500 }} />
         ))}
-        <td style={{ ...cell, fontWeight: 500 }}>{cellMoney(combo.total)}</td>
+        <TotalCell id={`combo:${combo.key}:window`} value={combo.total} direction={direction} style={{ ...cell, fontWeight: 500 }} />
       </tr>
-      {open && combo.groups.map((group) => <LineRow key={group.key} group={group} indent={64} underCombo lineMarks={lineMarks} onEdit={onEdit} />)}
+      {open && combo.groups.map((group) => <LineRow key={group.key} group={group} indent={46} underCombo lineMarks={lineMarks} onEdit={onEdit} />)}
     </>
   );
 }
@@ -565,14 +686,17 @@ function AttentionMarker({ id, tags }: { id: number | string; tags: ReturnType<t
 
 /** One line in one cell: its GBP figure and its flags; a button when the server allows an edit. */
 function LineCell({
+  pickId,
   line,
   marks,
   onEdit,
 }: {
+  pickId: string;
   line: ForecastItem;
   marks?: FlagTag[];
   onEdit: (item: ForecastItem) => void;
 }) {
+  const pick = pickProps(pickId, line.gbpMinor, useContext(DirectionContext), useContext(PickedContext));
   const tags = [...flagTags(line.flags), ...(marks ?? [])];
   const excluded = line.flags.includes('excluded');
   const stale = line.flags.includes('stale');
@@ -628,6 +752,7 @@ function LineCell({
   const title = [
     line.currency !== 'GBP' ? `${formatMoney(toMinor(line.amountMinor), line.currency)} · ${formatDay(line.date)}` : formatDay(line.date),
     ...notes,
+    `· ${PICK_LINE_HINT}`,
   ].join(' ');
   const box: CSSProperties = {
     display: 'flex',
@@ -641,7 +766,7 @@ function LineCell({
   };
   if (!line.editable) {
     return (
-      <span style={box} title={title} data-line={line.key} aria-label={describe}>
+      <span style={box} title={title} data-line={line.key} aria-label={describe} {...pick}>
         {body}
       </span>
     );
@@ -652,7 +777,11 @@ function LineCell({
       data-line={line.key}
       aria-label={`Edit ${describe}`}
       title={title}
-      onClick={() => onEdit(line)}
+      {...pick}
+      // Ctrl/⌘-click picks the figure for the sum bar (the grid's handler); it does not edit.
+      onClick={(e) => {
+        if (!(e.ctrlKey || e.metaKey)) onEdit(line);
+      }}
       // Ink, not link-blue: a ledger's figures are all one colour. `.ledger-edit` shows the
       // figure is editable on hover and focus instead.
       className="pressable ledger-edit"

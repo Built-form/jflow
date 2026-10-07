@@ -135,15 +135,15 @@ describe('Forecast', () => {
     renderForecast();
     const grid = await screen.findByTestId('forecast-grid');
     expect(screen.queryByTestId('line-item.88')).toBeNull();
-    // In and Out are closed too: no category shows, and Out says what is behind it.
-    expect(within(grid).queryByTestId('category-3')).toBeNull();
-    expect(within(grid).getByTestId('attention-out').textContent).toContain('OVERDUE 1');
-    expect(within(grid).queryByTestId('attention-in')).toBeNull();
-    fireEvent.click(within(grid).getByRole('button', { name: 'Out' }));
-    expect(within(grid).queryByTestId('attention-out')).toBeNull();
-    expect(within(grid).queryByTestId('category-1')).toBeNull();
-    fireEvent.click(within(grid).getByRole('button', { name: 'In' }));
-    expect(within(grid).getByTestId('category-1')).toBeTruthy();
+    // The categories are listed under the balance rows, each side under its own band.
+    const order = Array.from(grid.querySelectorAll('tr[data-testid^="section-"], tr[data-testid^="category-"]')).map(
+      (tr) => `${tr.getAttribute('data-testid')}:${tr.getAttribute('data-direction')}`,
+    );
+    expect(order[0]).toBe('section-in:in');
+    expect(order.indexOf('section-out:out')).toBeGreaterThan(order.indexOf('category-1:in'));
+    expect(order.slice(order.indexOf('section-out:out') + 1).every((o) => o.endsWith(':out'))).toBe(true);
+    expect(within(grid).getByTestId('section-in').textContent).toBe('Money in');
+    expect(within(grid).getByTestId('section-out').textContent).toBe('Money out');
     // Suppliers holds a REMAINDER and an OVERDUE line; Sales and Rent hold nothing to flag.
     const marker = within(grid).getByTestId('attention-3');
     expect(marker.textContent).toContain('REMAINDER 1');
@@ -153,6 +153,41 @@ describe('Forecast', () => {
     fireEvent.click(within(within(grid).getByTestId('category-3')).getByRole('button'));
     expect(await screen.findByTestId('line-item.88')).toBeTruthy();
     expect(within(grid).queryByTestId('attention-3')).toBeNull();
+  });
+
+  it('adds up the figures picked: a click on a total, Ctrl-click on a line (which does not edit it), Clear to start again', async () => {
+    stubApi(() => forecastFixture());
+    renderForecast();
+    await expandGrid();
+    const grid = await screen.findByTestId('forecast-grid');
+    expect(screen.queryByTestId('sum-bar')).toBeNull();
+    const minorOf = (el: Element) => BigInt(el.getAttribute('data-pick-minor') ?? '0');
+    const pounds = (minor: bigint) => `£${(Number(minor) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`;
+
+    // Two category totals on the Out side: one sum.
+    const [first, second] = Array.from(grid.querySelectorAll('td[data-pick^="category:3:"], td[data-pick^="category:2:"]'));
+    fireEvent.click(first);
+    fireEvent.click(second);
+    const bar = screen.getByTestId('sum-bar');
+    expect(bar.textContent).toContain('2 figures');
+    expect(bar.textContent).toContain(`Sum ${pounds(minorOf(first) + minorOf(second))}`);
+    expect(first.getAttribute('data-picked')).toBe('true');
+    // Clicking a picked figure again takes it out.
+    fireEvent.click(second);
+    expect(bar.textContent).toContain('1 figure');
+
+    // A line: a plain click edits, Ctrl-click picks.
+    const line = within(grid).getByRole('button', { name: /Edit Invoice 1041/ });
+    fireEvent.click(line, { ctrlKey: true });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(bar.textContent).toContain('2 figures');
+
+    // Money in with money out reads as in, out and the net.
+    fireEvent.click(grid.querySelector('td[data-pick="side:in:window"]') as Element);
+    expect(screen.getByTestId('sum-bar').textContent).toMatch(/In £.*Out £.*Net [+-]?£/);
+
+    fireEvent.click(within(screen.getByTestId('sum-bar')).getByRole('button', { name: 'Clear' }));
+    expect(screen.queryByTestId('sum-bar')).toBeNull();
   });
 
   it('renders every line of a key that appears several times — the payment and the remainder', async () => {
