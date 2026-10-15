@@ -54,7 +54,7 @@ describe('grouping stock payments by the server’s derivedStatus', () => {
 describe('the Stock payments screen', () => {
   type Call = { method: string; path: string; body: unknown };
 
-  function stubApi(rows: ExternalItem[], plan: (body: unknown) => ExternalItem) {
+  function stubApi(rows: ExternalItem[], plan: (body: unknown, path: string) => ExternalItem, companies: unknown[] = []) {
     const calls: Call[] = [];
     __setTestTransport(<T,>(method: string, path: string, body?: unknown): Promise<T> => {
       calls.push({ method, path, body });
@@ -65,9 +65,9 @@ describe('the Stock payments screen', () => {
       if (method === 'GET' && path === '/external/status') {
         return ok({ source: 'ship', lastSuccessAt: '2026-09-29T12:00:00Z', itemCount: 7, companies: [], configured: true });
       }
-      if (method === 'GET' && path.startsWith('/companies')) return ok(list([]));
+      if (method === 'GET' && path.startsWith('/companies')) return ok(list(companies));
       if (method === 'GET' && path.startsWith('/accounts')) return ok(list([{ id: 1, name: 'Barclays USD' }]));
-      if (method === 'PUT' && path.startsWith('/external-items/')) return ok(plan(body));
+      if (method === 'PUT' && path.startsWith('/external-items/')) return ok(plan(body, path));
       if (method === 'DELETE' && path.startsWith('/external-items/')) return ok(undefined);
       return Promise.reject(new Error(`unexpected ${method} ${path}`));
     });
@@ -154,6 +154,42 @@ describe('the Stock payments screen', () => {
     expect(row.textContent).toContain('PLANNED');
     // Replaced from the response, not re-read.
     expect(calls.filter((c) => c.method === 'GET' && c.path.startsWith('/external-items'))).toHaveLength(1);
+  });
+
+  it('chooses the company of a payment shipping gives none, from its dialog (§10.11a)', async () => {
+    const noCompany = { ...unmapped, shippingCompanyId: null };
+    const stamp = '2026-10-15T09:00:00Z';
+    const jfa = { id: 5, code: 'JFA', name: 'JFA', sortOrder: 1, shippingCompanyId: 11, rowVersion: 1, createdBy: null, createdAt: stamp, updatedAt: stamp, deletedAt: null };
+    const calls = stubApi(
+      [noCompany],
+      () => ({ ...noCompany, assignedCompanyId: 5, companySetBy: 'dev@x.y', companySetAt: stamp, companyId: 5, accountId: 1, derivedStatus: 'expected', rowVersion: 5 }),
+      [jfa],
+    );
+    renderScreen();
+    const before = await screen.findByTestId('stock-ship.dep-902');
+    expect(before.textContent).toContain('UNMAPPED');
+    fireEvent.click(within(before).getByRole('button', { name: 'Plan, Acme Textiles · PO-902 · deposit' }));
+    const dialog = screen.getByRole('dialog');
+    const select = await within(dialog).findByLabelText('Company for Acme Textiles · PO-902 · deposit');
+    fireEvent.change(select, { target: { value: '5' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use this company' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(calls.find((c) => c.method === 'PUT')).toEqual({
+      method: 'PUT',
+      path: '/external-items/ship.dep-902/company',
+      body: { companyId: 5, baseVersion: 4 },
+    });
+    const after = screen.getByTestId('stock-ship.dep-902');
+    expect(after.closest('[data-group]')?.getAttribute('data-group')).toBe('expected');
+    expect(after.textContent).toContain('COMPANY SET IN JFLOW');
+    expect(after.textContent).not.toContain('UNMAPPED');
+  });
+
+  it('a payment shipping gives a company has no company picker', async () => {
+    stubApi([expected], () => expected);
+    renderScreen();
+    fireEvent.click(await screen.findByRole('button', { name: 'Plan, Acme Textiles · PO-812 · balance' }));
+    expect(within(screen.getByRole('dialog')).queryByLabelText(/^Company for/)).toBeNull();
   });
 
   it('unskips a skipped row from here (it is not on the Forecast)', async () => {

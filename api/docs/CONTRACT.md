@@ -435,7 +435,7 @@ inside the mutation's transaction. Snapshots are the row's JSON shape (camelCase
 | `scenario` | `create`, `update`, `delete`, `duplicate`, `rebase`, `apply`, `unapply` (D41) |
 | `scenario_adjustment` | `create`, `update` (edit, rebase, re-key), `delete` (its own, or with its split anchor — D40) |
 | `allowed_email` | `create`, `update`, `delete` — `entity_id` 0, email in the JSON |
-| `external_item` (Phase 2) | `plan` (user edit), `unplan` (revert), `apply`, `unapply` (D41) — `entity_id` = `external_items.id`, `key` in the JSON. **The refresh writes no audit rows** (P8): feed columns are shipping's data, and `feed_hash` / `updated_at` say when they moved |
+| `external_item` (Phase 2) | `plan` (user edit), `unplan` (revert), `apply`, `unapply` (D41), `assign_company` (2026-10-15, §10.11a: before/after `{assignedCompanyId}`, `key` on after) — `entity_id` = `external_items.id`, `key` in the JSON. **The refresh writes no audit rows** (P8): feed columns are shipping's data, and `feed_hash` / `updated_at` say when they moved |
 
 ### 2.9 `row_version`, `created_by`
 
@@ -482,6 +482,9 @@ and by local `ensureSchema`.
   its own payee, so its lines sit there, not with the supplier's stock payments. It refuses
   delete and direction change like the `ship` one (P10); the engine falls back to "Stock
   payments" when it is missing.
+- A company chosen in JFlow (Dev, 2026-10-15): `2026-10-15_jflow_ship_company.sql`, one guarded
+  `ALTER` adding `external_items.assigned_company_id`, `company_set_by`, `company_set_at`
+  (user-owned, beside the overlay; never written by the refresh, never hashed; §10.11a).
 - DDL runs from `tools/migrate.js --stage <stage>` (called by `deploy.sh` before packaging;
   it keeps `schema_migrations(filename, checksum, applied_at)` and refuses a changed applied
   file) and from local `ensureSchema` (`lib/schema.js`, sentinel `jflow_schema_meta`,
@@ -739,7 +742,10 @@ SELECT 'HW', 'Hangerworld', 2 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM companie
   §6.10, §8 and §9.7 refer to it. A ship currency with no rate is the same 422
   `FX_RATE_MISSING` as any other — one rule (Dev, Q4).
 - **Phase 2, derived at load time and never stored:** a ship row's company = the live
-  JFlow company whose `shipping_company_id = external_items.shipping_company_id`; its
+  JFlow company whose `shipping_company_id = external_items.shipping_company_id` — or, **only
+  when `external_items.shipping_company_id` is NULL** (shipping gives the row no company), the
+  live company in `assigned_company_id`, chosen in JFlow (Dev, 2026-10-15, §10.11a). Shipping's
+  company always wins: a choice on a row the feed later gives a company is kept but ignored; its
   account = that company's live active account in the row's `currency` (lowest
   `sort_order`, then id), else the company's `is_default` account (P5). No company, no
   active account → the row is unmapped (`SHIP_UNMAPPED`). A ship row's effective date =
@@ -830,6 +836,8 @@ WHERE NOT EXISTS (SELECT 1 FROM categories WHERE system_key = 'ship');
   to avoid double counting — PHASE2.md risk 6).
 - `external_items` has no `account_id` and no `company_id` of its own: both are derived
   (§3.4), so a re-mapped company or a new account moves every ship line with it.
+  `assigned_company_id` (2026-10-15) is not one either: it is read only while shipping's
+  `shipping_company_id` is NULL (§3.4, §10.11a).
 
 ### 3.6 Scenario adds migration — `src/db/migrations/2026-10-07_jflow_scenario_adds.sql` (D39–D41)
 
@@ -1362,14 +1370,16 @@ response, `DELETE` included):
 `{key, id, source, extId, feedKind, feedStatus, supplier, shippingCompanyId, companyId, accountId,
 poId, poNumber, shipmentId, containerRef, label, currency, amount, dueDate, paidOn, settles, dateBasis,
 amountBasis, blocked, flags, dueSet, dueDatePrev, dueDateMovedAt, goneAt, plannedDate, plannedAmount,
-plannedSkipped, plannedBaseAmount, plannedNote, sourceScenarioId, plannedBy, plannedAt, effectiveDate,
-effectiveAmount, planStale, derivedStatus, dateMoved, rowVersion, createdBy, createdAt, updatedAt}`.
+plannedSkipped, plannedBaseAmount, plannedNote, sourceScenarioId, plannedBy, plannedAt, assignedCompanyId,
+companySetBy, companySetAt, effectiveDate, effectiveAmount, planStale, derivedStatus, dateMoved, rowVersion, createdBy, createdAt, updatedAt}`.
 `dueSet` (2026-10-06) is the feed's `due_set_json` — `{by, email, at, derivedDate, scope, note}`
 when the date was set by hand in ShipLine, else null; `dueDatePrev` / `dueDateMovedAt` the
 refresh's record of the last move of the feed's `due_date` (§3.5), and `dateMoved` whether that
 move is within the last 14 days of the request's `today` (the engine's `date_moved` flag, the
 same rule). `key` = `buildShipKey(extId)`;
-`companyId`/`accountId` are resolved per §3.4 (`null` when unmapped); `effectiveDate`,
+`companyId`/`accountId` are resolved per §3.4 (`null` when unmapped); `assignedCompanyId` /
+`companySetBy` / `companySetAt` (2026-10-15) are the company chosen in JFlow and its stamps
+(§10.11a), shown whether or not they apply; `effectiveDate`,
 `effectiveAmount` and `planStale` (`planned_amount` set but ignored, P6) per §3.4; money is
 DECIMAL strings (D1); `flags` is the feed's `flags_json` array. `derivedStatus` is §9.6's
 band of the row against its resolved account's anchor — `expected | overdue | unresolved |
@@ -1381,9 +1391,10 @@ here are **ISO 8601 UTC strings** (§2.4), the same form everywhere they appear
 
 | Method, path | Perm | Request | Response / refusals | Audit |
 |---|---|---|---|---|
-| `GET /external-items?status&companyId&from&to&includeGone&q&page&limit` | any | `status` comma list of `open, paid` (default both); `companyId` a live company or `all` (default); `from`/`to` bound the effective date; `includeGone=1` adds `gone_at` rows; `q` over `supplier, po_number, container_ref` | list sorted effective date ascending, undated last, then id; gone rows excluded by default | — |
+| `GET /external-items?status&companyId&from&to&includeGone&q&page&limit` | any | `status` comma list of `open, paid` (default both); `companyId` a live company or `all` (default); `from`/`to` bound the effective date; `includeGone=1` adds `gone_at` rows; `q` over `supplier, po_number, container_ref`; `noCompany=1` (2026-10-15) keeps only rows with `shippingCompanyId` null and no live chosen company — the rows behind `SHIP_UNMAPPED {shippingCompanyId: null, reason: 'company'}` | list sorted effective date ascending, undated last, then id; gone rows excluded by default | — |
 | `GET /external-items/:key` | any | — | 200 the full row JSON above with `derivedStatus`, **gone rows included** (no `includeGone` needed — the web's plan dialog loads this on open, orphaned overlay or not); 404 when no `external_items` row has the key (or the key's kind is not `ship`); 422 `ITEM_KEY_INVALID` when the grammar fails. Built at step 21 (was §11 "deferred") | — |
 | `PUT /external-items/:key` | any | `{plannedDate?, plannedAmount?, skipped?, note?, baseVersion?}` — a **merge** like tune: absent = unchanged, `null` clears `plannedDate` / `plannedAmount` / `note`; `skipped` boolean | 200 the full row JSON **including `derivedStatus`** (clients replace the row from the response, as §6.9). §10.11. 404 no `external_items` row for the key (or not a `ship.` key); 404 `TARGET_MISSING {key}` when the row is gone; 409 `TARGET_SETTLED {key, status: 'paid'}` when `feedStatus = 'paid'`; 422 `PLANNED_DATE_IN_PAST {plannedDate, today}`; 400 `plannedAmount <= 0`, grammar, or nothing set after the merge ("nothing to plan; DELETE reverts"); 409 `STALE_WRITE`. Setting `plannedAmount` also stores `plannedBaseAmount` = the feed `amount` now (P6) | `external_item`/`plan` |
+| `PUT /external-items/:key/company` | any | `{companyId: id | null, baseVersion?}` — 2026-10-15 | 200 the full row JSON with `derivedStatus`. §10.11a. 400 `companyId` absent, not an id, or not a live company; 404 no row; 404 `TARGET_MISSING {key}` on a gone row; 409 `SHIP_COMPANY_IN_SHIPPING {key, shippingCompanyId}` when setting one on a row shipping gives a company (clearing is always allowed); 409 `STALE_WRITE`. Open and paid rows alike. The same company again writes nothing | `external_item`/`assign_company` |
 | `DELETE /external-items/:key` | any | `{baseVersion?}` (a JSON body on a DELETE, as every other `baseVersion` route) | **200 the full row JSON** after the revert, `derivedStatus` included (**not 204** — the one exception to §2.2's delete row, because the row still exists and the client re-renders it from the feed values): clears every `planned_*` column, `planned_skipped` and `source_scenario_id` (revert to the feed). Works on a **gone** row too — this is how an orphaned overlay (`SHIP_PLAN_ORPHANED`) is cleaned up. 404 when no row has the key; 404 "no overlay" **only when every overlay column is already empty** (`planned_date`, `planned_amount`, `planned_base_amount`, `planned_note`, `source_scenario_id`, `planned_by`, `planned_at` all NULL and `planned_skipped = 0`); 409 `STALE_WRITE` | `external_item`/`unplan` |
 | `POST /external/refresh` | any | — | 200 `{ran: boolean, status: <status row below>}` after a forced run (P4): the 10-minute TTL is ignored, the 60-second claim is not (`ran: false` when another run holds it, and the current status is returned). 503 `SHIPPING_UNAVAILABLE {reason, lastSuccessAt}` when the run fails (`reason`: `source_schema` — a column the mappers read is missing from `jfa`; `source_error` — any other error on the read-only source connection; `bad_response` — the assembled rows failed `validateFeed`); the last snapshot is untouched. §10.12 | none (P8) |
 | `GET /external/status` | any | — | `{source: 'ship', lastAttemptAt, lastSuccessAt, feedToday, lastError, itemCount, rejectedCount, companies: [{id, name}], configured, updatedAt}` from `external_sync` (`companies` = `companies_json`, read from `<schema>.companies` at the last successful run, for the Settings picker; `configured` = `SHIPPING_DB_SCHEMA` is a valid schema name). | — |
@@ -1417,10 +1428,11 @@ top-level `code`. Rows marked "(no code)" are message-only per workflows.
 | `ACCOUNT_IN_USE` | 409 | refusal | Deleting an account, or changing its currency, while live items, schedules or balances reference it (`details {itemCount, scheduleCount, balanceCount}`); or deactivating it while it has owed one-offs, a schedule with an occurrence on or after today, or an overdue/unresolved instance (D17; `details {owedItems, liveSchedules, owedInstances}`, keys capped at 50 per kind) |
 | `CATEGORY_IN_USE` | 409 | refusal | Deleting a category, or changing its direction, while live items or schedules use it; `details {itemCount, scheduleCount}`. Phase 2: deleting a system category or changing its direction, always; `details {systemKey}` (P10) |
 | `SHIPPING_COMPANY_TAKEN` | 409 | refusal | Phase 2: `PUT /companies/:id` with a `shippingCompanyId` another live company holds; `details {companyId}` |
+| `SHIP_COMPANY_IN_SHIPPING` | 409 | refusal | 2026-10-15: `PUT /external-items/:key/company` with a `companyId` on a row whose `shippingCompanyId` is set — shipping's company wins (§10.11a); `details {key, shippingCompanyId}` |
 | `PLANNED_DATE_IN_PAST` | 422 | refusal | Phase 2: `plannedDate < today` on `PUT /external-items/:key`; `details {plannedDate, today}` |
 | `SHIPPING_UNAVAILABLE` | 503 | refusal | Phase 2: `POST /external/refresh` when the forced run fails; `details {reason, lastSuccessAt, missing?}` (`missing` = every `table.column` it cannot see, `source_schema` only) — `reason` one of `source_schema \| source_error \| bad_response` (Dev 2026-09-29, direct `jfa` read: the schema check failed, any other error on the read-only source connection, or the assembled rows failed validation; §10.12). *(Superseded reasons: `unconfigured \| timeout \| unreachable \| http_401 \| http_<status>`.)* |
 | `SHIPPING_UNAVAILABLE` | 200 | warning | Phase 2: `/forecast` when the refresh that was due did not succeed; the last snapshot is used; `{reason, lastSuccessAt}` with the same three reasons |
-| `SHIP_UNMAPPED` | 200 | warning | Phase 2: `/forecast`: ship rows omitted because no live company maps their `shippingCompanyId` (including `null`, Q2) — `reason: 'company'` — or the company has no live active account in the row's currency and no live active default — `reason: 'account'`, with `companyId` and the failed `currencies`; one per distinct (id, reason); `{shippingCompanyId, count, reason, companyId?, currencies?}` |
+| `SHIP_UNMAPPED` | 200 | warning | Phase 2: `/forecast`: ship rows omitted because no live company maps their `shippingCompanyId` (including `null`, Q2, with no live company chosen in JFlow, §10.11a) — `reason: 'company'` — or the company has no live active account in the row's currency and no live active default — `reason: 'account'`, with `companyId` and the failed `currencies`; one per distinct (id, reason); `{shippingCompanyId, count, reason, companyId?, currencies?}` |
 | `SHIP_PLAN_ORPHANED` | 200 | warning | Phase 2: `/forecast`: an overlay (`planned_*`) sits on a `gone` row; `{key}` |
 | `SHIP_PLAN_STALE` | 200 | warning | Phase 2: `/forecast`: `planned_amount` ignored because `planned_base_amount ≠` the feed `amount` (P6); `{key}` |
 | `FX_RATE_EXISTS` | 409 | refusal | `(currency, effective_from)` already present; `details {fxRateId}` |
@@ -2159,6 +2171,26 @@ transaction:
    values). Nothing else is locked; feed columns are never
    written here. A hand edit after a scenario apply leaves `source_scenario_id` as it is
    (as a hand edit of an applied `cash_items` row does).
+
+### 10.11a The company chosen in JFlow — `PUT /external-items/:key/company` (Dev, 2026-10-15)
+
+Some POs carry no company in shipping, so their stock payments are `SHIP_UNMAPPED` with
+`shippingCompanyId: null`. Dev: choose the company per line in JFlow, never touching shipping's
+data, and only when shipping has none. Body checks first (400): `parseKey` as §10.11,
+`companyId` present and a positive integer or `null`. Then one transaction:
+1. Lock the row as §10.11 step 1 (404 absent; `baseVersion` → `STALE_WRITE`); `gone_at` set →
+   404 `TARGET_MISSING {key}`.
+2. A `companyId` on a row with `shipping_company_id` set → 409 `SHIP_COMPANY_IN_SHIPPING
+   {key, shippingCompanyId}`. A `companyId` that is not a live company (a plain read; companies
+   are not in §10.1's lock order) → 400. `null` always passes.
+3. Same as stored → nothing written. Else `assigned_company_id = companyId`, `company_set_by` =
+   caller and `company_set_at = UTC_TIMESTAMP()` (all three NULL when cleared), `row_version + 1`;
+   audit `external_item`/`assign_company`. 200 with the row JSON of §6.12.
+
+Open and paid rows alike (a paid row's money left one of the company's accounts). The overlay
+(§10.11) and scenarios are unaffected; `DELETE /external-items/:key` does not clear the choice.
+The choice moves the row's account as a re-mapped company does (§3.4): it is resolved at read
+time and never copied into a scenario.
 
 ### 10.12 Shipping refresh — `services/shippingRefresh.js` (Phase 2, P4/P8; no transaction)
 Runs from `/forecast` (when `external_sync.last_success_at` is older than 10 minutes or

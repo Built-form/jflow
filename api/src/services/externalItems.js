@@ -18,7 +18,7 @@
 
 const { recordAudit } = require('../lib/audit');
 const { buildShipKey } = require('../lib/keys');
-const { externalItemToJson } = require('../lib/shape');
+const { apiError, assertBaseVersion, externalItemToJson } = require('../lib/shape');
 const { shipDerivedStatus, shipDateMoved } = require('../lib/lines');
 const { shipResolvedSelect, loadAnchors } = require('./forecastLoad');
 
@@ -47,10 +47,14 @@ async function decorateExternalItems(conn, rows, today) {
  *   companyId    a live company id (rows resolving to it), or 'all'
  *   from, to     bound the effective date (an undated row has none, so a bound drops it)
  *   includeGone  true adds rows with gone_at set
+ *   noCompany    true keeps only rows shipping gives no company and JFlow has no live
+ *                company chosen for (§10.11a) — SHIP_UNMAPPED's `shippingCompanyId: null`
  *   q            LIKE %q% over supplier, po_number, container_ref
  * Sorted by effective date ascending, undated last, then id. → {total, data}.
  */
-async function listExternalItems(conn, { today, statuses, companyId = 'all', from, to, includeGone = false, q, limit, offset }) {
+async function listExternalItems(conn, {
+    today, statuses, companyId = 'all', from, to, includeGone = false, noCompany = false, q, limit, offset,
+}) {
     const inner = [];
     const innerParams = [];
     if (statuses && statuses.length) {
@@ -68,6 +72,7 @@ async function listExternalItems(conn, { today, statuses, companyId = 'all', fro
         outer.push('x.resolved_company_id = ?');
         outerParams.push(companyId);
     }
+    if (noCompany) outer.push('(x.shipping_company_id IS NULL AND x.resolved_company_id IS NULL)');
     if (from) {
         outer.push(`${EFFECTIVE_DATE_SQL} >= ?`);
         outerParams.push(from);
@@ -157,8 +162,61 @@ function auditOverlay(conn, { action, before, after, userEmail }) {
     });
 }
 
+// ── The company chosen in JFlow (Dev, 2026-10-15; CONTRACT §10.11a) ─────────────────
+
+const sameId = (a, b) => (a == null ? b == null : b != null && Number(a) === Number(b));
+
+/**
+ * PUT /external-items/:key/company, inside the caller's transaction: lock the row, then set
+ * (or with `companyId: null`, clear) `assigned_company_id` with its stamps. Shipping's data
+ * is never touched, and the choice is only for a row shipping gives no company: setting one
+ * on a row with a `shipping_company_id` is 409 SHIP_COMPANY_IN_SHIPPING (clearing is always
+ * allowed, so a choice shipping has since overtaken can be removed). Open or paid rows alike:
+ * a paid row's money left one of the company's accounts. Refused, writing nothing: no row
+ * (404), a gone row (404 TARGET_MISSING), a stale `baseVersion` (409 STALE_WRITE), a company
+ * that is not live (400). The same company again writes nothing → {changed: false}.
+ * One audit row `external_item` / `assign_company`. → {changed, row} (the raw row now).
+ */
+async function assignCompany(conn, { extId, companyId, baseVersion, userEmail }) {
+    const row = await lockExternalItem(conn, extId);
+    if (!row) throw apiError(404, undefined, 'No shipping line has that key.');
+    assertBaseVersion(row, baseVersion);
+    const key = buildShipKey(row.ext_id);
+    if (row.gone_at != null) {
+        throw apiError(404, 'TARGET_MISSING', 'That shipping line has left the feed, so it needs no company.', { key });
+    }
+    if (companyId != null && row.shipping_company_id != null) {
+        throw apiError(409, 'SHIP_COMPANY_IN_SHIPPING',
+            "Shipping gives this payment a company now, so JFlow uses shipping's. Change it in shipping if it is wrong.",
+            { key, shippingCompanyId: Number(row.shipping_company_id) });
+    }
+    if (companyId != null) {
+        const [live] = await conn.query('SELECT id FROM companies WHERE id = ? AND deleted_at IS NULL', [companyId]);
+        if (!live.length) throw apiError(400, undefined, 'companyId is not a live company.');
+    }
+    if (sameId(row.assigned_company_id, companyId)) return { changed: false, row };
+    await conn.query(
+        `UPDATE external_items
+            SET assigned_company_id = ?, company_set_by = ?,
+                company_set_at = ${companyId == null ? 'NULL' : 'UTC_TIMESTAMP()'}, row_version = row_version + 1
+          WHERE id = ?`,
+        [companyId ?? null, companyId == null ? null : userEmail, row.id]
+    );
+    const after = await lockExternalItem(conn, extId);
+    await recordAudit(conn, {
+        entityType: 'external_item',
+        entityId: Number(row.id),
+        action: 'assign_company',
+        before: { assignedCompanyId: row.assigned_company_id == null ? null : Number(row.assigned_company_id) },
+        after: { key, assignedCompanyId: companyId ?? null },
+        userEmail,
+    });
+    return { changed: true, row: after };
+}
+
 module.exports = {
     EFFECTIVE_DATE_SQL,
+    assignCompany,
     decorateExternalItems,
     listExternalItems,
     readExternalItem,

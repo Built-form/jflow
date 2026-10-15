@@ -57,4 +57,15 @@ describe('loadShipRows: SHIP_UNMAPPED counts by shipping company and reason', ()
         );
         expect(unmappedCounts).toEqual([]);
     });
+
+    test("a company chosen in JFlow with no account to land on is 'account' under shippingCompanyId null", async () => {
+        const { unmappedCounts } = await loadShipRows(
+            stubConn([row('bal-10', null, 20, 'USD'), row('bal-11', null, null, 'GBP')]),
+            { accountIds: [], minA: '2026-09-20', companyId: 'all' },
+        );
+        expect(unmappedCounts).toEqual([
+            { shippingCompanyId: null, count: 1, reason: 'company' },
+            { shippingCompanyId: null, count: 1, reason: 'account', companyId: 20, currencies: ['USD'] },
+        ]);
+    });
 });

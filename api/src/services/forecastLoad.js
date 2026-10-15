@@ -288,7 +288,11 @@ async function loadCategories(conn, categoryIds) {
  * P5 / §3.4, in SQL at load time and never stored: `external_items` rows (source 'ship',
  * filtered by `where` over `e`) with
  *   resolved_company_id  the live company whose shipping_company_id matches the row's
- *                        (the lowest id, should two ever match), else NULL;
+ *                        (the lowest id, should two ever match), else NULL; when shipping
+ *                        gives the row no company (shipping_company_id NULL), the live
+ *                        company chosen in JFlow (assigned_company_id, §10.11a), else NULL.
+ *                        Shipping's company always wins: the choice is read only while
+ *                        shipping has none (Dev, 2026-10-15);
  *   resolved_account_id  that company's live, active account in the row's currency
  *                        (lowest sort_order, then id), else its live, active is_default
  *                        account, else NULL (unmapped).
@@ -306,8 +310,12 @@ function shipResolvedSelect(where) {
                          AND a.is_default = 1
                        ORDER BY a.id ASC LIMIT 1)) AS resolved_account_id
               FROM (SELECT e.*,
-                           (SELECT MIN(c.id) FROM companies c
-                             WHERE c.deleted_at IS NULL AND c.shipping_company_id = e.shipping_company_id) AS resolved_company_id
+                           CASE WHEN e.shipping_company_id IS NULL
+                                THEN (SELECT c.id FROM companies c
+                                       WHERE c.deleted_at IS NULL AND c.id = e.assigned_company_id)
+                                ELSE (SELECT MIN(c.id) FROM companies c
+                                       WHERE c.deleted_at IS NULL AND c.shipping_company_id = e.shipping_company_id)
+                           END AS resolved_company_id
                       FROM external_items e
                      WHERE e.source = 'ship' AND (${where})) r`;
 }
@@ -328,7 +336,7 @@ const SHIP_OVERLAY_SQL = `(e.planned_date IS NOT NULL OR e.planned_amount IS NOT
  * per (`shipping_company_id`, reason) → `unmappedCounts` [{shippingCompanyId, count,
  * reason, companyId?, currencies?}], null first then ascending, 'company' before
  * 'account'. `reason` says why: 'company' when no live JFlow company has that
- * shipping_company_id (null included, Q2); 'account' when one does (`companyId`) but it
+ * shipping_company_id (null included, Q2, with no live company chosen in JFlow); 'account' when one does (`companyId`) but it
  * has no live active account in the row's currency and no live active default —
  * `currencies` the distinct currencies that failed, ascending. A row whose company
  * matched counts only in that company's scope (or 'all'); a row whose shipping company

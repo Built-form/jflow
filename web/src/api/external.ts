@@ -70,6 +70,13 @@ export interface ExternalItem {
   sourceScenarioId: number | null;
   plannedBy: string | null;
   plannedAt: IsoDateTime | null;
+  /**
+   * A JFlow company chosen for a row shipping gives none (§10.11a, 2026-10-15). It counts only
+   * while `shippingCompanyId` is null: shipping's company always wins.
+   */
+  assignedCompanyId: number | null;
+  companySetBy: string | null;
+  companySetAt: IsoDateTime | null;
   /** `plannedDate ?? dueDate` — null when undated. */
   effectiveDate: IsoDate | null;
   effectiveAmount: Decimal;
@@ -134,6 +141,8 @@ export interface ExternalItemQuery {
   from?: IsoDate;
   to?: IsoDate;
   includeGone?: boolean;
+  /** Only rows shipping gives no company and JFlow has no company chosen for (`SHIP_UNMAPPED` with `shippingCompanyId: null`). */
+  noCompany?: boolean;
   q?: string;
   page?: number;
   limit?: number;
@@ -158,6 +167,7 @@ export const external = {
         from: q.from,
         to: q.to,
         includeGone: q.includeGone ? 1 : undefined,
+        noCompany: q.noCompany ? 1 : undefined,
         q: q.q,
         page: q.page,
         limit: q.limit ?? PAGE_LIMIT,
@@ -181,6 +191,12 @@ export const external = {
   /** Write the overlay; answers the row as the server now holds it. */
   plan: (key: string, body: PlanWrite, baseVersion?: number) =>
     request<ExternalItem>(`/external-items/${key}`, { method: 'PUT', body: versioned(body, baseVersion) }),
+  /**
+   * Choose the JFlow company of a row shipping gives none (§10.11a); null clears the choice.
+   * Shipping's data is not changed. 409 `SHIP_COMPANY_IN_SHIPPING` once shipping has a company.
+   */
+  assignCompany: (key: string, companyId: number | null, baseVersion?: number) =>
+    request<ExternalItem>(`/external-items/${key}/company`, { method: 'PUT', body: versioned({ companyId }, baseVersion) }),
   /**
    * "Revert to feed": clears every overlay column (works on a gone row too). Answers the
    * row (step 21); an older server's 204 arrives as `undefined`.

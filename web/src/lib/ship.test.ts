@@ -180,12 +180,13 @@ describe('unmappedNote (SHIP_UNMAPPED in words)', () => {
     expect(note({ shippingCompanyId: 2, count: 3 })).toEqual({
       text: '3 stock payments belong to shipping company Hangerworld Ltd, which no JFlow company is linked to.',
       fix: { to: '/settings?tab=companies', label: 'Link it in Settings' },
+      choose: false,
     });
     expect(note({ shippingCompanyId: 9 }).text).toBe('1 stock payment belongs to shipping company #9, which no JFlow company is linked to.');
   });
 
-  it('no company in shipping: nothing to fix in JFlow', () => {
-    expect(note({ count: 2 })).toEqual({ text: '2 stock payments have no company in shipping.', fix: null });
+  it('no company in shipping: chosen in JFlow (2026-10-15), no Settings link', () => {
+    expect(note({ count: 2 })).toEqual({ text: '2 stock payments have no company in shipping.', fix: null, choose: true });
     expect(note({}).text).toBe('1 stock payment has no company in shipping.');
   });
 
@@ -195,6 +196,7 @@ describe('unmappedNote (SHIP_UNMAPPED in words)', () => {
         '5 stock payments (USD, EUR) for JFA have no account to land on: add an account in that currency, or mark one of ' +
         "JFA's accounts as default.",
       fix: { to: '/settings?tab=accounts', label: 'Open Settings → Accounts' },
+      choose: false,
     });
     expect(note({ shippingCompanyId: 1, reason: 'account', companyId: 12, currencies: ['CNY'] }).text).toBe(
       "1 stock payment (CNY) for company #12 has no account to land on: add an account in that currency, or mark one of company #12's accounts as default.",

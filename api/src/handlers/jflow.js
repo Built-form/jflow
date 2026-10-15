@@ -177,6 +177,8 @@ const ERROR_CODES = [
     'SPLIT_AMOUNTS_MISMATCH', 'SCENARIO_NOT_APPLIED', 'SCENARIO_UNAPPLY_BLOCKED',
     // Phase 2: the shipping feed (§6.2, §6.12).
     'SHIPPING_COMPANY_TAKEN', 'PLANNED_DATE_IN_PAST', 'SHIPPING_UNAVAILABLE',
+    // A company chosen in JFlow (2026-10-15, §10.11a).
+    'SHIP_COMPANY_IN_SHIPPING',
 ];
 // 200-body warnings (warnings[], scenario.warnings[], orphans[]) — never a refusal,
 // except SHIPPING_UNAVAILABLE, which is both (503 on POST /external/refresh, a warning

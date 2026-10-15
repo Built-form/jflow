@@ -543,6 +543,10 @@ function externalItemToJson(r, extras = {}) {
         sourceScenarioId: id(r.source_scenario_id),
         plannedBy: r.planned_by,
         plannedAt: r.planned_at,
+        // A company chosen in JFlow (§10.11a), used only while shippingCompanyId is null.
+        assignedCompanyId: id(r.assigned_company_id),
+        companySetBy: r.company_set_by ?? null,
+        companySetAt: r.company_set_at ?? null,
     };
     const ev = shipEffectiveValues(out);
     out.effectiveDate = ev.effectiveDate;

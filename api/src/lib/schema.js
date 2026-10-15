@@ -41,7 +41,9 @@ const { splitStatements } = require('./sql');
 // "Freight and forwarders" system category — the re-pin to ShipLine 77577a1).
 // 2026-10-07.5: 2026-10-07_jflow_scenario_adds.sql (scenario_adjustments: the `add`
 // columns, split_group, applied_state, nullable bases — CONTRACT §3.6, D39–D41).
-const SCHEMA_VERSION = '2026-10-07.5';
+// 2026-10-15.6: 2026-10-15_jflow_ship_company.sql (external_items.assigned_company_id,
+// company_set_by, company_set_at — a company chosen in JFlow, CONTRACT §10.11a).
+const SCHEMA_VERSION = '2026-10-15.6';
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'db', 'migrations');
 

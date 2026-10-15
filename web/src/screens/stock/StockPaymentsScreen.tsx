@@ -126,6 +126,10 @@ export function StockPaymentsScreen() {
                   ...flagTags(target.flags).map((t) => ({ id: t.flag, label: t.label, tone: t.tone })),
                   ...(row.planStale ? [{ id: PLAN_STALE_TAG.flag, label: PLAN_STALE_TAG.label, tone: PLAN_STALE_TAG.tone }] : []),
                   ...(row.sourceScenarioId != null ? [{ id: 'fromScenario', label: 'FROM SCENARIO', tone: 'idle' as const }] : []),
+                  // Shipping gives no company; the one it sits under was chosen in JFlow (§10.11a).
+                  ...(row.shippingCompanyId == null && row.assignedCompanyId != null
+                    ? [{ id: 'companyInJflow', label: 'COMPANY SET IN JFLOW', tone: 'idle' as const }]
+                    : []),
                   ...notInForecastTags(row),
                 ];
                 const open = row.feedStatus === 'open' && !row.goneAt;

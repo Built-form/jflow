@@ -9,6 +9,7 @@ import { useSubmit } from '../../app/useSubmit';
 import { ErrorNote } from '../../components/ui';
 import { lastSyncText, shippingReasonText, shippingStatusParts, unmappedNote } from '../../lib/ship';
 import type { ShipWarnings } from '../../lib/ship';
+import { ChooseCompanyDialog } from './ShipCompanyDialog';
 
 /**
  * The shipping feed on the Forecast (Phase 2): a one-line status from the `shipping`
@@ -129,7 +130,8 @@ export function ShippingUnavailableBanner({ warning }: { warning: ShipWarnings['
 /**
  * `SHIP_UNMAPPED`, `SHIP_PLAN_STALE` and `SHIP_PLAN_ORPHANED`, in words. Unmapped rows say
  * why — no JFlow company linked (→ Settings, Companies) or no account to land on (→ Settings,
- * Accounts); POs with no company are fixed in shipping. A stale plan is also
+ * Accounts); payments with no company in shipping get one chosen here, per payment, in JFlow
+ * (§10.11a, 2026-10-15). A stale plan is also
  * marked on its line; an orphaned one has no line (shipping no longer lists the row), so it
  * is listed here with a way to clear it.
  */
@@ -164,7 +166,7 @@ export function ShipNotes({
         lineHeight: 1.55,
       }}
     >
-      {unmapped.length > 0 && <UnmappedNote unmapped={unmapped} companyName={companyName} />}
+      {unmapped.length > 0 && <UnmappedNote unmapped={unmapped} companyName={companyName} onChanged={onChanged} />}
       {stale.map((key) => (
         <div key={`stale-${key}`} data-testid={`ship-stale-${key}`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline' }}>
           <span className="mono" style={{ fontSize: 11, letterSpacing: '.06em', color: 'var(--warn)' }}>
@@ -183,7 +185,17 @@ export function ShipNotes({
   );
 }
 
-function UnmappedNote({ unmapped, companyName }: { unmapped: ShipWarnings['unmapped']; companyName: (id: number) => string }) {
+function UnmappedNote({
+  unmapped,
+  companyName,
+  onChanged,
+}: {
+  unmapped: ShipWarnings['unmapped'];
+  companyName: (id: number) => string;
+  /** After a company is chosen: re-read the forecast. */
+  onChanged: () => void;
+}) {
+  const [choosing, setChoosing] = useState(false);
   // Names for the shipping companies, read only when something is unmapped. A failed read
   // costs nothing but the name: the id is shown instead.
   const status = useQuery(() => external.status(), []);
@@ -211,9 +223,15 @@ function UnmappedNote({ unmapped, companyName }: { unmapped: ShipWarnings['unmap
                 </>
               )}
             </span>
+            {note.choose && (
+              <button type="button" className="btn-quiet" style={{ color: 'var(--acc)' }} onClick={() => setChoosing(true)}>
+                Choose the company
+              </button>
+            )}
           </div>
         );
       })}
+      {choosing && <ChooseCompanyDialog onClose={() => setChoosing(false)} onChanged={onChanged} />}
     </>
   );
 }

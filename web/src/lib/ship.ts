@@ -288,14 +288,15 @@ export interface UnmappedFix {
 }
 
 /**
- * A `SHIP_UNMAPPED` in words, and the Settings tab that fixes it (none for POs with no
- * company: that is fixed in shipping). `shippingName` names a shipping company,
+ * A `SHIP_UNMAPPED` in words, and the Settings tab that fixes it. Payments with no company
+ * in shipping have no Settings fix: `choose` says the company can be chosen per payment in
+ * JFlow instead (§10.11a, 2026-10-15). `shippingName` names a shipping company,
  * `companyName` a JFlow company.
  */
 export function unmappedNote(
   u: UnmappedShip,
   names: { shippingName: (id: number) => string; companyName: (id: number) => string },
-): { text: string; fix: UnmappedFix | null } {
+): { text: string; fix: UnmappedFix | null; choose: boolean } {
   const payments = stockPayments(u.count);
   const one = u.count === 1;
   if (u.reason === 'account' && u.companyId !== null) {
@@ -306,13 +307,15 @@ export function unmappedNote(
         `${payments}${currencies} for ${company} ${one ? 'has' : 'have'} no account to land on: add an account in that ` +
         `currency, or mark one of ${company}'s accounts as default.`,
       fix: { to: '/settings?tab=accounts', label: 'Open Settings → Accounts' },
+      choose: false,
     };
   }
   if (u.shippingCompanyId === null) {
-    return { text: `${payments} ${one ? 'has' : 'have'} no company in shipping.`, fix: null };
+    return { text: `${payments} ${one ? 'has' : 'have'} no company in shipping.`, fix: null, choose: true };
   }
   return {
     text: `${payments} ${one ? 'belongs' : 'belong'} to shipping company ${names.shippingName(u.shippingCompanyId)}, which no JFlow company is linked to.`,
     fix: { to: '/settings?tab=companies', label: 'Link it in Settings' },
+    choose: false,
   };
 }

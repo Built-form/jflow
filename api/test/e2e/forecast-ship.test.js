@@ -331,6 +331,7 @@ describe('ship lines in /forecast (step 20)', () => {
             'settles', 'dateBasis', 'amountBasis', 'blocked', 'flags', 'dueSet', 'dueDatePrev', 'dueDateMovedAt', 'goneAt',
             'plannedDate', 'plannedAmount',
             'plannedSkipped', 'plannedBaseAmount', 'plannedNote', 'sourceScenarioId', 'plannedBy', 'plannedAt',
+            'assignedCompanyId', 'companySetBy', 'companySetAt',
             'effectiveDate', 'effectiveAmount', 'planStale', 'derivedStatus', 'dateMoved', 'rowVersion', 'createdBy', 'createdAt',
             'updatedAt',
         ]);

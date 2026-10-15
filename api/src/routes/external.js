@@ -13,6 +13,8 @@
 //
 //   GET  /external-items     (step 20) the snapshot's rows with their resolved company /
 //                            account and derivedStatus (services/externalItems.js).
+//                            `noCompany=1` (2026-10-15) keeps only the rows shipping gives
+//                            no company and JFlow has no live company chosen for.
 //
 //   PUT    /external-items/:key   (step 21, §10.11) the overlay, a MERGE like an instance
 //                                 tune: absent = unchanged, null clears plannedDate /
@@ -29,6 +31,12 @@
 //                                 404 when nothing is set. Answers 200 with the row JSON, as
 //                                 PUT does — CONTRACT §6.12 says 204; the web's plan dialog
 //                                 replaces its row from the response (coordinator, step 21).
+//   PUT    /external-items/:key/company   (Dev, 2026-10-15; §10.11a) choose the JFlow company
+//                                 of a row shipping gives none: {companyId: id | null,
+//                                 baseVersion?}; null clears. Shipping's company always wins:
+//                                 setting one on a row that has it is 409
+//                                 SHIP_COMPANY_IN_SHIPPING. A gone row is 404 TARGET_MISSING.
+//                                 Audit `external_item`/`assign_company`; answers the row JSON.
 //   GET    /external-items/:key   one row's JSON with derivedStatus, gone or not — the plan
 //                                 dialog reads it on open for rowVersion (its baseVersion) and
 //                                 the note. Not in CONTRACT §6.12 (added at the web's request).
@@ -51,7 +59,7 @@ const {
 const shipping = require('../services/shipping');
 const { runRefresh, readStatus } = require('../services/shippingRefresh');
 const {
-    listExternalItems, externalItemJson, lockExternalItem, hasOverlay, auditOverlay,
+    listExternalItems, externalItemJson, lockExternalItem, hasOverlay, auditOverlay, assignCompany,
 } = require('../services/externalItems');
 
 const FEED_STATUSES = ['open', 'paid'];
@@ -160,6 +168,7 @@ module.exports = ({ schemaReady, fail, serverError, todayFor }) => {
                 return listExternalItems(conn, {
                     today, statuses, companyId, from: query.from, to: query.to,
                     includeGone: query.includeGone === '1' || query.includeGone === 'true',
+                    noCompany: query.noCompany === '1' || query.noCompany === 'true',
                     q: query.q ? String(query.q) : null, limit, offset,
                 });
             });
@@ -264,6 +273,29 @@ module.exports = ({ schemaReady, fail, serverError, todayFor }) => {
         } catch (err) {
             if (isApiError(err)) return sendApiError(res, err);
             serverError(res, 'external-items-plan', err);
+        }
+    });
+
+    // §10.11a (Dev, 2026-10-15): the JFlow company of a row shipping gives none.
+    router.put('/external-items/:key/company', async (req, res) => {
+        try {
+            await schemaReady;
+            const { extId } = shipKeyOf(req);
+            const body = req.body || {};
+            if (body.companyId === undefined) return fail(res, 400, 'Send companyId: a company id, or null to clear it.');
+            const companyId = typeof body.companyId === 'number' ? parseId(body.companyId) : null;
+            if (body.companyId !== null && !companyId) return fail(res, 400, 'companyId must be a company id, or null to clear it.');
+            const baseVersion = parseBaseVersion(body);
+            if (Number.isNaN(baseVersion)) return fail(res, 400, 'baseVersion must be a non-negative integer.');
+            const today = todayFor(req);
+            const out = await withTransaction(async (conn) => {
+                await assignCompany(conn, { extId, companyId, baseVersion, userEmail: req.userEmail });
+                return externalItemJson(conn, extId, today);
+            });
+            res.json(out);
+        } catch (err) {
+            if (isApiError(err)) return sendApiError(res, err);
+            serverError(res, 'external-items-company', err);
         }
     });
 

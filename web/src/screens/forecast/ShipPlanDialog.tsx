@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { api } from '../../api';
 import type { ExternalItem } from '../../api/external';
 import { external } from '../../api/external';
 import { useQuery } from '../../app/useQuery';
@@ -11,6 +12,7 @@ import { flagTags, shortDay } from '../../lib/grid';
 import { formatMinor, formatMoney } from '../../lib/money';
 import { PLAN_STALE_TAG, dueSetClause, shipFlagNotes } from '../../lib/ship';
 import { QUICK_SHIFTS, shiftedDate } from './edit';
+import { CompanyChoice } from './ShipCompanyDialog';
 import type { PlanAction, PlanForm } from './shipPlan';
 import {
   NOTE_MAX,
@@ -209,6 +211,10 @@ function PlanFormDialog({
         </div>
       </DialogBody>
 
+      {!target.gone && (row.shippingCompanyId === null || row.assignedCompanyId !== null) && (
+        <ShipCompanySection row={row} onSaved={onSaved} />
+      )}
+
       {editable && (
         <Toggle
           on={form.skipped}
@@ -348,5 +354,53 @@ function PlanFormDialog({
         </div>
       )}
     </Dialog>
+  );
+}
+
+/**
+ * The company of a stock payment shipping gives none, chosen in JFlow (§10.11a). Its own
+ * write, apart from the plan: it answers the row, and the screen re-reads as after a plan.
+ * When shipping has since given the payment a company, the old choice is ignored and can
+ * only be cleared.
+ */
+function ShipCompanySection({ row, onSaved }: { row: ExternalItem; onSaved: (row: ExternalItem | null) => void }) {
+  const companies = useQuery(() => api.companies.list(), []);
+  const clear = useSubmit();
+  const live = companies.data?.data ?? [];
+  const chosenName = live.find((c) => c.id === row.assignedCompanyId)?.name ?? `Company ${row.assignedCompanyId}`;
+
+  if (row.shippingCompanyId !== null) {
+    return (
+      <FormField label="COMPANY">
+        <div style={{ fontSize: 13, color: 'var(--mut)' }} data-testid="ship-company-overtaken">
+          Shipping gives this payment a company now, so the one chosen in JFlow ({chosenName}) is ignored.
+        </div>
+        <div>
+          <button
+            type="button"
+            className="btn"
+            disabled={clear.busy}
+            onClick={() => void clear.run(async () => onSaved(await external.assignCompany(row.key, null, row.rowVersion)))}
+          >
+            {clear.busy ? 'Clearing…' : 'Clear the JFlow choice'}
+          </button>
+        </div>
+        {clear.error && <ErrorNote error={clear.error} />}
+      </FormField>
+    );
+  }
+  return (
+    <FormField
+      label="COMPANY"
+      note="Shipping gives this payment no company. JFlow puts it under the one you choose; shipping is not changed."
+    >
+      {companies.error ? (
+        <ErrorNote error={companies.error} onRetry={companies.reload} />
+      ) : !companies.data ? (
+        <Loading what="Companies" />
+      ) : (
+        <CompanyChoice row={row} companies={live} onSaved={onSaved} />
+      )}
+    </FormField>
   );
 }

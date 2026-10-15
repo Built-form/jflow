@@ -414,7 +414,8 @@ Consequences:
   an applied `ship.` adjustment, since nothing writes back to shipping. `planned_amount` holds
   only while the feed amount is unchanged (P6). The account is resolved at read time,
   currency-matched then the company default (P5); POs with no company stay unmapped and are
-  counted (`SHIP_UNMAPPED`). Ship lines are always `manual` (P9) and use the 45-day cut-off
+  counted (`SHIP_UNMAPPED`), until a company is chosen for the payment in JFlow (Dev,
+  2026-10-15: per line, only while shipping has none; shipping's data is never changed). Ship lines are always `manual` (P9) and use the 45-day cut-off
   like everything else; a ship currency with no rate is the same `FX_RATE_MISSING`. The
   "Stock payments" category is a system row (P10). `external_items` joins the lock order after
   `cash_items` (P11).

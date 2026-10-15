@@ -1263,3 +1263,46 @@ its first ~147 lines before the real heading (a past edit pasted the head twice;
 copy stops mid-sentence in §2.1). The permission classifier refused the rewrite that would
 drop it; Dev can delete everything before the second `# JFlow — API and engine contract`
 line. The genuine copy is complete and is the one edited today.
+
+## Phase 2 — Choose the company of a stock payment shipping gives none (2026-10-15)
+
+Dev: `SHIP_UNMAPPED · 1 stock payment has no company in shipping` — "this keeps happening -
+can we include a way to select it / resolve in jflow". Asked where the choice should live, Dev
+chose **per line, in JFlow, never touching shipping's data — only when it's missing**, picked
+from the Forecast note and the stock payment's dialog. JFlow's access to `jfa` stays read-only.
+
+- **Schema**: migration `2026-10-15_jflow_ship_company.sql` — `external_items.assigned_company_id`,
+  `company_set_by`, `company_set_at` (user-owned, beside the overlay; not feed columns, not
+  hashed, never written by the refresh). `SCHEMA_VERSION 2026-10-15.6`.
+- **Resolution** (`forecastLoad.js shipResolvedSelect`, CONTRACT §3.4): a row's company is
+  shipping's mapped company as before; only when `shipping_company_id` is NULL is it the live
+  `assigned_company_id`. Shipping's company always wins — a choice on a row the feed later
+  gives a company is kept but ignored (and can be cleared). The account follows by P5 as for
+  any company, so a chosen company with no account in that currency and no default reads
+  `SHIP_UNMAPPED {shippingCompanyId: null, reason: 'account', companyId, currencies}`.
+- **API** (CONTRACT §6.12, §7, §10.11a, §2.8): `PUT /external-items/:key/company
+  {companyId | null, baseVersion?}` (`services/externalItems.js assignCompany`): row lock,
+  404 / `TARGET_MISSING` (gone) / `STALE_WRITE`, new 409 `SHIP_COMPANY_IN_SHIPPING {key,
+  shippingCompanyId}` when setting one on a row shipping gives a company, 400 a dead company;
+  open and paid rows alike; same value writes nothing; audit `external_item`/`assign_company`.
+  `GET /external-items?noCompany=1` lists the rows still needing one. Row JSON gains
+  `assignedCompanyId`, `companySetBy`, `companySetAt`.
+- **Web**: the Forecast's `SHIP_UNMAPPED` "no company in shipping" note has **Choose the
+  company** → a dialog listing those payments, each with a company picker (`ShipCompanyDialog.tsx`);
+  closing after a change re-reads the forecast. The stock payment dialog (`ShipPlanDialog`)
+  has a COMPANY field when shipping gives none, or "shipping gives a company now … Clear the
+  JFlow choice" when overtaken. Stock payments tags such rows `COMPANY SET IN JFLOW`.
+- Tests written first: `test/unit/shipCompany.test.js` (5), `shipUnmapped.test.js` (+1);
+  web `ship.test.ts`, `ShipForecast.test.tsx` (+1), `stock.test.tsx` (+2); row-key lists in
+  `shape.test.js`, `ship-overlay.test.js`, `forecast-ship.test.js`.
+
+**Checks**: api `npm run lint` clean; unit 27 suites / 1132 under TZ=UTC and Europe/London.
+Web `tsc --noEmit` clean; vitest 30 files / 425; `vite build` green. **Not run**: the e2e suites
+(no database reachable from this machine) — new `test/e2e/ship-company.test.js` (written, not
+run) and the updated key lists. **Not deployed**: until Dev runs `bash deploy.sh test` (it
+migrates first) the deployed API has no `/company` route and ignores `noCompany`, so the
+dialog would list every row and the save would 404.
+
+**Deferred**: a per-PO choice (one pick for every line of a PO, and for freight in its box) —
+Dev chose per line; a "company" action on Stock payments for a **paid** row with no company
+(open rows have it in their dialog; paid ones are reached through the Forecast note's dialog).

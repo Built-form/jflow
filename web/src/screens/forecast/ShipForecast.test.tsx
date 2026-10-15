@@ -43,6 +43,10 @@ interface Answers {
   row?: (key: string, n: number) => ExternalItem | ApiError;
   /** `GET /companies`; empty by default. */
   companies?: unknown[];
+  /** `GET /external-items` (the list); empty by default. */
+  list?: () => ExternalItem[];
+  /** `PUT /external-items/:key/company`. */
+  company?: (key: string, body: unknown) => unknown;
 }
 
 const ROWS: Record<string, ExternalItem> = { 'ship.dep-812': depositRow(), 'ship.bal-812-s311': externalRow() };
@@ -57,6 +61,11 @@ function stubApi(answers: Answers) {
     if (method === 'GET' && path.startsWith('/accounts')) return reply(list([]));
     if (method === 'GET' && path === '/external/status') return reply(STATUS);
     if (method === 'POST' && path === '/external/refresh') return reply(answers.refresh ? answers.refresh() : { ran: true, status: STATUS });
+    if (method === 'GET' && (path === '/external-items' || path.startsWith('/external-items?'))) return reply(list(answers.list ? answers.list() : []));
+    if (method === 'PUT' && path.endsWith('/company') && path.startsWith('/external-items/')) {
+      const key = path.slice('/external-items/'.length, -'/company'.length);
+      return reply(answers.company ? answers.company(key, body) : depositRow());
+    }
     if (method === 'GET' && path.startsWith('/external-items/')) {
       const key = path.slice('/external-items/'.length);
       const n = calls.filter((c) => c.method === 'GET' && c.path === path).length;
@@ -171,8 +180,10 @@ describe('ship lines in the grid', () => {
     await expandGrid();
     const [noCompany, noAccount, notLinked] = await screen.findAllByTestId('ship-unmapped');
 
-    expect(noCompany.textContent).toBe('SHIP_UNMAPPED1 stock payment has no company in shipping.');
+    expect(noCompany.textContent).toBe('SHIP_UNMAPPED1 stock payment has no company in shipping.Choose the company');
     expect(within(noCompany).queryByRole('link')).toBeNull();
+    expect(within(noAccount).queryByRole('button', { name: 'Choose the company' })).toBeNull();
+    expect(within(notLinked).queryByRole('button', { name: 'Choose the company' })).toBeNull();
 
     await waitFor(() =>
       expect(noAccount.textContent).toContain(
@@ -187,6 +198,38 @@ describe('ship lines in the grid', () => {
     expect(within(notLinked).getByRole('link', { name: 'Link it in Settings' }).getAttribute('href')).toBe('/settings?tab=companies');
     // Other warnings still show in the general list.
     expect(screen.getByTestId('forecast-warnings').textContent).toContain('NO_ANCHOR');
+  });
+
+  it('chooses a company for payments with none in shipping, then re-reads the forecast (§10.11a)', async () => {
+    const stamp = '2026-09-29T12:00:00Z';
+    const jfa = { id: 5, code: 'JFA', name: 'JFA', sortOrder: 1, shippingCompanyId: 11, rowVersion: 1, createdBy: null, createdAt: stamp, updatedAt: stamp, deletedAt: null };
+    const orphan = externalRow({
+      key: 'ship.ext-25', id: 50, extId: 'ext-25', feedKind: 'extra', label: 'Freight', supplier: 'DCG', poId: null, poNumber: null,
+      shippingCompanyId: null, companyId: null, accountId: null, derivedStatus: null, amount: '640.00', effectiveAmount: '640.00',
+    });
+    const calls = stubApi({
+      companies: [jfa],
+      forecast: () => forecastFixture({ shipping: SHIPPING, warnings: [{ code: 'SHIP_UNMAPPED', shippingCompanyId: null, count: 1, reason: 'company' }] }),
+      list: () => [orphan],
+      company: () => ({ ...orphan, assignedCompanyId: 5, companyId: 5, accountId: 1, derivedStatus: 'expected', rowVersion: 5 }),
+    });
+    renderForecast();
+    await expandGrid();
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose the company' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Choose the company' });
+    const row = await within(dialog).findByTestId('choose-company-ship.ext-25');
+    expect(row.textContent).toContain('DCG · Freight');
+    expect(calls.find((c) => c.method === 'GET' && c.path.startsWith('/external-items?'))?.path).toContain('noCompany=1');
+
+    fireEvent.change(within(row).getByLabelText('Company for DCG · Freight'), { target: { value: '5' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Use this company' }));
+    await waitFor(() => expect(within(row).getByTestId('choose-company-saved').textContent).toBe('Now under JFA.'));
+    expect(calls.find((c) => c.method === 'PUT')).toEqual({ method: 'PUT', path: '/external-items/ship.ext-25/company', body: { companyId: 5, baseVersion: 4 } });
+
+    const reads = calls.filter((c) => c.method === 'GET' && c.path.startsWith('/forecast')).length;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(calls.filter((c) => c.method === 'GET' && c.path.startsWith('/forecast')).length).toBe(reads + 1));
   });
 
   it('sends an unresolved stock payment to the Stock payments screen', async () => {
