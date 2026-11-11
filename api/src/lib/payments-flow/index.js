@@ -1,12 +1,13 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 77577a1 — changes: the model is one transpiled file, ./model.js (today required; dateOfInstant pinned to Europe/London; buildPaymentsFlow(input, {claims: true}) also returns balanceClaims — without the option the output is the TS's); the modules by concern re-export it; new, not in the TS: ids.js (feed ids) and forecast.js (feed rows)
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 362714c — changes: the model is one transpiled file, ./model.js (built by tools/payments-flow-port.mjs) (today required; dateOfInstant pinned to Europe/London; buildPaymentsFlow(input, {claims: true}) also returns balanceClaims — without the option the output is the TS's); the modules by concern re-export it; new, not in the TS: ids.js (feed ids) and forecast.js (feed rows)
 'use strict';
 
 // Payments-flow model — "what money leaves the account, to whom, when" for
 // stock purchase orders. A CommonJS port of ShipLine's
-// src/components/payments/paymentsFlowMath.ts at commit 77577a1 (2026-10-06;
+// src/components/payments/paymentsFlowMath.ts at commit 362714c (2026-11-03;
 // JFlow PHASE2 P1 as amended: the math is ported into this API,
 // api/src/lib/payments-flow/, and re-synced with the oracle when ShipLine's
-// math changes — re-pinned from f9499bc on 2026-10-06). Pure: no database, no
+// math changes — re-pinned from f9499bc to 77577a1 on 2026-10-06, to 362714c on
+// 2026-11-11). Pure: no database, no
 // network, no clock.
 //
 // Identical to the TS (proved by api/test/unit/payments-flow-golden.test.js

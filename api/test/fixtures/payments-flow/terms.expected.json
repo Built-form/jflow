@@ -1,18 +1,18 @@
 {
  "source": {
-  "commit": "77577a1",
+  "commit": "362714c",
   "files": {
    "src/components/payments/paymentsFlowMath.ts": {
-    "lines": 4118,
-    "sha256": "120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07"
+    "lines": 4696,
+    "sha256": "300e18f8b217a29eb53bb88c8fac15127c2f80c68ec7f5ccc5a31f55a91224bf"
    },
    "src/components/shared/containerHelpers.ts": {
     "lines": 340,
     "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
    },
    "src/components/payments/paymentReviews.ts": {
-    "lines": 196,
-    "sha256": "c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5"
+    "lines": 213,
+    "sha256": "7bca087364c88bde1ff2d16b9dbd4c09071d24d51d21ab84fb0a8674b0380f2d"
    }
   }
  },
@@ -784,6 +784,86 @@
     ]
    },
    "30% deposit · 70% against B/L"
+  ],
+  [
+   "No deposit, 100% 30 days after despatch",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "No deposit, 100% 30 days after despatch",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% 30 d after B/L"
+  ],
+  [
+   "Balance 100% within 7 days after goods despatched",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 7,
+    "source": "none",
+    "raw": "Balance 100% within 7 days after goods despatched",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% 7 d after B/L"
+  ],
+  [
+   "Net 30 days",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 30,
+    "source": "none",
+    "raw": "Net 30 days",
+    "confidence": "partial",
+    "notes": [
+     "net_anchor_assumed"
+    ]
+   },
+   "100% 30 d after B/L"
+  ],
+  [
+   "Deposit is NOT required. Balance against copy BL. Validity: within 30 days after quotation date",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "Deposit is NOT required. Balance against copy BL. Validity: within 30 days after quotation date",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% against B/L"
+  ],
+  [
+   "30% deposit, 70% against the copy BL lead time: 45 days after receiving the payment",
+   {
+    "depositPct": 30,
+    "balanceTrigger": "bl",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "30% deposit, 70% against the copy BL lead time: 45 days after receiving the payment",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "30% deposit · 70% against B/L"
+  ],
+  [
+   "Without deposit, balance before shipment",
+   {
+    "depositPct": 0,
+    "balanceTrigger": "before_dispatch",
+    "balanceOffsetDays": 0,
+    "source": "none",
+    "raw": "Without deposit, balance before shipment",
+    "confidence": "parsed",
+    "notes": []
+   },
+   "100% before dispatch"
   ]
  ],
  "resolve": [

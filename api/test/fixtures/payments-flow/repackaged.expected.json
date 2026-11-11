@@ -1,0 +1,561 @@
+{
+ "fixture": "repackaged",
+ "source": {
+  "commit": "362714c",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 4696,
+    "sha256": "300e18f8b217a29eb53bb88c8fac15127c2f80c68ec7f5ccc5a31f55a91224bf"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 213,
+    "sha256": "7bca087364c88bde1ff2d16b9dbd4c09071d24d51d21ab84fb0a8674b0380f2d"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-11-11",
+ "output": {
+  "today": "2026-11-11",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 1180,
+     "due7": 0,
+     "due30": 2100,
+     "unscheduled": 0,
+     "outstanding": 3280,
+     "later": 0,
+     "notPayable": 2100,
+     "overdueCount": 1,
+     "itemCount": 2,
+     "qc": 0,
+     "qcCount": 0,
+     "qcOverdue": 0,
+     "qcOverdueCount": 0,
+     "credit": 0
+    },
+    "items": [
+     {
+      "id": "derived:bal:3100:none@repackaged",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 3100,
+      "poNumber": "PO_00310R",
+      "supplier": "Ningbo Pack Co., Ltd",
+      "currency": "USD",
+      "amount": 1180,
+      "dueDate": "2026-11-07",
+      "contractualDate": "2026-11-04",
+      "trigger": "before_dispatch",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "repackaged",
+       "grace_applied",
+       "partly_paid"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "owedInFull": 1680,
+      "repackagedLines": [
+       {
+        "orderId": "310001",
+        "jfCode": "JF3001",
+        "value": 2000,
+        "applied": 500
+       },
+       {
+        "orderId": "310003",
+        "jfCode": "B0REPACK03",
+        "value": 400,
+        "applied": 0
+       }
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Combined / repackaged goods",
+        "value": 2400,
+        "result": 2400,
+        "source": "JF3001 400 × 5 · B0REPACK03 100 × 4"
+       },
+       {
+        "op": "×",
+        "label": "Balance 70%",
+        "value": 0.7,
+        "result": 1680,
+        "source": "the PI's terms “30% deposit, 70% before shipment”"
+       },
+       {
+        "op": "−",
+        "label": "Already paid on the repackaged goods",
+        "value": 500,
+        "result": 1180,
+        "source": "'repackaged' transfer lines"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:3100:none@none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 3100,
+      "poNumber": "PO_00310R",
+      "supplier": "Ningbo Pack Co., Ltd",
+      "currency": "USD",
+      "amount": 2100,
+      "dueDate": "2026-12-04",
+      "contractualDate": "2026-12-01",
+      "trigger": "before_dispatch",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "policy_applied",
+       "no_container",
+       "estimated",
+       "grace_applied"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Goods not yet in a container",
+        "value": 5400,
+        "result": 5400,
+        "source": "3 lines"
+       },
+       {
+        "op": "×",
+        "label": "Balance 70%",
+        "value": 0.7,
+        "result": 3780,
+        "source": "the PI's terms “30% deposit, 70% before shipment”"
+       },
+       {
+        "op": "×",
+        "label": "In no container",
+        "value": 0.5555555555555556,
+        "result": 2100,
+        "source": "its part of the goods not yet booked, by value"
+       }
+      ]
+     }
+    ],
+    "qcItems": [],
+    "qcClosed": [],
+    "pos": [
+     {
+      "poId": 3100,
+      "poNumber": "PO_00310R",
+      "supplier": "Ningbo Pack Co., Ltd",
+      "supplierRaw": "Ningbo Pack Co., Ltd",
+      "currency": "USD",
+      "poTotal": 5400,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9801,
+      "linesValue": 5400,
+      "shippingTotal": 0,
+      "lineCount": 3,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 2120,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 3780,
+      "derivedDeposit": 0,
+      "derivedBalance": 3280,
+      "outstanding": 3280,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "invoice",
+       "raw": "30% deposit, 70% before shipment",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": 0,
+       "balanceGraceDays": 3,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": {
+        "id": 1,
+        "scope": "default",
+        "supplierName": null,
+        "supplierLabel": null,
+        "depositPct": null,
+        "depositTrigger": null,
+        "depositGraceDays": 0,
+        "balanceTrigger": "terms",
+        "balanceDocumentType": null,
+        "balanceOffsetDays": 0,
+        "balanceGraceDays": 3,
+        "depositOffsetDays": null,
+        "estimates": {
+         "artwork": null,
+         "pi": null,
+         "piSigned": null,
+         "ready": null,
+         "telex": null,
+         "document": null,
+         "transit": {
+          "sea": null,
+          "air": null,
+          "road": null
+         }
+        },
+        "airOwedFrom": null,
+        "airLimitDays": null,
+        "notes": null,
+        "updatedByEmail": null,
+        "createdAt": "2026-09-01 10:00:00",
+        "updatedAt": "2026-09-01 10:00:00"
+       },
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 3,
+        "units": 1100,
+        "value": 5400,
+        "dueDate": "2026-12-04",
+        "contractualDate": "2026-12-01",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": "shipment",
+        "flags": [
+         "policy_applied",
+         "no_container",
+         "estimated",
+         "grace_applied"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null,
+        "open": null,
+        "parts": [
+         {
+          "key": "repackaged",
+          "open": null,
+          "fraction": 0.4444444444444444,
+          "dueDate": "2026-11-07",
+          "contractualDate": "2026-11-04",
+          "estimated": false,
+          "blocked": null,
+          "flags": [
+           "repackaged",
+           "grace_applied"
+          ]
+         },
+         {
+          "key": "none",
+          "open": null,
+          "fraction": 0.5555555555555556,
+          "dueDate": "2026-12-04",
+          "contractualDate": "2026-12-01",
+          "estimated": true,
+          "blocked": "shipment",
+          "flags": [
+           "policy_applied",
+           "no_container",
+           "estimated",
+           "grace_applied"
+          ]
+         }
+        ]
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "policy_applied",
+       "invoice_total_used"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:3100:none@repackaged",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 3100,
+        "poNumber": "PO_00310R",
+        "supplier": "Ningbo Pack Co., Ltd",
+        "currency": "USD",
+        "amount": 1180,
+        "dueDate": "2026-11-07",
+        "contractualDate": "2026-11-04",
+        "trigger": "before_dispatch",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "repackaged",
+         "grace_applied",
+         "partly_paid"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "owedInFull": 1680,
+        "repackagedLines": [
+         {
+          "orderId": "310001",
+          "jfCode": "JF3001",
+          "value": 2000,
+          "applied": 500
+         },
+         {
+          "orderId": "310003",
+          "jfCode": "B0REPACK03",
+          "value": 400,
+          "applied": 0
+         }
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Combined / repackaged goods",
+          "value": 2400,
+          "result": 2400,
+          "source": "JF3001 400 × 5 · B0REPACK03 100 × 4"
+         },
+         {
+          "op": "×",
+          "label": "Balance 70%",
+          "value": 0.7,
+          "result": 1680,
+          "source": "the PI's terms “30% deposit, 70% before shipment”"
+         },
+         {
+          "op": "−",
+          "label": "Already paid on the repackaged goods",
+          "value": 500,
+          "result": 1180,
+          "source": "'repackaged' transfer lines"
+         }
+        ]
+       },
+       {
+        "id": "derived:bal:3100:none@none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 3100,
+        "poNumber": "PO_00310R",
+        "supplier": "Ningbo Pack Co., Ltd",
+        "currency": "USD",
+        "amount": 2100,
+        "dueDate": "2026-12-04",
+        "contractualDate": "2026-12-01",
+        "trigger": "before_dispatch",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "policy_applied",
+         "no_container",
+         "estimated",
+         "grace_applied"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Goods not yet in a container",
+          "value": 5400,
+          "result": 5400,
+          "source": "3 lines"
+         },
+         {
+          "op": "×",
+          "label": "Balance 70%",
+          "value": 0.7,
+          "result": 3780,
+          "source": "the PI's terms “30% deposit, 70% before shipment”"
+         },
+         {
+          "op": "×",
+          "label": "In no container",
+          "value": 0.5555555555555556,
+          "result": 2100,
+          "source": "its part of the goods not yet booked, by value"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Ningbo Pack Co., Ltd",
+      "currency": "USD",
+      "outstanding": 3280,
+      "overdue": 1180,
+      "due30": 2100,
+      "unscheduled": 0,
+      "paid": 2120,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 2,
+      "nextDue": "2026-11-07",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "before_dispatch",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% deposit, 70% before shipment",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% deposit, 70% before shipment",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": null,
+      "currency": "USD",
+      "amount": 1180,
+      "dueDate": "2026-11-07",
+      "etd": null,
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": false,
+      "poNumbers": [
+       "PO_00310R"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Ningbo Pack Co., Ltd",
+        "amount": 1180,
+        "dueDate": "2026-11-07",
+        "poNumbers": [
+         "PO_00310R"
+        ],
+        "items": [
+         {
+          "id": "derived:bal:3100:none@repackaged",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 3100,
+          "poNumber": "PO_00310R",
+          "supplier": "Ningbo Pack Co., Ltd",
+          "currency": "USD",
+          "amount": 1180,
+          "dueDate": "2026-11-07",
+          "contractualDate": "2026-11-04",
+          "trigger": "before_dispatch",
+          "containerNumber": null,
+          "containerShare": 1,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "repackaged",
+           "grace_applied",
+           "partly_paid"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "owedInFull": 1680,
+          "repackagedLines": [
+           {
+            "orderId": "310001",
+            "jfCode": "JF3001",
+            "value": 2000,
+            "applied": 500
+           },
+           {
+            "orderId": "310003",
+            "jfCode": "B0REPACK03",
+            "value": 400,
+            "applied": 0
+           }
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Combined / repackaged goods",
+            "value": 2400,
+            "result": 2400,
+            "source": "JF3001 400 × 5 · B0REPACK03 100 × 4"
+           },
+           {
+            "op": "×",
+            "label": "Balance 70%",
+            "value": 0.7,
+            "result": 1680,
+            "source": "the PI's terms “30% deposit, 70% before shipment”"
+           },
+           {
+            "op": "−",
+            "label": "Already paid on the repackaged goods",
+            "value": 500,
+            "result": 1180,
+            "source": "'repackaged' transfer lines"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": [],
+    "credits": []
+   }
+  ],
+  "poCount": 1
+ }
+}

@@ -43,8 +43,8 @@ const shipping = require('./shipping');
 const DEFAULT_SCHEMA = 'jfa';
 const SCHEMA_RE = /^[a-z0-9_]{1,64}$/;
 // The port's source of truth (PLAN.md "Phase 2"): re-synced when ShipLine's math changes.
-// 2026-10-06: re-pinned from f9499bc to 77577a1 (tools/payments-flow-oracle.mjs SOURCE).
-const MODEL = 'ShipLine 77577a1';
+// 2026-10-06: re-pinned from f9499bc to 77577a1; 2026-11-11: to 362714c (tools/payments-flow-source.mjs SOURCE).
+const MODEL = 'ShipLine 362714c';
 const CONNECT_TIMEOUT_MS = 5000;
 // The whole read, connect to close. /forecast runs a due refresh before it answers
 // (P4) inside the Lambda's 29 s, so a stuck read must give up well before that.

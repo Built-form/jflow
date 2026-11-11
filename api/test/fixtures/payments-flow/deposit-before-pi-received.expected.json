@@ -1,0 +1,670 @@
+{
+ "fixture": "deposit-before-pi-received",
+ "source": {
+  "commit": "362714c",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 4696,
+    "sha256": "300e18f8b217a29eb53bb88c8fac15127c2f80c68ec7f5ccc5a31f55a91224bf"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 213,
+    "sha256": "7bca087364c88bde1ff2d16b9dbd4c09071d24d51d21ab84fb0a8674b0380f2d"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-11-11",
+ "output": {
+  "today": "2026-11-11",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 0,
+     "due7": 1200,
+     "due30": 1200,
+     "unscheduled": 2100,
+     "outstanding": 3300,
+     "later": 0,
+     "notPayable": 2100,
+     "overdueCount": 0,
+     "itemCount": 2,
+     "qc": 0,
+     "qcCount": 0,
+     "qcOverdue": 0,
+     "qcOverdueCount": 0,
+     "credit": 0
+    },
+    "items": [
+     {
+      "id": "derived:topup:3300:320",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 3300,
+      "poNumber": "PO_00330V",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "amount": 1200,
+      "dueDate": "2026-11-11",
+      "contractualDate": "2026-11-11",
+      "trigger": "delivery",
+      "containerNumber": "320",
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "top_up",
+       "box_paid"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "The PO’s lines now come to",
+        "value": 6000,
+        "result": 6000,
+        "source": "1 priced line 6,000.00"
+       },
+       {
+        "op": "−",
+        "label": "Paid",
+        "value": 4200,
+        "result": 1800,
+        "source": "PIs marked paid, balances paid, transfers recorded"
+       },
+       {
+        "op": "−",
+        "label": "Counted as paid",
+        "value": 600,
+        "result": 1200,
+        "source": "goods moved or landed, proofs on file"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:3200:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 3200,
+      "poNumber": "PO_00320D",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "amount": 2100,
+      "dueDate": null,
+      "contractualDate": null,
+      "trigger": "delivery",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "policy_applied",
+       "no_container"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Goods not yet in a container",
+        "value": 3000,
+        "result": 3000,
+        "source": "1 line"
+       },
+       {
+        "op": "×",
+        "label": "Balance 70%",
+        "value": 0.7,
+        "result": 2100,
+        "source": "the PI's terms “30% deposit, balance 30 days after delivery”"
+       }
+      ]
+     }
+    ],
+    "qcItems": [],
+    "qcClosed": [],
+    "pos": [
+     {
+      "poId": 3200,
+      "poNumber": "PO_00320D",
+      "supplier": "Foreu Corporation",
+      "supplierRaw": "Foreu Corporation",
+      "currency": "USD",
+      "poTotal": 3000,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9901,
+      "linesValue": 3000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 900,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 2100,
+      "derivedDeposit": 0,
+      "derivedBalance": 2100,
+      "outstanding": 2100,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "delivery",
+       "balanceOffsetDays": 30,
+       "source": "invoice",
+       "raw": "30% deposit, balance 30 days after delivery",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": 0,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": 30,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": "2026-10-01",
+       "airLimitDays": 60,
+       "defaultRule": {
+        "id": 1,
+        "scope": "default",
+        "supplierName": null,
+        "supplierLabel": null,
+        "depositPct": null,
+        "depositTrigger": null,
+        "depositGraceDays": 0,
+        "balanceTrigger": "terms",
+        "balanceDocumentType": null,
+        "balanceOffsetDays": 0,
+        "balanceGraceDays": 0,
+        "depositOffsetDays": null,
+        "estimates": {
+         "artwork": null,
+         "pi": null,
+         "piSigned": null,
+         "ready": null,
+         "telex": null,
+         "document": null,
+         "transit": {
+          "sea": 30,
+          "air": null,
+          "road": null
+         }
+        },
+        "airOwedFrom": "2026-10-01",
+        "airLimitDays": null,
+        "notes": null,
+        "updatedByEmail": null,
+        "createdAt": "2026-09-01 10:00:00",
+        "updatedAt": "2026-10-01 10:00:00"
+       },
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 1000,
+        "value": 3000,
+        "dueDate": null,
+        "contractualDate": null,
+        "landed": false,
+        "departed": false,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "policy_applied",
+         "no_container"
+        ],
+        "etd": null,
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null,
+        "open": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "policy_applied",
+       "invoice_total_used"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:3200:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 3200,
+        "poNumber": "PO_00320D",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "amount": 2100,
+        "dueDate": null,
+        "contractualDate": null,
+        "trigger": "delivery",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "policy_applied",
+         "no_container"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Goods not yet in a container",
+          "value": 3000,
+          "result": 3000,
+          "source": "1 line"
+         },
+         {
+          "op": "×",
+          "label": "Balance 70%",
+          "value": 0.7,
+          "result": 2100,
+          "source": "the PI's terms “30% deposit, balance 30 days after delivery”"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     },
+     {
+      "poId": 3300,
+      "poNumber": "PO_00330V",
+      "supplier": "Foreu Corporation",
+      "supplierRaw": "Foreu Corporation",
+      "currency": "USD",
+      "poTotal": 6000,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 6000,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 4200,
+      "assumedPaid": 600,
+      "shipmentPaid": 4200,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 600,
+      "derivedDeposit": 600,
+      "derivedBalance": 0,
+      "outstanding": 1200,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "delivery",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "30% deposit, balance 30 days after delivery",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": 0,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": 30,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": "2026-10-01",
+       "airLimitDays": 60,
+       "defaultRule": {
+        "id": 1,
+        "scope": "default",
+        "supplierName": null,
+        "supplierLabel": null,
+        "depositPct": null,
+        "depositTrigger": null,
+        "depositGraceDays": 0,
+        "balanceTrigger": "terms",
+        "balanceDocumentType": null,
+        "balanceOffsetDays": 0,
+        "balanceGraceDays": 0,
+        "depositOffsetDays": null,
+        "estimates": {
+         "artwork": null,
+         "pi": null,
+         "piSigned": null,
+         "ready": null,
+         "telex": null,
+         "document": null,
+         "transit": {
+          "sea": 30,
+          "air": null,
+          "road": null
+         }
+        },
+        "airOwedFrom": "2026-10-01",
+        "airLimitDays": null,
+        "notes": null,
+        "updatedByEmail": null,
+        "createdAt": "2026-09-01 10:00:00",
+        "updatedAt": "2026-10-01 10:00:00"
+       },
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "320",
+        "share": 1,
+        "lineCount": 1,
+        "units": 500,
+        "value": 6000,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "landed": true,
+        "departed": true,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "policy_applied",
+         "estimated",
+         "landed_owed"
+        ],
+        "etd": "2026-09-20",
+        "eta": null,
+        "settledBy": "payment",
+        "airOwed": false,
+        "deliveredOn": "2026-10-28",
+        "open": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": "complete",
+      "flags": [
+       "policy_applied",
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:topup:3300:320",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 3300,
+        "poNumber": "PO_00330V",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "amount": 1200,
+        "dueDate": "2026-11-11",
+        "contractualDate": "2026-11-11",
+        "trigger": "delivery",
+        "containerNumber": "320",
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "top_up",
+         "box_paid"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "The PO’s lines now come to",
+          "value": 6000,
+          "result": 6000,
+          "source": "1 priced line 6,000.00"
+         },
+         {
+          "op": "−",
+          "label": "Paid",
+          "value": 4200,
+          "result": 1800,
+          "source": "PIs marked paid, balances paid, transfers recorded"
+         },
+         {
+          "op": "−",
+          "label": "Counted as paid",
+          "value": 600,
+          "result": 1200,
+          "source": "goods moved or landed, proofs on file"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "outstanding": 3300,
+      "overdue": 0,
+      "due30": 1200,
+      "unscheduled": 2100,
+      "paid": 5100,
+      "assumedPaid": 600,
+      "poCount": 2,
+      "itemCount": 2,
+      "nextDue": "2026-11-11",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "delivery",
+       "balanceOffsetDays": 30,
+       "source": "supplier",
+       "raw": "30% deposit, balance 30 days after delivery",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% deposit, balance 30 days after delivery",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "320",
+      "currency": "USD",
+      "amount": 1200,
+      "dueDate": "2026-11-11",
+      "etd": "2026-09-20",
+      "eta": null,
+      "landed": true,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "PO_00330V"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Foreu Corporation",
+        "amount": 1200,
+        "dueDate": "2026-11-11",
+        "poNumbers": [
+         "PO_00330V"
+        ],
+        "items": [
+         {
+          "id": "derived:topup:3300:320",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 3300,
+          "poNumber": "PO_00330V",
+          "supplier": "Foreu Corporation",
+          "currency": "USD",
+          "amount": 1200,
+          "dueDate": "2026-11-11",
+          "contractualDate": "2026-11-11",
+          "trigger": "delivery",
+          "containerNumber": "320",
+          "containerShare": null,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "top_up",
+           "box_paid"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "The PO’s lines now come to",
+            "value": 6000,
+            "result": 6000,
+            "source": "1 priced line 6,000.00"
+           },
+           {
+            "op": "−",
+            "label": "Paid",
+            "value": 4200,
+            "result": 1800,
+            "source": "PIs marked paid, balances paid, transfers recorded"
+           },
+           {
+            "op": "−",
+            "label": "Counted as paid",
+            "value": 600,
+            "result": 1200,
+            "source": "goods moved or landed, proofs on file"
+           }
+          ]
+         }
+        ],
+        "payments": [
+         {
+          "id": 7301,
+          "shipmentId": 520,
+          "shipmentReference": "320",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Foreu Corporation",
+          "supplierKey": "foreu corporation",
+          "kind": "balance",
+          "amount": 3000,
+          "currency": "USD",
+          "invoiceNumber": "FR-320",
+          "invoiceDate": "2026-10-01",
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "paid",
+          "paidOn": "2026-10-02",
+          "source": "manual",
+          "allocations": [
+           {
+            "id": 31,
+            "purchaseOrderId": 3300,
+            "poRef": "PO_00330V",
+            "poNumber": "PO_00330V",
+            "amount": 3000,
+            "source": "manual"
+           }
+          ],
+          "appliedTotal": 0,
+          "remaining": 0,
+          "settledByPaymentId": null
+         },
+         {
+          "id": 7302,
+          "shipmentId": 520,
+          "shipmentReference": "320",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Foreu Corporation",
+          "supplierKey": "foreu corporation",
+          "kind": "balance",
+          "amount": 1200,
+          "currency": "USD",
+          "invoiceNumber": "FR-320-TU",
+          "invoiceDate": "2026-10-20",
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "paid",
+          "paidOn": "2026-10-21",
+          "source": "top_up",
+          "allocations": [
+           {
+            "id": 32,
+            "purchaseOrderId": 3300,
+            "poRef": "PO_00330V",
+            "poNumber": "PO_00330V",
+            "amount": 1200,
+            "source": "manual"
+           }
+          ],
+          "appliedTotal": 0,
+          "remaining": 0,
+          "settledByPaymentId": null
+         }
+        ],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": [
+     {
+      "kind": "stale_status",
+      "poId": 3200,
+      "poNumber": "PO_00320D",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "detail": "Deposit PI PI-320D-deposit.pdf is still pending — the deposit paid by transfer on 2026-09-10 covers it; mark it paid in Purchase Orders",
+      "amount": 900,
+      "shipmentReference": null
+     }
+    ],
+    "credits": []
+   }
+  ],
+  "poCount": 2
+ }
+}

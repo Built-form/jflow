@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 77577a1 — changes: new, not in the TS: JFlow feed rows (toForecastRows), taken from the shipping step-18 draft with its route-only filterForecastRows dropped; a row's `dueSet` (the story of a date set by hand, from PaymentItem.dueOverride); since the 2026-10-06 re-pin: QC units, extras (incl. a forwarder's shipment cost), the PO's charges and top-up rows, split parts in a draft or plan, credits netted into the payment they offset, a `label`, and paid rows for `extra` and `qc` transfer lines
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 362714c — changes: new, not in the TS: JFlow feed rows (toForecastRows), taken from the shipping step-18 draft with its route-only filterForecastRows dropped; a row's `dueSet` (the story of a date set by hand, from PaymentItem.dueOverride); since the 2026-10-06 re-pin: QC units, extras (incl. a forwarder's shipment cost), the PO's charges and top-up rows, split parts in a draft or plan, credits netted into the payment they offset, a `label`, and paid rows for `extra` and `qc` transfer lines
 'use strict';
 
 // The JFlow feed — the `items` of the body services/shippingSource.js returns
@@ -56,7 +56,10 @@ const { feedId, groupToken, itemFeedId } = require('./ids');
 // in characters): JFlow rejects a longer value, and with it the whole row, so
 // display text is clipped to fit. No id depends on these fields.
 const TEXT_LIMITS = { supplier: 255, poNumber: 64, containerRef: 100, label: 255 };
-const LINE_KINDS = new Set(['balance', 'pi', 'po_deposit', 'extra', 'qc']);
+// 'repackaged' (ShipLine 2026-11-02): a line on one combined / repackaged order line (orders.id).
+const LINE_KINDS = new Set(['balance', 'pi', 'po_deposit', 'extra', 'qc', 'repackaged']);
+/** The label of a PO's combined / repackaged goods, open or paid. */
+const REPACKAGED_LABEL = 'Combined / repackaged';
 
 function clip(s, max) {
     if (s == null) return null;
@@ -226,6 +229,8 @@ function rowLabel(item) {
     if (item.balanceOf === 'charges') return 'PO charges';
     if (item.balanceOf === 'fqc') return 'QC units';
     if (/^derived:topup:/.test(item.id)) return 'Top-up';
+    // Goods combined / repackaged at the factory: the part of the PO's unbooked goods that never ships.
+    if (/@repackaged$/.test(item.id)) return REPACKAGED_LABEL;
     return null;
 }
 
@@ -489,6 +494,14 @@ function toForecastRows(flow, paidRows, ctx = {}) {
             paid.push(paidRow(f, {
                 id: payId, kind: 'qc', poId: f.purchaseOrderId, cents,
                 settles: feedId({ form: 'qc', orderId: f.targetId }), containerRef: null, shipmentId: null, label: 'QC units',
+            }, ctx));
+        } else if (f.lineKind === 'repackaged') {
+            // Money on one combined / repackaged order line: it comes off the PO's repackaged
+            // goods row (the model's derived:bal:<po>:none@repackaged), never off a PI or a box.
+            paid.push(paidRow(f, {
+                id: payId, kind: 'balance', poId: f.purchaseOrderId, cents,
+                settles: isId(f.purchaseOrderId) ? feedId({ form: 'bal', poId: f.purchaseOrderId, group: 'rpk' }) : null,
+                containerRef: null, shipmentId: null, label: REPACKAGED_LABEL,
             }, ctx));
         } else {
             paid.push(paidRow(f, {

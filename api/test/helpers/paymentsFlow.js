@@ -190,6 +190,14 @@ const TERMS_EXTRA = [
     '30% deposit, 70% at shipment',
     '20% deposit, 10% prepayment, 70% against B/L copy',
     '30% deposit, 60% B/L copy',
+    // The re-pin to 362714c: British spelling, "net N days", clauses about another
+    // event (validity, lead time), a deposit the terms rule out.
+    'No deposit, 100% 30 days after despatch',
+    'Balance 100% within 7 days after goods despatched',
+    'Net 30 days',
+    'Deposit is NOT required. Balance against copy BL. Validity: within 30 days after quotation date',
+    '30% deposit, 70% against the copy BL lead time: 45 days after receiving the payment',
+    'Without deposit, balance before shipment',
 ];
 
 // resolveTermsRule inputs (newest PI first, then the JFPRO supplier's terms):

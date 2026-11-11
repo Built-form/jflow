@@ -67,6 +67,12 @@ test('every form', () => {
     assert.equal(feedId({ form: 'pi', invoicePaymentId: 55, group: 'n', of: 'fqc' }), 'pi-55-fn');
     assert.equal(feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'extra', targetId: 44 }), 'pay-9-ext44');
     assert.equal(feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'qc', targetId: 81203 }), 'pay-9-qc81203');
+    // Since the re-pin to 362714c (2026-11-11): combined / repackaged goods, a group of their own, and their transfer lines.
+    assert.equal(feedId({ form: 'bal', poId: 3100, group: 'rpk' }), 'bal-3100-rpk');
+    assert.equal(feedId({ form: 'pi', invoicePaymentId: 55, group: 'rpk' }), 'pi-55-rpk');
+    assert.equal(feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'repackaged', targetId: 310001 }), 'pay-9-rpk310001');
+    assert.throws(() => feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'repackaged', targetId: 310001, poId: 3100 }), /only a balance line/);
+    assert.throws(() => feedId({ form: 'bal', poId: 3100, group: 'rpk1' }), /group must be/);
     assert.throws(() => feedId({ form: 'pi', invoicePaymentId: 55, of: 'charges' }), /needs its group/);
     assert.throws(() => feedId({ form: 'pay', supplierPaymentId: 9, lineKind: 'extra', targetId: 44, poId: 812 }), /only a balance line/);
 });
@@ -89,6 +95,9 @@ test('the TS id, taken apart (parseTsId), and the split part token', () => {
     assert.throws(() => parseTsId('derived:what:1:2'), /unexpected item id/);
     assert.equal(partToken('open:12'), 'd12');
     assert.equal(partToken('none'), 'n');
+    // 362714c: combined / repackaged goods are a part of their own (unbookedParts' 'repackaged').
+    assert.deepEqual(parseTsId('derived:bal:3100:none@repackaged'), { basis: 'derived', of: 'bal', n: 3100, box: 'none', part: 'repackaged' });
+    assert.equal(partToken('repackaged'), 'rpk');
     assert.throws(() => partToken('open:x'), /unknown split part/);
 });
 
@@ -107,6 +116,12 @@ test('itemFeedId on the new item kinds', () => {
     assert.equal(id('stated:55@open:12'), 'pi-55-d12');
     assert.equal(id('extra:44'), 'ext-44');
     assert.equal(id('qc:81203'), 'qc-81203');
+    // 362714c: the repackaged part of a PO's unbooked goods, from the terms or from a PI.
+    assert.equal(id('derived:bal:3100:none@repackaged'), 'bal-3100-rpk');
+    assert.equal(id('stated:55@repackaged'), 'pi-55-rpk');
+    assert.equal(id('stated:55:none@repackaged'), 'pi-55-rpk');
+    // A ref spelt "rpk" is a box, hashed like any other: never the repackaged group.
+    assert.match(id('derived:bal:3100:rpk'), /^bal-3100-r[0-9a-f]{10}$/);
 });
 
 test('the longest ids still fit the grammar', () => {
@@ -164,7 +179,7 @@ test('<g>: the shipment id when the ref is spelt as the shipment\'s, else a hash
 const FORM = { bal: 'bal', charges: 'chg', fqc: 'fqc', topup: 'top' };
 const OF = { charges: 'c', fqc: 'f' };
 function partOrBox(part, box, map) {
-    if (part != null) return part === 'none' ? 'n' : `d${part.slice('open:'.length)}`;
+    if (part != null) return part === 'none' ? 'n' : part === 'repackaged' ? 'rpk' : `d${part.slice('open:'.length)}`;
     return groupToken(box === 'none' ? null : box, map);
 }
 function tsForm(it, map) {

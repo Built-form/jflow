@@ -90,7 +90,7 @@ describe.each(H.listFixtures())('%s', (name) => {
         for (const r of paidRows) {
             expect(r).toMatchObject({ dueDate: null, dateBasis: 'firm', amountBasis: 'stated', blocked: null, arranged: false });
             expect(r.paidOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-            expect(r.id).toMatch(/^(pay-\d+-(pi|dep|ext|qc)\d+|pay-\d+-bal\d+(-\d+)?|spd-\d+(-\d+)?)$/);
+            expect(r.id).toMatch(/^(pay-\d+-(pi|dep|ext|qc|rpk)\d+|pay-\d+-bal\d+(-\d+)?|spd-\d+(-\d+)?)$/);
         }
         expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
     });
@@ -135,6 +135,48 @@ describe('splitting and formatting', () => {
         expect(rows[0].supplier).toHaveLength(255);
         expect(rows[0].poNumber).toHaveLength(64);
         expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
+    });
+});
+
+describe('the re-pin (362714c): paid-with containers, combined / repackaged goods', () => {
+    test('pi-paid-with (the PO_00297J shape): the PI money a transfer line names for 310 pays 310 — no row for it; 309 and 311 owe the rest; the QC units are a qc row; both transfers are paid rows on the PI', () => {
+        const { rows } = fixtureFeed('pi-paid-with');
+        const open = rows.filter((r) => r.status === 'open').map((r) => [r.id, r.kind, r.containerRef, r.amount]);
+        expect(open).toEqual([
+            ['pi-2972-s409', 'balance', '309', '4353.16'],
+            ['pi-2972-s411', 'balance', '311', '2720.72'],
+            ['qc-297004', 'qc', '310', '26.12'],
+        ]);
+        const paid = rows.filter((r) => r.status === 'paid').map((r) => [r.id, r.kind, r.settles, r.amount, r.paidOn]);
+        expect(paid).toEqual([
+            ['pay-6101-pi2972', 'balance', 'pi-2972', '5633.60', '2026-10-15'],
+            ['pay-6102-pi2972', 'balance', 'pi-2972', '2000.00', '2026-10-25'],
+        ]);
+        // What is open is the PI less both transfers: 14,733.60 − 5,633.60 − 2,000.
+        expect(open.reduce((a, r) => a + cents(r[3]), 0)).toBe(710000);
+        expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
+    });
+
+    test("repackaged: the combined / repackaged goods are a row of their own (bal-<po>-rpk, labelled), due from the day marked plus grace; a 'repackaged' transfer line is a paid balance row that settles it", () => {
+        const { rows } = fixtureFeed('repackaged');
+        const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+        expect(Object.keys(byId)).toEqual(['bal-3100-rpk', 'bal-3100-n', 'pay-6201-rpk310001']);
+        expect(byId['bal-3100-rpk']).toMatchObject({
+            kind: 'balance', status: 'open', poId: 3100, companyId: 2, containerRef: null, shipmentId: null, label: 'Combined / repackaged',
+            amount: '1180.00', dueDate: '2026-11-07', dateBasis: 'firm', blocked: null, flags: ['repackaged', 'grace_applied', 'partly_paid'],
+        });
+        expect(byId['bal-3100-n']).toMatchObject({ label: null, amount: '2100.00', blocked: 'shipment' });
+        expect(byId['pay-6201-rpk310001']).toMatchObject({
+            kind: 'balance', status: 'paid', poId: 3100, poNumber: 'PO_00310R', companyId: 2, label: 'Combined / repackaged',
+            amount: '500.00', paidOn: '2026-11-06', settles: 'bal-3100-rpk', containerRef: null, shipmentId: null,
+        });
+        expect(jflowAccepts(rows)).toEqual({ rejected: 0, problems: [] });
+    });
+
+    test("collectPaidRows keeps a 'repackaged' transfer line, with the PO it names", () => {
+        const { paid } = fixtureFeed('repackaged');
+        expect(paid).toEqual([expect.objectContaining({ source: 'transfer', supplierPaymentId: 6201, lineKind: 'repackaged', targetId: 310001, amount: 500, purchaseOrderId: 3100 })]);
+        expect(require('../../src/lib/payments-flow/forecast').LINE_KINDS.has('repackaged')).toBe(true);
     });
 });
 

@@ -33,6 +33,23 @@ describe('orderShape (shipping/src/lib/order-shape.js)', () => {
         });
         expect(rowToOrder({ quantity: null, unit_price: null }).unitPrice).toBeNull();
     });
+
+    // The re-pin to 362714c: the model knows QC units by their _FQC code (since 77577a1),
+    // names repackaged lines by code or ASIN, and reads the status history in `dates`
+    // (dates.repackaged, dates.received / received_by_warehouse).
+    test('rowToOrder: the JF code, the ASIN and the status history (`dates`), in shipping\'s key order', () => {
+        const o = rowToOrder({
+            id: 297004, jf_code: 'JF2002_FQC', asin: '', quantity: '20', status: 'REPACKAGED',
+            dates: '{"repackaged":"2026-11-04T10:15:00.000Z"}',
+        });
+        expect(o).toMatchObject({ id: 297004, jfCode: 'JF2002_FQC', asin: null, status: 'REPACKAGED', dates: { repackaged: '2026-11-04T10:15:00.000Z' } });
+        expect(Object.keys(o).slice(0, 4)).toEqual(['id', 'jfCode', 'asin', 'quantity']);
+        // A JSON column comes back parsed; a missing one is {}; so is JSON null.
+        expect(rowToOrder({ id: 1, dates: { received: '2026-10-28T11:30:00.000Z' } }).dates).toEqual({ received: '2026-10-28T11:30:00.000Z' });
+        expect(rowToOrder({ id: 1, dates: null }).dates).toEqual({});
+        expect(rowToOrder({ id: 1, dates: 'null' }).dates).toEqual({});
+        expect(rowToOrder({ id: 1, jf_code: null, asin: 'B0X' })).toMatchObject({ jfCode: null, asin: 'B0X' });
+    });
 });
 
 describe('ShipLine api.ts + PaymentsFlowView (77577a1)', () => {
@@ -153,10 +170,27 @@ describe('shipping mappers (orders.js, payment-rules.js, shipments.js)', () => {
         const rec = M.shipmentPaymentRowToJson({ id: 1, shipment_id: 2, shipment_reference: '268', supplier_name: 'S', amount: '800.00', currency: 'USD', deposit_deducted: null, status: 'pending', paid_on: null, settled_by_payment_id: null });
         expect(rec).toMatchObject({ id: 1, amount: 800, depositDeducted: null, settledByPaymentId: null, paidOn: null, allocations: [] });
         const line = M.supplierPaymentLineToJson({ id: 9, target_kind: 'pi', target_id: 7002, amount: '200.00' }, { purchaseOrderId: 802, poNumber: 'PO-802', paymentType: 'deposit' });
-        expect(line).toEqual({ id: 9, kind: 'pi', targetId: 7002, amount: 200, shipmentId: null, shipmentReference: null, purchaseOrderId: 802, poNumber: 'PO-802', paymentType: 'deposit' });
+        expect(line).toEqual({ id: 9, kind: 'pi', targetId: 7002, amount: 200, shipmentId: null, shipmentReference: null, purchaseOrderId: 802, poNumber: 'PO-802', paymentType: 'deposit', paidWith: null });
         expect(M.supplierPaymentLineToJson({ id: 10, target_kind: 'balance', target_id: 1, amount: '1' }, null).purchaseOrderId).toBeNull();
+        // A balance record's source: 'top_up' when it pays for goods added after the box was paid (never a credit).
+        expect(M.shipmentPaymentRowToJson({ id: 3, amount: '1200.00', source: 'top_up' }).source).toBe('top_up');
+        expect(M.shipmentPaymentRowToJson({ id: 4, amount: '1.00', source: null }).source).toBe('manual');
+        expect(Object.keys(rec).slice(-2)).toEqual(['source', 'allocations']);
         expect(M.shipmentPaymentAllocationRowToJson({ id: 1, purchase_order_id: null, po_ref: 'PO-9', po_number: null, amount: null }))
             .toEqual({ id: 1, purchaseOrderId: null, poRef: 'PO-9', poNumber: 'PO-9', amount: 0 });
+    });
+
+    // shipping 2026-10-19_10: which containers a PI line's money paid ("paid with"), as Record payment sends it.
+    test('supplierPaymentLineToJson: paid_with_json → paidWith, as text or parsed JSON; none, empty, bad JSON or no column → null; bad entries dropped', () => {
+        const pw = (v) => M.supplierPaymentLineToJson({ id: 61, target_kind: 'pi', target_id: 2972, amount: '5633.60', paid_with_json: v }, null).paidWith;
+        expect(pw('[{"shipmentReference":"310","amount":5600}]')).toEqual([{ shipmentReference: '310', amount: 5600 }]);
+        expect(pw([{ shipmentReference: '310', amount: '5600.00' }, { shipmentReference: '309', amount: 33.6 }])).toEqual([{ shipmentReference: '310', amount: 5600 }, { shipmentReference: '309', amount: 33.6 }]);
+        expect(pw([{ shipmentReference: 310, amount: 1 }, { shipmentReference: '311', amount: 'x' }, null, { shipmentReference: '312', amount: 2 }])).toEqual([{ shipmentReference: '312', amount: 2 }]);
+        expect(pw(null)).toBeNull();
+        expect(pw(undefined)).toBeNull();
+        expect(pw('[]')).toBeNull();
+        expect(pw('not json')).toBeNull();
+        expect(pw({ shipmentReference: '310', amount: 1 })).toBeNull();
     });
 
     test('paymentRuleRowToJson: stored estimates parsed (bad JSON → empty), air start on the default rule only', () => {

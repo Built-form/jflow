@@ -1,19 +1,19 @@
 {
  "fixture": "allocated-shared-invoice",
  "source": {
-  "commit": "77577a1",
+  "commit": "362714c",
   "files": {
    "src/components/payments/paymentsFlowMath.ts": {
-    "lines": 4118,
-    "sha256": "120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07"
+    "lines": 4696,
+    "sha256": "300e18f8b217a29eb53bb88c8fac15127c2f80c68ec7f5ccc5a31f55a91224bf"
    },
    "src/components/shared/containerHelpers.ts": {
     "lines": 340,
     "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
    },
    "src/components/payments/paymentReviews.ts": {
-    "lines": 196,
-    "sha256": "c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5"
+    "lines": 213,
+    "sha256": "7bca087364c88bde1ff2d16b9dbd4c09071d24d51d21ab84fb0a8674b0380f2d"
    }
   }
  },
@@ -26,16 +26,18 @@
     "currency": "USD",
     "kpis": {
      "overdue": 700,
-     "due7": 0,
+     "due7": 200,
      "due30": 4400,
      "unscheduled": 0,
      "outstanding": 5240,
      "later": 140,
      "notPayable": 140,
      "overdueCount": 1,
-     "itemCount": 5,
+     "itemCount": 6,
      "qc": 0,
      "qcCount": 0,
+     "qcOverdue": 0,
+     "qcOverdueCount": 0,
      "credit": 0
     },
     "items": [
@@ -73,6 +75,53 @@
         "value": 0.7,
         "result": 700,
         "source": "the supplier's terms in JFPRO “30D/70B BOL”"
+       }
+      ]
+     },
+     {
+      "id": "derived:topup:901:281",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 901,
+      "poNumber": "JF-PO-901",
+      "supplier": "Foreu Corporation",
+      "currency": "USD",
+      "amount": 200,
+      "dueDate": "2026-09-29",
+      "contractualDate": "2026-09-29",
+      "trigger": "bl",
+      "containerNumber": "281",
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "top_up",
+       "box_paid"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "The PO’s lines now come to",
+        "value": 5000,
+        "result": 5000,
+        "source": "PI total — PI-901.pdf"
+       },
+       {
+        "op": "−",
+        "label": "Paid",
+        "value": 2700,
+        "result": 2300,
+        "source": "PIs marked paid, balances paid, transfers recorded"
+       },
+       {
+        "op": "−",
+        "label": "Asked for in other rows",
+        "value": 2100,
+        "result": 200,
+        "source": "this PO’s deposit, balance and QC rows"
        }
       ]
      },
@@ -134,7 +183,6 @@
       "blocked": null,
       "shipmentPaymentId": 7001,
       "flags": [
-       "currency_mismatch",
        "invoice_vs_share"
       ],
       "invoiceId": null,
@@ -188,7 +236,7 @@
       "paymentId": 102,
       "shipmentPaymentId": null,
       "id": "stated:102:280",
-      "amount": 300,
+      "amount": 100,
       "dueDate": "2026-10-10",
       "contractualDate": "2026-10-10",
       "trigger": "bl",
@@ -196,7 +244,6 @@
       "containerShare": 0.6,
       "blocked": null,
       "flags": [
-       "currency_mismatch",
        "superseded_by_shipment_invoice",
        "derived_date",
        "multi_container"
@@ -217,10 +264,17 @@
         "source": "the same goods, paid container by container"
        },
        {
+        "op": "−",
+        "label": "Still owed on a paid container",
+        "value": 200,
+        "result": 100,
+        "source": "281 paid below its goods — asked for as a top-up there"
+       },
+       {
         "op": "×",
         "label": "Share in 280",
         "value": 1,
-        "result": 300,
+        "result": 100,
         "source": "goods on board 3,000.00 of 3,000.00 left to pay on (paid containers and QC units left out)"
        }
       ]
@@ -286,7 +340,7 @@
       "paid": 2700,
       "assumedPaid": 0,
       "shipmentPaid": 1200,
-      "shipmentStated": 3150,
+      "shipmentStated": 2400,
       "stated": 300,
       "remainder": 2000,
       "derivedDeposit": 0,
@@ -375,8 +429,7 @@
       "proofsMatched": 0,
       "excluded": null,
       "flags": [
-       "invoice_total_used",
-       "currency_mismatch"
+       "invoice_total_used"
       ],
       "items": [
        {
@@ -391,7 +444,7 @@
         "paymentId": 102,
         "shipmentPaymentId": null,
         "id": "stated:102:280",
-        "amount": 300,
+        "amount": 100,
         "dueDate": "2026-10-10",
         "contractualDate": "2026-10-10",
         "trigger": "bl",
@@ -399,7 +452,6 @@
         "containerShare": 0.6,
         "blocked": null,
         "flags": [
-         "currency_mismatch",
          "superseded_by_shipment_invoice",
          "derived_date",
          "multi_container"
@@ -420,10 +472,17 @@
           "source": "the same goods, paid container by container"
          },
          {
+          "op": "−",
+          "label": "Still owed on a paid container",
+          "value": 200,
+          "result": 100,
+          "source": "281 paid below its goods — asked for as a top-up there"
+         },
+         {
           "op": "×",
           "label": "Share in 280",
           "value": 1,
-          "result": 300,
+          "result": 100,
           "source": "goods on board 3,000.00 of 3,000.00 left to pay on (paid containers and QC units left out)"
          }
         ]
@@ -446,7 +505,6 @@
         "blocked": null,
         "shipmentPaymentId": 7001,
         "flags": [
-         "currency_mismatch",
          "invoice_vs_share"
         ],
         "invoiceId": null,
@@ -487,6 +545,53 @@
           "source": "goods on board 3,000.00 of 3,000.00 left to pay on (paid containers and QC units left out)"
          }
         ]
+       },
+       {
+        "id": "derived:topup:901:281",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 901,
+        "poNumber": "JF-PO-901",
+        "supplier": "Foreu Corporation",
+        "currency": "USD",
+        "amount": 200,
+        "dueDate": "2026-09-29",
+        "contractualDate": "2026-09-29",
+        "trigger": "bl",
+        "containerNumber": "281",
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "top_up",
+         "box_paid"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "The PO’s lines now come to",
+          "value": 5000,
+          "result": 5000,
+          "source": "PI total — PI-901.pdf"
+         },
+         {
+          "op": "−",
+          "label": "Paid",
+          "value": 2700,
+          "result": 2300,
+          "source": "PIs marked paid, balances paid, transfers recorded"
+         },
+         {
+          "op": "−",
+          "label": "Asked for in other rows",
+          "value": 2100,
+          "result": 200,
+          "source": "this PO’s deposit, balance and QC rows"
+         }
+        ]
        }
       ],
       "qcItems": []
@@ -508,7 +613,7 @@
       "paid": 0,
       "assumedPaid": 960,
       "shipmentPaid": 0,
-      "shipmentStated": 1800,
+      "shipmentStated": 2250,
       "stated": 0,
       "remainder": 3200,
       "derivedDeposit": 960,
@@ -828,8 +933,8 @@
       "paid": 2700,
       "assumedPaid": 960,
       "poCount": 2,
-      "itemCount": 4,
-      "nextDue": "2026-10-10",
+      "itemCount": 5,
+      "nextDue": "2026-09-29",
       "supplierRule": {
        "depositPct": 30,
        "balanceTrigger": "bl",
@@ -875,7 +980,7 @@
      {
       "containerNumber": "280",
       "currency": "USD",
-      "amount": 5100,
+      "amount": 4900,
       "dueDate": "2026-09-10",
       "etd": "2026-09-10",
       "eta": null,
@@ -891,7 +996,7 @@
       "payables": [
        {
         "supplier": "Foreu Corporation",
-        "amount": 4400,
+        "amount": 4200,
         "dueDate": "2026-10-10",
         "poNumbers": [
          "JF-PO-902",
@@ -956,7 +1061,6 @@
           "blocked": null,
           "shipmentPaymentId": 7001,
           "flags": [
-           "currency_mismatch",
            "invoice_vs_share"
           ],
           "invoiceId": null,
@@ -1010,7 +1114,7 @@
           "paymentId": 102,
           "shipmentPaymentId": null,
           "id": "stated:102:280",
-          "amount": 300,
+          "amount": 100,
           "dueDate": "2026-10-10",
           "contractualDate": "2026-10-10",
           "trigger": "bl",
@@ -1018,7 +1122,6 @@
           "containerShare": 0.6,
           "blocked": null,
           "flags": [
-           "currency_mismatch",
            "superseded_by_shipment_invoice",
            "derived_date",
            "multi_container"
@@ -1039,10 +1142,17 @@
             "source": "the same goods, paid container by container"
            },
            {
+            "op": "−",
+            "label": "Still owed on a paid container",
+            "value": 200,
+            "result": 100,
+            "source": "281 paid below its goods — asked for as a top-up there"
+           },
+           {
             "op": "×",
             "label": "Share in 280",
             "value": 1,
-            "result": 300,
+            "result": 100,
             "source": "goods on board 3,000.00 of 3,000.00 left to pay on (paid containers and QC units left out)"
            }
           ]
@@ -1221,22 +1331,74 @@
      {
       "containerNumber": "281",
       "currency": "USD",
-      "amount": 0,
-      "dueDate": null,
+      "amount": 200,
+      "dueDate": "2026-09-29",
       "etd": "2026-08-20",
       "eta": "2026-09-24",
       "landed": true,
       "departed": true,
       "estimated": false,
-      "poNumbers": [],
-      "itemCount": 0,
+      "poNumbers": [
+       "JF-PO-901"
+      ],
+      "itemCount": 1,
       "payables": [
        {
         "supplier": "Foreu Corporation",
-        "amount": 0,
-        "dueDate": null,
-        "poNumbers": [],
-        "items": [],
+        "amount": 200,
+        "dueDate": "2026-09-29",
+        "poNumbers": [
+         "JF-PO-901"
+        ],
+        "items": [
+         {
+          "id": "derived:topup:901:281",
+          "kind": "balance",
+          "basis": "derived",
+          "poId": 901,
+          "poNumber": "JF-PO-901",
+          "supplier": "Foreu Corporation",
+          "currency": "USD",
+          "amount": 200,
+          "dueDate": "2026-09-29",
+          "contractualDate": "2026-09-29",
+          "trigger": "bl",
+          "containerNumber": "281",
+          "containerShare": null,
+          "status": "projected",
+          "blocked": null,
+          "shipmentPaymentId": null,
+          "flags": [
+           "top_up",
+           "box_paid"
+          ],
+          "invoiceId": null,
+          "paymentId": null,
+          "derivation": [
+           {
+            "op": "=",
+            "label": "The PO’s lines now come to",
+            "value": 5000,
+            "result": 5000,
+            "source": "PI total — PI-901.pdf"
+           },
+           {
+            "op": "−",
+            "label": "Paid",
+            "value": 2700,
+            "result": 2300,
+            "source": "PIs marked paid, balances paid, transfers recorded"
+           },
+           {
+            "op": "−",
+            "label": "Asked for in other rows",
+            "value": 2100,
+            "result": 200,
+            "source": "this PO’s deposit, balance and QC rows"
+           }
+          ]
+         }
+        ],
         "payments": [
          {
           "id": 7002,
@@ -1371,16 +1533,6 @@
     ],
     "dataQuality": [
      {
-      "kind": "shipment_payment_currency",
-      "poId": 901,
-      "poNumber": "JF-PO-901",
-      "supplier": "Foreu Corporation",
-      "currency": "USD",
-      "detail": "Balance invoice for 281 is in EUR, this PO is in USD — the PO's currency is used",
-      "amount": null,
-      "shipmentReference": "281"
-     },
-     {
       "kind": "extraction_failed",
       "poId": 0,
       "poNumber": "—",
@@ -1416,8 +1568,8 @@
       "poNumber": "JF-PO-901",
       "supplier": "Foreu Corporation",
       "currency": "USD",
-      "detail": "A balance of 2,850 is recorded for 280, the terms say 2,000 — the terms figure is what is owed",
-      "amount": 850,
+      "detail": "A balance of 2,400 is recorded for 280, the terms say 2,000 — the terms figure is what is owed",
+      "amount": 400,
       "shipmentReference": "280"
      },
      {
@@ -1426,8 +1578,8 @@
       "poNumber": "JF-PO-902",
       "supplier": "Foreu Corporation",
       "currency": "USD",
-      "detail": "A balance of 1,800 is recorded for 280, the terms say 2,100 — the terms figure is what is owed",
-      "amount": -300,
+      "detail": "A balance of 2,250 is recorded for 280, the terms say 2,100 — the terms figure is what is owed",
+      "amount": 150,
       "shipmentReference": "280"
      },
      {
@@ -1459,16 +1611,116 @@
       "detail": "2,700 of the 280 invoice names no purchase order — shared out by value by what each has on board",
       "amount": 2700,
       "shipmentReference": "280"
-     },
+     }
+    ],
+    "credits": []
+   },
+   {
+    "currency": "EUR",
+    "kpis": {
+     "overdue": 0,
+     "due7": 0,
+     "due30": 0,
+     "unscheduled": 0,
+     "outstanding": 0,
+     "later": 0,
+     "notPayable": 0,
+     "overdueCount": 0,
+     "itemCount": 0,
+     "qc": 0,
+     "qcCount": 0,
+     "qcOverdue": 0,
+     "qcOverdueCount": 0,
+     "credit": 0
+    },
+    "items": [],
+    "qcItems": [],
+    "qcClosed": [],
+    "pos": [],
+    "bySupplier": [],
+    "byContainer": [
+     {
+      "containerNumber": "281",
+      "currency": "EUR",
+      "amount": 0,
+      "dueDate": null,
+      "etd": "2026-08-20",
+      "eta": "2026-09-24",
+      "landed": true,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [],
+      "itemCount": 0,
+      "payables": [
+       {
+        "supplier": "Foreu Corporation",
+        "amount": 0,
+        "dueDate": null,
+        "poNumbers": [],
+        "items": [],
+        "payments": [
+         {
+          "id": 7007,
+          "shipmentId": 322,
+          "shipmentReference": "281",
+          "link": "ok",
+          "mergedIntoId": null,
+          "supplierName": "Foreu Corporation",
+          "supplierKey": "foreu corporation",
+          "kind": "balance",
+          "amount": 100,
+          "currency": "EUR",
+          "invoiceNumber": "FR-281-EUR",
+          "invoiceDate": null,
+          "dueDate": null,
+          "invoiceTotal": null,
+          "depositDeducted": null,
+          "status": "pending",
+          "paidOn": null,
+          "allocations": [],
+          "appliedTotal": 0,
+          "remaining": 100,
+          "settledByPaymentId": null
+         }
+        ],
+        "documents": [
+         {
+          "id": 8005,
+          "shipmentId": 322,
+          "shipmentReference": "281",
+          "supplierName": "Foreu Corporation",
+          "paymentId": null,
+          "supplierPaymentId": null,
+          "docKind": "balance_invoice",
+          "filename": "INV-281-v2.pdf",
+          "extractStatus": "failed",
+          "extractError": null,
+          "createdAt": "2026-09-22 12:00:00"
+         }
+        ]
+       }
+      ],
+      "otherCurrencies": [
+       {
+        "currency": "USD",
+        "amount": 200,
+        "payees": [
+         "Foreu Corporation"
+        ]
+       }
+      ]
+     }
+    ],
+    "dataQuality": [
      {
       "kind": "shipment_payment_unallocated",
-      "poId": 901,
-      "poNumber": "JF-PO-901",
+      "poId": 0,
+      "poNumber": "—",
       "supplier": "Foreu Corporation",
-      "currency": "USD",
-      "detail": "200 of the 281 invoice names no purchase order — shared out by value by what each has on board",
-      "amount": 200,
-      "shipmentReference": "281"
+      "currency": "EUR",
+      "shipmentReference": "281",
+      "detail": "100 invoiced for 281, but no purchase order for this supplier has lines in that container",
+      "amount": 100
      }
     ],
     "credits": []

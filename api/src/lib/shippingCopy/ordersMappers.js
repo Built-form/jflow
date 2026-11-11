@@ -1,4 +1,4 @@
-// Copied from shipping/src/handlers/orders.js — changes: only the row → JSON mappers the payments feed reads (rowToPurchaseOrder, invoiceRowToJson, signedPiRowToJson, paymentRowToJson, invoicePaymentRowToJson, rowToContainer, shipmentPaymentAllocationRowToJson, shipmentPaymentRowToJson, supplierPaymentLineToJson, supplierPaymentRowToJson), each trimmed to the fields lib/payments-flow and its feed rows read, key order kept; no S3 urls, sends, checks, documents or display totals
+// Copied from shipping/src/handlers/orders.js — changes: only the row → JSON mappers the payments feed reads (rowToPurchaseOrder, invoiceRowToJson, signedPiRowToJson, paymentRowToJson, invoicePaymentRowToJson, rowToContainer, shipmentPaymentAllocationRowToJson, shipmentPaymentRowToJson, supplierPaymentLineToJson, supplierPaymentRowToJson, and paidWithFromRow verbatim), each trimmed to the fields lib/payments-flow and its feed rows read, key order kept (a balance record's source and a line's paidWith since the re-pin to ShipLine 362714c, from shipping @ 1d0bd83); no S3 urls, sends, checks, documents or display totals
 'use strict';
 
 // Pure: no DB, no logging. Each function is shipping's, field for field, for the
@@ -111,6 +111,8 @@ function shipmentPaymentRowToJson(r, { allocations = [] } = {}) {
         depositDeducted: r.deposit_deducted != null ? Number(r.deposit_deducted) : null,
         status: r.status,
         paidOn: r.paid_on || null,
+        // 'top_up' when it pays for goods added after the container was paid.
+        source: r.source || 'manual',
         allocations,
     };
 }
@@ -129,7 +131,23 @@ function supplierPaymentLineToJson(l, target) {
         purchaseOrderId: target?.purchaseOrderId ?? null,
         poNumber: target?.poNumber ?? null,
         paymentType: target?.paymentType ?? null,
+        // A pi line only: the PI money per container, as ticked in Record
+        // payment — [{ shipmentReference, amount }]; null when none was sent.
+        paidWith: paidWithFromRow(l.paid_with_json),
     };
+}
+
+// paid_with_json as mysql2 hands it back: parsed for a JSON column, text
+// otherwise; absent on a database without the column (2026-10-19_10).
+function paidWithFromRow(v) {
+    let list = v;
+    if (typeof v === 'string') {
+        try { list = JSON.parse(v); } catch (e) { return null; }
+    }
+    if (!Array.isArray(list) || !list.length) return null;
+    return list
+        .filter(e => e && typeof e.shipmentReference === 'string' && Number.isFinite(Number(e.amount)))
+        .map(e => ({ shipmentReference: e.shipmentReference, amount: Number(e.amount) }));
 }
 
 function supplierPaymentRowToJson(r, { lines = [] } = {}) {
@@ -155,4 +173,5 @@ module.exports = {
     shipmentPaymentRowToJson,
     supplierPaymentLineToJson,
     supplierPaymentRowToJson,
+    paidWithFromRow,
 };

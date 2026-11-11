@@ -112,11 +112,27 @@ describe('dueDateMoved (the "date moved" bookkeeping: due_date_prev, due_date_mo
     });
 
     test('a from_today row sliding by the days elapsed is not a move (both sides carry the flag)', () => {
-        expect(MOVED_FLAG_EXEMPT).toBe('from_today');
+        expect(MOVED_FLAG_EXEMPT).toContain('from_today');
         const slid = normalised({ dueDate: '2026-10-16', flags: ['from_today'] });
         expect(dueDateMoved(prior({ flags_json: '["from_today"]' }), slid)).toBe(false);
         expect(dueDateMoved(prior({ flags_json: '[]' }), slid)).toBe(true);
         expect(dueDateMoved(prior({ flags_json: '["from_today"]' }), normalised({ dueDate: '2026-10-16' }))).toBe(true);
+    });
+
+    // The re-pin to 362714c: two more dates the model counts from today, so they slide each day
+    // too — a stale estimate pulled to today (estimate_passed; it was so at 77577a1 as well) and
+    // repackaged goods with no day marked on file (repackaged_no_date).
+    test('every date the model rolls from today is exempt the same way: estimate_passed and repackaged_no_date as well as from_today', () => {
+        expect([...MOVED_FLAG_EXEMPT].sort()).toEqual(['estimate_passed', 'from_today', 'repackaged_no_date']);
+        expect(Object.isFrozen(MOVED_FLAG_EXEMPT)).toBe(true);
+        for (const flag of ['estimate_passed', 'repackaged_no_date']) {
+            const slid = normalised({ dueDate: '2026-10-16', flags: [flag] });
+            expect(dueDateMoved(prior({ flags_json: JSON.stringify([flag]) }), slid)).toBe(false);
+            // The day it starts rolling is a move: the prior side does not carry the flag yet.
+            expect(dueDateMoved(prior({ flags_json: '[]' }), slid)).toBe(true);
+        }
+        // Rolling under one rule yesterday and another today is a move.
+        expect(dueDateMoved(prior({ flags_json: '["from_today"]' }), normalised({ dueDate: '2026-10-16', flags: ['estimate_passed'] }))).toBe(true);
     });
 
     test('a prior row read back as a Date, or with unreadable flags, still compares by the calendar day', () => {

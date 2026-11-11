@@ -1,4 +1,4 @@
-// Copied from ShipLine src/components/payments/paymentReviews.ts @ 77577a1 — changes: TS → CommonJS, types stripped; only the key builders the payments model imports (depositKey, balanceKey, itemKey) plus qcInvoiceKey; the sign-off logic (REQUIRED_SIGN_OFFS, keyOfItem, reviews, assignees) is the page's and is not here
+// Copied from ShipLine src/components/payments/paymentReviews.ts @ 362714c (the key builders unchanged since 77577a1; the file gained paymentIssues, the page's) — changes: TS → CommonJS, types stripped; only the key builders the payments model imports (depositKey, balanceKey, itemKey) plus qcInvoiceKey; the sign-off logic (REQUIRED_SIGN_OFFS, keyOfItem, reviews, assignees) is the page's and is not here
 'use strict';
 
 // The keys ShipLine's Payments flow page files a payment under — sign-offs,

@@ -3,7 +3,7 @@
 **Dev, 2026-09-29 (second decision): shipping is not modified either — JFlow reads `jfa` directly.**
 "Pull required shipping code into this repo rather than modify it", "same DB, different schema",
 "same test DB as here". **Current rule:** the payment math is ported into
-**`jflow/api/src/lib/payments-flow/`** (from ShipLine `77577a1` (re-pinned 2026-10-06; `f9499bc` before), golden-tested against the frozen
+**`jflow/api/src/lib/payments-flow/`** (from ShipLine `362714c` (re-pinned 2026-11-11; `77577a1` from 2026-10-06, `f9499bc` before), golden-tested against the frozen
 TS oracle `api/tools/payments-flow-oracle.mjs`); JFlow's **`src/services/shippingSource.js`**
 assembles the input **read-only from shipping's `jfa` schema on the same RDS instance**
 (explorer-test for local and test, explorer via the RDS Proxy for prod; mappers copied from
@@ -22,7 +22,7 @@ marked "superseded by Dev 2026-09-29: direct `jfa` read" and kept for history.
 **Dev, 2026-09-29 (first decision): ShipLine is read-only.** This work never changes ShipLine; steps 16 (shadow) and 17 (cut-over) are dropped, and shipping's JWT `GET /api/v1/payments-flow` (whose only consumer was ShipLine) is not built. Consequence: there are **two copies** of the payment math — ShipLine's TS in the browser and JFlow's JS port (originally planned as shipping's port; moved into JFlow by the second decision). They are kept equal by **re-syncing**: when ShipLine's `paymentsFlowMath.ts` changes, re-run `tools/payments-flow-oracle.mjs` against the new ShipLine commit, update the port until the golden tests deep-equal again, and record the new commit here.
 
 **Adopted 2026-09-29 (step 13, Dev).** P1–P12 adopted as written (P1 since amended, P12 since retired — see above), with the recommended
-answers to §7's questions: Q1 — source of truth is ShipLine commit **`77577a1` (re-pinned 2026-10-06; `f9499bc` before)** (GitHub
+answers to §7's questions: Q1 — source of truth is ShipLine commit **`362714c` (re-pinned 2026-11-11; `77577a1` from 2026-10-06, `f9499bc` before)** (GitHub
 main/test, 2026-09-29), where `paymentsFlowMath.ts` is **2,786 lines**, last changed
 2026-09-28 (`ec1cd76`, "balance number dupe in pop up"), the commit the port is golden-tested
 against (originally "frozen until step 17"; step 17 is dropped, so ShipLine is not frozen and later
@@ -179,6 +179,12 @@ envelope and "Errors" below are history.
   row netted to nothing is left out; credits with nothing to ride make no row. Ids: `ext-<id>`,
   `qc-<orderId>`, `chg-<po>-<g>`, `top-<po>-<g>`, `<g>` = `d<id>` for goods in a draft / plan;
   paid rows `pay-<sp>-ext<id>` / `pay-<sp>-qc<id>`.
+- **Since the re-pin to `362714c` (2026-11-11):** a PO's combined / repackaged goods (status
+  REPACKAGED — never ship, due from the day marked) are a part of their own: `<g>` = `rpk`
+  (`bal-<po>-rpk`, `pi-<pi>-rpk`), label "Combined / repackaged"; a `repackaged` transfer line
+  (target = the order line) is a paid `balance` row `pay-<sp>-rpk<orderId>` that settles
+  `bal-<po>-rpk`. A PI transfer line's `paidWith` (`supplier_payment_lines.paid_with_json`,
+  read when the column is there) puts its money on the containers it names.
 - **Rows (P3).** `open` rows are the model's `PaymentItem`s. `paid` rows are transfer lines with
   `paid_on >= paidSince`, plus balance records marked paid without a transfer
   (`settled_by_payment_id IS NULL`). Paid rows are split per PO by the model's claim shares, so each
@@ -488,7 +494,7 @@ unset).
 ### Step 18a — JFlow: source swap (replaces 14, 15 and 18; tests first) — **added by Dev 2026-09-29**
 Do, all inside `jflow/api/`:
 - `src/lib/payments-flow/{dates,terms,suppliers,policy,po,flow,ids}.js` — the type-stripped port
-  of ShipLine `77577a1` (re-pinned 2026-10-06; `f9499bc` before) plus `feedId`; `dateOfInstant` pinned to Europe/London, `today` required
+  of ShipLine `362714c` (re-pinned 2026-11-11; `77577a1` from 2026-10-06, `f9499bc` before) plus `feedId`; `dateOfInstant` pinned to Europe/London, `today` required
   (step 14's content).
 - `tools/payments-flow-oracle.mjs` — runs the frozen TS via `npx tsx` from the ShipLine checkout
   under `TZ=Europe/London` with a fixed `today`, writing the golden fixtures' expected output.
@@ -587,7 +593,7 @@ Payments page. After a day on test: the prod grant, then `bash deploy.sh prod`.
    runtime `deploy.sh` would fail and Phase 2 stop there.)* It remains PLAN's "outside this work"
    risk for shipping itself.
 2. **The TS I read is stale** (finding 6). Golden A is only as good as its oracle: the commit Dev
-   names (`77577a1` (re-pinned 2026-10-06; `f9499bc` before)); ShipLine is not frozen, so the port must be re-synced when it changes.
+   names (`362714c` (re-pinned 2026-11-11; `77577a1` from 2026-10-06, `f9499bc` before)); ShipLine is not frozen, so the port must be re-synced when it changes.
 3. **Stage changes retire ids.** An overlay or adjustment on `dep-812` does not follow the PI that
    replaces it; the user sees `SHIP_PLAN_ORPHANED` / `TARGET_MISSING` and re-plans. The refresh never
    writes `planned_*`, so it cannot move the plan.

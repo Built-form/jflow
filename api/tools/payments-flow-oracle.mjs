@@ -1,4 +1,4 @@
-// Copied from shipping/tools/payments-flow-oracle.mjs (phase2-payments-flow export) — changes: helpers from ../test/helpers/paymentsFlow.js (fixtures in test/fixtures/payments-flow/); run from jflow/api/; eslint globals directive; header comment points at JFlow's paths
+// Copied from shipping/tools/payments-flow-oracle.mjs (phase2-payments-flow export) — changes: helpers from ../test/helpers/paymentsFlow.js (fixtures in test/fixtures/payments-flow/); run from jflow/api/; eslint globals directive; header comment points at JFlow's paths; the pinned source (SOURCE and its hash check) lives in tools/payments-flow-source.mjs, shared with tools/payments-flow-port.mjs (2026-11-11)
 // Golden A oracle — runs the FROZEN ShipLine TypeScript on every payments-flow
 // fixture and writes what it returns, so the port in src/lib/payments-flow can
 // be proven identical to it (test/unit/payments-flow-golden.test.js,
@@ -7,14 +7,13 @@
 // re-running when a fixture changes, or to re-sync the port with a newer
 // ShipLine commit.
 //
-// Source of truth: ShipLine commit f9499bc (JFlow PHASE2 step 13 sign-off),
-// src/components/payments/paymentsFlowMath.ts (2,786 lines) and its one runtime
-// import, src/components/shared/containerHelpers.ts. They are frozen until the
-// cut-over (PHASE2 step 17); the oracle refuses any other content (hashes
-// below, taken with CRLF folded to LF) unless --allow-other-source.
+// Source of truth: the ShipLine commit and files in tools/payments-flow-source.mjs
+// (paymentsFlowMath.ts and its runtime imports, paymentReviews.ts and
+// containerHelpers.ts). The oracle refuses any other content (hashes taken with
+// CRLF folded to LF) unless --allow-other-source.
 //
 // Regenerate, from jflow/api/, with a ShipLine checkout (or a
-// `git archive f9499bc` export) at <dir>. It must run under Europe/London with
+// `git archive <commit>` export) at <dir>. It must run under Europe/London with
 // the fixture's own `today` (the page's setting); the script checks both.
 //   PowerShell:  $env:TZ='Europe/London'; npx -y tsx@4.21.0 tools/payments-flow-oracle.mjs --shipline <dir>
 //   bash/zsh:    TZ=Europe/London npx -y tsx@4.21.0 tools/payments-flow-oracle.mjs --shipline <dir>
@@ -29,25 +28,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { SOURCE, checkSource } from './payments-flow-source.mjs';
 
 const require = createRequire(import.meta.url);
 const H = require('../test/helpers/paymentsFlow.js');
 
-// Re-pinned 2026-10-06 (Dev) from f9499bc to 77577a1 — the model file's newest commit
-// ("custom due dates"): extras, QC units, top-ups, drafts and plans dating their goods,
-// from-today, due dates set by hand. paymentReviews.ts joined the runtime imports (the
-// sign-off key builders the model files a payment under).
-const SOURCE = {
-    commit: '77577a1',
-    files: {
-        'src/components/payments/paymentsFlowMath.ts': { lines: 4118, sha256: '120db5647ba7582f97b2a60d1b1987430611a08db604057238de477b78579f07' },
-        'src/components/shared/containerHelpers.ts': { lines: 340, sha256: '50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98' },
-        'src/components/payments/paymentReviews.ts': { lines: 196, sha256: 'c0ca82f630a0b12b2f1714a65ab99de41a95268b30dad3159d74934c4793e6d5' },
-    },
-};
 const ZONE = 'Europe/London';
 
 function fail(msg) {
@@ -60,7 +47,7 @@ const opt = (name) => {
     const i = argv.indexOf(name);
     return i === -1 ? null : (argv[i + 1] ?? fail(`${name} needs a value`));
 };
-const shipline = opt('--shipline') ?? process.env.SHIPLINE_DIR ?? fail('--shipline <path to a ShipLine checkout at f9499bc> is required');
+const shipline = opt('--shipline') ?? process.env.SHIPLINE_DIR ?? fail(`--shipline <path to a ShipLine checkout at ${SOURCE.commit}> is required`);
 const only = opt('--only');
 const check = argv.includes('--check');
 const allowOther = argv.includes('--allow-other-source');
@@ -72,23 +59,19 @@ if (process.env.TZ !== ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone 
 if (new Date('2026-07-01T12:00:00Z').getTimezoneOffset() !== -60) fail('Europe/London is not on BST in July — ICU time zone data looks wrong');
 
 // Provenance: which source produced these files.
-const source = { commit: SOURCE.commit, files: {} };
-for (const [rel, want] of Object.entries(SOURCE.files)) {
-    const file = path.join(shipline, rel);
-    if (!fs.existsSync(file)) fail(`${file} not found`);
-    const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
-    const got = { lines: text.split('\n').length - (text.endsWith('\n') ? 1 : 0), sha256: crypto.createHash('sha256').update(text, 'utf8').digest('hex') };
-    if ((got.sha256 !== want.sha256 || got.lines !== want.lines) && !allowOther) {
-        fail(`${rel} is not the frozen ${SOURCE.commit} copy (${got.lines} lines, sha256 ${got.sha256}); pass --allow-other-source to run it anyway`);
-    }
-    source.files[rel] = got;
+let source;
+try {
+    const { commit, files } = checkSource(shipline, { allowOther });
+    source = { commit, files };
+} catch (e) {
+    fail(e.message);
 }
 
 const math = await import(pathToFileURL(path.join(shipline, 'src/components/payments/paymentsFlowMath.ts')).href);
 
 const write = (file, value) => {
     const text = JSON.stringify(value, null, 1) + '\n';
-    const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+    const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n') : null;
     if (check) {
         if (old !== text) { console.error(`STALE ${path.relative(process.cwd(), file)}`); process.exitCode = 1; }
         return;

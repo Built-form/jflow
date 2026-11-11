@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/shared/containerHelpers.ts @ 77577a1 (unchanged since f9499bc: 340 lines, same sha256 — the oracle checks it) — changes: TS → CommonJS, types stripped; the model's runtime import for live-tracking lookup and internal container numbers
+// Ported from ShipLine src/components/shared/containerHelpers.ts @ 362714c (unchanged since f9499bc: 340 lines, same sha256 — the oracle checks it) — changes: TS → CommonJS, types stripped; the model's runtime import for live-tracking lookup and internal container numbers
 'use strict';
 
 // Container helpers the model imports from ShipLine's

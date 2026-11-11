@@ -1,0 +1,676 @@
+{
+ "fixture": "pi-paid-with",
+ "source": {
+  "commit": "362714c",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 4696,
+    "sha256": "300e18f8b217a29eb53bb88c8fac15127c2f80c68ec7f5ccc5a31f55a91224bf"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 213,
+    "sha256": "7bca087364c88bde1ff2d16b9dbd4c09071d24d51d21ab84fb0a8674b0380f2d"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-11-11",
+ "output": {
+  "today": "2026-11-11",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 4379.28,
+     "due7": 0,
+     "due30": 2720.72,
+     "unscheduled": 0,
+     "outstanding": 7100,
+     "later": 0,
+     "notPayable": 0,
+     "overdueCount": 1,
+     "itemCount": 2,
+     "qc": 26.12,
+     "qcCount": 1,
+     "qcOverdue": 26.12,
+     "qcOverdueCount": 1,
+     "credit": 0
+    },
+    "items": [
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 2970,
+      "poNumber": "PO_00297J",
+      "supplier": "Suzhou Sunmed Co., Ltd",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9702,
+      "paymentId": 2972,
+      "shipmentPaymentId": null,
+      "id": "stated:2972:309",
+      "amount": 4353.16,
+      "dueDate": "2026-10-20",
+      "contractualDate": "2026-10-20",
+      "trigger": "bl",
+      "containerNumber": "309",
+      "containerShare": 0.38095238095238093,
+      "blocked": null,
+      "flags": [
+       "partly_paid",
+       "derived_date",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Goods on board in 309",
+        "value": 8000,
+        "result": 8000,
+        "source": "1 line"
+       },
+       {
+        "op": "×",
+        "label": "Balance PI 70%",
+        "value": 0.7,
+        "result": 5600,
+        "source": "PI-297J-balance.pdf — 14,733.60 of 21,048.00"
+       },
+       {
+        "op": "−",
+        "label": "Paid by transfer",
+        "value": 1246.84,
+        "result": 4353.16,
+        "source": "transfers recorded against this PI, spread over what is left of it"
+       }
+      ]
+     },
+     {
+      "kind": "balance",
+      "basis": "stated",
+      "poId": 2970,
+      "poNumber": "PO_00297J",
+      "supplier": "Suzhou Sunmed Co., Ltd",
+      "currency": "USD",
+      "status": "pending",
+      "invoiceId": 9702,
+      "paymentId": 2972,
+      "shipmentPaymentId": null,
+      "id": "stated:2972:311",
+      "amount": 2720.72,
+      "dueDate": "2026-11-25",
+      "contractualDate": "2026-11-25",
+      "trigger": "bl",
+      "containerNumber": "311",
+      "containerShare": 0.23809523809523808,
+      "blocked": null,
+      "flags": [
+       "partly_paid",
+       "derived_date",
+       "estimated",
+       "multi_container"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Goods on board in 311",
+        "value": 5000,
+        "result": 5000,
+        "source": "1 line"
+       },
+       {
+        "op": "×",
+        "label": "Balance PI 70%",
+        "value": 0.7,
+        "result": 3500,
+        "source": "PI-297J-balance.pdf — 14,733.60 of 21,048.00"
+       },
+       {
+        "op": "−",
+        "label": "Paid by transfer",
+        "value": 779.28,
+        "result": 2720.72,
+        "source": "transfers recorded against this PI, spread over what is left of it"
+       }
+      ]
+     }
+    ],
+    "qcItems": [
+     {
+      "id": "qc:297004",
+      "kind": "qc",
+      "basis": "stated",
+      "poId": 2970,
+      "poNumber": "PO_00297J",
+      "supplier": "Suzhou Sunmed Co., Ltd",
+      "currency": "USD",
+      "qcOrderId": "297004",
+      "qcCode": "JF2002_FQC",
+      "qcProduct": "JF2002",
+      "quantity": 20,
+      "unitPrice": 2.4,
+      "qcValue": 48,
+      "amount": 26.12,
+      "qcProductBox": "310",
+      "qcInvoice": null,
+      "notPayable": false,
+      "dueDate": "2026-10-05",
+      "contractualDate": "2026-10-05",
+      "blocked": null,
+      "status": "pending",
+      "invoiceId": 9702,
+      "paymentId": 2972,
+      "flags": [
+       "qc_unit",
+       "partly_paid"
+      ],
+      "derivation": [
+       {
+        "op": "=",
+        "label": "QC units JF2002",
+        "value": 48,
+        "result": 48,
+        "source": "20 × 2.4 — product in 310"
+       },
+       {
+        "op": "×",
+        "label": "Balance PI 70%",
+        "value": 0.7,
+        "result": 33.6,
+        "source": "PI-297J-balance.pdf — 14,733.60 of 21,048.00"
+       },
+       {
+        "op": "−",
+        "label": "Paid by transfer",
+        "value": 7.48,
+        "result": 26.12,
+        "source": "transfers recorded against this PI, spread over what is left of it"
+       }
+      ]
+     }
+    ],
+    "qcClosed": [],
+    "pos": [
+     {
+      "poId": 2970,
+      "poNumber": "PO_00297J",
+      "supplier": "Suzhou Sunmed Co., Ltd",
+      "supplierRaw": "Suzhou Sunmed Co.,Ltd.",
+      "currency": "USD",
+      "poTotal": 21048,
+      "totalBasis": "invoice",
+      "invoiceTotalFrom": 9701,
+      "linesValue": 21048,
+      "shippingTotal": 0,
+      "lineCount": 4,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 13948,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 7100,
+      "remainder": 0,
+      "derivedDeposit": 0,
+      "derivedBalance": 0,
+      "outstanding": 7073.88,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "invoice",
+       "raw": "30D/70B BOL",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": "309",
+        "share": 0.38095238095238093,
+        "lineCount": 1,
+        "units": 1000,
+        "value": 8000,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-10-20",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null,
+        "open": null
+       },
+       {
+        "containerNumber": "310",
+        "share": 0.38095238095238093,
+        "lineCount": 1,
+        "units": 800,
+        "value": 8000,
+        "dueDate": "2026-10-05",
+        "contractualDate": "2026-10-05",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": null,
+        "flags": [],
+        "etd": "2026-10-05",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null,
+        "open": null
+       },
+       {
+        "containerNumber": "311",
+        "share": 0.23809523809523808,
+        "lineCount": 1,
+        "units": 500,
+        "value": 5000,
+        "dueDate": "2026-11-25",
+        "contractualDate": "2026-11-25",
+        "landed": false,
+        "departed": false,
+        "estimated": true,
+        "blocked": null,
+        "flags": [
+         "estimated"
+        ],
+        "etd": "2026-11-25",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null,
+        "open": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "invoice_total_used"
+      ],
+      "items": [
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 2970,
+        "poNumber": "PO_00297J",
+        "supplier": "Suzhou Sunmed Co., Ltd",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9702,
+        "paymentId": 2972,
+        "shipmentPaymentId": null,
+        "id": "stated:2972:309",
+        "amount": 4353.16,
+        "dueDate": "2026-10-20",
+        "contractualDate": "2026-10-20",
+        "trigger": "bl",
+        "containerNumber": "309",
+        "containerShare": 0.38095238095238093,
+        "blocked": null,
+        "flags": [
+         "partly_paid",
+         "derived_date",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Goods on board in 309",
+          "value": 8000,
+          "result": 8000,
+          "source": "1 line"
+         },
+         {
+          "op": "×",
+          "label": "Balance PI 70%",
+          "value": 0.7,
+          "result": 5600,
+          "source": "PI-297J-balance.pdf — 14,733.60 of 21,048.00"
+         },
+         {
+          "op": "−",
+          "label": "Paid by transfer",
+          "value": 1246.84,
+          "result": 4353.16,
+          "source": "transfers recorded against this PI, spread over what is left of it"
+         }
+        ]
+       },
+       {
+        "kind": "balance",
+        "basis": "stated",
+        "poId": 2970,
+        "poNumber": "PO_00297J",
+        "supplier": "Suzhou Sunmed Co., Ltd",
+        "currency": "USD",
+        "status": "pending",
+        "invoiceId": 9702,
+        "paymentId": 2972,
+        "shipmentPaymentId": null,
+        "id": "stated:2972:311",
+        "amount": 2720.72,
+        "dueDate": "2026-11-25",
+        "contractualDate": "2026-11-25",
+        "trigger": "bl",
+        "containerNumber": "311",
+        "containerShare": 0.23809523809523808,
+        "blocked": null,
+        "flags": [
+         "partly_paid",
+         "derived_date",
+         "estimated",
+         "multi_container"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Goods on board in 311",
+          "value": 5000,
+          "result": 5000,
+          "source": "1 line"
+         },
+         {
+          "op": "×",
+          "label": "Balance PI 70%",
+          "value": 0.7,
+          "result": 3500,
+          "source": "PI-297J-balance.pdf — 14,733.60 of 21,048.00"
+         },
+         {
+          "op": "−",
+          "label": "Paid by transfer",
+          "value": 779.28,
+          "result": 2720.72,
+          "source": "transfers recorded against this PI, spread over what is left of it"
+         }
+        ]
+       }
+      ],
+      "qcItems": [
+       {
+        "id": "qc:297004",
+        "kind": "qc",
+        "basis": "stated",
+        "poId": 2970,
+        "poNumber": "PO_00297J",
+        "supplier": "Suzhou Sunmed Co., Ltd",
+        "currency": "USD",
+        "qcOrderId": "297004",
+        "qcCode": "JF2002_FQC",
+        "qcProduct": "JF2002",
+        "quantity": 20,
+        "unitPrice": 2.4,
+        "qcValue": 48,
+        "amount": 26.12,
+        "qcProductBox": "310",
+        "qcInvoice": null,
+        "notPayable": false,
+        "dueDate": "2026-10-05",
+        "contractualDate": "2026-10-05",
+        "blocked": null,
+        "status": "pending",
+        "invoiceId": 9702,
+        "paymentId": 2972,
+        "flags": [
+         "qc_unit",
+         "partly_paid"
+        ],
+        "derivation": [
+         {
+          "op": "=",
+          "label": "QC units JF2002",
+          "value": 48,
+          "result": 48,
+          "source": "20 × 2.4 — product in 310"
+         },
+         {
+          "op": "×",
+          "label": "Balance PI 70%",
+          "value": 0.7,
+          "result": 33.6,
+          "source": "PI-297J-balance.pdf — 14,733.60 of 21,048.00"
+         },
+         {
+          "op": "−",
+          "label": "Paid by transfer",
+          "value": 7.48,
+          "result": 26.12,
+          "source": "transfers recorded against this PI, spread over what is left of it"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Suzhou Sunmed Co., Ltd",
+      "currency": "USD",
+      "outstanding": 7100,
+      "overdue": 4379.28,
+      "due30": 2720.72,
+      "unscheduled": 0,
+      "paid": 13948,
+      "assumedPaid": 0,
+      "poCount": 1,
+      "itemCount": 2,
+      "nextDue": "2026-10-05",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30D/70B BOL",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30D/70B BOL",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": [
+       "Suzhou Sunmed Co.,Ltd."
+      ]
+     }
+    ],
+    "byContainer": [
+     {
+      "containerNumber": "309",
+      "currency": "USD",
+      "amount": 4353.16,
+      "dueDate": "2026-10-20",
+      "etd": "2026-10-20",
+      "eta": null,
+      "landed": false,
+      "departed": true,
+      "estimated": false,
+      "poNumbers": [
+       "PO_00297J"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Suzhou Sunmed Co., Ltd",
+        "amount": 4353.16,
+        "dueDate": "2026-10-20",
+        "poNumbers": [
+         "PO_00297J"
+        ],
+        "items": [
+         {
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 2970,
+          "poNumber": "PO_00297J",
+          "supplier": "Suzhou Sunmed Co., Ltd",
+          "currency": "USD",
+          "status": "pending",
+          "invoiceId": 9702,
+          "paymentId": 2972,
+          "shipmentPaymentId": null,
+          "id": "stated:2972:309",
+          "amount": 4353.16,
+          "dueDate": "2026-10-20",
+          "contractualDate": "2026-10-20",
+          "trigger": "bl",
+          "containerNumber": "309",
+          "containerShare": 0.38095238095238093,
+          "blocked": null,
+          "flags": [
+           "partly_paid",
+           "derived_date",
+           "multi_container"
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Goods on board in 309",
+            "value": 8000,
+            "result": 8000,
+            "source": "1 line"
+           },
+           {
+            "op": "×",
+            "label": "Balance PI 70%",
+            "value": 0.7,
+            "result": 5600,
+            "source": "PI-297J-balance.pdf — 14,733.60 of 21,048.00"
+           },
+           {
+            "op": "−",
+            "label": "Paid by transfer",
+            "value": 1246.84,
+            "result": 4353.16,
+            "source": "transfers recorded against this PI, spread over what is left of it"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     },
+     {
+      "containerNumber": "311",
+      "currency": "USD",
+      "amount": 2720.72,
+      "dueDate": "2026-11-25",
+      "etd": "2026-11-25",
+      "eta": null,
+      "landed": false,
+      "departed": false,
+      "estimated": true,
+      "poNumbers": [
+       "PO_00297J"
+      ],
+      "itemCount": 1,
+      "payables": [
+       {
+        "supplier": "Suzhou Sunmed Co., Ltd",
+        "amount": 2720.72,
+        "dueDate": "2026-11-25",
+        "poNumbers": [
+         "PO_00297J"
+        ],
+        "items": [
+         {
+          "kind": "balance",
+          "basis": "stated",
+          "poId": 2970,
+          "poNumber": "PO_00297J",
+          "supplier": "Suzhou Sunmed Co., Ltd",
+          "currency": "USD",
+          "status": "pending",
+          "invoiceId": 9702,
+          "paymentId": 2972,
+          "shipmentPaymentId": null,
+          "id": "stated:2972:311",
+          "amount": 2720.72,
+          "dueDate": "2026-11-25",
+          "contractualDate": "2026-11-25",
+          "trigger": "bl",
+          "containerNumber": "311",
+          "containerShare": 0.23809523809523808,
+          "blocked": null,
+          "flags": [
+           "partly_paid",
+           "derived_date",
+           "estimated",
+           "multi_container"
+          ],
+          "derivation": [
+           {
+            "op": "=",
+            "label": "Goods on board in 311",
+            "value": 5000,
+            "result": 5000,
+            "source": "1 line"
+           },
+           {
+            "op": "×",
+            "label": "Balance PI 70%",
+            "value": 0.7,
+            "result": 3500,
+            "source": "PI-297J-balance.pdf — 14,733.60 of 21,048.00"
+           },
+           {
+            "op": "−",
+            "label": "Paid by transfer",
+            "value": 779.28,
+            "result": 2720.72,
+            "source": "transfers recorded against this PI, spread over what is left of it"
+           }
+          ]
+         }
+        ],
+        "payments": [],
+        "documents": []
+       }
+      ]
+     }
+    ],
+    "dataQuality": [],
+    "credits": []
+   }
+  ],
+  "poCount": 1
+ }
+}

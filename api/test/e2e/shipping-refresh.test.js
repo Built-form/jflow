@@ -304,12 +304,14 @@ describe('the refresh diff (CONTRACT §10.12)', () => {
             kind: 'deposit', status: 'paid', supplier: 'Other Mill', companyId: 2, poId: 900, poNumber: 'PO-900',
             shipmentId: 400, containerRef: 'TGHU0000001', currency: 'CNY', amount: '54321.00', dueDate: '2026-10-01',
             paidOn: '2026-09-25', settles: 'dep-900', dateBasis: 'estimated', amountBasis: 'derived', blocked: 'artwork',
-            flags: ['estimated'],
+            flags: ['estimated'], label: 'Mould cost',
         });
         expect(await runWith([everything, B2, C])).toMatchObject({ updated: 1, unchanged: 2 });
 
         const after = await itemRow('bal-812-s311');
-        for (const c of FEED_COLUMNS) {
+        // Every feed column but due_set_json (2026-10-06): a paid row never carries a date set by
+        // hand (validateFeed), so it stays null here; its own changes are the due_set_json tests above.
+        for (const c of FEED_COLUMNS.filter((x) => x !== 'due_set_json')) {
             expect({ c, changed: JSON.stringify(after[c]) !== JSON.stringify(before[c]) }).toEqual({ c, changed: true });
         }
         expect(after.feed_hash).not.toBe(before.feed_hash);

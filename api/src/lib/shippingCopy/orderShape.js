@@ -1,4 +1,4 @@
-// Copied from shipping/src/lib/order-shape.js — changes: rowToOrder trimmed to the fields the payments model (lib/payments-flow) reads, key order kept; ORDER_SELECT moved to services/shippingReads.js (schema-qualified, explicit columns, received_quantity only); parseDates, normalizeExpiry and receiptToJson dropped
+// Copied from shipping/src/lib/order-shape.js — changes: rowToOrder trimmed to the fields the payments model (lib/payments-flow) reads, key order kept (jfCode, asin and dates since the re-pin to ShipLine 362714c, from shipping @ 1d0bd83); ORDER_SELECT moved to services/shippingReads.js (schema-qualified, explicit columns, received_quantity only); parseDates verbatim; normalizeExpiry and receiptToJson dropped
 'use strict';
 
 // Order-shaping helpers, as GET /api/v1/orders shapes an order before ShipLine's
@@ -32,11 +32,21 @@ function formatDateTime(val) {
     return val.toISOString?.() ?? val;
 }
 
+// The order's status history (the JSON `dates` column: stage → instant, e.g.
+// repackaged, received, received_by_warehouse). Verbatim: bad JSON throws, as
+// GET /orders would fail.
+function parseDates(raw) {
+    if (typeof raw === 'string') return JSON.parse(raw) || {};
+    return raw || {};
+}
+
 function rowToOrder(row) {
     const quantity = Number(row.quantity || 0);
     const receivedQuantity = Number(row.received_quantity || 0);
     return {
         id: row.id,
+        jfCode: row.jf_code || null,
+        asin: row.asin || null,
         quantity,
         receivedQuantity,
         status: row.status,
@@ -45,6 +55,7 @@ function rowToOrder(row) {
         containerNumber: row.container_number || null,
         eta: formatDate(row.eta),
         poDate: formatDate(row.po_date),
+        dates: parseDates(row.dates),
         deliveryDate: formatDateTime(row.delivery_date),
         arrivedDate: formatDate(row.arrived_date),
         externalContainerNumber: row.external_container_number || null,
@@ -61,6 +72,7 @@ function rowToOrder(row) {
 }
 
 module.exports = {
+    parseDates,
     formatDate,
     formatDateTime,
     rowToOrder,

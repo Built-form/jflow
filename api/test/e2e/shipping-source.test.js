@@ -59,8 +59,9 @@ const byId = (body) => Object.fromEntries(body.items.map((r) => [r.id, r]));
 const cents = (s) => Math.round(Number(s) * 100);
 const T = (table) => `\`${shadow.schema}\`.\`${table}\``;
 
-const FEED_KEYS = ['id', 'kind', 'status', 'supplier', 'companyId', 'poId', 'poNumber', 'shipmentId', 'containerRef',
-    'currency', 'amount', 'dueDate', 'dateBasis', 'amountBasis', 'blocked', 'arranged', 'paidOn', 'settles', 'flags'];
+// label and dueSet since 2026-10-06 (the re-pin to 77577a1; dates set by hand) — as test/unit/payments-flow-forecast.test.js.
+const FEED_KEYS = ['id', 'kind', 'status', 'supplier', 'companyId', 'poId', 'poNumber', 'shipmentId', 'containerRef', 'label',
+    'currency', 'amount', 'dueDate', 'dateBasis', 'amountBasis', 'blocked', 'arranged', 'paidOn', 'settles', 'flags', 'dueSet'];
 
 describe('the shadow schema', () => {
     test('is jflow_test_<runid>_jfa, next to this run\'s schema, and holds every table the source reads', async () => {
@@ -71,7 +72,13 @@ describe('the shadow schema', () => {
             'SELECT TABLE_NAME AS t FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME', [shadow.schema]
         );
         expect(rows.map((r) => r.t)).toEqual(Object.keys(SOURCE_COLUMNS).sort());
-        await expect(source.checkSchema({ query: (sql, p) => h.sql(sql, p).then((r) => [r]) }, shadow.schema)).resolves.toBeUndefined();
+        // Since 2026-10-06 checkSchema says which optional tables are whole. The shadow holds
+        // SOURCE_COLUMNS' tables only, so the optional tables of their own read as absent; the
+        // optional columns on a source table follow this database's real shape — TEST has
+        // shipments.name/etd/eta and supplier_payment_lines.paid_with_json (shipping 2026-10-19_10).
+        await expect(source.checkSchema({ query: (sql, p) => h.sql(sql, p).then((r) => [r]) }, shadow.schema)).resolves.toEqual({
+            optional: { payment_due_dates: false, shipping_allowed_emails: false, payment_extras: false, shipments: true, shipment_lines: false, supplier_payment_lines: true },
+        });
     });
 });
 
@@ -81,7 +88,8 @@ describe('the feed rows (PHASE2 §3; P2, P3)', () => {
 
     test('the body: meta, shipping\'s companies, rows JFlow accepts with 0 rejects', () => {
         expect(Object.keys(body)).toEqual(['meta', 'companies', 'items']);
-        expect(body.meta).toMatchObject({ today: TODAY, paidSince: PAID_SINCE, model: 'ShipLine f9499bc', schema: shadow.schema });
+        expect(body.meta).toMatchObject({ today: TODAY, paidSince: PAID_SINCE, model: source.MODEL, schema: shadow.schema });
+        expect(source.MODEL).toMatch(/^ShipLine [0-9a-f]{7}$/);
         expect(body.meta.generatedAt).toEqual(expect.any(String));
         expect(body.companies).toEqual([{ id: 1, name: 'JFA Medical Ltd' }, { id: 2, name: 'Hangerworld Ltd' }]);
         const feed = shipping.validateFeed(body);
@@ -107,7 +115,9 @@ describe('the feed rows (PHASE2 §3; P2, P3)', () => {
     test('open rows: dateBasis follows the due date and the estimated flag; ids are the P2 forms', () => {
         for (const r of body.items.filter((x) => x.status === 'open')) {
             expect(r.dateBasis).toBe(r.dueDate == null ? 'undated' : r.flags.includes('estimated') ? 'estimated' : 'firm');
-            expect(r.id).toMatch(/^(dep-\d+|pi-\d+(-(s\d+|r[0-9a-f]{10}|n))?|bal-\d+-(s\d+|r[0-9a-f]{10}|n))$/);
+            // The P2 forms (lib/payments-flow/ids.js), with those since the re-pins: charges, top-ups,
+            // QC units, extras, a PI's charges / fqc share, draft parts (d<id>), repackaged goods (rpk).
+            expect(r.id).toMatch(/^(dep-\d+|pi-\d+(-[cf]?(s\d+|d\d+|r[0-9a-f]{10}|n|rpk))?|(bal|chg|fqc|top)-\d+-(s\d+|d\d+|r[0-9a-f]{10}|n|rpk)|qc-\d+|ext-\d+)$/);
             expect(r.paidOn).toBeNull();
         }
         const ids = body.items.map((r) => r.id);
@@ -116,11 +126,14 @@ describe('the feed rows (PHASE2 §3; P2, P3)', () => {
 
     test('a balance marked paid with no transfer is split per PO by the model\'s claims (spd-<sp>-<po>)', () => {
         const rows = byId(body);
-        // 6001: 1500 = 1000 named for 801 + 500 shared 801:802 by value (2500:1200).
+        // 6001: 1500 = 1000 named for 801 + 500 shared 801:802 by what each is still unpaid in
+        // the box (ShipLine 2026-10-19 audit, in the model since the re-pin to 362714c: "only
+        // what this record has not already paid each PO for") — 801 2500 − 1000 = 1500 : 802 1200.
+        // (By value, 2500:1200, before: 1337.84 + 162.16.)
         const a = rows['spd-6001-801'];
         const b = rows['spd-6001-802'];
-        expect(a).toMatchObject({ amount: '1337.84', poId: 801, companyId: 1 });
-        expect(b).toMatchObject({ amount: '162.16', poId: 802, companyId: 2 });
+        expect(a).toMatchObject({ amount: '1277.78', poId: 801, companyId: 1 });
+        expect(b).toMatchObject({ amount: '222.22', poId: 802, companyId: 2 });
         expect(cents(a.amount) + cents(b.amount)).toBe(150000);
         for (const [r, po] of [[a, 801], [b, 802]]) {
             expect(r).toMatchObject({
@@ -164,7 +177,7 @@ describe('the feed rows (PHASE2 §3; P2, P3)', () => {
         expect(rows['bal-805-s314'].flags).toEqual(expect.arrayContaining(['policy_applied', 'grace_applied']));
         expect(rows['bal-805-s314'].flags).not.toContain('awaiting_document');
         // Lines not yet in a container wait for their document, undated.
-        const unbooked = body.items.find((r) => r.poId === 801 && r.status === 'open');
+        const unbooked = body.items.find((r) => r.poId === 801 && r.status === 'open' && r.containerRef === 'MSKU1');
         expect(unbooked).toMatchObject({ containerRef: 'MSKU1', dueDate: null, dateBasis: 'undated', shipmentId: null });
 
         // Without the document, the same balance waits for it.
@@ -306,7 +319,7 @@ describe('the refresh end to end, then a schema that no longer fits', () => {
         expect(res.body.status.itemCount).toBe(expected.items.length);
         const spd = rows.find((r) => r.ext_id === 'spd-6001-801');
         expect(spd).toMatchObject({
-            feed_kind: 'balance', feed_status: 'paid', shipping_company_id: 1, po_id: 801, amount: '1337.84',
+            feed_kind: 'balance', feed_status: 'paid', shipping_company_id: 1, po_id: 801, amount: '1277.78',
             paid_on: '2026-09-20', settles: 'bal-801-s311', created_by: 'shipping-feed', gone_at: null,
         });
         for (const r of rows) {

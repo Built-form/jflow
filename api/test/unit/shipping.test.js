@@ -107,7 +107,7 @@ describe('configuration', () => {
 });
 
 describe('the schema check', () => {
-    const ALL_OPTIONAL = { payment_due_dates: true, shipping_allowed_emails: true, payment_extras: true, shipments: true, shipment_lines: true };
+    const ALL_OPTIONAL = { payment_due_dates: true, shipping_allowed_emails: true, payment_extras: true, shipments: true, shipment_lines: true, supplier_payment_lines: true };
     /** Every column per table, required and optional together (a table may be in both lists). */
     const allColumns = () => {
         const out = {};
@@ -154,7 +154,11 @@ describe('the schema check', () => {
         await expect(source.checkSchema(columnsQuery({ drop: ['shipping_allowed_emails.display_name'] }), 'jfa'))
             .resolves.toEqual({ optional: { ...ALL_OPTIONAL, shipping_allowed_emails: false } });
         await expect(source.checkSchema(columnsQuery({ without: ['payment_due_dates', 'shipping_allowed_emails', 'payment_extras', 'shipment_lines'] }), 'jfa'))
-            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: false, payment_extras: false, shipments: true, shipment_lines: false } });
+            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: false, payment_extras: false, shipments: true, shipment_lines: false, supplier_payment_lines: true } });
+        // supplier_payment_lines is in both lists too: no paid_with_json (before shipping 2026-10-19_10) only turns its flag off.
+        await expect(source.checkSchema(columnsQuery({ drop: ['supplier_payment_lines.paid_with_json'] }), 'jfa'))
+            .resolves.toEqual({ optional: { ...ALL_OPTIONAL, supplier_payment_lines: false } });
+        expect((await rejectionOf(source.checkSchema(columnsQuery({ drop: ['supplier_payment_lines.target_kind'] }), 'jfa'))).reason).toBe('source_schema');
         // shipments is in both lists: its required columns still fail the check, its optional ones (name, etd, eta) only turn the flag off.
         await expect(source.checkSchema(columnsQuery({ drop: ['shipments.etd'] }), 'jfa'))
             .resolves.toEqual({ optional: { ...ALL_OPTIONAL, shipments: false } });
@@ -171,7 +175,15 @@ describe('the schema check', () => {
                 'settled_by_payment_id', 'note', 'created_by_email', 'created_at', 'updated_by_email', 'updated_at', 'deleted_at'],
             shipments: ['name', 'etd', 'eta'],
             shipment_lines: ['shipment_id', 'order_id', 'quantity'],
+            // The re-pin to 362714c: which containers a PI line's money paid (shipping 2026-10-19_10).
+            supplier_payment_lines: ['paid_with_json'],
         });
+    });
+
+    test('SOURCE_COLUMNS: the re-pin to 362714c reads the JF code, ASIN and status history of an order, and a balance record\'s source', () => {
+        expect(SOURCE_COLUMNS.orders).toEqual(expect.arrayContaining(['jf_code', 'asin', 'dates']));
+        expect(SOURCE_COLUMNS.shipment_payments).toContain('source');
+        expect(SOURCE_COLUMNS.supplier_payment_lines).not.toContain('paid_with_json');
     });
 
     test('a missing (or unreadable) column → source_schema naming it', async () => {
@@ -199,6 +211,56 @@ describe('the schema check', () => {
             'purchase_order_signed_pis', 'purchase_orders', 'quality_assurance_documents', 'shipment_payment_allocations',
             'shipment_payments', 'shipments', 'supplier_payment_lines', 'supplier_payments', 'suppliers',
         ]);
+    });
+});
+
+describe('the reads the re-pin to 362714c added (scripted connection, no database)', () => {
+    const reads = require('../../src/services/shippingReads');
+    const t = (name) => `\`jfa\`.\`${name}\``;
+    /** Answers by table; records every statement. */
+    const scripted = () => {
+        const calls = [];
+        const rowsFor = (sql, params) => {
+            if (/FROM `jfa`\.`supplier_payments` sp WHERE/.test(sql)) return [{ id: 6101, supplier_name: 'Suzhou Sunmed Co., Ltd', amount: '6133.60', currency: 'USD', paid_on: '2026-10-15' }];
+            if (/FROM `jfa`\.`supplier_payment_lines` WHERE payment_id/.test(sql)) {
+                const lines = [
+                    { id: 61, payment_id: 6101, target_kind: 'pi', target_id: 2972, amount: '5633.60', paid_with_json: '[{"shipmentReference":"310","amount":5600}]' },
+                    { id: 71, payment_id: 6101, target_kind: 'repackaged', target_id: 310001, amount: '500.00', paid_with_json: null },
+                ];
+                // Only what the statement selects comes back.
+                return /paid_with_json/.test(sql) ? lines : lines.map(({ paid_with_json: _, ...l }) => l);
+            }
+            if (/FROM `jfa`\.`purchase_order_invoice_payments` p\s+JOIN/.test(sql)) return [{ id: 2972, purchase_order_id: 2970, payment_type: 'balance', po_number: 'PO_00297J' }];
+            if (/FROM `jfa`\.`orders` o JOIN `jfa`\.`purchase_orders` po/.test(sql)) {
+                return [{ id: 310001, purchase_order_id: 3100, po_number: 'PO_00310R' }].filter((r) => params.includes(r.id));
+            }
+            return [];
+        };
+        return { calls, query: async (sql, params = []) => { calls.push(sql); return [rowsFor(sql, params)]; } };
+    };
+    const linesOf = (sources) => sources.supplierPayments.data[0].lines;
+
+    test('a PI line carries the containers its money paid (paid_with_json) when the column is there; a repackaged line resolves to its PO', async () => {
+        const q = scripted();
+        const sources = await reads.loadSources(q, t, { optional: { supplier_payment_lines: true } });
+        expect(q.calls.find((s) => /supplier_payment_lines` WHERE payment_id/.test(s))).toMatch(/target_kind, target_id, amount, paid_with_json\s/);
+        const [pi, rpk] = linesOf(sources);
+        expect(pi).toMatchObject({ kind: 'pi', targetId: 2972, purchaseOrderId: 2970, poNumber: 'PO_00297J', paymentType: 'balance', paidWith: [{ shipmentReference: '310', amount: 5600 }] });
+        expect(rpk).toMatchObject({ kind: 'repackaged', targetId: 310001, amount: 500, purchaseOrderId: 3100, poNumber: 'PO_00310R', paymentType: null, shipmentId: null, shipmentReference: null, paidWith: null });
+    });
+
+    test('without the column (a stage before shipping 2026-10-19_10) the lines are read as before and paidWith is null', async () => {
+        const q = scripted();
+        const sources = await reads.loadSources(q, t, { optional: {} });
+        expect(q.calls.find((s) => /supplier_payment_lines` WHERE payment_id/.test(s))).not.toMatch(/paid_with_json/);
+        expect(linesOf(sources).map((l) => l.paidWith)).toEqual([null, null]);
+    });
+
+    test('orders are read with their JF code, ASIN and status history; balance records with their source', async () => {
+        const q = scripted();
+        await reads.loadSources(q, t, { optional: {} });
+        expect(q.calls.find((s) => /FROM `jfa`\.`orders` orders/.test(s))).toMatch(/orders\.jf_code, orders\.asin,[\s\S]*orders\.dates/);
+        expect(q.calls.find((s) => /FROM `jfa`\.`shipment_payments` p WHERE p\.deleted_at IS NULL ORDER BY/.test(s))).toMatch(/p\.source/);
     });
 });
 

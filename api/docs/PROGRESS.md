@@ -1306,3 +1306,94 @@ dialog would list every row and the save would 404.
 **Deferred**: a per-PO choice (one pick for every line of a PO, and for freight in its box) —
 Dev chose per line; a "company" action on Stock payments for a **paid** row with no company
 (open rows have it in their dialog; paid ones are reached through the Forecast note's dialog).
+
+## Phase 2 — Re-pin to ShipLine `362714c`: paid-with containers, repackaged goods, the 10-19 audit (2026-11-11)
+
+Dev, on a stock payment JFlow showed wrong (PO_00297J, Sunmed: container 310 still owed
+5,145.44 after the 15 Oct transfer of 5,568 that paid it, the PO's other containers each a bit
+light, the PO total right): "is this because it hasnt updated to accomdate changes to shipline
+payments", then "go ahead". It was. The port sat at `77577a1` (6 Oct) while ShipLine's
+`paymentsFlowMath.ts` took 11 commits (+743 / −148 lines, 8 Oct – 3 Nov), one of them
+(`1be7e3e`, 19 Oct) written for this exact PO.
+
+- **The re-pin is a committed script now.** `tools/payments-flow-port.mjs` builds `model.js`
+  from the pinned TS: tsc transpileModule (CommonJS, ES2022), then the port's differences as
+  exact text patches, each required to match exactly once (no clock, London calendar,
+  `balanceClaims`, `./keys` / `./containers`, the private helpers exported); it fails if the TS
+  gains a runtime import or a clock read, or if a helper the port exports moves. Proven first by
+  rebuilding the 6 Oct `model.js` from `77577a1` **byte for byte**. The 6 Oct script had lived in
+  a session scratchpad and was lost. The pin (commit + sha256 of the three files) moved to
+  `tools/payments-flow-source.mjs`, shared by the port script and the oracle. Re-pin =
+  move `SOURCE` → `node tools/payments-flow-port.mjs --shipline <ShipLine>` → the oracle (its
+  header) → the golden tests. `--check` says whether `model.js` is stale.
+- **Model** = ShipLine `362714c` (`main` and `test` agree): a PI transfer line's `paidWith` pays
+  the containers it names first; paid boxes / QC units come off a PI before its split; transfer
+  by transfer, oldest first; a deposit paid by transfer before its PI; money on a skipped PI;
+  a paid box against its own goods (credit / shortfall top-up, never spread); open-record part
+  payments off their own box; combined / repackaged goods (status REPACKAGED, due from
+  `dates.repackaged` + balance grace, else from today); QC units overdue past their date and
+  "not payable yet"; boxes booked in through Receive owed from the day received; unallocated
+  record money shared by what each PO is still unpaid; terms parser (despatch, net N days,
+  validity / lead-time clauses, "no deposit"); supplier balance rule over a PI's stated date.
+- **Reads** (all were needed; the first two are gaps since `77577a1`): `orders.jf_code` and
+  `asin` (the model knows QC units by their `_FQC` code — without it JFlow had **no QC units
+  since 6 Oct**, counting them as goods), `shipment_payments.source` (a top-up record), `orders.dates`
+  (status history; `parseDates` copied verbatim), `supplier_payment_lines.paid_with_json`
+  (`OPTIONAL_COLUMNS` — absent on a stage before shipping `2026-10-19_10`, the lines read as
+  before; `paidWithFromRow` verbatim), and `repackaged` transfer-line targets. Mappers keep
+  shipping's key order.
+- **Feed**: `<g>` = `rpk` for the repackaged part (`bal-<po>-rpk`, `pi-<pi>-rpk`; no hashed group
+  can be `rpk`), label "Combined / repackaged"; a `repackaged` line is a paid `balance` row
+  `pay-<sp>-rpk<orderId>` settling `bal-<po>-rpk`. Before this, the first PO with repackaged goods
+  owed would have thrown `unknown split part` and failed every refresh.
+- **Date moved**: `MOVED_FLAG_EXEMPT` is now `from_today`, `estimate_passed`, `repackaged_no_date`
+  (same flag on both sides). `estimate_passed` rows roll to today daily — they were so at
+  `77577a1` too, so JFlow has tagged them DATE MOVED every morning since 6 Oct.
+- **Pins named**: the shims, `keys.js`, `containers.js`, `index.js`, `ids.js`, `forecast.js`,
+  `shiplinePage.js` (checked: the page's memos and its `buildPaymentsFlow` call are unchanged;
+  `mapOrder` gained `qcVisitIds`, which the model never reads); `shippingSource.MODEL` →
+  `ShipLine 362714c` (feed `meta.model`). A new golden test fails a half-done re-pin.
+- **Fixtures** (oracle-generated, written first and seen failing on the old port — it gave
+  310 2,698.59 with 309 / 311 light, the bug as reported): `pi-paid-with` (the PO_00297J shape),
+  `repackaged`, `deposit-before-pi-received`; six terms inputs. Every existing expected file
+  regenerated. **Golden A: 79/79, 5 time zones.**
+- Tests written first: `payments-flow-ids` (rpk group / line kind), `payments-flow-forecast`
+  (PO_00297J rows: no row for 310, 7,100 open; repackaged rows and paid row), `shippingCopy`
+  (jfCode / asin / dates, source, paidWith), `shipping` (columns, optional flag, a scripted
+  connection for the new reads), `shippingRefresh` (the exemption list).
+- **e2e, run for the first time since 6 Oct** (shadow of TEST's real `jfa` shapes): 5 failures
+  were already there at HEAD (`f0a190d`), stale since the 77577a1 re-pin — `model: 'ShipLine
+  f9499bc'`, `checkSchema` → `undefined`, `FEED_KEYS` without `label` / `dueSet`, the id
+  grammar without the 77577a1 forms, a find-first that now hit box 268, "every feed column"
+  without `label` / `due_set_json` (a paid row cannot carry a `dueSet`). Fixed as stale
+  expectations. One expectation moved with the model: `spd-6001` splits 1,277.78 / 222.22
+  (by what each PO is still unpaid), not 1,337.84 / 162.16. TEST has `paid_with_json`.
+
+**Checks**: api `npm run lint` clean; `tools/payments-flow-port.mjs --check` same; unit 27
+suites / 1158 green; full `npx jest --runInBand` (unit + every e2e file, on per-run schemas of
+TEST) 1402 / 1411 — the 9 failures (`ship-overlay` ×3, `ship-company`, `categories` ×2,
+`schedules`, `forecast-ship`, `migrate`) fail identically at HEAD `f0a190d` (checked in a
+throwaway worktree), so they predate this and are not looked into here.
+**Not run**: the web (untouched — new labels and flags arrive as data; no web code reads
+`repackaged*`). **Not deployed**; no migration (no new JFlow column). After deploy the first
+refresh is a one-off wave: QC units appear as rows of their own and goods rows shrink by them,
+figures move under the new rules, DATE MOVED for 14 days on rows whose date changed, and rows
+whose id changes (e.g. goods that became repackaged) leave and arrive — a JFlow plan on a
+retired id does not follow it. **Shipping side: nothing to do** — checked on prod the same day (read-only, below).
+
+**PO_00297J on prod (read-only, 2026-11-11, Dev's go-ahead):** one 100% PI (PI-26SMD-89160,
+73,714.20, pending); box 310 holds one line, JF0954 5,568 × 1.00, so its share is exactly the
+5,568 the 15 Oct transfer put on the PI. That line names no container (`paid_with_json` NULL —
+the column is on prod); ShipLine's rule "money naming no container goes to the one container
+whose share it equals" puts it on 310, which is why ShipLine's page has no 310 and needs no
+re-save. JFlow before: without `jf_code` the PO's nine `_FQC` lines were not QC units, their
+value in the PI total became "PO charges" riding with 310, 310's share was no longer 5,568, so
+the money matched nothing and was spread (310 5,145.44 + 488.62 charges, the figure reported).
+Old model + new reads still left 310 owed (5,140.76); new model + old reads the same as before.
+With both, this step's feed matches the ShipLine page to the cent: 309 12,080.00, 314 28,763.25,
+313 2,280.00, 324 15,129.20, 327 5,330.00, 337 1,242.00, 333 2,448.00 (Σ 67,816.00, as the page's
+filtered total) and eight QC units 543.55. (This step's commit message says the transfer's line
+names 310: it does not.)
+**Deferred**: QC units' `notPayable` (ShipLine's "not payable yet" for QC units) is not mapped to
+`blocked` — it needs the uploaded invoices, which JFlow does not read; QC units stay dated and
+payable in the forecast.

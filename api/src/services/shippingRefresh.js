@@ -16,8 +16,9 @@
 //              missing from the feed → set gone_at. Rows are never removed. When the
 //              UPDATE moves due_date (a date set or cleared by hand in ShipLine, a
 //              derived date that changed), due_date_prev / due_date_moved_at record the
-//              move — except a `from_today` row sliding by the days elapsed, which would
-//              say "moved" every morning (handover doc "Dates set by hand");
+//              move — except a row the model dates from today (from_today,
+//              estimate_passed, repackaged_no_date) sliding by the days elapsed, which
+//              would say "moved" every morning (handover doc "Dates set by hand");
 //   4  record  success: last_success_at, feed_today, the counts, companies_json and
 //              last_error = NULL. Failure: last_error only, so the snapshot's age stays
 //              truthful.
@@ -62,7 +63,10 @@ const FEED_COLUMNS = [
     'blocked', 'flags_json', 'due_set_json', 'label',
 ];
 // A row whose date counts from today moves one day each day: that slide is not a "move".
-const MOVED_FLAG_EXEMPT = 'from_today';
+// The model rolls three kinds of date so: goods nothing on file dates (from_today), a
+// stale estimate pulled to today (estimate_passed), and combined / repackaged goods with
+// no day marked on file (repackaged_no_date, since the re-pin to ShipLine 362714c).
+const MOVED_FLAG_EXEMPT = Object.freeze(['from_today', 'estimate_passed', 'repackaged_no_date']);
 
 /** A validated feed item (services/shipping.js validateFeed) → its feed-column values. */
 function feedRow(item) {
@@ -109,13 +113,16 @@ function flagsOf(flagsJson) {
 /**
  * Whether this run moves the row's due date — what due_date_prev / due_date_moved_at
  * record: the stored due_date differs from the incoming one (a date set or cleared by hand
- * in ShipLine, or a derived date that changed), except when both sides carry
- * MOVED_FLAG_EXEMPT (`from_today`), whose date slides by the days elapsed every morning.
+ * in ShipLine, or a derived date that changed), except when both sides carry the same
+ * MOVED_FLAG_EXEMPT flag (`from_today`, `estimate_passed`, `repackaged_no_date`), whose
+ * date slides by the days elapsed every morning.
  * `prior` is the stored row ({due_date, flags_json}); `item` the validated feed item.
  */
 function dueDateMoved(prior, item) {
     if (ymdOf(prior.due_date) === (item.dueDate ?? null)) return false;
-    const slid = flagsOf(prior.flags_json).includes(MOVED_FLAG_EXEMPT) && (item.flags || []).includes(MOVED_FLAG_EXEMPT);
+    const before = flagsOf(prior.flags_json);
+    const now = item.flags || [];
+    const slid = MOVED_FLAG_EXEMPT.some((flag) => before.includes(flag) && now.includes(flag));
     return !slid;
 }
 

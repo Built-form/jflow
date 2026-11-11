@@ -30,6 +30,20 @@ function runPort(name) {
     return H.toGolden(flowLib.buildPaymentsFlow(H.buildInput(H.readFixture(name), flowLib)));
 }
 
+// One pin everywhere (2026-11-11): tools/payments-flow-source.mjs names the commit; the
+// port (model.js, built by tools/payments-flow-port.mjs), the feed's meta.model and every
+// expected file the oracle wrote must name the same one — a half-done re-pin fails here.
+test('model.js, the feed\'s model stamp and every expected file name the pinned ShipLine commit', () => {
+    const toolText = fs.readFileSync(path.join(__dirname, '..', '..', 'tools', 'payments-flow-source.mjs'), 'utf8');
+    const commit = /commit: '([0-9a-f]{7,40})'/.exec(toolText)?.[1];
+    assert.ok(commit, 'tools/payments-flow-source.mjs names no commit');
+    const modelHead = fs.readFileSync(path.join(LIB_DIR, 'model.js'), 'utf8').split('\n')[0];
+    assert.ok(modelHead.includes(`paymentsFlowMath.ts @ ${commit} `), `model.js was built from another commit: ${modelHead.slice(0, 100)}`);
+    assert.equal(require('../../src/services/shippingSource').MODEL, `ShipLine ${commit}`);
+    for (const name of FIXTURES) assert.equal(H.readExpected(name).source.commit, commit, `${name}.expected.json`);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(H.FIXTURE_DIR, H.TERMS_EXPECTED), 'utf8')).source.commit, commit, H.TERMS_EXPECTED);
+});
+
 test('there are fixtures, each with an expected file from the oracle', () => {
     assert.ok(FIXTURES.length >= 9, `only ${FIXTURES.length} fixtures`);
     for (const name of FIXTURES) assert.ok(H.readExpected(name), `${name}: no expected file — run tools/payments-flow-oracle.mjs`);

@@ -27,8 +27,10 @@ const page = require('../lib/shippingCopy/shiplinePage');
  * `source_schema`, never a silently wrong figure. `suppliers` is a view.
  */
 const SOURCE_COLUMNS = Object.freeze({
-    orders: ['id', 'status', 'quantity', 'unit_price', 'purchase_order_id', 'po_number', 'supplier', 'container_number',
-        'external_container_number', 'awb_number', 'eta', 'po_date', 'ordered_date', 'artwork_confirmed_date',
+    // jf_code / asin / dates since the re-pin to ShipLine 362714c: the model knows QC units by
+    // their _FQC code, names repackaged lines by code or ASIN, and reads the status history.
+    orders: ['id', 'jf_code', 'asin', 'status', 'quantity', 'unit_price', 'purchase_order_id', 'po_number', 'supplier', 'container_number',
+        'external_container_number', 'awb_number', 'eta', 'po_date', 'dates', 'ordered_date', 'artwork_confirmed_date',
         'estimated_ready_date', 'shipped_date', 'estimated_departure_date', 'delivery_date', 'arrived_date', 'shipment_id',
         'created_at', 'deleted_at'],
     order_receipts: ['order_id', 'type', 'quantity'],
@@ -46,7 +48,7 @@ const SOURCE_COLUMNS = Object.freeze({
     shipments: ['id', 'reference', 'stage', 'mode', 'bl_number', 'ata', 'departed_at', 'arrived_at', 'booked_at', 'created_at',
         'merged_into_id', 'deleted_at'],
     shipment_payments: ['id', 'shipment_id', 'shipment_reference', 'supplier_name', 'amount', 'currency', 'deposit_deducted',
-        'status', 'paid_on', 'settled_by_payment_id', 'deleted_at'],
+        'status', 'paid_on', 'settled_by_payment_id', 'source', 'deleted_at'],
     shipment_payment_allocations: ['id', 'payment_id', 'purchase_order_id', 'po_ref', 'amount'],
     supplier_payments: ['id', 'supplier_name', 'amount', 'currency', 'paid_on', 'deleted_at'],
     supplier_payment_lines: ['id', 'payment_id', 'target_kind', 'target_id', 'amount'],
@@ -74,6 +76,10 @@ const OPTIONAL_COLUMNS = Object.freeze({
         'settled_by_payment_id', 'note', 'created_by_email', 'created_at', 'updated_by_email', 'updated_at', 'deleted_at'],
     shipments: ['name', 'etd', 'eta'],
     shipment_lines: ['shipment_id', 'order_id', 'quantity'],
+    // The re-pin to ShipLine 362714c: which containers a PI line's money paid ("paid with",
+    // Record payment since 2026-10-19; shipping migration 2026-10-19_10). Without the column
+    // the lines are read as before and name none — the model then places that money itself.
+    supplier_payment_lines: ['paid_with_json'],
 });
 
 const ph = (list) => list.map(() => '?').join(',');
@@ -92,9 +98,9 @@ const BOOKED_IN = `'BOOKED','IN_TRANSIT','ARRIVED','CLOSED'`;
 /** ORDER_SELECT … ORDER BY orders.created_at DESC, for the columns rowToOrder keeps. */
 async function loadOrders(q, t) {
     const [rows] = await q.query(
-        `SELECT orders.id, orders.status, orders.quantity, orders.unit_price, orders.purchase_order_id, orders.po_number,
+        `SELECT orders.id, orders.jf_code, orders.asin, orders.status, orders.quantity, orders.unit_price, orders.purchase_order_id, orders.po_number,
                 orders.supplier, orders.container_number, orders.external_container_number, orders.awb_number, orders.eta,
-                orders.po_date, orders.ordered_date, orders.artwork_confirmed_date, orders.estimated_ready_date,
+                orders.po_date, orders.dates, orders.ordered_date, orders.artwork_confirmed_date, orders.estimated_ready_date,
                 orders.shipped_date, orders.estimated_departure_date, orders.delivery_date, orders.arrived_date,
                 orders.shipment_id,
                 COALESCE((SELECT SUM(quantity) FROM ${t('order_receipts')} WHERE order_id = orders.id AND type = 'received'), 0) AS received_quantity
@@ -251,7 +257,7 @@ async function loadShipmentDocuments(q, t, ids) {
 async function loadShipmentPayments(q, t) {
     const [rows] = await q.query(
         `SELECT p.id, p.shipment_id, p.shipment_reference, p.supplier_name, p.amount, p.currency, p.deposit_deducted,
-                p.status, p.paid_on, p.settled_by_payment_id
+                p.status, p.paid_on, p.settled_by_payment_id, p.source
            FROM ${t('shipment_payments')} p WHERE p.deleted_at IS NULL ORDER BY p.id DESC`
     );
     if (!rows.length) return [];
@@ -349,6 +355,22 @@ async function loadSupplierPaymentTargets(q, t, lines, optional = {}) {
             });
         }
     }
+    // Lines on a combined / repackaged order line (orders.id), since shipping 2026-11-02:
+    // the same lookup as a QC unit's, trimmed to what the model and the feed read.
+    const repackagedIds = idsOf('repackaged');
+    if (repackagedIds.length) {
+        const [rows] = await q.query(
+            `SELECT o.id, o.purchase_order_id, po.po_number
+               FROM ${t('orders')} o JOIN ${t('purchase_orders')} po ON po.id = o.purchase_order_id AND po.deleted_at IS NULL
+              WHERE o.id IN (${ph(repackagedIds)}) AND o.deleted_at IS NULL`, repackagedIds
+        );
+        for (const r of rows) {
+            out.set(`repackaged:${r.id}`, {
+                kind: 'repackaged', id: r.id, purchaseOrderId: r.purchase_order_id, poNumber: r.po_number, paymentType: null,
+                shipmentId: null, shipmentReference: null,
+            });
+        }
+    }
     return out;
 }
 
@@ -359,8 +381,10 @@ async function loadSupplierPayments(q, t, optional = {}) {
     );
     if (!rows.length) return [];
     const ids = rows.map(r => r.id);
+    // paid_with_json only where shipping's 2026-10-19_10 has run (OPTIONAL_COLUMNS).
+    const paidWith = optional.supplier_payment_lines ? ', paid_with_json' : '';
     const [lineRows] = await q.query(
-        `SELECT id, payment_id, target_kind, target_id, amount
+        `SELECT id, payment_id, target_kind, target_id, amount${paidWith}
            FROM ${t('supplier_payment_lines')} WHERE payment_id IN (${ph(ids)}) ORDER BY id`, ids
     );
     const targets = await loadSupplierPaymentTargets(q, t, lineRows.map(l => ({ kind: l.target_kind, id: l.target_id })), optional);

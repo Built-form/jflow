@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 77577a1 — changes: since the 2026-10-06 re-pin a re-export of ./model.js (the whole TS, transpiled); there: today required, and buildPaymentsFlow(input, {claims: true}) also returns balanceClaims (JFlow feed; without the option the output is the TS's)
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 362714c — changes: since the 2026-10-06 re-pin a re-export of ./model.js (the whole TS, transpiled); there: today required, and buildPaymentsFlow(input, {claims: true}) also returns balanceClaims (JFlow feed; without the option the output is the TS's)
 'use strict';
 
 // Whole-model assembly: buildPaymentsFlow. Resolves balance invoices into

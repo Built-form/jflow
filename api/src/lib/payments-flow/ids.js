@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 77577a1 — changes: new, not in the TS: stable JFlow feed ids (PHASE2 §3 P2) for every item kind the model emits at this pin (goods, charges, QC units, top-ups, extras, split parts in a draft or plan) and for every transfer line kind
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 362714c — changes: new, not in the TS: stable JFlow feed ids (PHASE2 §3 P2) for every item kind the model emits at this pin (goods, charges, QC units, top-ups, extras, split parts in a draft or plan, combined / repackaged goods) and for every transfer line kind
 'use strict';
 
 // Stable feed ids for payments-flow rows — JFlow PHASE2 §3 "Ids (P2)" and
@@ -19,6 +19,7 @@
 //              inv-<shipmentPayment>-<po>-a|s    one PO's allocated (a) or shared (s) claim on a balance invoice
 //   paid rows  pay-<supplierPayment>-pi|dep<target>        a transfer line on a PI / a PO deposit
 //              pay-<supplierPayment>-ext|qc<target>        a transfer line on an extra / a QC unit
+//              pay-<supplierPayment>-rpk<target>           a transfer line on a combined / repackaged order line (orders.id)
 //              pay-<supplierPayment>-bal<target>[-<po>]    a transfer line on a balance record, one row per
 //                                                PO it is split to; no -<po> only when no PO claims the record
 //              spd-<shipmentPayment>[-<po>]      a balance record marked paid with no transfer, split likewise
@@ -26,7 +27,9 @@
 //              reference, else r<first 10 hex of sha256(trim(ref))> (case
 //              kept), else n (not booked); d<shipmentId> for the part of a
 //              PO's unbooked goods that sits in a DRAFT or PLANNED shipment
-//              (the TS's `@open:<id>` suffix; `@none` is the rest, n)
+//              (the TS's `@open:<id>` suffix; `@none` is the rest, n); rpk for
+//              its combined / repackaged goods (`@repackaged`, ShipLine 2026-11-02:
+//              they never ship). No hashed group can be rpk: r is followed by hex.
 //
 // <g> keeps case because the model does: summarizePo groups a PO's lines by
 // the trimmed container ref as spelt, so "abc1" and "ABC1" are two groups and
@@ -45,8 +48,8 @@
 const crypto = require('crypto');
 
 const FEED_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
-const GROUP_RE = /^(s\d+|d\d+|r[0-9a-f]{10}|n)$/;
-const LINE_KIND = { balance: 'bal', pi: 'pi', po_deposit: 'dep', extra: 'ext', qc: 'qc' };
+const GROUP_RE = /^(s\d+|d\d+|r[0-9a-f]{10}|n|rpk)$/;
+const LINE_KIND = { balance: 'bal', pi: 'pi', po_deposit: 'dep', extra: 'ext', qc: 'qc', repackaged: 'rpk' };
 const CLAIM_SOURCE = { allocated: 'a', share: 's' };
 const OF_TOKEN = { charges: 'c', fqc: 'f' };
 
@@ -61,7 +64,7 @@ function idPart(v, name) {
 }
 
 function groupPart(g) {
-    if (typeof g !== 'string' || !GROUP_RE.test(g)) throw new TypeError(`feedId: group must be s<id>, d<id>, r<10 hex> or n (got ${JSON.stringify(g)})`);
+    if (typeof g !== 'string' || !GROUP_RE.test(g)) throw new TypeError(`feedId: group must be s<id>, d<id>, r<10 hex>, n or rpk (got ${JSON.stringify(g)})`);
     return g;
 }
 
@@ -84,7 +87,8 @@ function groupToken(ref, shipmentIdByRef) {
 
 /**
  * <g> for the TS's split-part key on an unbooked row: `open:<shipmentId>` (the
- * goods sitting in that draft or plan) → d<id>; `none` (the rest) → n.
+ * goods sitting in that draft or plan) → d<id>; `none` (the rest) → n;
+ * `repackaged` (combined / repackaged goods, since 362714c) → rpk.
  * @param {string} partKey
  * @returns {string}
  */
@@ -92,6 +96,7 @@ function partToken(partKey) {
     const m = /^open:(\d+)$/.exec(partKey);
     if (m) return `d${idPart(Number(m[1]), 'openShipmentId')}`;
     if (partKey === 'none') return 'n';
+    if (partKey === 'repackaged') return 'rpk';
     throw new TypeError(`feedId: unknown split part ${JSON.stringify(partKey)}`);
 }
 
@@ -102,7 +107,7 @@ function partToken(partKey) {
  *   | { form: 'qc', orderId: number }
  *   | { form: 'ext', extraId: number }
  *   | { form: 'inv', shipmentPaymentId: number, poId: number, source: 'allocated'|'share' }
- *   | { form: 'pay', supplierPaymentId: number, lineKind: 'balance'|'pi'|'po_deposit'|'extra'|'qc', targetId: number, poId?: number|null }
+ *   | { form: 'pay', supplierPaymentId: number, lineKind: 'balance'|'pi'|'po_deposit'|'extra'|'qc'|'repackaged', targetId: number, poId?: number|null }
  *   | { form: 'spd', shipmentPaymentId: number, poId?: number|null }} FeedIdParts
  * `poId` on pay (lineKind 'balance' only) and spd: the PO a split row is for.
  */
@@ -146,8 +151,8 @@ function feedId(parts) {
         }
         case 'pay': {
             const kind = LINE_KIND[parts.lineKind];
-            if (!kind) throw new TypeError(`feedId: lineKind must be balance, pi, po_deposit, extra or qc (got ${JSON.stringify(parts.lineKind)})`);
-            // A PI, a PO deposit, an extra or a QC unit is one PO's already: only a balance record is split.
+            if (!kind) throw new TypeError(`feedId: lineKind must be balance, pi, po_deposit, extra, qc or repackaged (got ${JSON.stringify(parts.lineKind)})`);
+            // A PI, a PO deposit, an extra, a QC unit or a repackaged line is one PO's already: only a balance record is split.
             if (parts.poId != null && parts.lineKind !== 'balance') throw new TypeError(`feedId: only a balance line is split per PO (got poId on ${parts.lineKind})`);
             id = `pay-${idPart(parts.supplierPaymentId, 'supplierPaymentId')}-${kind}${idPart(parts.targetId, 'targetId')}${parts.poId == null ? '' : `-${idPart(parts.poId, 'poId')}`}`;
             break;
@@ -163,7 +168,7 @@ function feedId(parts) {
 }
 
 /**
- * The TS's item id, taken apart. Forms at 77577a1 (summarizePo, buildPaymentsFlow):
+ * The TS's item id, taken apart. Forms at 362714c (summarizePo, buildPaymentsFlow):
  *   derived:dep:<po>
  *   derived:<bal|charges|fqc|topup>:<po>:<box|none>[@<part>]
  *   stated:<pi>[@<part>]
@@ -171,8 +176,8 @@ function feedId(parts) {
  *   extra:<id>
  *   qc:<orderId>
  * A box ref is free text (it may hold ':'), so the box is everything after the
- * PO / PI (and the `of` word) up to the last '@'; a part key is `open:<id>` or
- * `none`.
+ * PO / PI (and the `of` word) up to the last '@'; a part key is `open:<id>`,
+ * `none` or `repackaged`.
  * @param {string} id
  * @returns {{ basis: 'derived'|'stated'|'extra'|'qc', of: string|null, n: number, box: string|null, part: string|null }}
  */

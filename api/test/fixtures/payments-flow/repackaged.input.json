@@ -1,0 +1,35 @@
+{
+  "description": "Re-pin 362714c: combined / repackaged goods (ShipLine user, 2026-11-02). One PO with a paid deposit: a line marked REPACKAGED on 4 Nov (dates.repackaged, an instant), one marked before shipping stamped the day (counted from today), and a line still in production. A 'repackaged' transfer line part-pays the first. Company balance grace applies on top of the day marked.",
+  "input": {
+    "today": "2026-11-11",
+    "orders": [
+      { "id": "310001", "jfCode": "JF3001", "status": "REPACKAGED", "quantity": 400, "unitPrice": 5, "purchaseOrderId": 3100, "poNumber": "PO_00310R", "supplier": "Ningbo Pack Co., Ltd", "containerNumber": null, "estimatedReadyDate": "2026-10-20", "poDate": "2026-09-01", "dates": { "repackaged": "2026-11-04T10:15:00.000Z", "under_production": "2026-09-05T08:00:00.000Z" } },
+      { "id": "310002", "jfCode": "JF3002", "status": "UNDER_PRODUCTION", "quantity": 600, "unitPrice": 5, "purchaseOrderId": 3100, "poNumber": "PO_00310R", "supplier": "Ningbo Pack Co., Ltd", "containerNumber": null, "estimatedReadyDate": "2026-12-01", "poDate": "2026-09-01", "dates": {} },
+      { "id": "310003", "asin": "B0REPACK03", "status": "REPACKAGED", "quantity": 100, "unitPrice": 4, "purchaseOrderId": 3100, "poNumber": "PO_00310R", "supplier": "Ningbo Pack Co., Ltd", "containerNumber": null, "poDate": "2026-09-01", "dates": {} }
+    ],
+    "poBundles": {
+      "3100": {
+        "id": 3100, "poNumber": "PO_00310R", "supplier": "Ningbo Pack Co., Ltd", "currency": "USD", "shippingTotal": 0, "companyId": 2,
+        "createdAt": "2026-08-31 09:00:00", "updatedAt": "2026-09-02 09:00:00", "documents": [], "signedPis": [], "payments": [],
+        "invoices": [{ "id": 9801, "purchaseOrderId": 3100, "filename": "PI-310R.pdf", "uploadedAt": "2026-09-02 09:00:00", "latestCheck": { "status": "succeeded" } }]
+      }
+    },
+    "invoicePayments": [
+      { "id": 3101, "invoiceId": 9801, "purchaseOrderId": 3100, "paymentType": "deposit", "amountDue": 1620, "currency": "USD", "depositPercentage": 30, "invoiceTotal": 5400, "dueDate": "2026-09-05", "dueTerms": "30% deposit, 70% before shipment", "rawTermsText": null, "paymentStatus": "paid", "updatedAt": "2026-09-04 10:00:00" }
+    ],
+    "suppliers": [
+      { "supplierId": 9, "name": "Ningbo Pack Co., Ltd", "paymentTerms": "30% deposit, 70% before shipment", "tags": [] }
+    ],
+    "rules": [
+      { "id": 1, "scope": "default", "supplierName": null, "supplierLabel": null, "depositPct": null, "depositTrigger": null, "depositGraceDays": 0, "balanceTrigger": "terms", "balanceDocumentType": null, "balanceOffsetDays": 0, "balanceGraceDays": 3, "depositOffsetDays": null,
+        "estimates": { "artwork": null, "pi": null, "piSigned": null, "ready": null, "telex": null, "document": null, "transit": { "sea": null, "air": null, "road": null } },
+        "airOwedFrom": null, "airLimitDays": null, "notes": null, "updatedByEmail": null, "createdAt": "2026-09-01 10:00:00", "updatedAt": "2026-09-01 10:00:00" }
+    ],
+    "shipmentPayments": [],
+    "shipmentPaymentDocuments": [],
+    "supplierPayments": [
+      { "id": 6201, "supplierName": "Ningbo Pack Co., Ltd", "supplierKey": "ningbo pack co., ltd", "amount": 500, "currency": "USD", "paidOn": "2026-11-06", "bankRef": null, "note": null, "source": "manual",
+        "lines": [{ "id": 71, "kind": "repackaged", "targetId": 310001, "amount": 500, "label": "PO_00310R combined / repackaged JF3001", "shipmentId": null, "shipmentReference": null, "purchaseOrderId": 3100, "poNumber": "PO_00310R", "paymentType": null, "paidWith": null }] }
+    ]
+  }
+}
