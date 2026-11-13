@@ -6,13 +6,14 @@ import type { ExternalItem } from '../../api/external';
 import { CompanyPicker, sortCompanies, useCompanyFilter } from '../../app/companyFilter';
 import { useQuery } from '../../app/useQuery';
 import { useSubmit } from '../../app/useSubmit';
+import { HintTag } from '../../components/HintTag';
 import { PageHeader } from '../../components/PageHeader';
 import { Empty, ErrorNote, InfoText, Loading, Tag, Toggle } from '../../components/ui';
 import { formatDay, londonToday } from '../../lib/dates';
 import { flagTags } from '../../lib/grid';
 import { formatDecimal, formatMoney, parseMinor } from '../../lib/money';
 import { removeById, updateList, upsertById } from '../../lib/rows';
-import { DUE_SET_GLYPH, DUE_SET_STYLE, PLAN_STALE_TAG, blockedText, dateMovedLine, dueSetLine, dueSetText, lastSyncText } from '../../lib/ship';
+import { DUE_SET_GLYPH, DUE_SET_STYLE, PLAN_STALE_TAG, blockedText, dateMovedText, dueSetLine, dueSetText, lastSyncText } from '../../lib/ship';
 import { ShipPlanDialog } from '../forecast/ShipPlanDialog';
 import { RefreshButton } from '../forecast/shipping';
 import { hasOverlay, targetFromRow } from '../forecast/shipPlan';
@@ -219,11 +220,6 @@ export function StockPaymentsScreen() {
                           {dueSetLine(row.dueSet)}
                         </div>
                       )}
-                      {row.dateMoved && row.dueDateMovedAt && (
-                        <div style={{ fontSize: 11.5, color: 'var(--warn)' }} data-testid="stock-date-moved">
-                          {dateMovedLine(row.dueDatePrev, row.dueDateMovedAt)}
-                        </div>
-                      )}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                       <span style={{ fontSize: 14.5 }}>{target.name}</span>
@@ -237,11 +233,18 @@ export function StockPaymentsScreen() {
                       )}
                       {tags.length > 0 && (
                         <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {tags.map((t) => (
-                            <Tag key={t.id} tone={t.tone}>
-                              {t.label}
-                            </Tag>
-                          ))}
+                          {tags.map((t) =>
+                            // What a moved date moved from sits behind its tag (2026-11-13), not under the date.
+                            t.id === 'date_moved' && row.dueDateMovedAt ? (
+                              <HintTag key={t.id} tone={t.tone} hint={dateMovedText(row.dueDatePrev, row.dueDateMovedAt)}>
+                                {t.label}
+                              </HintTag>
+                            ) : (
+                              <Tag key={t.id} tone={t.tone}>
+                                {t.label}
+                              </Tag>
+                            ),
+                          )}
                         </span>
                       )}
                     </div>

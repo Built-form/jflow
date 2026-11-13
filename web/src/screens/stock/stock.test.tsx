@@ -113,12 +113,14 @@ describe('the Stock payments screen', () => {
     expect(within(set).getByTestId('stock-due-set').textContent).toBe('set by Ops on Tue 6 Oct 2026 · derived Sun 1 Nov 2026');
     expect(within(set).getByTestId('stock-due-set-note').textContent).toBe('shipping: “agreed with the supplier”');
     expect(set.textContent).toContain('SET IN SHIPPING');
-    expect(within(set).queryByTestId('stock-date-moved')).toBeNull();
+    expect(within(set).queryByRole('button', { name: 'DATE MOVED' })).toBeNull();
 
     const moved = screen.getByTestId('stock-ship.bal-906-s311');
     expect(moved.querySelector('[data-due-set]')).toBeNull();
-    expect(within(moved).getByTestId('stock-date-moved').textContent).toBe('moved from Mon 5 Oct 2026 on Tue 6 Oct 2026');
-    expect(moved.textContent).toContain('DATE MOVED');
+    // The move is not spelled out under the date (2026-11-13: it crowded out the rest); it
+    // sits behind the DATE MOVED tag.
+    expect(moved.textContent).not.toContain('moved from');
+    within(moved).getByRole('button', { name: 'DATE MOVED' });
     expect(moved.textContent).not.toContain('SET IN SHIPPING');
 
     // JFlow's plan wins the date; the mark sits on shipping's own date underneath.
@@ -132,6 +134,40 @@ describe('the Stock payments screen', () => {
 
     // The plain row wears none of it.
     expect(within(screen.getByTestId('stock-ship.bal-905-s311')).getByTestId('stock-due-set')).toBeTruthy();
+  });
+
+  it('says when and from what date shipping moved a payment only while DATE MOVED is hovered or clicked', async () => {
+    stubApi([movedDate], () => expected);
+    renderScreen();
+    const moved = await screen.findByTestId('stock-ship.bal-906-s311');
+    const tag = within(moved).getByRole('button', { name: 'DATE MOVED' });
+    const sentence = 'Shipping moved this date from Mon 5 Oct 2026 on Tue 6 Oct 2026.';
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(tag.getAttribute('aria-expanded')).toBe('false');
+
+    // Hover shows it; leaving hides it.
+    fireEvent.mouseEnter(tag);
+    expect(screen.getByRole('tooltip').textContent).toBe(sentence);
+    fireEvent.mouseLeave(tag);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    // A click (a tap, Enter) keeps it open once the pointer leaves; a second click closes it.
+    fireEvent.click(tag);
+    fireEvent.mouseLeave(tag);
+    const tip = screen.getByRole('tooltip');
+    expect(tip.textContent).toBe(sentence);
+    expect(tag.getAttribute('aria-expanded')).toBe('true');
+    expect(tag.getAttribute('aria-describedby')).toBe(tip.id);
+    fireEvent.click(tag);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    // Escape, or a press anywhere else, closes it.
+    fireEvent.click(tag);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.click(tag);
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
   it('plans a row with its note and row version known, and replaces it from the answer', async () => {

@@ -413,6 +413,33 @@ h1.page-title {
   display: inline-block;
 }
 
+/* A tag that holds a sentence back until hovered or clicked (components/HintTag.tsx). No
+   dotted underline: on a date that means "set by hand in ShipLine". */
+.tag-hint {
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.tag-hint:hover,
+.tag-hint[aria-expanded='true'] {
+  border-color: currentColor;
+}
+.hint-tip {
+  position: fixed;
+  z-index: 30;
+  max-width: min(300px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.45;
+  pointer-events: none;
+}
+
 /* Segmented control: 3px padding, 1px line border, 9px radius. The track sits a shade
    below the page so the selected segment reads as raised, not just recoloured. */
 .segmented {
