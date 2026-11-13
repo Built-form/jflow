@@ -185,7 +185,7 @@ describe('checkPlan — the amount', () => {
 
 describe('checkPlan — skip, note, nothing', () => {
   it('holds the save back while nothing has changed', () => {
-    expect(checkPlan(planned, initialPlanForm(planned), TODAY)).toEqual({ action: null, errors: {}, unchanged: true });
+    expect(checkPlan(planned, initialPlanForm(planned), TODAY)).toEqual({ action: null, errors: {}, unchanged: true, revertInstead: false });
   });
 
   it('skips with neither a date nor an amount — even a wrong one in the hidden fields', () => {
@@ -193,8 +193,9 @@ describe('checkPlan — skip, note, nothing', () => {
     expect(check.action).toEqual({ kind: 'plan', key: 'ship.bal-812-s311', body: { skipped: true }, baseVersion: 4 });
   });
 
-  it('unskips a skipped row', () => {
-    const skipped = targetFromRow(externalRow({ plannedSkipped: true, derivedStatus: 'skipped' }));
+  it('unskips a skipped row that keeps a note', () => {
+    // With only the skip planned, unskipping leaves no plan: see "a change that leaves no plan".
+    const skipped = targetFromRow(externalRow({ plannedSkipped: true, plannedNote: 'Waiting on QC', derivedStatus: 'skipped' }));
     expect(checkPlan(skipped, { ...initialPlanForm(skipped), skipped: false }, TODAY).action).toEqual({
       kind: 'plan',
       key: 'ship.bal-812-s311',
@@ -234,6 +235,49 @@ describe('checkPlan — skip, note, nothing', () => {
     expect(checkPlan(paid, initialPlanForm(paid), TODAY).errors.form).toMatch(/has been made/);
     // A plan left on a gone row can still be reverted.
     expect(revertAction(gone)).toEqual({ kind: 'unplan', key: 'ship.dep-812', baseVersion: 7 });
+  });
+});
+
+describe('checkPlan — a change that leaves no plan', () => {
+  // The PUT is a merge, and the server refuses one that empties every overlay column (400
+  // "Nothing to plan"): only DELETE clears a plan. So nothing is sent, and the dialog points
+  // to Revert to feed.
+  const leavesNoPlan = { action: null, errors: {}, unchanged: false, revertInstead: true };
+
+  it("sends nothing when a pinned date goes back to shipping's and nothing else is planned", () => {
+    const pinnedOnly = targetFromRow(depositRow({ plannedNote: null }));
+    expect(checkPlan(pinnedOnly, followFeedDate(initialPlanForm(pinnedOnly), pinnedOnly), TODAY)).toEqual(leavesNoPlan);
+  });
+
+  it('the same when the last thing planned is the note, the amount or the skip', () => {
+    const noteOnly = targetFromRow(externalRow({ plannedNote: 'Check with QC' }));
+    expect(checkPlan(noteOnly, { ...initialPlanForm(noteOnly), note: '   ' }, TODAY)).toEqual(leavesNoPlan);
+    const amountOnly = targetFromRow(externalRow({ plannedAmount: '1650.00', plannedBaseAmount: '1500.00', effectiveAmount: '1650.00' }));
+    expect(checkPlan(amountOnly, { ...initialPlanForm(amountOnly), amount: '1500' }, TODAY)).toEqual(leavesNoPlan);
+    const skipOnly = targetFromRow(externalRow({ plannedSkipped: true, derivedStatus: 'skipped' }));
+    expect(checkPlan(skipOnly, { ...initialPlanForm(skipOnly), skipped: false }, TODAY)).toEqual(leavesNoPlan);
+  });
+
+  it("saves as before while anything of JFlow's stays on the row", () => {
+    // Pinned date and a note: following shipping's date again keeps the note.
+    expect(checkPlan(planned, followFeedDate(initialPlanForm(planned), planned), TODAY)).toEqual({
+      action: { kind: 'plan', key: 'ship.dep-812', body: { plannedDate: null }, baseVersion: 7 },
+      errors: {},
+      unchanged: false,
+      revertInstead: false,
+    });
+    // A stale planned amount is ignored by the forecast but still stored, so a plan stays.
+    const stale = targetFromRow(depositRow({ plannedNote: null, plannedAmount: '5200.00', plannedBaseAmount: '4800.00', planStale: true }));
+    expect(checkPlan(stale, followFeedDate(initialPlanForm(stale), stale), TODAY)).toMatchObject({
+      action: { kind: 'plan', body: { plannedDate: null } },
+      revertInstead: false,
+    });
+  });
+
+  it('shows what is wrong with the form first', () => {
+    const pinnedOnly = targetFromRow(depositRow({ plannedNote: null }));
+    const check = checkPlan(pinnedOnly, { ...followFeedDate(initialPlanForm(pinnedOnly), pinnedOnly), amount: 'ten' }, TODAY);
+    expect(check).toEqual({ action: null, errors: { amount: 'Enter an amount like 1024.50.' }, unchanged: false, revertInstead: false });
   });
 });
 

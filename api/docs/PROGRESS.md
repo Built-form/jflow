@@ -1397,3 +1397,49 @@ names 310: it does not.)
 **Deferred**: QC units' `notPayable` (ShipLine's "not payable yet" for QC units) is not mapped to
 `blocked` — it needs the uploaded invoices, which JFlow does not read; QC units stay dated and
 payable in the forecast.
+
+## Stock payments — search, filters, sort and section totals (2026-11-13)
+
+Dev asked for a search bar, filters and column sorting on Stock payments. Web only: no API,
+CONTRACT or migration change. None of it is in PLAN.md.
+
+- **Search** (`?q=`): every word must match, case-insensitive, anywhere in the row's supplier,
+  PO, container, what it is (deposit / balance / label / QC units), ext id, account name,
+  JFlow note, shipping's note and who set its date, blocker text, the amount as stored and as
+  shown (`1500`, `1,500.00`, `$1,500.00`, plan and feed amount), and the effective, shipping,
+  planned and paid dates as stored and as shown (`2026-10-13`, `Tue 13 Oct 2026`). Escape
+  clears it.
+- **Filters**: From / To on the shown date (`effectiveDate`, which is `paidOn` for a paid row;
+  both ends inclusive; undated rows drop out once a bound is set), Kind, Currency, Account
+  (with "No account"), Mark (planned in JFlow, set in shipping, date moved, blocked, estimated,
+  plan ignored, company set in JFlow, from a scenario). A select is offered only when the
+  rows give it a choice. The status pills and their counts follow the search; the company
+  picker and "Include gone rows" are unchanged (they are server parameters).
+- **Sort**: the headings Date, Supplier, PO, Container, Account, Amount; the same heading
+  again reverses; a new column starts ascending except Amount (largest first). Sorting is
+  **inside each status section** (Dev's choice), so Overdue stays on top. Ties fall back to
+  date ascending, undated last, then id — the server's order, which is also the default.
+  Absent values sort last both ways. **Amounts sort by face value: no FX, so $1,000 sits
+  beside £1,000.**
+- **Totals**: a Total row per section with more than one row, per currency (BigInt minor
+  units from the DECIMAL strings, never floats), from the amounts shown.
+- The view lives in the URL (`q`, `from`, `to`, `kind`, `ccy`, `account`, `mark`,
+  `sort=[-]key`) beside `?company=` and `?show=`; defaults are left out. The sidebar still
+  carries only `?company=`. The search box keeps its own text so typing never waits on the
+  router (React Router's `v7_startTransition` would otherwise lag a URL-bound input).
+- Everything runs over the rows `external.listAll` already fetched: no request per keystroke,
+  and the server's `q` (supplier, PO, container only) is not used.
+- Files: `web/src/screens/stock/filters.ts` (pure), `StockViewControls.tsx` (the hook, the
+  bar, the sortable heading), `StockPaymentsScreen.tsx` (wiring), `base.css` (`.sort-btn`,
+  an accent border on a set filter select).
+- Tests written first and seen failing (18 of 20 on a no-op stub): `filters.test.ts` (20);
+  `stock.test.tsx` +5 (search and clear, date / kind / currency / account and the
+  no-match state, sort inside sections and reverse, the view read from the link, totals).
+
+**Checks**: web vitest 449 / 450, tsc clean, `npm run build` green. The one failure is the
+existing `stock.test.tsx` "plans a row …": it plans 2026-10-27, which is now in the past, so
+the dialog refuses it ("A planned date must be today or later"). It is clock-bound and
+unrelated; not touched here. Looked at in a browser on mocked rows at 1600 and 420 px:
+the filter bar wraps with no page-level horizontal scroll; the table itself is cramped at
+phone width as before (fixed 130 / 150 px columns), which mobileweb serves.
+**Not deployed**, nothing committed.

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
 import { external } from '../../api/external';
@@ -10,16 +10,19 @@ import { PageHeader } from '../../components/PageHeader';
 import { Empty, ErrorNote, InfoText, Loading, Tag, Toggle } from '../../components/ui';
 import { formatDay, londonToday } from '../../lib/dates';
 import { flagTags } from '../../lib/grid';
-import { formatDecimal, parseMinor } from '../../lib/money';
+import { formatDecimal, formatMoney, parseMinor } from '../../lib/money';
 import { removeById, updateList, upsertById } from '../../lib/rows';
 import { DUE_SET_GLYPH, DUE_SET_STYLE, PLAN_STALE_TAG, blockedText, dateMovedLine, dueSetLine, dueSetText, lastSyncText } from '../../lib/ship';
 import { ShipPlanDialog } from '../forecast/ShipPlanDialog';
 import { RefreshButton } from '../forecast/shipping';
 import { hasOverlay, targetFromRow } from '../forecast/shipPlan';
 import { GroupFilter, GroupSection, RowAction, useShowFilter } from '../items/groups';
+import { applyStockFilters, filterOptions, sortStockRows, totalsByCurrency } from './filters';
 import { groupExternalItems, notInForecastTags } from './grouping';
+import { SortHeading, StockFilterBar, useStockView } from './StockViewControls';
 
 const COLUMNS = '130px minmax(0, 1.6fr) minmax(0, 1fr) 150px minmax(0, 0.9fr)';
+const NO_ROWS: ExternalItem[] = [];
 
 /**
  * Stock payments: every row of the shipping snapshot (`GET /external-items`), grouped by
@@ -41,10 +44,25 @@ export function StockPaymentsScreen() {
   const [planning, setPlanning] = useState<ExternalItem | null>(null);
   const action = useSubmit();
 
-  const accountName = (id: number | null) =>
-    id == null ? null : (accounts.data?.data ?? []).find((a) => a.id === id)?.name ?? `Account ${id}`;
+  const view = useStockView();
 
-  const groups = useMemo(() => groupExternalItems(list.data?.data ?? []), [list.data]);
+  const accountList = accounts.data?.data;
+  const accountName = useCallback(
+    (id: number | null) => (id == null ? null : (accountList ?? []).find((a) => a.id === id)?.name ?? `Account ${id}`),
+    [accountList],
+  );
+
+  // Search, filters and sort run over every row already fetched; the server's band still
+  // decides each row's section, and each section keeps the chosen order.
+  const rows = list.data?.data ?? NO_ROWS;
+  const allGroups = useMemo(() => groupExternalItems(rows), [rows]);
+  const options = useMemo(() => filterOptions(rows, accountName), [rows, accountName]);
+  const filters = useDeferredValue(view.filters);
+  const shownRows = useMemo(
+    () => sortStockRows(applyStockFilters(rows, filters, accountName), view.sort, accountName),
+    [rows, filters, view.sort, accountName],
+  );
+  const groups = useMemo(() => groupExternalItems(shownRows), [shownRows]);
   const visible = show === null ? groups : groups.filter((g) => g.id === show);
 
   const clearPlan = (row: ExternalItem) =>
@@ -87,6 +105,18 @@ export function StockPaymentsScreen() {
       {companies.error && <ErrorNote error={companies.error} onRetry={companies.reload} />}
       {action.error && <ErrorNote error={action.error} />}
 
+      {list.data && allGroups.length > 0 && (
+        <StockFilterBar
+          filters={view.filters}
+          options={options}
+          shown={shownRows.length}
+          total={rows.length}
+          active={view.active}
+          onChange={view.setFilter}
+          onClear={view.clear}
+        />
+      )}
+
       <div className="head-row" style={{ alignItems: 'center' }}>
         <GroupFilter groups={groups} value={show} onChange={setShow} />
         <div style={{ minWidth: 240 }}>
@@ -102,22 +132,39 @@ export function StockPaymentsScreen() {
       {list.error && <ErrorNote error={list.error} onRetry={list.reload} />}
       {!list.data ? (
         !list.error && <Loading what="Stock payments" />
-      ) : groups.length === 0 ? (
+      ) : allGroups.length === 0 ? (
         <Empty>
           No stock payments{companyId !== null ? ' for this company' : ''}. Refresh the feed, or map companies in{' '}
           <Link to="/settings?tab=companies">Settings</Link>.
         </Empty>
+      ) : groups.length === 0 ? (
+        <Empty>
+          No stock payments match the search or filters.{' '}
+          <button type="button" className="link-btn" onClick={view.clear}>
+            Clear filters
+          </button>
+        </Empty>
       ) : visible.length === 0 ? (
-        <Empty>Nothing in that group now.</Empty>
+        <Empty>{view.active ? 'Nothing in that group matches the search or filters.' : 'Nothing in that group now.'}</Empty>
       ) : (
         visible.map((group) => (
           <GroupSection key={group.id} group={group}>
             <div className="card-table">
               <div className="table-head" style={{ gridTemplateColumns: COLUMNS }}>
-                <div>DATE</div>
-                <div>PAYMENT</div>
-                <div>ACCOUNT</div>
-                <div style={{ textAlign: 'right' }}>AMOUNT</div>
+                <div>
+                  <SortHeading k="date" label="Date" sort={view.sort} onSort={view.sortBy} />
+                </div>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                  <SortHeading k="supplier" label="Supplier" sort={view.sort} onSort={view.sortBy} />
+                  <SortHeading k="po" label="PO" sort={view.sort} onSort={view.sortBy} />
+                  <SortHeading k="container" label="Container" sort={view.sort} onSort={view.sortBy} />
+                </div>
+                <div>
+                  <SortHeading k="account" label="Account" sort={view.sort} onSort={view.sortBy} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <SortHeading k="amount" label="Amount" sort={view.sort} onSort={view.sortBy} />
+                </div>
                 <div />
               </div>
               {group.rows.map((row) => {
@@ -220,6 +267,25 @@ export function StockPaymentsScreen() {
                   </div>
                 );
               })}
+              {group.rows.length > 1 && (
+                <div
+                  className="table-row"
+                  data-testid={`stock-total-${group.id}`}
+                  style={{ gridTemplateColumns: COLUMNS, alignItems: 'start', background: 'var(--panel2)' }}
+                >
+                  <div />
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>Total</div>
+                  <div />
+                  <div className="mono" style={{ fontSize: 13.5, fontWeight: 600, textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {totalsByCurrency(group.rows).map((t) => (
+                      <span key={t.currency} data-testid="stock-total-amount">
+                        −{formatMoney(t.minor, t.currency)}
+                      </span>
+                    ))}
+                  </div>
+                  <div />
+                </div>
+              )}
             </div>
           </GroupSection>
         ))

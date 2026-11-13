@@ -155,6 +155,12 @@ export interface PlanCheck {
   errors: Partial<Record<Field, string>>;
   /** Valid, but nothing differs from the row. */
   unchanged: boolean;
+  /**
+   * Valid, but the change empties every overlay column: the server refuses that PUT (400
+   * "Nothing to plan") because only `DELETE` clears a plan, so nothing is sent and the
+   * dialog points to Revert to feed.
+   */
+  revertInstead: boolean;
 }
 
 /** What saving would send, or why it cannot. `today` is the server's (`meta.today`). */
@@ -162,13 +168,13 @@ export function checkPlan(t: ShipPlanTarget, form: PlanForm, today: IsoDate): Pl
   const errors: Partial<Record<Field, string>> = {};
   if (shipExtId(t.key) === null) {
     errors.form = `This line's key (${t.key}) is not a stock payment.`;
-    return { action: null, errors, unchanged: false };
+    return { action: null, errors, unchanged: false, revertInstead: false };
   }
   if (t.gone || t.paid) {
     errors.form = t.gone
       ? 'Shipping no longer lists this payment, so it cannot be planned. Revert to feed clears what is left.'
       : 'Shipping says this payment has been made, so there is nothing left to plan.';
-    return { action: null, errors, unchanged: false };
+    return { action: null, errors, unchanged: false, revertInstead: false };
   }
 
   const body: PlanWrite = {};
@@ -210,9 +216,20 @@ export function checkPlan(t: ShipPlanTarget, form: PlanForm, today: IsoDate): Pl
     }
   }
 
-  if (Object.keys(errors).length) return { action: null, errors, unchanged: false };
-  if (Object.keys(body).length === 0) return { action: null, errors, unchanged: true };
-  return { action: { kind: 'plan', key: t.key, body, baseVersion: t.rowVersion }, errors, unchanged: false };
+  if (Object.keys(errors).length) return { action: null, errors, unchanged: false, revertInstead: false };
+  if (Object.keys(body).length === 0) return { action: null, errors, unchanged: true, revertInstead: false };
+
+  // The overlay as the server's merge would leave it (an absent field keeps what is stored).
+  const after = {
+    date: body.plannedDate !== undefined ? body.plannedDate : t.plannedDate,
+    amount: body.plannedAmount !== undefined ? body.plannedAmount : t.plannedAmountMinor,
+    skipped: body.skipped ?? t.skipped,
+    note: body.note !== undefined ? body.note : t.note,
+  };
+  if (after.date == null && after.amount == null && !after.skipped && (after.note ?? '') === '') {
+    return { action: null, errors, unchanged: false, revertInstead: true };
+  }
+  return { action: { kind: 'plan', key: t.key, body, baseVersion: t.rowVersion }, errors, unchanged: false, revertInstead: false };
 }
 
 /** "Revert to feed": offered while anything of JFlow's is on the row. */

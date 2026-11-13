@@ -323,6 +323,12 @@ function PlanFormDialog({
         </div>
       )}
 
+      {check.revertInstead && (
+        <div role="note" style={{ fontSize: 13.5, lineHeight: 1.5, color: 'var(--warn)' }} data-testid="ship-revert-instead">
+          The date and amount now match shipping's and nothing else is planned, so there is no plan left to save. Click
+          Revert to feed instead.
+        </div>
+      )}
       {check.errors.form && (
         <div role="alert" style={{ fontSize: 13.5, color: 'var(--fail)' }}>
           {check.errors.form}

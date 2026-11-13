@@ -527,6 +527,28 @@ describe('editing a ship line with no scenario open: the overlay', () => {
     await waitFor(() => expect(forecastReads(calls)).toHaveLength(2));
   });
 
+  it("points to Revert to feed, and sends nothing, when an edit would leave no plan (the server's 400 \"Nothing to plan\")", async () => {
+    const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
+    renderForecast();
+    await expandGrid();
+    const dialog = await openDeposit();
+    fireEvent.click(within(dialog).getByRole('button', { name: "Use shipping's (2 Oct)" }));
+    fireEvent.change(within(dialog).getByLabelText('Note'), { target: { value: '' } });
+    expect(within(dialog).getByTestId('ship-revert-instead').textContent).toBe(
+      "The date and amount now match shipping's and nothing else is planned, so there is no plan left to save. Click Revert to feed instead.",
+    );
+    expect((within(dialog).getByRole('button', { name: 'Save the plan' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(dialog).queryByText('Nothing changed yet.')).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Revert to feed' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(puts(calls)).toHaveLength(0);
+    expect(calls.find((c) => c.method === 'DELETE')).toEqual({
+      method: 'DELETE',
+      path: '/external-items/ship.dep-812',
+      body: { baseVersion: 7 },
+    });
+  });
+
   it('refuses a planned date before today, and an amount that is not a DECIMAL above zero, before the click', async () => {
     const calls = stubApi({ forecast: () => forecastFixture({ ship: true }) });
     renderForecast();

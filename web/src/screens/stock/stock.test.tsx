@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { __setTestTransport } from '../../api/client';
 import type { ExternalItem } from '../../api/external';
@@ -74,10 +74,15 @@ describe('the Stock payments screen', () => {
     return calls;
   }
 
-  const renderScreen = () =>
+  function Location() {
+    return <div data-testid="location">{useLocation().search}</div>;
+  }
+
+  const renderScreen = (entry = '/stock-payments') =>
     render(
-      <MemoryRouter initialEntries={['/stock-payments']}>
+      <MemoryRouter initialEntries={[entry]}>
         <StockPaymentsScreen />
+        <Location />
       </MemoryRouter>,
     );
 
@@ -193,7 +198,9 @@ describe('the Stock payments screen', () => {
   });
 
   it('unskips a skipped row from here (it is not on the Forecast)', async () => {
-    const calls = stubApi([skipped], () => ({ ...skipped, plannedSkipped: false, derivedStatus: 'expected' }));
+    // The note keeps a plan on the row; with only the skip, unskipping is Revert to feed (shipPlan.test.ts).
+    const skippedNoted = { ...skipped, plannedNote: 'Waiting on QC' };
+    const calls = stubApi([skippedNoted], () => ({ ...skippedNoted, plannedSkipped: false, derivedStatus: 'expected' }));
     renderScreen();
     fireEvent.click(await screen.findByRole('button', { name: 'Plan, Acme Textiles · PO-903 · deposit' }));
     const dialog = screen.getByRole('dialog');
@@ -222,5 +229,102 @@ describe('the Stock payments screen', () => {
       path: '/external-items/ship.dep-700',
       body: { baseVersion: 4 },
     });
+  });
+
+  // Three expected rows with different amounts and dates, plus the overdue deposit in its own section.
+  const early = externalRow({ id: 51, key: 'ship.bal-51-s1', extId: 'bal-51-s1', supplier: 'Brightway', poNumber: 'PO-51', containerRef: 'TGHU0000051', amount: '900.00', effectiveAmount: '900.00', dueDate: '2026-10-15', effectiveDate: '2026-10-15' });
+  const middle = externalRow({ id: 52, key: 'ship.bal-52-s1', extId: 'bal-52-s1', supplier: 'Acme Textiles', poNumber: 'PO-52', containerRef: 'MSCU0000052', amount: '100.00', effectiveAmount: '100.00', dueDate: '2026-10-20', effectiveDate: '2026-10-20' });
+  const late = externalRow({ id: 53, key: 'ship.bal-53-s1', extId: 'bal-53-s1', supplier: 'Coastline', poNumber: 'PO-53', containerRef: null, currency: 'GBP', amount: '400.00', effectiveAmount: '400.00', dueDate: '2026-10-30', effectiveDate: '2026-10-30', accountId: null });
+  const keysIn = (group: string) =>
+    [...document.querySelectorAll(`[data-group="${group}"] [data-testid^="stock-ship."]`)].map((el) => el.getAttribute('data-testid'));
+
+  it('searches by supplier, PO or container, says how many it shows, and clears', async () => {
+    stubApi([overdue, early, middle, late], () => expected);
+    renderScreen();
+    await screen.findByTestId('stock-ship.bal-51-s1');
+    const search = screen.getByRole('searchbox', { name: 'Search stock payments' });
+
+    fireEvent.change(search, { target: { value: 'po-52' } });
+    await waitFor(() => expect(screen.queryByTestId('stock-ship.bal-51-s1')).toBeNull());
+    expect(screen.getByTestId('stock-ship.bal-52-s1')).toBeTruthy();
+    expect(screen.queryByTestId('stock-ship.dep-900')).toBeNull();
+    expect(screen.getByTestId('stock-shown').textContent).toBe('1 of 4 stock payments');
+    expect(screen.getByTestId('location').textContent).toBe('?q=po-52');
+
+    fireEvent.change(search, { target: { value: 'tghu' } });
+    await waitFor(() => expect(keysIn('expected')).toEqual(['stock-ship.bal-51-s1']));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(keysIn('expected')).toHaveLength(3));
+    expect((search as HTMLInputElement).value).toBe('');
+    expect(screen.queryByTestId('stock-shown')).toBeNull();
+    expect(screen.getByTestId('location').textContent).toBe('');
+  });
+
+  it('narrows by date range, kind, currency and account, and says when nothing matches', async () => {
+    stubApi([overdue, early, middle, late], () => expected);
+    renderScreen();
+    await screen.findByTestId('stock-ship.bal-51-s1');
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-16' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-25' } });
+    await waitFor(() => expect(keysIn('expected')).toEqual(['stock-ship.bal-52-s1']));
+    expect(screen.queryByTestId('stock-ship.dep-900')).toBeNull();
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '' } });
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Kind' }), { target: { value: 'deposit' } });
+    await waitFor(() => expect(keysIn('expected')).toEqual([]));
+    expect(screen.getByTestId('stock-ship.dep-900')).toBeTruthy();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Kind' }), { target: { value: '' } });
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Currency' }), { target: { value: 'GBP' } });
+    await waitFor(() => expect(keysIn('expected')).toEqual(['stock-ship.bal-53-s1']));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Account' }), { target: { value: '1' } });
+    await waitFor(() => expect(screen.getByText(/No stock payments match/)).toBeTruthy());
+    expect(screen.getByTestId('location').textContent).toBe('?ccy=GBP&account=1');
+  });
+
+  it('sorts inside each section from the column headings, and again to reverse', async () => {
+    stubApi([overdue, early, middle, late], () => expected);
+    renderScreen();
+    await screen.findByTestId('stock-ship.bal-51-s1');
+    // The server's order: date ascending.
+    expect(keysIn('expected')).toEqual(['stock-ship.bal-51-s1', 'stock-ship.bal-52-s1', 'stock-ship.bal-53-s1']);
+
+    // Amount starts with the biggest; face value, no exchange rate.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sort by amount' })[0]);
+    await waitFor(() => expect(keysIn('expected')).toEqual(['stock-ship.bal-51-s1', 'stock-ship.bal-53-s1', 'stock-ship.bal-52-s1']));
+    expect(screen.getByTestId('location').textContent).toBe('?sort=-amount');
+    expect(screen.getAllByRole('button', { name: 'Sort by amount, largest first' })).toHaveLength(2);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sort by amount, largest first' })[0]);
+    await waitFor(() => expect(keysIn('expected')).toEqual(['stock-ship.bal-52-s1', 'stock-ship.bal-53-s1', 'stock-ship.bal-51-s1']));
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sort by supplier' })[0]);
+    await waitFor(() => expect(keysIn('expected')).toEqual(['stock-ship.bal-52-s1', 'stock-ship.bal-51-s1', 'stock-ship.bal-53-s1']));
+    // The sections keep their order: overdue still comes first.
+    expect([...document.querySelectorAll('[data-group]')].map((el) => el.getAttribute('data-group'))).toEqual(['overdue', 'expected']);
+  });
+
+  it('opens on the view in the link', async () => {
+    stubApi([overdue, early, middle, late], () => expected);
+    renderScreen('/stock-payments?q=acme&sort=-amount');
+    await screen.findByTestId('stock-ship.bal-52-s1');
+    expect((screen.getByRole('searchbox', { name: 'Search stock payments' }) as HTMLInputElement).value).toBe('acme');
+    // Acme is the supplier of 52 and of the overdue deposit.
+    expect(keysIn('expected')).toEqual(['stock-ship.bal-52-s1']);
+    expect(keysIn('overdue')).toEqual(['stock-ship.dep-900']);
+    expect(screen.queryByTestId('stock-ship.bal-51-s1')).toBeNull();
+  });
+
+  it('totals each section per currency, from the amounts it shows', async () => {
+    stubApi([overdue, early, middle, late], () => expected);
+    renderScreen();
+    const total = await screen.findByTestId('stock-total-expected');
+    expect(total.textContent).toContain('Total');
+    expect(within(total).getAllByTestId('stock-total-amount').map((el) => el.textContent)).toEqual(['−£400.00', '−$1,000.00']);
+    // One row needs no total.
+    expect(screen.queryByTestId('stock-total-overdue')).toBeNull();
   });
 });

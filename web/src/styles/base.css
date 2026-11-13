@@ -470,6 +470,39 @@ h1.page-title {
   color: var(--acc);
 }
 
+/* A sortable table heading (Stock payments): reads as the heading it replaces. The arrow is
+   faint until the column sorts, then the heading and its arrow take the text colour. */
+.sort-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.sort-btn:hover,
+.sort-btn[data-active] {
+  color: var(--text);
+}
+.sort-btn .sort-arrow {
+  font-size: 10.5px;
+  opacity: 0.45;
+}
+.sort-btn:hover .sort-arrow,
+.sort-btn[data-active] .sort-arrow {
+  opacity: 1;
+}
+/* A filter that is set wears the accent border, so a narrowed list says so at a glance. */
+select.input[data-active] {
+  border-color: var(--acc);
+}
+
 .input {
   border: 1px solid var(--line2);
   border-radius: var(--radius);
