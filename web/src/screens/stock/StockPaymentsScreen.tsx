@@ -3,17 +3,19 @@ import { Link } from 'react-router-dom';
 import { api } from '../../api';
 import { external } from '../../api/external';
 import type { ExternalItem } from '../../api/external';
-import { CompanyPicker, sortCompanies, useCompanyFilter } from '../../app/companyFilter';
+import { COMPANY_PARAM, CompanyPicker, sortCompanies, useCompanyFilter } from '../../app/companyFilter';
+import { useScenario } from '../../app/ScenarioContext';
 import { useQuery } from '../../app/useQuery';
 import { useSubmit } from '../../app/useSubmit';
 import { HintTag } from '../../components/HintTag';
 import { PageHeader } from '../../components/PageHeader';
 import { Empty, ErrorNote, InfoText, Loading, Tag, Toggle } from '../../components/ui';
 import { formatDay, londonToday } from '../../lib/dates';
-import { flagTags } from '../../lib/grid';
+import { flagTags, windowToReach } from '../../lib/grid';
 import { formatDecimal, formatMoney, parseMinor } from '../../lib/money';
 import { removeById, updateList, upsertById } from '../../lib/rows';
 import { DUE_SET_GLYPH, DUE_SET_STYLE, PLAN_STALE_TAG, blockedText, dateMovedText, dueSetLine, dueSetText, lastSyncText } from '../../lib/ship';
+import { SHIP_PARAM, WINDOW_PARAM } from '../forecast/ForecastScreen';
 import { ShipPlanDialog } from '../forecast/ShipPlanDialog';
 import { RefreshButton } from '../forecast/shipping';
 import { hasOverlay, targetFromRow } from '../forecast/shipPlan';
@@ -31,10 +33,15 @@ const NO_ROWS: ExternalItem[] = [];
  * can still be reached — an undated one to date, a skipped one to unskip, a plan left on a
  * payment shipping no longer lists to clear. Shipping's own figures are never edited here:
  * a plan is JFlow's overlay on top of them (CONTRACT §6.12).
+ *
+ * A plan here is always the REAL plan, scenario or not. With a scenario open (Dev,
+ * 2026-11-19) the page says so, and each payment on the Forecast gets "edit in scenario":
+ * the Forecast, found by its PO, where an edit is an adjustment to the scenario.
  */
 export function StockPaymentsScreen() {
   const [today] = useState(() => londonToday());
   const [companyId, setCompanyId] = useCompanyFilter();
+  const { active: scenario } = useScenario();
   const [show, setShow] = useShowFilter();
   const [includeGone, setIncludeGone] = useState(false);
 
@@ -64,6 +71,27 @@ export function StockPaymentsScreen() {
     [rows, filters, view.sort, accountName],
   );
   const groups = useMemo(() => groupExternalItems(shownRows), [shownRows]);
+
+  // "Edit in scenario": the Forecast, searched by the row's PO (else its container, else its
+  // supplier), over a window long enough for every payment that search finds.
+  const shipTerm = (row: ExternalItem) => row.poNumber ?? row.containerRef ?? row.supplier ?? row.key;
+  const lastDateByTerm = useMemo(() => {
+    const last = new Map<string, string>();
+    for (const row of rows) {
+      const term = shipTerm(row);
+      if (row.effectiveDate && (last.get(term) ?? '') < row.effectiveDate) last.set(term, row.effectiveDate);
+    }
+    return last;
+  }, [rows]);
+  const inScenario = (row: ExternalItem) => {
+    const params = new URLSearchParams();
+    if (companyId !== null) params.set(COMPANY_PARAM, String(companyId));
+    const term = shipTerm(row);
+    params.set(SHIP_PARAM, term);
+    const days = windowToReach(lastDateByTerm.get(term) ?? row.effectiveDate, today);
+    if (days !== 90) params.set(WINDOW_PARAM, String(days));
+    return `/forecast?${params.toString()}`;
+  };
   const visible = show === null ? groups : groups.filter((g) => g.id === show);
 
   const clearPlan = (row: ExternalItem) =>
@@ -103,6 +131,24 @@ export function StockPaymentsScreen() {
         />
       </div>
 
+      {scenario && (
+        <div
+          role="note"
+          data-testid="stock-scenario-note"
+          style={{
+            border: '1px solid var(--scenario, #6d28d9)',
+            background: 'color-mix(in srgb, var(--scenario, #6d28d9) 8%, var(--panel))',
+            borderRadius: 'var(--radius)',
+            padding: '10px 14px',
+            fontSize: 13.5,
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>“{scenario.name}” is open,</strong> but this page changes the real plan, not the scenario. To try a
+          change in the scenario, use <strong>edit in scenario</strong> on a payment: it opens that PO on the Forecast,
+          where edits go into the scenario.
+        </div>
+      )}
       {companies.error && <ErrorNote error={companies.error} onRetry={companies.reload} />}
       {action.error && <ErrorNote error={action.error} />}
 
@@ -181,6 +227,8 @@ export function StockPaymentsScreen() {
                   ...notInForecastTags(row),
                 ];
                 const open = row.feedStatus === 'open' && !row.goneAt;
+                // On the Forecast, so a scenario can adjust it there: open, dated, mapped, not skipped.
+                const onForecast = open && row.derivedStatus != null && row.derivedStatus !== 'skipped' && row.derivedStatus !== 'paid';
                 const overlay = hasOverlay(row);
                 const shownDate = row.feedStatus === 'paid' ? row.paidOn : row.effectiveDate;
                 // A JFlow plan wins the date; shipping's own date then sits on the second line.
@@ -256,6 +304,15 @@ export function StockPaymentsScreen() {
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      {scenario && onForecast && (
+                        <Link
+                          to={inScenario(row)}
+                          aria-label={`Edit in scenario, ${target.name}`}
+                          style={{ color: 'var(--scenario, #6d28d9)', fontWeight: 500, fontSize: 13.5 }}
+                        >
+                          edit in scenario
+                        </Link>
+                      )}
                       {open && (
                         <RowAction label={`Plan, ${target.name}`} onClick={() => setPlanning(row)}>
                           plan
@@ -299,6 +356,7 @@ export function StockPaymentsScreen() {
           itemKey={planning.key}
           row={planning}
           today={today}
+          scenarioName={scenario?.name ?? null}
           onClose={() => setPlanning(null)}
           onSaved={(row) => {
             setPlanning(null);

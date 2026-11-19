@@ -50,6 +50,7 @@ export function ShipPlanDialog({
   row,
   title,
   today,
+  scenarioName,
   onClose,
   onSaved,
 }: {
@@ -60,6 +61,11 @@ export function ShipPlanDialog({
   title?: string;
   /** The server's today (`meta.today`), or the Europe/London date on a list screen. */
   today: string;
+  /**
+   * The scenario open in the app (Stock payments, 2026-11-19): this dialog still writes the
+   * real plan, and says so in place of "open a scenario".
+   */
+  scenarioName?: string | null;
   onClose: () => void;
   onSaved: (row: ExternalItem | null) => void;
 }) {
@@ -114,6 +120,7 @@ export function ShipPlanDialog({
       key={`${current.rowVersion}:${reads}`}
       row={current}
       today={today}
+      scenarioName={scenarioName}
       onClose={onClose}
       onSaved={onSaved}
       onReread={() => setReads((n) => n + 1)}
@@ -124,12 +131,14 @@ export function ShipPlanDialog({
 function PlanFormDialog({
   row,
   today,
+  scenarioName,
   onClose,
   onSaved,
   onReread,
 }: {
   row: ExternalItem;
   today: string;
+  scenarioName?: string | null;
   onClose: () => void;
   onSaved: (row: ExternalItem | null) => void;
   onReread: () => void;
@@ -165,8 +174,12 @@ function PlanFormDialog({
       confirmLabel="Save the plan"
       confirmDisabled={!check.action}
       busy={submit.busy}
-      warnTone="warn"
-      warning="This plans the real stock payment in JFlow. Shipping is not changed: JFlow uses your date and amount until you revert to the feed. To try it out first, open a scenario."
+      warnTone={scenarioName ? 'fail' : 'warn'}
+      warning={
+        scenarioName
+          ? `“${scenarioName}” is open, but this saves the real plan, not the scenario. Shipping is not changed. To try the change in the scenario instead, close this and use “edit in scenario”.`
+          : 'This plans the real stock payment in JFlow. Shipping is not changed: JFlow uses your date and amount until you revert to the feed. To try it out first, open a scenario.'
+      }
       onConfirm={() => save(check.action)}
       onClose={onClose}
     >

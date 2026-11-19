@@ -79,10 +79,10 @@ function stubApi(answers: Answers) {
   return calls;
 }
 
-function renderForecast(store: ScenarioStore = createScenarioStore()) {
+function renderForecast(store: ScenarioStore = createScenarioStore(), at = '/forecast') {
   return render(
     <ScenarioContext.Provider value={store}>
-      <MemoryRouter initialEntries={['/forecast']}>
+      <MemoryRouter initialEntries={[at]}>
         <ForecastScreen />
       </MemoryRouter>
     </ScenarioContext.Provider>,
@@ -106,7 +106,10 @@ describe('ship lines in the grid', () => {
     expect(within(grid).getByTestId('category-90').textContent).toContain('Stock payments');
 
     const deposit = within(grid).getByTestId('line-ship.dep-812');
-    expect(deposit.textContent).toContain('Acme Textiles · PO-812 · deposit');
+    // Under its supplier a line names what is left — its PO and what it is; the name as sent is its title.
+    expect(deposit.textContent).toContain('PO-812 · deposit');
+    expect(deposit.textContent).not.toContain('Acme Textiles');
+    expect(within(deposit).getByTitle('Acme Textiles · PO-812 · deposit').textContent).toBe('PO-812 · deposit');
     const estimated = deposit.querySelector('[data-estimated="true"]') as HTMLElement;
     expect(estimated).toBeTruthy();
     expect(estimated.style.fontStyle).toBe('italic');
@@ -115,10 +118,10 @@ describe('ship lines in the grid', () => {
     expect(deposit.querySelector('[data-flag="planned"]')?.textContent).toBe('PLANNED');
 
     const balance = within(grid).getByTestId('line-ship.bal-812-s311');
-    expect(balance.textContent).toContain('Acme Textiles · PO-812 · balance');
-    // Its container sits on the supplier + shipment group row above it, not on the line again.
+    expect(within(balance).getByTitle('Acme Textiles · PO-812 · balance').textContent).toBe('PO-812 · balance');
+    // Its container sits on the container row above it, not on the line again.
     expect(balance.textContent).not.toContain('MSCU1234567');
-    expect(within(grid).getByTestId('combo-acme textiles|MSCU1234567').textContent).toContain('MSCU1234567 · 1 payment');
+    expect(within(grid).getByTestId('container-MSCU1234567').textContent).toContain('1 supplier · 1 payment');
     expect(balance.querySelector('[data-estimated="true"]')).toBeNull();
     expect(balance.querySelector('[data-flag="blocked"]')?.textContent).toBe('BLOCKED');
     // `projected` retired 2026-10-06: a derived amount wears no tag and gets no sentence.
@@ -351,50 +354,108 @@ describe('the SHIPPING_UNAVAILABLE banner', () => {
   });
 });
 
-describe('stock payments grouped by supplier + shipment (Dev, 2026-10-06)', () => {
-  /** The fixture's two Acme lines plus a second Acme balance in the same container, flagged overdue. */
-  const withSecondBalance = () => {
-    const fx = forecastFixture({ ship: true, shipping: SHIPPING });
-    const stock = fx.rows!.find((r) => r.categoryId === 90)!;
-    const bal = stock.items.find((i) => i.key === 'ship.bal-812-s311')!;
-    stock.items.push({
-      ...bal, key: 'ship.bal-813-s311', id: 'bal-813-s311', name: 'Acme Textiles · PO-813 · balance',
-      amountMinor: 50000, accountMinor: 50000, gbpMinor: 37000, flags: ['overdue'], ship: { ...bal.ship!, poNumber: 'PO-813' },
-    });
-    return fx;
-  };
+/** The fixture's two Acme lines plus a second Acme balance in the same container, flagged overdue. */
+const withSecondBalance = () => {
+  const fx = forecastFixture({ ship: true, shipping: SHIPPING });
+  const stock = fx.rows!.find((r) => r.categoryId === 90)!;
+  const bal = stock.items.find((i) => i.key === 'ship.bal-812-s311')!;
+  stock.items.push({
+    ...bal, key: 'ship.bal-813-s311', id: 'bal-813-s311', name: 'Acme Textiles · PO-813 · balance',
+    amountMinor: 50000, accountMinor: 50000, gbpMinor: 37000, flags: ['overdue'], ship: { ...bal.ship!, poNumber: 'PO-813' },
+  });
+  return fx;
+};
 
-  it('opening the category shows one line per supplier + container with the summed figure; the payments open on a click, or with Expand all', async () => {
+describe('stock payments by container, then supplier (Dev, 2026-11-19)', () => {
+  it('opening the category shows one row per container with its summed figure; a container opens to its suppliers, a supplier to its payments; Expand all opens every level', async () => {
     stubApi({ forecast: withSecondBalance });
     renderForecast();
     const grid = await screen.findByTestId('forecast-grid');
     fireEvent.click(within(grid).getByRole('button', { name: /^Stock payments/ }));
 
-    const combo = within(grid).getByTestId('combo-acme textiles|MSCU1234567');
+    // A container with a ref first, "No container" last.
+    expect(within(grid).getAllByTestId(/^container-/).map((el) => el.dataset.testid)).toEqual(['container-MSCU1234567', 'container--']);
+    const box = within(grid).getByTestId('container-MSCU1234567');
+    expect(box.textContent).toContain('MSCU1234567');
+    expect(box.textContent).toContain('1 supplier · 2 payments');
+    expect(box.textContent).toContain('£1,480.00');
+    expect(within(box).getByTestId('attention-container:MSCU1234567').textContent).toContain('OVERDUE 1');
+    expect(screen.queryByTestId('combo-acme textiles|MSCU1234567')).toBeNull();
+
+    const none = within(grid).getByTestId('container--');
+    expect(none.textContent).toContain('No container');
+    expect(none.textContent).toContain('1 supplier · 1 payment');
+    expect(none.textContent).toContain('£3,700.00');
+
+    fireEvent.click(within(box).getByRole('button', { name: /^MSCU1234567/ }));
+    expect(screen.queryByTestId('attention-container:MSCU1234567')).toBeNull();
+    const combo = screen.getByTestId('combo-acme textiles|MSCU1234567');
     expect(combo.textContent).toContain('Acme Textiles');
-    expect(combo.textContent).toContain('MSCU1234567 · 2 payments');
+    // Under its container a supplier names its POs, not the container again.
+    expect(combo.textContent).toContain('PO-812, PO-813 · 2 payments');
+    expect(combo.textContent).not.toContain('MSCU1234567');
     expect(combo.textContent).toContain('£1,480.00');
     expect(within(combo).getByTestId('attention-combo:acme textiles|MSCU1234567').textContent).toContain('OVERDUE 1');
     expect(screen.queryByTestId('line-ship.bal-812-s311')).toBeNull();
-    expect(screen.queryByTestId('line-ship.bal-813-s311')).toBeNull();
-
-    const single = within(grid).getByTestId('combo-acme textiles|-');
-    expect(single.textContent).toContain('No container · 1 payment');
-    expect(single.textContent).toContain('£3,700.00');
 
     fireEvent.click(within(combo).getByRole('button', { name: /^Acme Textiles/ }));
-    expect(screen.getByTestId('line-ship.bal-812-s311').textContent).toContain('Acme Textiles · PO-812 · balance');
+    expect(screen.getByTestId('line-ship.bal-812-s311').textContent).toContain('PO-812 · balance');
     expect(screen.getByTestId('line-ship.bal-813-s311').textContent).toContain('PO-813');
-    // Under its group the line does not repeat the container; the group already says it.
     expect(screen.getByTestId('line-ship.bal-812-s311').textContent).not.toContain('MSCU1234567');
-    expect(screen.queryByTestId('attention-combo:acme textiles|MSCU1234567')).toBeNull();
     expect(screen.queryByTestId('line-ship.dep-812')).toBeNull();
 
     fireEvent.click(within(grid).getByRole('button', { name: 'Expand all' }));
     expect(screen.getByTestId('line-ship.dep-812')).toBeTruthy();
     fireEvent.click(within(grid).getByRole('button', { name: 'Collapse all' }));
-    expect(screen.queryByTestId('combo-acme textiles|-')).toBeNull();
+    expect(screen.queryByTestId('container--')).toBeNull();
     expect(screen.queryByTestId('line-ship.dep-812')).toBeNull();
+  });
+
+  it("a container's eye hides every payment in it", async () => {
+    const calls = stubApi({ forecast: withSecondBalance });
+    renderForecast();
+    const grid = await screen.findByTestId('forecast-grid');
+    fireEvent.click(within(grid).getByRole('button', { name: /^Stock payments/ }));
+    fireEvent.click(within(within(grid).getByTestId('container-MSCU1234567')).getByRole('button', { name: /^Hide / }));
+    await waitFor(() =>
+      expect(decodeURIComponent(forecastReads(calls).slice(-1)[0].path)).toMatch(/[?&]hide=ship\.bal-812-s311,ship\.bal-813-s311(&|$)/),
+    );
+  });
+});
+
+describe('finding stock payments on the Forecast (Dev, 2026-11-19)', () => {
+  const lines = () => ['line-ship.dep-812', 'line-ship.bal-812-s311', 'line-ship.bal-813-s311'].filter((id) => screen.queryByTestId(id));
+
+  it('opens the matching containers, suppliers and payments and shows only those; commas find several; Escape shows everything again', async () => {
+    stubApi({ forecast: withSecondBalance });
+    renderForecast();
+    const grid = await screen.findByTestId('forecast-grid');
+    const box = screen.getByRole('searchbox', { name: 'Find stock payments' });
+
+    fireEvent.change(box, { target: { value: 'po-813' } });
+    expect(lines()).toEqual(['line-ship.bal-813-s311']);
+    expect(screen.queryByTestId('container--')).toBeNull();
+    expect(within(grid).getByTestId('category-90').textContent).toContain('1 of 2 containers');
+
+    fireEvent.change(box, { target: { value: 'po-813, PO-812' } });
+    expect(lines()).toEqual(['line-ship.dep-812', 'line-ship.bal-812-s311', 'line-ship.bal-813-s311']);
+
+    fireEvent.change(box, { target: { value: 'nothing-like-this' } });
+    expect(lines()).toEqual([]);
+    expect(within(grid).getByTestId('ship-no-match').textContent).toContain('No stock payments match');
+
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect((box as HTMLInputElement).value).toBe('');
+    expect(within(grid).getByTestId('container--')).toBeTruthy();
+    expect(within(grid).getByTestId('category-90').textContent).not.toContain('containers');
+  });
+
+  it('reads the search from the link (?ship=), as Stock payments sends it', async () => {
+    stubApi({ forecast: withSecondBalance });
+    renderForecast(createScenarioStore(), '/forecast?ship=PO-812');
+    await screen.findByTestId('line-ship.dep-812');
+    expect((screen.getByRole('searchbox', { name: 'Find stock payments' }) as HTMLInputElement).value).toBe('PO-812');
+    expect(lines()).toEqual(['line-ship.dep-812', 'line-ship.bal-812-s311']);
   });
 });
 

@@ -10,11 +10,14 @@ import {
   flagTags,
   groupLines,
   groupShipCombos,
+  groupShipContainers,
   isClipped,
   isShipCategory,
   lineId,
   parseBucket,
   parseWindowDays,
+  pinSummary,
+  shipMatcher,
   signedMoney,
 } from './grid';
 import { line as fixtureLine, shipRow as stockRow } from '../screens/forecast/fixtures';
@@ -233,5 +236,119 @@ describe('stock payments by supplier + shipment (groupShipCombos; Dev, 2026-10-0
     expect(isShipCategory(groups())).toBe(true);
     expect(isShipCategory(groupLines(rows()[2].items, 3))).toBe(false);
     expect(isShipCategory([])).toBe(false);
+  });
+});
+
+describe('stock payments by container, then supplier (groupShipContainers; Dev, 2026-11-19)', () => {
+  // One ship line: `supplier` in `container` (null = none) for PO `po`, `gbp` in bucket `at`.
+  const shipLine = (key: string, supplier: string, container: string | null, po: string, at: number, gbp: number, flags: string[] = []) => {
+    const base = stockRow().items[1];
+    return fixtureLine({
+      ...base, key, id: key.slice(5), name: `${supplier} · ${po} · balance`, counterparty: supplier,
+      gbpMinor: gbp, bucketIndex: at, flags, ship: { ...base.ship!, poNumber: po, containerRef: container },
+    });
+  };
+  const lines = () => [
+    shipLine('ship.a', 'Zeta Hangers', '315', 'PO_00355J', 0, 1000),
+    shipLine('ship.b', 'Medoffice Saglik', 'Medoffice Post-Production', 'PO_00401J', 1, 2000),
+    shipLine('ship.c', 'Acme Textiles', '315', 'PO_00360J', 2, 4000, ['overdue']),
+    shipLine('ship.d', 'Guilin Yoho', null, 'PO_00370J', 1, 8000),
+    shipLine('ship.e', 'Guilin Yoho', '1000', 'PO_00380J', 0, 16000),
+    shipLine('ship.f', 'Suzhou Sunmed', '127. Air Freight', 'PO_00390J', 0, 32000),
+    shipLine('ship.g', 'Suzhou Sunmed', '125. Air Freight', 'PO_00391J', 2, 64000),
+    shipLine('ship.h', 'Acme Textiles', '315', 'PO_00361J', 2, 128000, ['excluded']),
+    shipLine('ship.i', 'Roosin Medical', '314', 'PO_00350J', 1, 256000),
+  ];
+  const containers = (items = lines()) => groupShipContainers(groupLines(items, 3), 3);
+
+  it('orders containers by number, then the named ones (air freight and the like) A to Z, then no container', () => {
+    expect(containers().map((c) => [c.key, c.containerRef])).toEqual([
+      ['314', '314'],
+      ['315', '315'],
+      ['1000', '1000'],
+      ['125. AIR FREIGHT', '125. Air Freight'],
+      ['127. AIR FREIGHT', '127. Air Freight'],
+      ['MEDOFFICE POST-PRODUCTION', 'Medoffice Post-Production'],
+      ['-', null],
+    ]);
+  });
+
+  it('holds its suppliers A to Z, each the supplier + shipment combo of before', () => {
+    const c315 = containers().find((c) => c.key === '315')!;
+    expect(c315.suppliers.map((s) => [s.key, s.supplier, s.lines.map((l) => l.key)])).toEqual([
+      ['acme textiles|315', 'Acme Textiles', ['ship.c', 'ship.h']],
+      ['zeta hangers|315', 'Zeta Hangers', ['ship.a']],
+    ]);
+    expect(c315.lines.map((l) => l.key)).toEqual(['ship.a', 'ship.c', 'ship.h']);
+  });
+
+  it("sums its lines' GBP per bucket and over the window, leaving out what the server counts nothing for", () => {
+    const c315 = containers().find((c) => c.key === '315')!;
+    expect(c315.cells).toEqual([1000, 0, 4000]);
+    expect(c315.total).toBe(5000);
+    expect(c315.suppliers[0].cells).toEqual([0, 0, 4000]);
+  });
+
+  it('keys a container case-blind, as ShipLine keys a payment', () => {
+    const shouty = shipLine('ship.x', 'Zeta Hangers', 'medoffice post-production', 'PO_00402J', 0, 1);
+    const named = containers([...lines(), shouty]).filter((c) => c.key === 'MEDOFFICE POST-PRODUCTION');
+    expect(named).toHaveLength(1);
+    expect(named[0].suppliers.map((s) => s.supplier)).toEqual(['Medoffice Saglik', 'Zeta Hangers']);
+  });
+});
+
+describe('finding stock payments (shipMatcher; Dev, 2026-11-19)', () => {
+  const groups = () => {
+    const base = stockRow().items;
+    const other = fixtureLine({
+      ...base[1], key: 'ship.bal-900-s315', id: 'bal-900-s315', name: 'Roosin Medical Co., Ltd. · PO_00355J · balance',
+      counterparty: 'Roosin Medical Co., Ltd.', ship: { ...base[1].ship!, poNumber: 'PO_00355J', containerRef: '315' },
+    });
+    return groupLines([...base, other], 3);
+  };
+  const keys = (query: string) => {
+    const match = shipMatcher(query);
+    return match ? groups().filter(match).map((g) => g.key) : null;
+  };
+
+  it('is off for a blank search', () => {
+    expect(shipMatcher('')).toBeNull();
+    expect(shipMatcher('  ,  ')).toBeNull();
+  });
+
+  it('finds by container, supplier or PO, case-blind', () => {
+    expect(keys('315')).toEqual(['ship.bal-900-s315']);
+    expect(keys('mscu1234567')).toEqual(['ship.bal-812-s311']);
+    expect(keys('ROOSIN')).toEqual(['ship.bal-900-s315']);
+    expect(keys('po-812')).toEqual(['ship.dep-812', 'ship.bal-812-s311']);
+  });
+
+  it('needs every word of a search; commas find several at once', () => {
+    expect(keys('acme mscu')).toEqual(['ship.bal-812-s311']);
+    expect(keys('acme 315')).toEqual([]);
+    expect(keys('315, PO-812')).toEqual(['ship.dep-812', 'ship.bal-812-s311', 'ship.bal-900-s315']);
+  });
+});
+
+describe('the pinned balance summary (pinSummary; Dev, 2026-11-19)', () => {
+  // Viewport positions, as getBoundingClientRect gives them: the grid's top and bottom, where
+  // the zero-height pin at the grid's top sits now (sticky, so it stops at the scroll area's
+  // top), and the height of the header and balance rows.
+  it('stays put while the top of the grid is in view', () => {
+    expect(pinSummary({ gridTop: 120, gridBottom: 2000, pinTop: 120, summaryHeight: 230 })).toBe(false);
+  });
+
+  it('pins once the top of the grid has scrolled past the top of the page', () => {
+    expect(pinSummary({ gridTop: -400, gridBottom: 1500, pinTop: 0, summaryHeight: 230 })).toBe(true);
+    expect(pinSummary({ gridTop: -1, gridBottom: 1500, pinTop: 0, summaryHeight: 230 })).toBe(true);
+  });
+
+  it('lets go when what is left of the grid is no taller than the summary', () => {
+    expect(pinSummary({ gridTop: -1800, gridBottom: 230, pinTop: 0, summaryHeight: 230 })).toBe(false);
+    expect(pinSummary({ gridTop: -1800, gridBottom: 231, pinTop: 0, summaryHeight: 230 })).toBe(true);
+  });
+
+  it('never pins with nothing measured (jsdom, a hidden tab)', () => {
+    expect(pinSummary({ gridTop: 0, gridBottom: 0, pinTop: 0, summaryHeight: 0 })).toBe(false);
   });
 });

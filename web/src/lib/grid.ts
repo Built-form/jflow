@@ -35,6 +35,12 @@ export function parseWindowDays(raw: string | null | undefined): WindowDays {
   return (WINDOW_OPTIONS as readonly number[]).includes(n) ? (n as WindowDays) : 90;
 }
 
+/** The shortest window, no shorter than the default 90 days, that reaches `date` from `today`. */
+export function windowToReach(date: string | null, today: string): WindowDays {
+  const fits = WINDOW_OPTIONS.filter((d) => d >= 90).find((d) => date === null || addDays(today, d) >= date);
+  return fits ?? 365;
+}
+
 /* ---------- bucket columns ---------- */
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -248,6 +254,97 @@ export function groupShipCombos(groups: readonly LineGroup[], bucketCount: numbe
     }
   }
   return [...combos.values()];
+}
+
+/**
+ * The Forecast's stock payments by container first (Dev, 2026-11-19): one row per container,
+ * opening to its suppliers (the supplier + shipment combos above), each opening to its
+ * payments. Like a combo, a container's cells are the SUM of its lines' `gbpMinor`, for
+ * display only.
+ */
+export interface ShipContainer {
+  /** The container ref upper-cased, as ShipLine keys a payment; `-` when there is none. */
+  key: string;
+  containerRef: string | null;
+  /** Its supplier + shipment combos, suppliers A to Z. */
+  suppliers: ShipCombo[];
+  lines: ForecastItem[];
+  cells: number[];
+  total: number;
+}
+
+const byName = (a: string, b: string) => a.localeCompare(b, 'en-GB', { sensitivity: 'base', numeric: true });
+
+/** Numbered containers first (313, 314, 1000), then named ones (air freight…) A to Z, then none. */
+function containerOrder(a: ShipContainer, b: ShipContainer): number {
+  const rank = (c: ShipContainer) => (c.containerRef === null ? 2 : /^\d+$/.test(c.key) ? 0 : 1);
+  return rank(a) - rank(b) || byName(a.key, b.key);
+}
+
+export function groupShipContainers(groups: readonly LineGroup[], bucketCount: number): ShipContainer[] {
+  const containers = new Map<string, ShipContainer>();
+  for (const combo of groupShipCombos(groups, bucketCount)) {
+    const key = comboPart(combo.containerRef, (v) => v.toUpperCase());
+    let container = containers.get(key);
+    if (!container) {
+      container = {
+        key,
+        containerRef: combo.containerRef,
+        suppliers: [],
+        lines: [],
+        cells: Array.from({ length: Math.max(bucketCount, 0) }, () => 0),
+        total: 0,
+      };
+      containers.set(key, container);
+    }
+    container.suppliers.push(combo);
+    container.lines.push(...combo.lines);
+    combo.cells.forEach((sum, i) => (container.cells[i] += sum));
+    container.total += combo.total;
+  }
+  // A container's lines keep the server's order; its suppliers read A to Z, "No supplier" last.
+  const order = new Map(groups.flatMap((g) => g.lines).map((l, i) => [l, i]));
+  const out = [...containers.values()].sort(containerOrder);
+  for (const c of out) {
+    c.lines.sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+    c.suppliers.sort((a, b) => Number(a.supplier === null) - Number(b.supplier === null) || byName(a.supplier ?? '', b.supplier ?? ''));
+  }
+  return out;
+}
+
+/**
+ * Finding stock payments on the Forecast (Dev, 2026-11-19): every word of a search must
+ * appear in a payment's supplier, PO, container or name, case-blind; commas separate
+ * searches, any of which may match (`315, 323, PO_00355J`). Null for a blank search.
+ */
+export function shipMatcher(query: string): ((group: LineGroup) => boolean) | null {
+  const searches = query
+    .split(',')
+    .map((part) => part.toLowerCase().split(/\s+/).filter(Boolean))
+    .filter((words) => words.length > 0);
+  if (searches.length === 0) return null;
+  return (group) => {
+    const text = [
+      group.name,
+      group.counterparty ?? '',
+      ...group.lines.flatMap((l) => [l.ship?.poNumber ?? '', l.ship?.containerRef ?? '']),
+    ]
+      .join('\n')
+      .toLowerCase();
+    return searches.some((words) => words.every((w) => text.includes(w)));
+  };
+}
+
+/**
+ * The Forecast's balance summary — the date headings, Opening, In, Out, Closing and the
+ * scroll bar — stays at the top of the page once the grid has scrolled up to it (Dev,
+ * 2026-11-19). A zero-height sticky pin sits at the grid's top: once it has stuck below its
+ * own place, the grid's top has gone past the page's, and a copy of the summary is shown
+ * there. It lets go when what is left of the grid is no taller than the summary.
+ * Viewport positions, as `getBoundingClientRect` gives them.
+ */
+export function pinSummary(at: { gridTop: number; gridBottom: number; pinTop: number; summaryHeight: number }): boolean {
+  return at.summaryHeight > 0 && at.pinTop > at.gridTop && at.gridBottom - at.pinTop > at.summaryHeight;
 }
 
 /**

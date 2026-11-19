@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent, ReactNode, Ref, UIEvent } from 'react';
 import type {
   BucketDelta,
@@ -18,14 +18,16 @@ import {
   attentionTags,
   flagTags,
   groupLines,
-  groupShipCombos,
+  groupShipContainers,
   isClipped,
   isShipCategory,
   lineId,
+  pinSummary,
+  shipMatcher,
   shortDay,
   signedMoney,
 } from '../../lib/grid';
-import type { BalanceFlag, FlagTag, GridColumns, LineGroup, ShipCombo } from '../../lib/grid';
+import type { BalanceFlag, FlagTag, GridColumns, LineGroup, ShipCombo, ShipContainer } from '../../lib/grid';
 import { formatMoney, toMinor } from '../../lib/money';
 import { shipFlagNotes, shipLineStyle } from '../../lib/ship';
 import { toneStyle } from '../../lib/tone';
@@ -36,9 +38,11 @@ import { toneStyle } from '../../lib/tone';
  * the lines under each category. Every figure is the server's —
  * the header rows are `buckets[]`, a category's cells are its `totals[]`, a line's cell
  * is its own `gbpMinor`. Nothing here adds money up, with one display-only exception:
- * the Stock payments category shows one line per supplier + shipment (Dev, 2026-10-06, as
- * ShipLine's Balances due does), whose cells are the sum of its lines' `gbpMinor`; the
- * lines themselves sit under it, one click away, and are the ones edited.
+ * the Stock payments category shows one row per container (Dev, 2026-11-19), opening to
+ * one row per supplier in it (Dev, 2026-10-06, as ShipLine's Balances due does), whose
+ * cells are the sums of their lines' `gbpMinor`; the lines themselves sit under the
+ * supplier, and are the ones edited. `shipQuery` narrows the stock payments shown to the
+ * ones it finds and opens them; the category's own figures stay the server's.
  *
  * A ship line (Phase 2) looks the way its server flags say: `estimated` hatched and in
  * italics, `blocked` / `planned` / `due_set` / `date_moved` as marks; `lineMarks` adds the
@@ -303,6 +307,7 @@ export function ForecastGrid({
   delta,
   lineMarks = NO_MARKS,
   hide = null,
+  shipQuery = '',
   onEdit,
   onColumns,
   scrollRef,
@@ -318,6 +323,8 @@ export function ForecastGrid({
   lineMarks?: LineMarks;
   /** What is hidden and how to change it; without it the grid shows no eyes. */
   hide?: GridHide | null;
+  /** A search over the stock payments (`shipMatcher`); blank shows them all. */
+  shipQuery?: string;
   onEdit: (item: ForecastItem, row: ForecastRow) => void;
   /** The columns as laid out, whenever they change — the chart above draws on them. */
   onColumns?: (columns: GridColumns) => void;
@@ -341,30 +348,76 @@ export function ForecastGrid({
     if (typeof scrollRef === 'function') scrollRef(el);
     else if (scrollRef) (scrollRef as { current: HTMLDivElement | null }).current = el;
   };
-  const [view, setView] = useState({ client: 0, total: 0, label: 0 });
+  // `cols`: every column's width as laid out, which the pinned copy of the summary takes.
+  const [view, setView] = useState({ client: 0, total: 0, label: 0, cols: [] as number[] });
   useLayoutEffect(() => {
     const scroller = scrollerEl.current;
     const table = tableRef.current;
     if (!scroller || !table) return;
+    const heads = Array.from(table.querySelectorAll<HTMLElement>('thead th'));
     const measure = () => {
-      const next = {
-        client: scroller.clientWidth,
-        total: table.scrollWidth,
-        label: table.querySelector<HTMLElement>('thead th')?.getBoundingClientRect().width ?? 0,
-      };
-      setView((prev) => (prev.client === next.client && prev.total === next.total && prev.label === next.label ? prev : next));
+      const cols = heads.map((h) => h.getBoundingClientRect().width);
+      const next = { client: scroller.clientWidth, total: table.scrollWidth, label: cols[0] ?? 0, cols };
+      setView((prev) =>
+        prev.client === next.client && prev.total === next.total && prev.label === next.label && prev.cols.join() === next.cols.join()
+          ? prev
+          : next,
+      );
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
     observer.observe(scroller);
     observer.observe(table);
+    for (const h of heads) observer.observe(h);
     return () => observer.disconnect();
   }, [buckets]);
   const scrollable = view.total > view.client + 1;
+
+  // The balance summary stays at the top of the page once the grid reaches it (Dev,
+  // 2026-11-19; `pinSummary` says when): a copy of the headings, Opening to Closing and the
+  // scroll bar, in a zero-height sticky pin at the grid's top. The grid's own rows stay where
+  // they are, so nothing reflows and the copy sits exactly over them as it takes over.
+  const wrapEl = useRef<HTMLDivElement>(null);
+  const pinEl = useRef<HTMLDivElement>(null);
+  const pinScrollEl = useRef<HTMLDivElement>(null);
+  const pinBarEl = useRef<HTMLDivElement>(null);
+  const [pinned, setPinned] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      const wrap = wrapEl.current;
+      const pin = pinEl.current;
+      const table = tableRef.current;
+      if (!wrap || !pin || !table) return;
+      const grid = wrap.getBoundingClientRect();
+      // The summary ends where the first side's band starts (or with the table).
+      const top = table.getBoundingClientRect().top;
+      const end = table.querySelector('tr.ledger-section')?.getBoundingClientRect().top ?? table.getBoundingClientRect().bottom;
+      const next = pinSummary({ gridTop: grid.top, gridBottom: grid.bottom, pinTop: pin.getBoundingClientRect().top, summaryHeight: end - top });
+      setPinned((prev) => (prev === next ? prev : next));
+    };
+    check();
+    // Scroll events do not bubble; capturing them on the document hears the page's scroller.
+    document.addEventListener('scroll', check, { capture: true, passive: true });
+    window.addEventListener('resize', check);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(check);
+    if (wrapEl.current) observer?.observe(wrapEl.current);
+    return () => {
+      document.removeEventListener('scroll', check, { capture: true });
+      window.removeEventListener('resize', check);
+      observer?.disconnect();
+    };
+  }, []);
+  // Shown, the copy starts at the grid's sideways position.
+  useLayoutEffect(() => {
+    const scroller = scrollerEl.current;
+    if (!pinned || !scroller) return;
+    for (const el of [pinScrollEl.current, pinBarEl.current]) if (el) el.scrollLeft = scroller.scrollLeft;
+  }, [pinned]);
+
   const onGridScroll = () => {
     const scroller = scrollerEl.current;
-    for (const bar of [barEl.current, footBarEl.current]) {
+    for (const bar of [barEl.current, footBarEl.current, pinScrollEl.current, pinBarEl.current]) {
       if (scroller && bar && bar.scrollLeft !== scroller.scrollLeft) bar.scrollLeft = scroller.scrollLeft;
     }
     onScroll?.();
@@ -408,39 +461,61 @@ export function ForecastGrid({
   // Categories open collapsed (Dev, 2026-09-30): the totals read first, and a category's
   // lines are one click away. This set holds the ones opened since.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  // The supplier + shipment groups of the Stock payments category, keyed
-  // `<categoryId>:<combo key>`. They open collapsed too (the group's total reads first);
-  // "Expand all" opens them with the categories.
+  // The Stock payments category's containers, keyed `<categoryId>:<container key>`, and the
+  // supplier + shipment groups in them, keyed `<categoryId>:<combo key>`. They open collapsed
+  // too (the total reads first); "Expand all" opens them with the categories, and a search
+  // opens what it finds.
+  const [openContainers, setOpenContainers] = useState<Set<string>>(new Set());
   const [openCombos, setOpenCombos] = useState<Set<string>>(new Set());
   const allOpen = rows.length > 0 && rows.every((r) => expanded.has(r.categoryId));
   const lowest = bucketIndexOf(summary.minDate, buckets);
-  const toggle = (categoryId: number) =>
-    setExpanded((prev) => {
+  const flip = <T,>(set: (fn: (prev: Set<T>) => Set<T>) => void) => (id: T) =>
+    set((prev) => {
       const next = new Set(prev);
-      if (next.has(categoryId)) next.delete(categoryId);
-      else next.add(categoryId);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-  const toggleCombo = (comboId: string) =>
-    setOpenCombos((prev) => {
-      const next = new Set(prev);
-      if (next.has(comboId)) next.delete(comboId);
-      else next.add(comboId);
-      return next;
-    });
-  const comboIdsOf = (row: ForecastRow): string[] => {
-    const groups = groupLines(row.items, buckets.length);
-    if (!isShipCategory(groups)) return [];
-    return groupShipCombos(groups, buckets.length).map((c) => `${row.categoryId}:${c.key}`);
+  const toggle = flip(setExpanded);
+  const toggleContainer = flip(setOpenContainers);
+  const toggleCombo = flip(setOpenCombos);
+
+  const match = useMemo(() => shipMatcher(shipQuery), [shipQuery]);
+  /** The ship categories' containers as shown — with a search, only what it finds. */
+  const shipIdsOf = (shown: boolean) => {
+    const out = { categories: [] as number[], containers: [] as string[], combos: [] as string[] };
+    for (const row of rows) {
+      const groups = groupLines(row.items, buckets.length);
+      if (!isShipCategory(groups)) continue;
+      out.categories.push(row.categoryId);
+      for (const c of groupShipContainers(shown && match ? groups.filter(match) : groups, buckets.length)) {
+        out.containers.push(`${row.categoryId}:${c.key}`);
+        for (const s of c.suppliers) out.combos.push(`${row.categoryId}:${s.key}`);
+      }
+    }
+    return out;
   };
   const expandAll = () => {
+    const ship = shipIdsOf(false);
     setExpanded(new Set(rows.map((r) => r.categoryId)));
-    setOpenCombos(new Set(rows.flatMap(comboIdsOf)));
+    setOpenContainers(new Set(ship.containers));
+    setOpenCombos(new Set(ship.combos));
   };
   const collapseAll = () => {
     setExpanded(new Set());
+    setOpenContainers(new Set());
     setOpenCombos(new Set());
   };
+  // A search opens what it finds, down to the payments; closing a row afterwards still works.
+  // Before paint, so a find never flashes closed.
+  useLayoutEffect(() => {
+    if (!match) return;
+    const found = shipIdsOf(true);
+    const add = <T,>(prev: Set<T>, ids: T[]) => (ids.every((id) => prev.has(id)) ? prev : new Set([...prev, ...ids]));
+    setExpanded((prev) => add(prev, found.categories));
+    setOpenContainers((prev) => add(prev, found.containers));
+    setOpenCombos((prev) => add(prev, found.combos));
+  }, [match, rows]);
 
   // The figures picked for the sum bar, by cell. A fresh forecast (an edit, another window)
   // changes what the cells hold, so it starts the sum again.
@@ -494,8 +569,7 @@ export function ForecastGrid({
             groups={groupLines(row.items, buckets.length)}
             bucketCount={buckets.length}
             lineMarks={lineMarks}
-            openCombos={openCombos}
-            onToggleCombo={toggleCombo}
+            ship={{ query: shipQuery, match, openContainers, onToggleContainer: toggleContainer, openCombos, onToggleCombo: toggleCombo }}
             onEdit={(item) => onEdit(item, row)}
           />
         ))}
@@ -503,126 +577,185 @@ export function ForecastGrid({
     );
   };
 
+  const head = (pin: boolean) => (
+    <thead>
+      <tr style={{ background: 'var(--panel2)' }}>
+        <th scope="col" style={{ ...stickyLabel, background: 'var(--panel2)', verticalAlign: 'bottom', borderBottom: '1px solid var(--line2)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+            <span className="kicker">GBP · ALL ACCOUNTS</span>
+            {rows.length > 0 && (
+              <button
+                type="button"
+                className="link-btn"
+                style={{ fontSize: 12, fontWeight: 500 }}
+                onClick={allOpen ? collapseAll : expandAll}
+                tabIndex={pin ? -1 : undefined}
+              >
+                {allOpen ? 'Collapse all' : 'Expand all'}
+              </button>
+            )}
+          </div>
+        </th>
+        {buckets.map((b, i) => (
+          <th
+            key={b.start}
+            scope="col"
+            title={`${formatDay(b.start)} – ${formatDay(b.end)}${isClipped(b, kind) ? ' (part of the period, clipped to the window)' : ''}`}
+            style={{
+              ...cell,
+              borderTop: 0,
+              borderBottom: '1px solid var(--line2)',
+              verticalAlign: 'bottom',
+              fontSize: 12,
+              color: 'var(--mut)',
+              fontWeight: 600,
+              boxShadow: i === lowest ? 'inset 0 -2px 0 var(--acc)' : undefined,
+            }}
+          >
+            {bucketLabel(b, kind)}
+            {i === lowest && (
+              <div style={{ fontSize: 10.5, color: 'var(--acc)' }} data-testid={pin ? undefined : 'lowest-bucket'}>
+                Lowest {shortDay(summary.minDate)}
+              </div>
+            )}
+          </th>
+        ))}
+        <th
+          scope="col"
+          style={{ ...cell, borderTop: 0, borderBottom: '1px solid var(--line2)', verticalAlign: 'bottom', fontSize: 12, color: 'var(--mut)', fontWeight: 600 }}
+        >
+          Window
+        </th>
+      </tr>
+    </thead>
+  );
+  const summaryRows = (pin: boolean) => (
+    <>
+      <HeaderRow label="Opening">
+        {buckets.map((b) => (
+          <BalanceCell key={b.start} value={b.opening} />
+        ))}
+        <BalanceCell value={summary.opening} />
+      </HeaderRow>
+      <HeaderRow label="In">
+        {buckets.map((b, i) => (
+          <TotalCell key={b.start} scope="side:in" col={i} value={b.inflow} direction="in" blankZero style={cell} />
+        ))}
+        <TotalCell scope="side:in" col="window" value={summary.inflow} direction="in" style={cell} />
+      </HeaderRow>
+      <HeaderRow label="Out">
+        {buckets.map((b, i) => (
+          <TotalCell key={b.start} scope="side:out" col={i} value={b.outflow} direction="out" blankZero style={cell} />
+        ))}
+        <TotalCell scope="side:out" col="window" value={summary.outflow} direction="out" style={cell} />
+      </HeaderRow>
+      <HeaderRow label="Closing" strong>
+        {buckets.map((b) => (
+          <BalanceCell key={b.start} value={b.closing} minClosing={b.minClosing} minDate={b.minDate} />
+        ))}
+        <BalanceCell value={summary.closing} minClosing={summary.minClosing} minDate={summary.minDate} />
+      </HeaderRow>
+      {delta && (
+        <HeaderRow label="Closing vs real plan">
+          {buckets.map((b, i) => {
+            const d = delta[i];
+            const minor = d ? toMinor(d.closing) : 0n;
+            return (
+              <td
+                key={b.start}
+                style={{ ...cell, color: minor === 0n ? 'var(--dim)' : minor < 0n ? 'var(--fail)' : 'var(--pass)' }}
+                data-testid={pin ? undefined : 'delta-cell'}
+              >
+                {d ? (minor === 0n ? '—' : signedMoney(minor)) : ''}
+              </td>
+            );
+          })}
+          <td style={cell} />
+        </HeaderRow>
+      )}
+      {scrollable && (pin ? scrollRow(pinBarEl, 'grid-scroll-pinned') : scrollRow(barEl, 'grid-scroll'))}
+    </>
+  );
+
   return (
     <HideContext.Provider value={hide}>
     <PickedContext.Provider value={picked}>
-    <div
-      ref={setScroller}
-      onScroll={onGridScroll}
-      className={scrollable ? 'no-scrollbar' : undefined}
-      style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--panel)', boxShadow: 'var(--shadow)' }}
-    >
-      <table
-        ref={tableRef}
-        className="ledger"
-        data-testid="forecast-grid"
-        onClick={onPick}
-        style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%', fontSize: 13.5 }}
-      >
-        <thead>
-          <tr style={{ background: 'var(--panel2)' }}>
-            <th scope="col" style={{ ...stickyLabel, background: 'var(--panel2)', verticalAlign: 'bottom', borderBottom: '1px solid var(--line2)' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                <span className="kicker">GBP · ALL ACCOUNTS</span>
-                {rows.length > 0 && (
-                  <button
-                    type="button"
-                    className="link-btn"
-                    style={{ fontSize: 12, fontWeight: 500 }}
-                    onClick={allOpen ? collapseAll : expandAll}
-                  >
-                    {allOpen ? 'Collapse all' : 'Expand all'}
-                  </button>
-                )}
-              </div>
-            </th>
-            {buckets.map((b, i) => (
-              <th
-                key={b.start}
-                scope="col"
-                title={`${formatDay(b.start)} – ${formatDay(b.end)}${isClipped(b, kind) ? ' (part of the period, clipped to the window)' : ''}`}
-                style={{
-                  ...cell,
-                  borderTop: 0,
-                  borderBottom: '1px solid var(--line2)',
-                  verticalAlign: 'bottom',
-                  fontSize: 12,
-                  color: 'var(--mut)',
-                  fontWeight: 600,
-                  boxShadow: i === lowest ? 'inset 0 -2px 0 var(--acc)' : undefined,
-                }}
-              >
-                {bucketLabel(b, kind)}
-                {i === lowest && (
-                  <div style={{ fontSize: 10.5, color: 'var(--acc)' }} data-testid="lowest-bucket">
-                    Lowest {shortDay(summary.minDate)}
-                  </div>
-                )}
-              </th>
-            ))}
-            <th
-              scope="col"
-              style={{ ...cell, borderTop: 0, borderBottom: '1px solid var(--line2)', verticalAlign: 'bottom', fontSize: 12, color: 'var(--mut)', fontWeight: 600 }}
+    <div ref={wrapEl}>
+      <div ref={pinEl} style={{ position: 'sticky', top: 0, zIndex: 3, height: 0 }}>
+        {pinned && (
+          // A copy for the eye; the grid's own rows, scrolled away under it, are the ones read out.
+          <div
+            ref={pinScrollEl}
+            aria-hidden="true"
+            data-testid="grid-pinned"
+            style={{
+              overflow: 'hidden',
+              border: '1px solid var(--line)',
+              borderRadius: '0 0 var(--radius) var(--radius)',
+              background: 'var(--panel)',
+              boxShadow: 'var(--shadow)',
+            }}
+          >
+            <table
+              className="ledger"
+              onClick={onPick}
+              style={{
+                borderCollapse: 'separate',
+                borderSpacing: 0,
+                tableLayout: 'fixed',
+                width: view.cols.reduce((a, b) => a + b, 0),
+                fontSize: 13.5,
+              }}
             >
-              Window
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <HeaderRow label="Opening">
-            {buckets.map((b) => (
-              <BalanceCell key={b.start} value={b.opening} />
-            ))}
-            <BalanceCell value={summary.opening} />
-          </HeaderRow>
-          <HeaderRow label="In">
-            {buckets.map((b, i) => (
-              <TotalCell key={b.start} scope="side:in" col={i} value={b.inflow} direction="in" blankZero style={cell} />
-            ))}
-            <TotalCell scope="side:in" col="window" value={summary.inflow} direction="in" style={cell} />
-          </HeaderRow>
-          <HeaderRow label="Out">
-            {buckets.map((b, i) => (
-              <TotalCell key={b.start} scope="side:out" col={i} value={b.outflow} direction="out" blankZero style={cell} />
-            ))}
-            <TotalCell scope="side:out" col="window" value={summary.outflow} direction="out" style={cell} />
-          </HeaderRow>
-          <HeaderRow label="Closing" strong>
-            {buckets.map((b) => (
-              <BalanceCell key={b.start} value={b.closing} minClosing={b.minClosing} minDate={b.minDate} />
-            ))}
-            <BalanceCell value={summary.closing} minClosing={summary.minClosing} minDate={summary.minDate} />
-          </HeaderRow>
-          {delta && (
-            <HeaderRow label="Closing vs real plan">
-              {buckets.map((b, i) => {
-                const d = delta[i];
-                const minor = d ? toMinor(d.closing) : 0n;
-                return (
-                  <td
-                    key={b.start}
-                    style={{ ...cell, color: minor === 0n ? 'var(--dim)' : minor < 0n ? 'var(--fail)' : 'var(--pass)' }}
-                    data-testid="delta-cell"
-                  >
-                    {d ? (minor === 0n ? '—' : signedMoney(minor)) : ''}
-                  </td>
-                );
-              })}
-              <td style={cell} />
-            </HeaderRow>
-          )}
-          {scrollable && scrollRow(barEl, 'grid-scroll')}
+              <colgroup>
+                {view.cols.map((w, i) => (
+                  <col key={i} style={{ width: w }} />
+                ))}
+              </colgroup>
+              {head(true)}
+              <tbody>{summaryRows(true)}</tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div
+        ref={setScroller}
+        onScroll={onGridScroll}
+        className={scrollable ? 'no-scrollbar' : undefined}
+        style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 'var(--radius)', background: 'var(--panel)', boxShadow: 'var(--shadow)' }}
+      >
+        <table
+          ref={tableRef}
+          className="ledger"
+          data-testid="forecast-grid"
+          onClick={onPick}
+          style={{ borderCollapse: 'separate', borderSpacing: 0, width: 'max-content', minWidth: '100%', fontSize: 13.5 }}
+        >
+          {head(false)}
+          <tbody>
+            {summaryRows(false)}
 
-          {section('in', 'Money in')}
-          {section('out', 'Money out')}
-          {scrollable && rows.length > 0 && scrollRow(footBarEl, 'grid-scroll-foot')}
-        </tbody>
-      </table>
+            {section('in', 'Money in')}
+            {section('out', 'Money out')}
+            {scrollable && rows.length > 0 && scrollRow(footBarEl, 'grid-scroll-foot')}
+          </tbody>
+        </table>
+      </div>
     </div>
     <SumBar picked={picked} onClear={() => setPicked(new Map())} />
     </PickedContext.Provider>
     </HideContext.Provider>
   );
+}
+
+/** How the Stock payments category is shown: the search, and which containers and suppliers are open. */
+interface ShipView {
+  query: string;
+  match: ((group: LineGroup) => boolean) | null;
+  openContainers: ReadonlySet<string>;
+  onToggleContainer: (containerId: string) => void;
+  openCombos: ReadonlySet<string>;
+  onToggleCombo: (comboId: string) => void;
 }
 
 function CategoryBlock({
@@ -632,8 +765,7 @@ function CategoryBlock({
   groups,
   bucketCount,
   lineMarks,
-  openCombos,
-  onToggleCombo,
+  ship,
   onEdit,
 }: {
   row: ForecastRow;
@@ -642,12 +774,13 @@ function CategoryBlock({
   groups: ReturnType<typeof groupLines>;
   bucketCount: number;
   lineMarks: LineMarks;
-  openCombos: ReadonlySet<string>;
-  onToggleCombo: (comboId: string) => void;
+  ship: ShipView;
   onEdit: (item: ForecastItem) => void;
 }) {
   const shipCategory = isShipCategory(groups);
-  const combos = shipCategory ? groupShipCombos(groups, bucketCount) : [];
+  const searching = shipCategory && ship.match !== null;
+  const containers = shipCategory ? groupShipContainers(searching ? groups.filter(ship.match!) : groups, bucketCount) : [];
+  const allContainers = searching ? groupShipContainers(groups, bucketCount).length : containers.length;
   const hide = useContext(HideContext);
   const hidden = hide?.categoryIds.has(row.categoryId) ?? false;
   const sideScope = [`side:${row.direction}`];
@@ -676,6 +809,11 @@ function CategoryBlock({
             <span style={hidden ? HIDDEN_NAME : undefined}>{row.categoryName}</span>
           </button>
           {hide && <EyeToggle what={row.categoryName} hidden={hidden} onToggle={() => hide.setCategory(row.categoryId, !hidden)} />}
+          {searching && (
+            <div data-testid="ship-found" style={{ fontSize: 12, color: 'var(--acc)', paddingLeft: 18, fontWeight: 500 }}>
+              {containers.length} of {allContainers} {allContainers === 1 ? 'container' : 'containers'}
+            </div>
+          )}
           {!open && <AttentionMarker id={row.categoryId} tags={attentionTags(row.items, lineMarks)} />}
         </th>
         {Array.from({ length: bucketCount }, (_, i) => (
@@ -701,20 +839,26 @@ function CategoryBlock({
       <ScopeContext.Provider value={[...sideScope, scope]}>
       {open && !shipCategory && groups.map((group) => <LineRow key={group.key} group={group} indent={30} lineMarks={lineMarks} onEdit={onEdit} />)}
       {open &&
-        shipCategory &&
-        combos.map((combo) => {
-          const comboId = `${row.categoryId}:${combo.key}`;
-          return (
-            <ShipComboRows
-              key={combo.key}
-              combo={combo}
-              open={openCombos.has(comboId)}
-              onToggle={() => onToggleCombo(comboId)}
-              lineMarks={lineMarks}
-              onEdit={onEdit}
-            />
-          );
-        })}
+        containers.map((container) => (
+          <ShipContainerRows
+            key={container.key}
+            container={container}
+            open={ship.openContainers.has(`${row.categoryId}:${container.key}`)}
+            onToggle={() => ship.onToggleContainer(`${row.categoryId}:${container.key}`)}
+            comboOpen={(combo) => ship.openCombos.has(`${row.categoryId}:${combo.key}`)}
+            onToggleCombo={(combo) => ship.onToggleCombo(`${row.categoryId}:${combo.key}`)}
+            lineMarks={lineMarks}
+            onEdit={onEdit}
+          />
+        ))}
+      {open && searching && containers.length === 0 && (
+        <tr data-testid="ship-no-match">
+          <th scope="row" style={{ ...stickyLabel, fontWeight: 400, borderTop: '1px solid var(--line)', paddingLeft: 30, color: 'var(--mut)', whiteSpace: 'normal' }}>
+            No stock payments match “{ship.query.trim()}” in this window. A longer window may find it.
+          </th>
+          <td colSpan={bucketCount + 1} style={{ borderTop: '1px solid var(--line)' }} />
+        </tr>
+      )}
     </ScopeContext.Provider>
     </CategoryHiddenContext.Provider>
     </DirectionContext.Provider>
@@ -739,6 +883,10 @@ function LineRow({
   // A ship line's name already carries the supplier (§6.10); its container says more —
   // unless it sits under its supplier + shipment group, which already says both.
   const sub = group.kind === 'ship' ? (underCombo ? null : group.lines[0]?.ship?.containerRef ?? null) : group.counterparty;
+  // Under its supplier (Dev, 2026-11-19) the line names what is left — its PO and what it is —
+  // which the supplier's name would otherwise push out of the label. The name as sent is its title.
+  const prefix = underCombo && group.counterparty ? `${group.counterparty} · ` : null;
+  const label = prefix && group.name.startsWith(prefix) ? group.name.slice(prefix.length) : group.name;
   const hide = useContext(HideContext);
   const withCategory = useContext(CategoryHiddenContext);
   const hidden = withCategory || (hide !== null && group.keys.every((k) => hide.keys.has(k)));
@@ -750,7 +898,7 @@ function LineRow({
           style={{ fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(hidden ? HIDDEN_NAME : {}) }}
           title={group.name}
         >
-          {group.name}
+          {label}
         </div>
         {hide && <EyeToggle what={group.name} hidden={hidden} locked={withCategory} onToggle={() => hide.setKeys(group.keys, !hidden)} />}
         {sub && (
@@ -771,10 +919,95 @@ function LineRow({
   );
 }
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 /**
- * A supplier + shipment group of stock payments (Dev, 2026-10-06, as ShipLine's Balances
- * due): one row with the group's summed figures, and under it, once opened, the
- * individual payments — the lines that are edited.
+ * A container of stock payments (Dev, 2026-11-19): one row with its summed figures, and
+ * under it, once opened, one row per supplier in it.
+ */
+function ShipContainerRows({
+  container,
+  open,
+  onToggle,
+  comboOpen,
+  onToggleCombo,
+  lineMarks,
+  onEdit,
+}: {
+  container: ShipContainer;
+  open: boolean;
+  onToggle: () => void;
+  comboOpen: (combo: ShipCombo) => boolean;
+  onToggleCombo: (combo: ShipCombo) => void;
+  lineMarks: LineMarks;
+  onEdit: (item: ForecastItem) => void;
+}) {
+  const direction = useContext(DirectionContext);
+  const scopes = useContext(ScopeContext);
+  const scope = `container:${container.key}`;
+  const name = container.containerRef ?? 'No container';
+  const sub = `${plural(container.suppliers.length, 'supplier', 'suppliers')} · ${plural(container.lines.length, 'payment', 'payments')}`;
+  // Hidden when every payment in it is; its eye hides or shows them all.
+  const hide = useContext(HideContext);
+  const withCategory = useContext(CategoryHiddenContext);
+  const keys = container.suppliers.flatMap((s) => s.groups.flatMap((g) => g.keys));
+  const hidden = withCategory || (hide !== null && keys.every((k) => hide.keys.has(k)));
+  return (
+    <>
+      <tr data-testid={`container-${container.key}`} className="ledger-container">
+        <th scope="row" style={{ ...stickyLabel, fontWeight: 600, borderTop: '1px solid var(--line)', paddingLeft: 30, ...(hide ? EYE_PAD : {}) }}>
+          <button
+            type="button"
+            className="btn-quiet"
+            aria-expanded={open}
+            onClick={onToggle}
+            style={{ color: 'var(--text)', fontWeight: 600, fontSize: 13.5, display: 'flex', gap: 8, alignItems: 'baseline', textAlign: 'left', maxWidth: '100%' }}
+          >
+            <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10, flexShrink: 0 }}>
+              {open ? '▾' : '▸'}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(hidden ? HIDDEN_NAME : {}) }} title={name}>
+              {name}
+            </span>
+          </button>
+          {hide && (
+            <EyeToggle
+              what={container.containerRef ? `container ${container.containerRef}` : 'the payments with no container'}
+              hidden={hidden}
+              locked={withCategory}
+              onToggle={() => hide.setKeys(keys, !hidden)}
+            />
+          )}
+          <div style={{ fontSize: 12, color: 'var(--dim)', paddingLeft: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+          {!open && <AttentionMarker id={`container:${container.key}`} tags={attentionTags(container.lines, lineMarks)} />}
+        </th>
+        {container.cells.map((sum, i) => (
+          <TotalCell key={i} scope={scope} col={i} value={sum} direction={direction} blankZero style={{ ...cell, fontWeight: 600 }} />
+        ))}
+        <TotalCell scope={scope} col="window" value={container.total} direction={direction} style={{ ...cell, fontWeight: 600 }} />
+      </tr>
+      {open && (
+        <ScopeContext.Provider value={[...scopes, scope]}>
+          {container.suppliers.map((combo) => (
+            <ShipComboRows
+              key={combo.key}
+              combo={combo}
+              open={comboOpen(combo)}
+              onToggle={() => onToggleCombo(combo)}
+              lineMarks={lineMarks}
+              onEdit={onEdit}
+            />
+          ))}
+        </ScopeContext.Provider>
+      )}
+    </>
+  );
+}
+
+/**
+ * One supplier's stock payments in one container (Dev, 2026-10-06, as ShipLine's Balances
+ * due): one row with the group's summed figures, naming its POs, and under it, once opened,
+ * the individual payments — the lines that are edited.
  */
 function ShipComboRows({
   combo,
@@ -789,11 +1022,13 @@ function ShipComboRows({
   lineMarks: LineMarks;
   onEdit: (item: ForecastItem) => void;
 }) {
-  const count = combo.lines.length;
   const direction = useContext(DirectionContext);
   const scopes = useContext(ScopeContext);
   const scope = `combo:${combo.key}`;
-  const sub = `${combo.containerRef ?? 'No container'} · ${count} ${count === 1 ? 'payment' : 'payments'}`;
+  // The container is the row above; a supplier names its POs, which is what a search finds.
+  const pos = [...new Set(combo.lines.map((l) => l.ship?.poNumber).filter((po): po is string => Boolean(po)))];
+  const payments = plural(combo.lines.length, 'payment', 'payments');
+  const sub = pos.length > 0 ? `${pos.join(', ')} · ${payments}` : payments;
   // The group is hidden when every payment in it is; its eye hides or shows them all.
   const hide = useContext(HideContext);
   const withCategory = useContext(CategoryHiddenContext);
@@ -802,7 +1037,7 @@ function ShipComboRows({
   return (
     <>
       <tr data-testid={`combo-${combo.key}`}>
-        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 30, ...(hide ? EYE_PAD : {}) }}>
+        <th scope="row" style={{ ...stickyLabel, fontWeight: 500, borderTop: '1px solid var(--line)', paddingLeft: 46, ...(hide ? EYE_PAD : {}) }}>
           <button
             type="button"
             className="btn-quiet"
@@ -828,7 +1063,7 @@ function ShipComboRows({
               onToggle={() => hide.setKeys(keys, !hidden)}
             />
           )}
-          <div style={{ fontSize: 12, color: 'var(--dim)', paddingLeft: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 12, color: 'var(--dim)', paddingLeft: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sub}>
             {sub}
           </div>
           {!open && <AttentionMarker id={`combo:${combo.key}`} tags={attentionTags(combo.lines, lineMarks)} />}
@@ -841,7 +1076,7 @@ function ShipComboRows({
       {open && (
         <ScopeContext.Provider value={[...scopes, scope]}>
           {combo.groups.map((group) => (
-            <LineRow key={group.key} group={group} indent={46} underCombo lineMarks={lineMarks} onEdit={onEdit} />
+            <LineRow key={group.key} group={group} indent={62} underCombo lineMarks={lineMarks} onEdit={onEdit} />
           ))}
         </ScopeContext.Provider>
       )}

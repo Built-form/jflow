@@ -4,6 +4,8 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { __setTestTransport } from '../../api/client';
 import type { ExternalItem } from '../../api/external';
+import { ScenarioContext, createScenarioStore } from '../../app/ScenarioContext';
+import { addDays, londonToday } from '../../lib/dates';
 import { externalRow } from '../forecast/fixtures';
 import { NOT_IN_FORECAST, groupExternalItems, notInForecastTags } from './grouping';
 import { StockPaymentsScreen } from './StockPaymentsScreen';
@@ -85,6 +87,60 @@ describe('the Stock payments screen', () => {
         <Location />
       </MemoryRouter>,
     );
+
+  describe('with a scenario open (Dev, 2026-11-19)', () => {
+    const renderIn = (entry = '/stock-payments') =>
+      render(
+        <ScenarioContext.Provider value={createScenarioStore({ id: 9, name: 'Delay the rent' })}>
+          <MemoryRouter initialEntries={[entry]}>
+            <StockPaymentsScreen />
+            <Location />
+          </MemoryRouter>
+        </ScenarioContext.Provider>,
+      );
+    const inScenario = (testId: string) => within(screen.getByTestId(testId)).queryByRole('link', { name: /^Edit in scenario/ });
+
+    it('says this page plans the real payment, not the scenario, and links each payment on the Forecast to it there', async () => {
+      // Due in 120 days: the Forecast's default 90 days would not reach it, so the link asks for 180.
+      const later = externalRow({
+        id: 50, key: 'ship.bal-950-s320', extId: 'bal-950-s320', poNumber: 'PO-950', containerRef: '320',
+        dueDate: addDays(londonToday(), 120), effectiveDate: addDays(londonToday(), 120),
+      });
+      // The same PO's deposit, due now: its link still asks for the window that reaches the whole PO.
+      const samePo = externalRow({ id: 52, key: 'ship.dep-950', extId: 'dep-950', feedKind: 'deposit', poNumber: 'PO-950', containerRef: null });
+      const noPo = externalRow({ id: 51, key: 'ship.bal-951-s321', extId: 'bal-951-s321', poNumber: null, containerRef: '321' });
+      stubApi([expected, later, samePo, noPo, undated, skipped, paid], () => expected);
+      renderIn('/stock-payments?company=3');
+
+      const note = await screen.findByTestId('stock-scenario-note');
+      expect(note.textContent).toContain('“Delay the rent” is open');
+      expect(note.textContent).toContain('this page changes the real plan');
+      expect(inScenario('stock-ship.bal-812-s311')?.getAttribute('href')).toBe('/forecast?company=3&ship=PO-812');
+      expect(inScenario('stock-ship.bal-950-s320')?.getAttribute('href')).toBe('/forecast?company=3&ship=PO-950&days=180');
+      expect(inScenario('stock-ship.dep-950')?.getAttribute('href')).toBe('/forecast?company=3&ship=PO-950&days=180');
+      // No PO: its container finds it.
+      expect(inScenario('stock-ship.bal-951-s321')?.getAttribute('href')).toBe('/forecast?company=3&ship=321');
+      // Not on the Forecast, so nothing there to edit: undated, skipped, paid.
+      expect(inScenario('stock-ship.bal-901-n')).toBeNull();
+      expect(inScenario('stock-ship.dep-903')).toBeNull();
+      expect(inScenario('stock-ship.pay-3-904')).toBeNull();
+
+      fireEvent.click(within(screen.getByTestId('stock-ship.bal-812-s311')).getByRole('button', { name: /^Plan, / }));
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog.textContent).toContain('“Delay the rent” is open, but this saves the real plan, not the scenario.');
+      expect(dialog.textContent).not.toContain('To try it out first, open a scenario.');
+    });
+
+    it('without one, the page says nothing of scenarios and offers no link', async () => {
+      stubApi([expected], () => expected);
+      renderScreen();
+      await screen.findByTestId('stock-ship.bal-812-s311');
+      expect(screen.queryByTestId('stock-scenario-note')).toBeNull();
+      expect(inScenario('stock-ship.bal-812-s311')).toBeNull();
+      fireEvent.click(within(screen.getByTestId('stock-ship.bal-812-s311')).getByRole('button', { name: /^Plan, / }));
+      expect((await screen.findByRole('dialog')).textContent).toContain('To try it out first, open a scenario.');
+    });
+  });
 
   it('lists every row in its group, with shipping’s marks and why a row is left out', async () => {
     stubApi([overdue, expected, undated, skipped], () => expected);

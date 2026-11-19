@@ -1443,3 +1443,60 @@ unrelated; not touched here. Looked at in a browser on mocked rows at 1600 and 4
 the filter bar wraps with no page-level horizontal scroll; the table itself is cramped at
 phone width as before (fixed 130 / 150 px columns), which mobileweb serves.
 **Not deployed**, nothing committed.
+
+## Forecast stock payments by container, a stock search, a pinned summary; Stock payments in scenario mode (2026-11-19)
+
+Dev was building a scenario over about 10 POs and found the Forecast's stock payments hard to
+search. Edits on the Stock payments page did not reach the scenario. Web only: no API,
+CONTRACT or migration change. None of it is in PLAN.md. Dev chose each option below.
+
+- **Container first**: a ship category (Stock payments, and Freight and forwarders, whose
+  lines are ship lines too) shows one row per container. A container opens to one row per
+  supplier in it (the supplier + shipment combo of 2026-10-06), and a supplier opens to its
+  payments. Containers sort by number (313, 314, 1000), then named ones such as
+  "125. Air Freight" A to Z, then "No container". Suppliers sort A to Z. A container row reads
+  "N suppliers · M payments", with the OVERDUE / DATE MOVED counts while closed and an eye
+  that hides all its payments. A supplier row lists its POs. A line under its supplier drops
+  the supplier from its label ("PO_00313J · balance") because the 250 px label was cutting
+  off the PO. The name as sent is the label's title. Container figures are sums of the
+  server's `gbpMinor`, for display only, as combos were (`lib/grid` `groupShipContainers`).
+- **Search** (`?ship=`, the box above the grid): every word must appear in a payment's
+  supplier, PO, container or name, case-blind. Commas separate searches that may each match
+  (`315, 323, PO_00355J`), so a scenario's set of POs can be open together. Matches mean the
+  matching containers, suppliers and payments are opened before paint. The category shows
+  "N of M containers" and keeps its server totals. No match says so and suggests a longer
+  window. Escape clears it. It is a substring search, so `315` also finds PO_00315J in
+  container 314 (`shipMatcher`).
+- **Pinned summary**: once the grid's top scrolls past the top of the page, the date headings,
+  Opening, In, Out, Closing, "Closing vs real plan" and the scroll bar stay at the top.
+  Further up the page, everything scrolls as before. This is a copy of those rows in a
+  zero-height sticky pin, not CSS sticky on the rows: the grid's `overflow-x` scroller would
+  make sticky rows stick to the scroller, not the page. The copy takes the grid's measured
+  column widths (`table-layout: fixed`), scrolls sideways with it, and lets go when less of
+  the grid is left than the summary (`pinSummary`). It is `aria-hidden`, and its "Expand all"
+  takes no tab stop. The grid's own rows stay in place, so nothing reflows. In jsdom nothing
+  is measured, so it never shows in tests.
+- **Stock payments with a scenario open**: the page always wrote the real plan, even under
+  the scenario banner, which is why edits there never reached the scenario. It still does.
+  It now says so in a violet note, and the plan dialog's warning names the scenario ("… is
+  open, but this saves the real plan, not the scenario"). Each payment that is on the
+  Forecast (open, dated, mapped, not skipped or paid) gets "edit in scenario". That link opens
+  `/forecast?ship=<PO>`, falling back to the container, then the supplier. It carries the
+  company and the shortest window of at least 90 days that reaches the PO's last payment.
+- Files: `web/src/lib/grid.ts`, `screens/forecast/ForecastGrid.tsx`, `ForecastScreen.tsx`,
+  `ShipPlanDialog.tsx`, `screens/stock/StockPaymentsScreen.tsx`.
+- Tests written first and seen failing: `grid.test.ts` +11 (container order, suppliers,
+  sums, case-blind keys, search words and commas, the pin's edges), `ShipForecast.test.tsx`
+  (the supplier + shipment test replaced by container rows and a container's eye, two search
+  tests, the shorter line label), `stock.test.tsx` +2 (scenario note, links and windows,
+  dialog wording; none without a scenario).
+- Mutation check: 16 of 16 hand-made mutants killed. One of them was equivalent on its
+  fixture and was replaced.
+
+**Checks**: web vitest 471 / 472, tsc clean, `npm run build` green. The one failure is the
+same clock-bound "plans a row …" as above. Looked at in a browser against the local API on
+TEST data (read-only; the Forecast read's `refreshIfStale` ran one refresh: 569 unchanged,
+nothing inserted, updated or gone). Checked: 28 containers in number order; "315, 323" opens
+4 of 28; the pinned rows' column edges match the grid's to the pixel before and after a
+sideways scroll; the scenario note, links and dialog; following a link opens the PO.
+**Not deployed**, nothing committed.
