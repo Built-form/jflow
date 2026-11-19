@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../App';
@@ -56,6 +56,22 @@ describe('the shell', () => {
     renderAt(path);
     expect(await screen.findByRole('heading', { name: title })).toBeTruthy();
     expect(screen.queryByText('COMING IN STEP 9')).toBeNull();
+  });
+
+  it('offers the stock payments search in the sidebar on the Forecast only, under its nav entry (Dev, 2026-11-19)', async () => {
+    renderAt('/forecast?ship=PO-812');
+    const box = (await screen.findByRole('searchbox', { name: 'Find stock payments' })) as HTMLInputElement;
+    expect(box.value).toBe('PO-812');
+    // In the sidebar, which never scrolls, right after the Forecast entry.
+    const forecast = screen.getByRole('link', { name: /Forecast/ });
+    expect(forecast.nextElementSibling?.contains(box)).toBe(true);
+    // A link elsewhere sets the search; the box follows it — here the nav's own, which has none.
+    fireEvent.click(forecast);
+    await waitFor(() => expect(box.value).toBe(''));
+    cleanup();
+    renderAt('/cash');
+    await screen.findByRole('heading', { name: 'Cash at bank' });
+    expect(screen.queryByRole('searchbox', { name: 'Find stock payments' })).toBeNull();
   });
 
   it('carries the company filter from screen to screen', async () => {

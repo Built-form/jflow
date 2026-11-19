@@ -1499,4 +1499,29 @@ TEST data (read-only; the Forecast read's `refreshIfStale` ran one refresh: 569 
 nothing inserted, updated or gone). Checked: 28 containers in number order; "315, 323" opens
 4 of 28; the pinned rows' column edges match the grid's to the pixel before and after a
 sideways scroll; the scenario note, links and dialog; following a link opens the PO.
+**Not deployed**. Committed by Dev as `b764e1e`.
+
+**Follow-up, same day (Dev):** the box above the grid scrolled away, and a cleared search
+left its rows open.
+- The box moved to the sidebar (`screens/forecast/ForecastFind.tsx`), under "Forecast",
+  shown only while the Forecast is open. The sidebar never scrolls. It reads and writes
+  `?ship=` and keeps its own text, so typing never waits on the router. It takes the URL's
+  value on any other navigation: an "edit in scenario" link, or the nav's Forecast entry,
+  which clears it. Its own writes carry `location.state.fromFind`, so they are not read back.
+  The Forecast reads `?ship=` from the URL and has no box of its own any more.
+- Open rows: `own` holds what the user opened. A search keeps its own open state for the
+  stock payments, which starts as exactly what it found. A row closed during a search stays
+  closed until the search changes. A new search starts again from its own finds, and a
+  cleared one throws its state away, so the stock payments are back as they were before it
+  (normally all closed). Other categories always use `own`. Expand all and Collapse all
+  set both.
+- Tests: `ShipForecast.test.tsx` (Escape leaves nothing open; a new search ignores what the
+  last opened or what was closed, and the state from before the search is kept) and
+  `shell.test.tsx` (the box shows on the Forecast only, right under its entry, and follows a
+  navigation). 6 of 6 hand-made mutants killed. One survivor was found first and a test
+  added for it.
+
+**Checks**: web vitest 473 / 474 (the same clock-bound failure), tsc clean, build green.
+Checked in a browser on TEST data: the box stays in view at the bottom of a long search,
+Escape closes everything and drops `?ship=`, and the box is absent on Cash at bank.
 **Not deployed**, nothing committed.

@@ -128,6 +128,37 @@
   outline-color: var(--side-acc);
 }
 
+/* The Forecast's stock payments search (ForecastFind), under its nav entry while the Forecast
+   is open: in the sidebar because the sidebar never scrolls. */
+.sidebar-find {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 4px 8px 12px;
+}
+.sidebar-find input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--side-line);
+  border-radius: var(--radius);
+  background: var(--side-hover);
+  color: var(--side-text);
+  font: inherit;
+  font-size: 13px;
+}
+.sidebar-find input::placeholder {
+  color: var(--side-dim);
+}
+.sidebar-find input:focus {
+  outline: none;
+  border-color: var(--side-acc);
+}
+.sidebar-find .hint {
+  font-size: 11px;
+  color: var(--side-dim);
+}
+
 .sidebar-foot {
   margin-top: auto;
   display: flex;

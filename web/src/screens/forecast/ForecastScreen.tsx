@@ -83,10 +83,9 @@ export function ForecastScreen() {
   const [companyId, setCompanyId] = useCompanyFilter();
   const bucket = parseBucket(params.get(BUCKET_PARAM));
   const windowDays = parseWindowDays(params.get(WINDOW_PARAM));
-  // The stock payments search (Dev, 2026-11-19). The box keeps its own text, so typing never
-  // waits on the router; the link carries it too, so Stock payments can send one here.
-  const [shipQuery, setShipQuery] = useState(() => params.get(SHIP_PARAM) ?? '');
-  const findShip = useDeferredValue(shipQuery);
+  // The stock payments search (Dev, 2026-11-19): typed in the sidebar (`ForecastFind`), or
+  // sent by Stock payments' "edit in scenario", through the link.
+  const findShip = useDeferredValue(params.get(SHIP_PARAM) ?? '');
   const to = addDays(today, windowDays);
   const { active, open, close } = useScenario();
   const scenarioId = active?.id ?? null;
@@ -181,7 +180,6 @@ export function ForecastScreen() {
     [res, columns, bucket],
   );
   const shipWarnings = useMemo(() => splitShipWarnings(res?.warnings), [res]);
-  const hasShip = useMemo(() => (res?.rows ?? []).some((r) => r.items.some((i) => i.kind === 'ship')), [res]);
   const lineMarks: LineMarks = useMemo(
     () => new Map(shipWarnings.stale.map((key) => [key, [PLAN_STALE_TAG]])),
     [shipWarnings],
@@ -274,27 +272,6 @@ export function ForecastScreen() {
                 {formatDay(res.meta.from)} – {formatDay(res.meta.to)}
                 {res.meta.toClamped ? ' (capped)' : ''}
               </span>
-              {(hasShip || shipQuery !== '') && (
-                <input
-                  type="search"
-                  className="input"
-                  aria-label="Find stock payments"
-                  placeholder="Find stock payments: container, supplier or PO (commas for several)"
-                  value={shipQuery}
-                  onChange={(e) => {
-                    setShipQuery(e.target.value);
-                    setParam(SHIP_PARAM, e.target.value.trim() === '' ? null : e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape' && shipQuery !== '') {
-                      e.preventDefault();
-                      setShipQuery('');
-                      setParam(SHIP_PARAM, null);
-                    }
-                  }}
-                  style={{ flex: '1 1 300px', minWidth: 0, maxWidth: 460, marginLeft: 'auto' }}
-                />
-              )}
             </div>
             {hiding && (
               <HiddenPanel

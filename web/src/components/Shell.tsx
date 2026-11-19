@@ -1,5 +1,7 @@
-// Copied from workflows/web/src/components/Shell.tsx — changes: nav rebuilt for JFlow's screens (PLAN: Forecast, Cash at bank, Income & outgoings, Schedules, Stock payments (Phase 2), Scenarios / Settings, People / About); one nav for both account types; nav links carry the URL's company filter from screen to screen; brand mark and caption JFlow's; dropped the instances/myTasks/families/processes/stages reads, the lot and verdict counts and the warehouse/standard/reviewer groups; scenario mode — the pinned ScenarioBanner in a `.main` column above `.content`, `scenario-mode` on the shell and the sidebar's scenario chip
+// Copied from workflows/web/src/components/Shell.tsx — changes: nav rebuilt for JFlow's screens (PLAN: Forecast, Cash at bank, Income & outgoings, Schedules, Stock payments (Phase 2), Scenarios / Settings, People / About); one nav for both account types; nav links carry the URL's company filter from screen to screen; brand mark and caption JFlow's; dropped the instances/myTasks/families/processes/stages reads, the lot and verdict counts and the warehouse/standard/reviewer groups; scenario mode — the pinned ScenarioBanner in a `.main` column above `.content`, `scenario-mode` on the shell and the sidebar's scenario chip; the Forecast's stock payments search under its nav entry
+import { Fragment } from 'react';
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
+import { ForecastFind } from '../screens/forecast/ForecastFind';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useSession } from '../app/session';
 import { useAuth } from '../app/auth';
@@ -82,14 +84,14 @@ export function Shell() {
           <div className="nav-group" key={group.label}>
             <div className="kicker">{group.label}</div>
             {group.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={withCompany(item.to)}
-                className={`nav-item${isActive(item) ? ' active' : ''}`}
-              >
-                <span className="label">{item.label}</span>
-                <span className="count">{item.count ?? ''}</span>
-              </NavLink>
+              <Fragment key={item.to}>
+                <NavLink to={withCompany(item.to)} className={`nav-item${isActive(item) ? ' active' : ''}`}>
+                  <span className="label">{item.label}</span>
+                  <span className="count">{item.count ?? ''}</span>
+                </NavLink>
+                {/* The Forecast's stock payments search sits under its entry while it is open (Dev, 2026-11-19). */}
+                {item.to === '/forecast' && isActive(item) && <ForecastFind />}
+              </Fragment>
             ))}
           </div>
         ))}

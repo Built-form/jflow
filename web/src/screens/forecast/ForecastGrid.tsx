@@ -299,6 +299,14 @@ function HeaderRow({ label, children, strong }: { label: string; children: React
   );
 }
 
+/** Which rows are open: categories by id, ship containers and supplier groups by key. */
+interface OpenRows {
+  categories: ReadonlySet<number>;
+  containers: ReadonlySet<string>;
+  combos: ReadonlySet<string>;
+}
+const NONE_OPEN: OpenRows = { categories: new Set(), containers: new Set(), combos: new Set() };
+
 export function ForecastGrid({
   kind,
   buckets,
@@ -459,63 +467,65 @@ export function ForecastGrid({
   }, [onColumns, buckets]);
 
   // Categories open collapsed (Dev, 2026-09-30): the totals read first, and a category's
-  // lines are one click away. This set holds the ones opened since.
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  // The Stock payments category's containers, keyed `<categoryId>:<container key>`, and the
-  // supplier + shipment groups in them, keyed `<categoryId>:<combo key>`. They open collapsed
-  // too (the total reads first); "Expand all" opens them with the categories, and a search
-  // opens what it finds.
-  const [openContainers, setOpenContainers] = useState<Set<string>>(new Set());
-  const [openCombos, setOpenCombos] = useState<Set<string>>(new Set());
-  const allOpen = rows.length > 0 && rows.every((r) => expanded.has(r.categoryId));
-  const lowest = bucketIndexOf(summary.minDate, buckets);
-  const flip = <T,>(set: (fn: (prev: Set<T>) => Set<T>) => void) => (id: T) =>
-    set((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  const toggle = flip(setExpanded);
-  const toggleContainer = flip(setOpenContainers);
-  const toggleCombo = flip(setOpenCombos);
+  // lines are one click away. A ship category's containers are keyed `<categoryId>:<container
+  // key>` and the supplier + shipment groups in them `<categoryId>:<combo key>`; they open
+  // collapsed too. "Expand all" opens every level. `own` holds what has been opened since.
+  const [own, setOwn] = useState<OpenRows>(NONE_OPEN);
 
   const match = useMemo(() => shipMatcher(shipQuery), [shipQuery]);
-  /** The ship categories' containers as shown — with a search, only what it finds. */
-  const shipIdsOf = (shown: boolean) => {
-    const out = { categories: [] as number[], containers: [] as string[], combos: [] as string[] };
+  /** The ship categories, and their containers and suppliers — with `match`, only what it finds. */
+  const shipIdsOf = (only: ((group: LineGroup) => boolean) | null): OpenRows => {
+    const out = { categories: new Set<number>(), containers: new Set<string>(), combos: new Set<string>() };
     for (const row of rows) {
       const groups = groupLines(row.items, buckets.length);
       if (!isShipCategory(groups)) continue;
-      out.categories.push(row.categoryId);
-      for (const c of groupShipContainers(shown && match ? groups.filter(match) : groups, buckets.length)) {
-        out.containers.push(`${row.categoryId}:${c.key}`);
-        for (const s of c.suppliers) out.combos.push(`${row.categoryId}:${s.key}`);
+      out.categories.add(row.categoryId);
+      for (const c of groupShipContainers(only ? groups.filter(only) : groups, buckets.length)) {
+        out.containers.add(`${row.categoryId}:${c.key}`);
+        for (const s of c.suppliers) out.combos.add(`${row.categoryId}:${s.key}`);
       }
     }
     return out;
   };
+  const shipCategories = useMemo(
+    () => new Set(rows.filter((r) => r.items.length > 0 && r.items.every((i) => i.kind === 'ship')).map((r) => r.categoryId)),
+    [rows],
+  );
+
+  // A search (Dev, 2026-11-19) opens what it finds, down to the payments, in a state of its
+  // own: a row closed during it stays closed until the search changes. A new search starts
+  // again from only its own finds, and a cleared one leaves nothing open behind it — the
+  // stock payments are back as they were. Set during render, so a find never flashes closed.
+  const [search, setSearch] = useState<{ query: string; open: OpenRows } | null>(null);
+  if (match === null ? search !== null : search?.query !== shipQuery) {
+    setSearch(match === null ? null : { query: shipQuery, open: shipIdsOf(match) });
+  }
+  /** Where a row's open state lives: the search's, while there is one, for the stock payments. */
+  const inSearch = (part: keyof OpenRows, id: number | string) =>
+    search !== null && (part !== 'categories' || shipCategories.has(id as number));
+  const isOpen = (part: keyof OpenRows, id: number | string) =>
+    ((inSearch(part, id) ? search!.open : own)[part] as Set<number | string>).has(id);
+  const flip = (part: keyof OpenRows, id: number | string) => {
+    const toggled = (rows: OpenRows): OpenRows => {
+      const next = new Set<number | string>(rows[part] as Set<number | string>);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { ...rows, [part]: next };
+    };
+    if (inSearch(part, id)) setSearch((prev) => prev && { ...prev, open: toggled(prev.open) });
+    else setOwn(toggled);
+  };
+  const allOpen = rows.length > 0 && rows.every((r) => isOpen('categories', r.categoryId));
+  const lowest = bucketIndexOf(summary.minDate, buckets);
   const expandAll = () => {
-    const ship = shipIdsOf(false);
-    setExpanded(new Set(rows.map((r) => r.categoryId)));
-    setOpenContainers(new Set(ship.containers));
-    setOpenCombos(new Set(ship.combos));
+    const ship = shipIdsOf(null);
+    setOwn({ categories: new Set(rows.map((r) => r.categoryId)), containers: ship.containers, combos: ship.combos });
+    setSearch((prev) => prev && { ...prev, open: shipIdsOf(match) });
   };
   const collapseAll = () => {
-    setExpanded(new Set());
-    setOpenContainers(new Set());
-    setOpenCombos(new Set());
+    setOwn(NONE_OPEN);
+    setSearch((prev) => prev && { ...prev, open: NONE_OPEN });
   };
-  // A search opens what it finds, down to the payments; closing a row afterwards still works.
-  // Before paint, so a find never flashes closed.
-  useLayoutEffect(() => {
-    if (!match) return;
-    const found = shipIdsOf(true);
-    const add = <T,>(prev: Set<T>, ids: T[]) => (ids.every((id) => prev.has(id)) ? prev : new Set([...prev, ...ids]));
-    setExpanded((prev) => add(prev, found.categories));
-    setOpenContainers((prev) => add(prev, found.containers));
-    setOpenCombos((prev) => add(prev, found.combos));
-  }, [match, rows]);
 
   // The figures picked for the sum bar, by cell. A fresh forecast (an edit, another window)
   // changes what the cells hold, so it starts the sum again.
@@ -564,12 +574,17 @@ export function ForecastGrid({
           <CategoryBlock
             key={`${row.direction}-${row.categoryId}`}
             row={row}
-            open={expanded.has(row.categoryId)}
-            onToggle={() => toggle(row.categoryId)}
+            open={isOpen('categories', row.categoryId)}
+            onToggle={() => flip('categories', row.categoryId)}
             groups={groupLines(row.items, buckets.length)}
             bucketCount={buckets.length}
             lineMarks={lineMarks}
-            ship={{ query: shipQuery, match, openContainers, onToggleContainer: toggleContainer, openCombos, onToggleCombo: toggleCombo }}
+            ship={{
+              query: shipQuery,
+              match,
+              isOpen: (part, id) => isOpen(part, id),
+              onToggle: (part, id) => flip(part, id),
+            }}
             onEdit={(item) => onEdit(item, row)}
           />
         ))}
@@ -752,10 +767,8 @@ export function ForecastGrid({
 interface ShipView {
   query: string;
   match: ((group: LineGroup) => boolean) | null;
-  openContainers: ReadonlySet<string>;
-  onToggleContainer: (containerId: string) => void;
-  openCombos: ReadonlySet<string>;
-  onToggleCombo: (comboId: string) => void;
+  isOpen: (part: 'containers' | 'combos', id: string) => boolean;
+  onToggle: (part: 'containers' | 'combos', id: string) => void;
 }
 
 function CategoryBlock({
@@ -843,10 +856,10 @@ function CategoryBlock({
           <ShipContainerRows
             key={container.key}
             container={container}
-            open={ship.openContainers.has(`${row.categoryId}:${container.key}`)}
-            onToggle={() => ship.onToggleContainer(`${row.categoryId}:${container.key}`)}
-            comboOpen={(combo) => ship.openCombos.has(`${row.categoryId}:${combo.key}`)}
-            onToggleCombo={(combo) => ship.onToggleCombo(`${row.categoryId}:${combo.key}`)}
+            open={ship.isOpen('containers', `${row.categoryId}:${container.key}`)}
+            onToggle={() => ship.onToggle('containers', `${row.categoryId}:${container.key}`)}
+            comboOpen={(combo) => ship.isOpen('combos', `${row.categoryId}:${combo.key}`)}
+            onToggleCombo={(combo) => ship.onToggle('combos', `${row.categoryId}:${combo.key}`)}
             lineMarks={lineMarks}
             onEdit={onEdit}
           />

@@ -7,6 +7,7 @@ import type { ExternalItem, ExternalStatus, RefreshResult } from '../../api/exte
 import type { ForecastResponse } from '../../api/forecast';
 import { ScenarioContext, createScenarioStore } from '../../app/ScenarioContext';
 import type { ScenarioStore } from '../../app/ScenarioContext';
+import { ForecastFind } from './ForecastFind';
 import { ForecastScreen } from './ForecastScreen';
 import { SHIPPING, TODAY, depositRow, externalRow, forecastFixture } from './fixtures';
 
@@ -79,10 +80,12 @@ function stubApi(answers: Answers) {
   return calls;
 }
 
+/** The screen with the sidebar's find box beside it (the Shell shows it on the Forecast). */
 function renderForecast(store: ScenarioStore = createScenarioStore(), at = '/forecast') {
   return render(
     <ScenarioContext.Provider value={store}>
       <MemoryRouter initialEntries={[at]}>
+        <ForecastFind />
         <ForecastScreen />
       </MemoryRouter>
     </ScenarioContext.Provider>,
@@ -426,7 +429,7 @@ describe('stock payments by container, then supplier (Dev, 2026-11-19)', () => {
 describe('finding stock payments on the Forecast (Dev, 2026-11-19)', () => {
   const lines = () => ['line-ship.dep-812', 'line-ship.bal-812-s311', 'line-ship.bal-813-s311'].filter((id) => screen.queryByTestId(id));
 
-  it('opens the matching containers, suppliers and payments and shows only those; commas find several; Escape shows everything again', async () => {
+  it('opens the matching containers, suppliers and payments and shows only those; commas find several; Escape closes it all again', async () => {
     stubApi({ forecast: withSecondBalance });
     renderForecast();
     const grid = await screen.findByTestId('forecast-grid');
@@ -444,10 +447,36 @@ describe('finding stock payments on the Forecast (Dev, 2026-11-19)', () => {
     expect(lines()).toEqual([]);
     expect(within(grid).getByTestId('ship-no-match').textContent).toContain('No stock payments match');
 
+    // Cleared, the search leaves nothing open behind it (Dev, 2026-11-19): back to as it was.
     fireEvent.keyDown(box, { key: 'Escape' });
     expect((box as HTMLInputElement).value).toBe('');
-    expect(within(grid).getByTestId('container--')).toBeTruthy();
     expect(within(grid).getByTestId('category-90').textContent).not.toContain('containers');
+    expect(within(grid).getByTestId('category-90').querySelector('[aria-expanded]')?.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByTestId('container--')).toBeNull();
+    expect(lines()).toEqual([]);
+  });
+
+  it('a new search opens only what it finds, whatever the last one opened or you closed; what you had open before is kept', async () => {
+    stubApi({ forecast: withSecondBalance });
+    renderForecast();
+    const grid = await screen.findByTestId('forecast-grid');
+    const box = screen.getByRole('searchbox', { name: 'Find stock payments' });
+    // Opened by hand before searching: the category, with its containers closed.
+    fireEvent.click(within(grid).getByRole('button', { name: /^Stock payments/ }));
+
+    fireEvent.change(box, { target: { value: 'po-812' } });
+    expect(lines()).toEqual(['line-ship.dep-812', 'line-ship.bal-812-s311']);
+    // Closed by hand during the search…
+    fireEvent.click(within(screen.getByTestId('container-MSCU1234567')).getByRole('button', { name: /^MSCU1234567/ }));
+    expect(lines()).toEqual(['line-ship.dep-812']);
+    // …and a new search starts afresh: only its own finds, all open.
+    fireEvent.change(box, { target: { value: 'mscu' } });
+    expect(lines()).toEqual(['line-ship.bal-812-s311', 'line-ship.bal-813-s311']);
+
+    fireEvent.change(box, { target: { value: '' } });
+    expect(lines()).toEqual([]);
+    expect(within(grid).getByTestId('container-MSCU1234567').querySelector('[aria-expanded]')?.getAttribute('aria-expanded')).toBe('false');
+    expect(within(grid).getByTestId('container--')).toBeTruthy();
   });
 
   it('reads the search from the link (?ship=), as Stock payments sends it', async () => {
