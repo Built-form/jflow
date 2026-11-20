@@ -317,6 +317,7 @@ export function ForecastGrid({
   hide = null,
   shipQuery = '',
   onEdit,
+  onMoveContainer,
   onColumns,
   scrollRef,
   onScroll,
@@ -334,6 +335,12 @@ export function ForecastGrid({
   /** A search over the stock payments (`shipMatcher`); blank shows them all. */
   shipQuery?: string;
   onEdit: (item: ForecastItem, row: ForecastRow) => void;
+  /**
+   * Move every payment of a container at once (Dev, 2026-11-20): given only while a draft
+   * scenario is open, and then each container row offers it. The container handed over is
+   * the whole one, whatever a search is showing of it.
+   */
+  onMoveContainer?: (container: ShipContainer) => void;
   /** The columns as laid out, whenever they change — the chart above draws on them. */
   onColumns?: (columns: GridColumns) => void;
   /** The sideways scroller — the screen keeps the chart's in step with it. */
@@ -586,6 +593,7 @@ export function ForecastGrid({
               onToggle: (part, id) => flip(part, id),
             }}
             onEdit={(item) => onEdit(item, row)}
+            onMove={onMoveContainer}
           />
         ))}
       </>
@@ -780,6 +788,7 @@ function CategoryBlock({
   lineMarks,
   ship,
   onEdit,
+  onMove,
 }: {
   row: ForecastRow;
   open: boolean;
@@ -789,11 +798,19 @@ function CategoryBlock({
   lineMarks: LineMarks;
   ship: ShipView;
   onEdit: (item: ForecastItem) => void;
+  onMove?: (container: ShipContainer) => void;
 }) {
   const shipCategory = isShipCategory(groups);
   const searching = shipCategory && ship.match !== null;
   const containers = shipCategory ? groupShipContainers(searching ? groups.filter(ship.match!) : groups, bucketCount) : [];
-  const allContainers = searching ? groupShipContainers(groups, bucketCount).length : containers.length;
+  // Every container, whatever the search shows: the count beside the search, and what a move covers.
+  const everyContainer = searching ? groupShipContainers(groups, bucketCount) : containers;
+  const allContainers = everyContainer.length;
+  // A move is of the whole container, and only of one shipping names with a payment the server lets through an edit.
+  const moveOf = (shown: ShipContainer) => {
+    const whole = everyContainer.find((c) => c.key === shown.key) ?? shown;
+    return onMove && whole.containerRef !== null && whole.lines.some((l) => l.editable) ? () => onMove(whole) : undefined;
+  };
   const hide = useContext(HideContext);
   const hidden = hide?.categoryIds.has(row.categoryId) ?? false;
   const sideScope = [`side:${row.direction}`];
@@ -862,6 +879,7 @@ function CategoryBlock({
             onToggleCombo={(combo) => ship.onToggle('combos', `${row.categoryId}:${combo.key}`)}
             lineMarks={lineMarks}
             onEdit={onEdit}
+            onMove={moveOf(container)}
           />
         ))}
       {open && searching && containers.length === 0 && (
@@ -946,6 +964,7 @@ function ShipContainerRows({
   onToggleCombo,
   lineMarks,
   onEdit,
+  onMove,
 }: {
   container: ShipContainer;
   open: boolean;
@@ -954,6 +973,8 @@ function ShipContainerRows({
   onToggleCombo: (combo: ShipCombo) => void;
   lineMarks: LineMarks;
   onEdit: (item: ForecastItem) => void;
+  /** Move all its payments in the open scenario; absent when there is nothing to offer. */
+  onMove?: () => void;
 }) {
   const direction = useContext(DirectionContext);
   const scopes = useContext(ScopeContext);
@@ -969,20 +990,34 @@ function ShipContainerRows({
     <>
       <tr data-testid={`container-${container.key}`} className="ledger-container">
         <th scope="row" style={{ ...stickyLabel, fontWeight: 600, borderTop: '1px solid var(--line)', paddingLeft: 30, ...(hide ? EYE_PAD : {}) }}>
-          <button
-            type="button"
-            className="btn-quiet"
-            aria-expanded={open}
-            onClick={onToggle}
-            style={{ color: 'var(--text)', fontWeight: 600, fontSize: 13.5, display: 'flex', gap: 8, alignItems: 'baseline', textAlign: 'left', maxWidth: '100%' }}
-          >
-            <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10, flexShrink: 0 }}>
-              {open ? '▾' : '▸'}
-            </span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(hidden ? HIDDEN_NAME : {}) }} title={name}>
-              {name}
-            </span>
-          </button>
+          {/* The name, and beside it (in a draft scenario) the move of all its payments. */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+            <button
+              type="button"
+              className="btn-quiet"
+              aria-expanded={open}
+              onClick={onToggle}
+              style={{ color: 'var(--text)', fontWeight: 600, fontSize: 13.5, display: 'flex', gap: 8, alignItems: 'baseline', textAlign: 'left', minWidth: 0 }}
+            >
+              <span aria-hidden="true" style={{ color: 'var(--dim)', width: 10, flexShrink: 0 }}>
+                {open ? '▾' : '▸'}
+              </span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(hidden ? HIDDEN_NAME : {}) }} title={name}>
+                {name}
+              </span>
+            </button>
+            {onMove && (
+              <button
+                type="button"
+                className="link-btn ledger-move"
+                aria-label={`Move the payments in container ${name}`}
+                title="Move all this container's payments in the scenario"
+                onClick={onMove}
+              >
+                move…
+              </button>
+            )}
+          </div>
           {hide && (
             <EyeToggle
               what={container.containerRef ? `container ${container.containerRef}` : 'the payments with no container'}

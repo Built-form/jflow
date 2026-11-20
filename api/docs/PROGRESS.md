@@ -1525,3 +1525,61 @@ left its rows open.
 Checked in a browser on TEST data: the box stays in view at the bottom of a long search,
 Escape closes everything and drops `?ship=`, and the box is absent on Cash at bank.
 **Not deployed**, nothing committed.
+
+## Move a container's payments in a scenario (2026-11-20)
+
+Dev asked whether every payment of a container could be moved at once in scenario mode, then
+chose both ways of moving (shift by days, and one date for all) and web only. No API,
+CONTRACT or migration change. It is not in PLAN.md.
+
+- **Where**: with a draft scenario open, each container row of the Forecast's stock payments
+  has "move…" beside its name. It is not offered on "No container", on a container with no
+  payment the server marks `editable`, with the real plan open, or in an applied scenario.
+  The scenario panel's how-to text mentions it.
+- **The dialog** (`MoveContainerDialog.tsx`): "Shift by days" (a whole number, minus for
+  earlier, at most 730 either way, with +7 / +14 / +30; it opens on 7) or "Same date for all"
+  (today or later). It lists the container's payments in date order, each with its amount,
+  its date now and its date after, and a tick box; Tick all and Untick all. A paid payment
+  (not `editable`) and one the scenario leaves out (`excluded`) are listed but cannot be
+  ticked: moving a left-out payment would put it back in.
+- **The writes** (`moveContainer.ts`): there is no bulk route. A move is one ordinary
+  adjustment per ticked payment, built by `checkEdit` with only the date changed, so it is
+  exactly what the line's own dialog would send. An amount the scenario already changed is
+  kept. A payment that lands back on its real date has its adjustment removed. An overdue
+  payment counts from today, as the +7 button does. A date before today is refused on that
+  payment before the click and holds the whole move back until it is unticked. The writes go
+  one after another, in date order.
+- **Not all or nothing** (Dev accepted this as the cost of web only): a refusal about one
+  payment (`TARGET_SETTLED`, `TARGET_MISSING`, `ADJUSTMENT_DATE_IN_PAST`) is recorded and the
+  rest still go. Any other refusal stops the run. The dialog then says "N of M payments
+  moved", shows each refusal and names the payments never sent; closing it re-reads the
+  forecast.
+- A search (`?ship=`) narrows what the grid shows, not what a move covers: the dialog lists
+  the whole container.
+- Files: `web/src/screens/forecast/moveContainer.ts`, `MoveContainerDialog.tsx`,
+  `ForecastGrid.tsx` (the link, `onMoveContainer`), `ForecastScreen.tsx`, `styles/shell.css`
+  (`.ledger-move`).
+- Tests written first and seen failing: `moveContainer.test.ts` (34: which payments can
+  move, both ways of moving, ticks, the run's order and where it stops) and
+  `ShipForecast.test.tsx` +8 (where the link shows, both ways end to end, a refused payment,
+  a refused scenario, a search).
+- Mutation check: 23 hand-made mutants. 22 were killed at once. The survivor (the link on a
+  container with nothing editable) got a test and is killed now.
+
+**Limits, not changed here**
+- Only payments inside the forecast window are listed. The dialog says so and names the
+  window's last day.
+- Read from the code, not tried: a split's further parts are `new` lines in the target's
+  category (`routes/scenarios.js`, the split write), and the grid groups a category by
+  container only while every line in it is a ship line (`isShipCategory`). So once a stock
+  payment is split in a scenario, that category shows plain lines there, with no containers
+  and no "move…".
+
+**Checks**: web vitest 515 / 516, tsc clean, `npm run build` green. The one failure is the
+same clock-bound `stock.test.tsx` "plans a row …" as above. Looked at in a browser on fixture
+rows (a temporary harness page, since removed; no API and nothing saved): the link on the
+container rows, both ways of moving, a move to before today, a refused payment, a move in
+progress, and the dark theme. Not tried against the API or TEST data.
+Committed on `master` and pushed to the `test` branch only, at Dev's word ("deploy to test",
+2026-11-20), for Vercel to build the test site. Web only, so no `deploy.sh` run. **Not pushed
+to `master`.**

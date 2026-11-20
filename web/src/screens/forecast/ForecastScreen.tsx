@@ -45,6 +45,7 @@ import { AddLineDialog } from './AddLineDialog';
 import { EditLineDialog } from './EditLineDialog';
 import { ForecastGrid } from './ForecastGrid';
 import type { GridHide, LineMarks } from './ForecastGrid';
+import { MoveContainerDialog } from './MoveContainerDialog';
 import { ShipPlanDialog } from './ShipPlanDialog';
 import { ShipNotes, ShippingStatus, ShippingUnavailableBanner } from './shipping';
 
@@ -70,8 +71,10 @@ const HIDE_LABELS: ChartLabels = { main: 'Without hidden rows', baseline: 'Every
  *
  * Stock payments (Phase 2) arrive as ship lines in their own row. With no scenario open, an
  * edit of one writes JFlow's plan over shipping's figures (the overlay); inside a scenario
- * it is an adjustment like any other line. The shipping feed's state is one status line
- * with "Refresh now"; its warnings are shown in words.
+ * it is an adjustment like any other line. In a draft scenario a container's row also offers
+ * "move…" (Dev, 2026-11-20): every payment in it shifted by a number of days, or put on one
+ * date, as one adjustment each (`MoveContainerDialog`). The shipping feed's state is one
+ * status line with "Refresh now"; its warnings are shown in words.
  *
  * The eye on a grid row hides it (Dev, 2026-10-07): the forecast is re-read without that
  * row's money, so the balance, the chart and the tiles show what difference it makes. It is
@@ -129,6 +132,8 @@ export function ForecastScreen() {
 
   const [editing, setEditing] = useState<{ item: ForecastItem; row: ForecastRow } | null>(null);
   const [adding, setAdding] = useState(false);
+  // A container whose payments are being moved together, in a draft scenario (Dev, 2026-11-20).
+  const [moving, setMoving] = useState<{ containerRef: string; lines: ForecastItem[] } | null>(null);
   // A one-off added to a scenario goes on a live, active account in view (D39, D44).
   const activeAccounts = useMemo(
     () => (accounts.data?.data ?? []).filter((a: Account) => a.isActive && !a.deletedAt),
@@ -296,6 +301,13 @@ export function ForecastScreen() {
                   hide={gridHide}
                   shipQuery={findShip}
                   onEdit={(item, row) => setEditing({ item, row })}
+                  onMoveContainer={
+                    scenario?.status === 'draft'
+                      ? ({ containerRef, lines }) => {
+                          if (containerRef !== null) setMoving({ containerRef, lines });
+                        }
+                      : undefined
+                  }
                   onColumns={onColumns}
                   scrollRef={gridScroll}
                   onScroll={follow(gridScroll, chartScroll)}
@@ -334,6 +346,22 @@ export function ForecastScreen() {
             setEditing(null);
             // The forecast is derived from every row at once; the write answered with one
             // row, so the honest replacement is the forecast as the server now computes it.
+            data.reload();
+          }}
+        />
+      )}
+
+      {moving && res && scenario?.status === 'draft' && (
+        <MoveContainerDialog
+          containerRef={moving.containerRef}
+          lines={moving.lines}
+          scenario={{ id: scenario.id, name: scenario.name }}
+          today={res.meta.today}
+          windowEnd={res.meta.to}
+          onClose={() => setMoving(null)}
+          onSaved={() => {
+            setMoving(null);
+            // Every payment moved changes its bucket and each balance after it: re-read.
             data.reload();
           }}
         />
@@ -435,8 +463,10 @@ function ScenarioPanel({
         <div style={{ fontSize: 13.5, lineHeight: 1.55 }} data-testid="scenario-how">
           <strong>To change a payment:</strong> open its category in the grid below (or Expand all), then click the
           underlined amount. You can move its date, change the amount, split it into parts or leave it out. Only
-          lines on the forecast can be changed. <strong>Add a one-off…</strong> puts in a payment the real plan does
-          not have, such as interest or a fine.
+          lines on the forecast can be changed. <strong>To move a whole container:</strong> open Stock payments and
+          use <strong>move…</strong> beside the container, to shift all its payments by a number of days or put them
+          on one date. <strong>Add a one-off…</strong> puts in a payment the real plan does not have, such as
+          interest or a fine.
         </div>
       )}
       {scenario.warnings.length > 0 && (

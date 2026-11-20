@@ -298,6 +298,17 @@
 [data-theme='dark'] .shell.scenario-mode .ledger-edit:focus-visible {
   color: var(--scenario-soft);
 }
+/* A container's "move…" on the Forecast (ForecastGrid, 2026-11-20): shown only in a draft
+   scenario, and a scenario control, so it wears the scenario's colour. */
+.ledger .ledger-move {
+  flex: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--scenario, #6d28d9);
+}
+[data-theme='dark'] .ledger .ledger-move {
+  color: var(--scenario-soft, #c4b5fd);
+}
 .shell.scenario-mode .sidebar-brand .mark {
   background: var(--scenario-soft);
   color: var(--scenario-deep);

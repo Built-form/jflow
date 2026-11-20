@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ApiError, __setTestTransport } from '../../api/client';
 import type { ExternalItem, ExternalStatus, RefreshResult } from '../../api/external';
-import type { ForecastResponse } from '../../api/forecast';
+import type { ForecastItem, ForecastResponse } from '../../api/forecast';
 import { ScenarioContext, createScenarioStore } from '../../app/ScenarioContext';
 import type { ScenarioStore } from '../../app/ScenarioContext';
 import { ForecastFind } from './ForecastFind';
@@ -48,6 +48,8 @@ interface Answers {
   list?: () => ExternalItem[];
   /** `PUT /external-items/:key/company`. */
   company?: (key: string, body: unknown) => unknown;
+  /** `PUT` and `DELETE /scenarios/:id/adjustments/:itemKey`; answers `{}` by default. */
+  adjust?: (path: string, body: unknown) => unknown;
 }
 
 const ROWS: Record<string, ExternalItem> = { 'ship.dep-812': depositRow(), 'ship.bal-812-s311': externalRow() };
@@ -74,7 +76,7 @@ function stubApi(answers: Answers) {
     }
     if (method === 'PUT' && path.startsWith('/external-items/')) return reply(answers.plan ? answers.plan() : depositRow({ rowVersion: 8 }));
     if (method === 'DELETE' && path.startsWith('/external-items/')) return reply(answers.unplan ? answers.unplan() : depositRow({ plannedDate: null, plannedNote: null, rowVersion: 8 }));
-    if (method === 'PUT' && path.startsWith('/scenarios/')) return reply({});
+    if ((method === 'PUT' || method === 'DELETE') && path.startsWith('/scenarios/')) return reply(answers.adjust ? answers.adjust(path, body) : {});
     return Promise.reject(new Error(`unexpected ${method} ${path}`));
   });
   return calls;
@@ -814,5 +816,208 @@ describe('editing a ship line inside a scenario', () => {
       { method: 'PUT', path: '/scenarios/9/adjustments/ship.bal-812-s311', body: { kind: 'adjust', newDate: '2026-10-20' } },
     ]);
     expect(calls.some((c) => c.path.startsWith('/external-items'))).toBe(false);
+  });
+});
+
+/**
+ * A draft scenario over container MSCU1234567: the fixture's balance (PO-812, 13 Oct), a
+ * second balance a week before it (PO-813, 6 Oct) and one shipping says is paid (PO-814).
+ * The fixture's deposit has no container, and container TGHU7654321 holds nothing but a
+ * paid balance (PO-815), so nothing in it can move.
+ */
+const containerInScenario = () => {
+  const fx = forecastFixture({ ship: true, shipping: SHIPPING, scenario: true });
+  const stock = fx.rows!.find((r) => r.categoryId === 90)!;
+  const bal = stock.items.find((i) => i.key === 'ship.bal-812-s311')!;
+  const more = (id: string, po: string, over: Partial<ForecastItem>): ForecastItem => {
+    const item: ForecastItem = {
+      ...bal, key: `ship.${id}`, id, name: `Acme Textiles · ${po} · balance`, flags: [],
+      ship: { ...bal.ship!, poNumber: po, blocked: null }, ...over,
+    };
+    return { ...item, baseline: { date: item.date, amountMinor: item.amountMinor, gbpMinor: item.gbpMinor, flags: [] } };
+  };
+  stock.items.push(
+    more('bal-813-s311', 'PO-813', { date: '2026-10-06', dueDate: '2026-10-06', bucketIndex: 1 }),
+    more('pay-3-814', 'PO-814', { date: TODAY, dueDate: TODAY, bucketIndex: 0, status: 'paid', flags: ['paid'], editable: false }),
+    more('pay-4-815', 'PO-815', {
+      date: TODAY, dueDate: TODAY, bucketIndex: 0, status: 'paid', flags: ['paid'], editable: false,
+      ship: { ...bal.ship!, poNumber: 'PO-815', containerRef: 'TGHU7654321', blocked: null },
+    }),
+  );
+  return fx;
+};
+
+describe("moving a container's payments inside a scenario (Dev, 2026-11-20)", () => {
+  const store = () => createScenarioStore({ id: 9, name: 'Delay the rent' });
+  const writes = (calls: Call[]) => calls.filter((c) => c.method !== 'GET' && c.path.startsWith('/scenarios/'));
+  const MOVE = 'Move the payments in container MSCU1234567';
+  const rowText = (dialog: HTMLElement, key: string) => within(dialog).getByTestId(`move-row-${key}`).textContent;
+
+  const openMove = async () => {
+    const grid = await screen.findByTestId('forecast-grid');
+    fireEvent.click(within(grid).getByRole('button', { name: /^Stock payments/ }));
+    fireEvent.click(within(grid).getByRole('button', { name: MOVE }));
+    return screen.getByRole('dialog');
+  };
+  const moveButtons = async () => {
+    const grid = await screen.findByTestId('forecast-grid');
+    fireEvent.click(within(grid).getByRole('button', { name: /^Stock payments/ }));
+    return within(grid).queryAllByRole('button', { name: /^Move the payments/ }).map((b) => b.getAttribute('aria-label'));
+  };
+
+  it('is offered on a container only while a draft scenario is open, and never on "No container" or one with nothing left to move', async () => {
+    stubApi({ forecast: containerInScenario });
+    renderForecast(store());
+    expect(await moveButtons()).toEqual([MOVE]);
+    expect(screen.getByTestId('container-TGHU7654321')).toBeTruthy();
+    cleanup();
+
+    // The real plan: a container's payments are planned one by one.
+    stubApi({ forecast: withSecondBalance });
+    renderForecast();
+    expect(await moveButtons()).toEqual([]);
+    cleanup();
+
+    // An applied scenario is history: nothing in it can be moved.
+    stubApi({
+      forecast: () => {
+        const fx = containerInScenario();
+        fx.scenario!.status = 'applied';
+        return fx;
+      },
+    });
+    renderForecast(store());
+    expect(await moveButtons()).toEqual([]);
+  });
+
+  it('shifts every payment by the same days: one adjustment each, in date order, then the forecast is read again', async () => {
+    const calls = stubApi({ forecast: containerInScenario });
+    renderForecast(store());
+    const dialog = await openMove();
+    expect(dialog.textContent).toContain('SCENARIO · DELAY THE RENT');
+    expect(dialog.textContent).toContain('The real stock payments do not change unless the scenario is applied.');
+    // It opens on +7 days: each payment from its own date; the paid one cannot move.
+    expect(within(dialog).getAllByTestId(/^move-row-/).map((el) => el.dataset.testid)).toEqual([
+      'move-row-ship.pay-3-814',
+      'move-row-ship.bal-813-s311',
+      'move-row-ship.bal-812-s311',
+    ]);
+    expect(rowText(dialog, 'ship.bal-813-s311')).toContain('Tue 6 Oct 2026 → Tue 13 Oct 2026');
+    expect(rowText(dialog, 'ship.bal-812-s311')).toContain('Tue 13 Oct 2026 → Tue 20 Oct 2026');
+    expect(rowText(dialog, 'ship.bal-812-s311')).toContain('$1,500.00');
+    expect(rowText(dialog, 'ship.pay-3-814')).toContain('Paid');
+    expect(within(within(dialog).getByTestId('move-row-ship.pay-3-814')).queryByRole('checkbox')).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: '+14 days' }));
+    expect((within(dialog).getByLabelText('Days') as HTMLInputElement).value).toBe('14');
+    expect(rowText(dialog, 'ship.bal-812-s311')).toContain('Tue 13 Oct 2026 → Tue 27 Oct 2026');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move 2 payments' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(writes(calls)).toEqual([
+      { method: 'PUT', path: '/scenarios/9/adjustments/ship.bal-813-s311', body: { kind: 'adjust', newDate: '2026-10-20' } },
+      { method: 'PUT', path: '/scenarios/9/adjustments/ship.bal-812-s311', body: { kind: 'adjust', newDate: '2026-10-27' } },
+    ]);
+    await waitFor(() => expect(forecastReads(calls)).toHaveLength(2));
+    // The scenario only: the real plan is not written.
+    expect(calls.some((c) => c.path.startsWith('/external-items'))).toBe(false);
+  });
+
+  it('holds the move back while the days are not a number, and says why', async () => {
+    stubApi({ forecast: containerInScenario });
+    renderForecast(store());
+    const dialog = await openMove();
+    fireEvent.change(within(dialog).getByLabelText('Days'), { target: { value: 'soon' } });
+    expect(dialog.textContent).toContain('Enter a whole number of days, like 14 or -7.');
+    expect(within(dialog).getByRole('button', { name: 'Move the payments' })).toHaveProperty('disabled', true);
+    // A move to before today is refused on the payment it would break.
+    fireEvent.change(within(dialog).getByLabelText('Days'), { target: { value: '-10' } });
+    expect(rowText(dialog, 'ship.bal-813-s311')).toContain('A scenario cannot move a line to before today.');
+    expect(within(dialog).getByRole('button', { name: 'Move the payments' })).toHaveProperty('disabled', true);
+  });
+
+  it('puts the ticked payments on one date, and leaves an unticked one where it is', async () => {
+    const calls = stubApi({ forecast: containerInScenario });
+    renderForecast(store());
+    const dialog = await openMove();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Same date for all' }));
+    expect(within(dialog).queryByLabelText('Days')).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Move the payments' })).toHaveProperty('disabled', true);
+    fireEvent.change(within(dialog).getByLabelText('Date'), { target: { value: '2026-10-20' } });
+    expect(rowText(dialog, 'ship.bal-813-s311')).toContain('Tue 6 Oct 2026 → Tue 20 Oct 2026');
+    expect(rowText(dialog, 'ship.bal-812-s311')).toContain('Tue 13 Oct 2026 → Tue 20 Oct 2026');
+    expect(within(dialog).getByRole('button', { name: 'Move 2 payments' })).toHaveProperty('disabled', false);
+
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Move Acme Textiles · PO-813 · balance' }));
+    expect(rowText(dialog, 'ship.bal-813-s311')).not.toContain('→');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move 1 payment' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(writes(calls)).toEqual([
+      { method: 'PUT', path: '/scenarios/9/adjustments/ship.bal-812-s311', body: { kind: 'adjust', newDate: '2026-10-20' } },
+    ]);
+  });
+
+  it('unticks and ticks them all at once', async () => {
+    stubApi({ forecast: containerInScenario });
+    renderForecast(store());
+    const dialog = await openMove();
+    const ticks = () => within(dialog).getAllByRole('checkbox').map((c) => (c as HTMLInputElement).checked);
+    expect(ticks()).toEqual([true, true]);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Untick all' }));
+    expect(ticks()).toEqual([false, false]);
+    expect(dialog.textContent).toContain('Tick at least one payment.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tick all' }));
+    expect(ticks()).toEqual([true, true]);
+  });
+
+  it('says what moved and what did not when one payment is refused, and reads the forecast again on closing', async () => {
+    const calls = stubApi({
+      forecast: containerInScenario,
+      adjust: (path) =>
+        path.endsWith('/ship.bal-813-s311')
+          ? new ApiError(409, { error: 'That line is paid: only an expected line can be adjusted.', code: 'TARGET_SETTLED', details: { key: 'ship.bal-813-s311', status: 'paid' } })
+          : {},
+    });
+    renderForecast(store());
+    const dialog = await openMove();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move 2 payments' }));
+    const outcome = await within(dialog).findByTestId('move-outcome');
+    expect(outcome.textContent).toContain('1 of 2 payments moved.');
+    expect(outcome.textContent).toContain('Acme Textiles · PO-813 · balance');
+    expect(outcome.textContent).toContain('That line is paid: only an expected line can be adjusted.');
+    // The refusal was about that one payment, so the other still went.
+    expect(writes(calls).map((c) => c.path)).toEqual([
+      '/scenarios/9/adjustments/ship.bal-813-s311',
+      '/scenarios/9/adjustments/ship.bal-812-s311',
+    ]);
+    expect(forecastReads(calls)).toHaveLength(1);
+    // Nothing more to send from here: the form has gone, and closing re-reads.
+    expect(within(dialog).queryByLabelText('Days')).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close and reload' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(forecastReads(calls)).toHaveLength(2));
+  });
+
+  it('stops at a refusal of the scenario itself and names the payments never sent', async () => {
+    const calls = stubApi({
+      forecast: containerInScenario,
+      adjust: () => new ApiError(409, { error: 'This scenario is applied: its adjustments are history now.', code: 'SCENARIO_NOT_DRAFT', details: { status: 'applied' } }),
+    });
+    renderForecast(store());
+    const dialog = await openMove();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move 2 payments' }));
+    const outcome = await within(dialog).findByTestId('move-outcome');
+    expect(outcome.textContent).toContain('0 of 2 payments moved.');
+    expect(within(outcome).getByTestId('move-unsent').textContent).toContain('Acme Textiles · PO-812 · balance');
+    expect(writes(calls)).toHaveLength(1);
+  });
+
+  it('lists the whole container even while a search shows only part of it', async () => {
+    stubApi({ forecast: containerInScenario });
+    renderForecast(store(), '/forecast?ship=PO-813');
+    await screen.findByTestId('line-ship.bal-813-s311');
+    const grid = screen.getByTestId('forecast-grid');
+    expect(within(grid).getByTestId('container-MSCU1234567').textContent).toContain('1 supplier · 1 payment');
+    fireEvent.click(within(grid).getByRole('button', { name: MOVE }));
+    expect(within(screen.getByRole('dialog')).getAllByTestId(/^move-row-/)).toHaveLength(3);
   });
 });
