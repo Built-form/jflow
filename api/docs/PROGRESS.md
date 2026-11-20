@@ -1631,3 +1631,12 @@ The backdrop is the original blue growth line with its pulsing round head again 
 heartbeat line, the heart and the phone-only lower line are gone. Checks as before (tsc, web
 vitest 515 / 516 with the clock-bound stock test, build); looked at in headless Edge. Pushed to
 `master` and `test` ("then push").
+
+### paypulse.built-form.co.uk counts as production (2026-11-20)
+
+Dev added `paypulse.built-form.co.uk` beside `jflow.built-form.co.uk` in `PRODUCTION_HOSTS`
+(`web/src/config/env.ts`); `env.test.ts` now checks it (production by host, test when the build
+says test). The API allows any origin (`serverless.yml` CORS `*`), so no API change. Outside the
+repo, for Dev: the domain on the Vercel production project and its DNS, and the origin
+`https://paypulse.built-form.co.uk` on the Google OAuth client, or sign-in fails there.
+Pushed to `master` and `test` ("deploy test and live").

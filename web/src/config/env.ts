@@ -43,7 +43,7 @@ export type AppEnv = 'production' | 'test';
  * be read.
  */
 // mjflow.built-form.co.uk is mobileweb's, which carries its own env.ts (step 10).
-const PRODUCTION_HOSTS: readonly string[] = ['jflow.built-form.co.uk'];
+const PRODUCTION_HOSTS: readonly string[] = ['jflow.built-form.co.uk', 'paypulse.built-form.co.uk'];
 
 /** serverless stage `test` (`jflow-test-jflowApi`, eu-north-1). */
 const TEST_API_BASE: string | null = 'https://d3votdaxd9.execute-api.eu-north-1.amazonaws.com/api/v1';

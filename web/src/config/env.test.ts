@@ -9,7 +9,10 @@ describe('which environment this is', () => {
   it('is production only on the named host, test everywhere else', () => {
     expect(resolveAppEnv(undefined, 'jflow.built-form.co.uk')).toBe('production');
     expect(resolveAppEnv(undefined, 'JFLOW.built-form.co.uk ')).toBe('production');
+    expect(resolveAppEnv(undefined, 'paypulse.built-form.co.uk')).toBe('production');
     expect(resolveAppEnv('test', 'jflow.built-form.co.uk')).toBe('test');
+    expect(resolveAppEnv('test', 'paypulse.built-form.co.uk')).toBe('test');
+    expect(resolveAppEnv(undefined, 'paypulse-web.vercel.app')).toBe('test');
     expect(resolveAppEnv(undefined, 'jflow-web.vercel.app')).toBe('test');
     expect(resolveAppEnv(undefined, 'mjflow.built-form.co.uk')).toBe('test');
     expect(resolveAppEnv(undefined, 'localhost')).toBe('test');
