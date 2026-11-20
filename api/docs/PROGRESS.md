@@ -1622,3 +1622,12 @@ monogram, the bold navy-on-white-plate wordmark and the all-blue sign-in.
 - **Checks**: tsc clean, web vitest 515 / 516 (the clock-bound stock test again), build green.
   Looked at in headless Edge on a temporary harness (removed): the sign-in final frame and the
   sidebar brand. Pushed to `master` and `test` at Dev's word ("push change", 2026-11-20).
+
+### Sign-in backdrop back to the growth line (2026-11-20)
+
+Dev: "revert this part to as it was, keep rest as is" (pointing at the heartbeat line and heart).
+The backdrop is the original blue growth line with its pulsing round head again (as at
+`756e901`). Kept: the name, the heartbeat tile and lowercase wordmark, and the coral "grow". The
+heartbeat line, the heart and the phone-only lower line are gone. Checks as before (tsc, web
+vitest 515 / 516 with the clock-bound stock test, build); looked at in headless Edge. Pushed to
+`master` and `test` ("then push").
