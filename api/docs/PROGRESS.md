@@ -1644,7 +1644,8 @@ Pushed to `master` and `test` ("deploy test and live").
 ## Sidebar folds to a rail; tablet touches (2026-11-20)
 
 Dev, on an iPad mini (photo of the Forecast in Safari): "possible to make the menu bar
-collapsible". Web only. Committed on `master`; **not pushed** (no word to deploy yet).
+collapsible". Web only. Pushed to `master` at Dev's word ("deploy to live", 2026-11-20), for
+Vercel to build production; no `deploy.sh`. The `test` branch was not pushed.
 
 - **Fold**: a panel button in the sidebar's brand row folds the 232px sidebar to a 52px navy
   rail (the button to bring it back, and the heartbeat mark); the grid takes the 180px. The
@@ -1671,7 +1672,7 @@ collapsible". Web only. Committed on `master`; **not pushed** (no word to deploy
 ### Touch: date steps, chart read-out, tap titles (2026-11-20)
 
 Dev picked three of the suggestions above (the scroll bar, the chart, the hover titles). Web
-only. Committed on `master`; **not pushed**.
+only. Pushed to `master` with the fold above ("deploy to live", 2026-11-20); `test` not pushed.
 
 - **Earlier / Later** (`ForecastGrid` `step`, `lib/grid.ts` `stepScroll`, tests first): the grid's
   "SCROLL DATES" bar is a native scrollbar, which iPadOS draws only as a fading overlay, so on
