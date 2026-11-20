@@ -1581,5 +1581,6 @@ rows (a temporary harness page, since removed; no API and nothing saved): the li
 container rows, both ways of moving, a move to before today, a refused payment, a move in
 progress, and the dark theme. Not tried against the API or TEST data.
 Committed on `master` and pushed to the `test` branch only, at Dev's word ("deploy to test",
-2026-11-20), for Vercel to build the test site. Web only, so no `deploy.sh` run. **Not pushed
-to `master`.**
+2026-11-20), for Vercel to build the test site. Web only, so no `deploy.sh` run. Then pushed
+to `master` the same day, again at Dev's word ("deploy live"), for Vercel to build production.
+The API is unchanged on both stages.
