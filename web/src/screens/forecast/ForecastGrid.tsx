@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent, ReactNode, Ref, UIEvent } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   BucketDelta,
   BucketKind,
@@ -154,6 +155,10 @@ function EyeToggle({ what, hidden, locked, onToggle }: { what: string; hidden: b
     </button>
   );
 }
+
+/** A date step's glide, and the frames it then holds its target while the chart catches up. */
+const STEP_MS = 260;
+const STEP_HOLD_FRAMES = 4;
 
 const PICK_HINT ='Click to add to the sum';
 const PICK_LINE_HINT = 'Ctrl-click to add to the sum';
@@ -324,6 +329,7 @@ export function ForecastGrid({
   onColumns,
   scrollRef,
   onScroll,
+  stepsSlot,
 }: {
   kind: BucketKind;
   buckets: ForecastBucket[];
@@ -349,6 +355,8 @@ export function ForecastGrid({
   /** The sideways scroller — the screen keeps the chart's in step with it. */
   scrollRef?: Ref<HTMLDivElement>;
   onScroll?: () => void;
+  /** Where the touch date steps go: the screen's pill, pinned to the bottom of the window. */
+  stepsSlot?: HTMLElement | null;
 }) {
   // The header cells are the columns: measured on every resize of any of them (a category
   // opening can widen one), so the chart's buckets stay exactly as wide as the grid's.
@@ -443,15 +451,48 @@ export function ForecastGrid({
   };
   useEffect(markEdge, [view]);
   // A touch screen draws no scrollbar to drag (iPadOS shows a fading overlay), so there the
-  // scroll row carries Earlier / Later instead (Dev, 2026-11-20; base.css swaps them on
-  // `pointer: coarse`). A step is a screenful, landing on a column's edge (`stepScroll`).
+  // screen offers Earlier / Later instead (Dev, 2026-11-20): two buttons in the screen's
+  // `stepsSlot`, pinned to the bottom of the window, shown on `pointer: coarse` (base.css
+  // `.date-steps`, which also drops the scroll rows there). A step is a screenful, landing on
+  // a column's edge (`stepScroll`).
+  //
+  // The glide is ours, frame by frame, not the browser's smooth scroll: the chart mirrors the
+  // grid a frame late and writes its older position back, and any such write cancels a browser
+  // smooth scroll after a few pixels (seen 2026-11-20: a step moved 3px). Here each frame sets
+  // the position outright, so a late echo is simply overwritten, and the last frames hold the
+  // target until the two have settled on it.
+  const glide = useRef<(() => void) | null>(null);
+  useEffect(() => () => glide.current?.(), []);
   const step = (dir: 1 | -1) => {
     const scroller = scrollerEl.current;
     if (!scroller) return;
-    const left = stepScroll(view.cols.slice(1), scroller.scrollLeft, view.client - view.label, dir);
+    // A second tap starts from wherever the first had got to.
+    glide.current?.();
+    const from = scroller.scrollLeft;
+    const to = stepScroll(view.cols.slice(1), from, view.client - view.label, dir);
     const calm = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ left, behavior: calm ? 'auto' : 'smooth' });
-    else scroller.scrollLeft = left;
+    if (calm || to === from || typeof requestAnimationFrame !== 'function') {
+      scroller.scrollLeft = to;
+      return;
+    }
+    // Timed from its own first frame: the frame clock is the only one it reads.
+    let started: number | null = null;
+    let hold = STEP_HOLD_FRAMES;
+    let frameId = 0;
+    const frame = (now: number) => {
+      started ??= now;
+      const t = Math.min(1, (now - started) / STEP_MS);
+      // Ease-out: quick away, gentle onto the column's edge.
+      scroller.scrollLeft = t < 1 ? from + (to - from) * (1 - (1 - t) ** 3) : to;
+      if (t >= 1) hold -= 1;
+      if (hold > 0) frameId = requestAnimationFrame(frame);
+      else glide.current = null;
+    };
+    frameId = requestAnimationFrame(frame);
+    glide.current = () => {
+      cancelAnimationFrame(frameId);
+      glide.current = null;
+    };
   };
 
   const onGridScroll = () => {
@@ -476,14 +517,6 @@ export function ForecastGrid({
           </span>
           <div ref={ref} className="ledger-scroll" aria-hidden="true" onScroll={onBarScroll}>
             <div style={{ width: view.total - view.label, height: 1 }} />
-          </div>
-          <div className="ledger-step">
-            <button type="button" className="btn" disabled={edge.start} onClick={() => step(-1)}>
-              ‹ Earlier
-            </button>
-            <button type="button" className="btn" disabled={edge.end} onClick={() => step(1)}>
-              Later ›
-            </button>
           </div>
         </div>
       </td>
@@ -799,6 +832,19 @@ export function ForecastGrid({
       </div>
     </div>
     <SumBar picked={picked} onClear={() => setPicked(new Map())} />
+    {scrollable &&
+      stepsSlot &&
+      createPortal(
+        <>
+          <button type="button" className="btn" aria-label="Earlier dates" disabled={edge.start} onClick={() => step(-1)}>
+            ‹ Earlier
+          </button>
+          <button type="button" className="btn" aria-label="Later dates" disabled={edge.end} onClick={() => step(1)}>
+            Later ›
+          </button>
+        </>,
+        stepsSlot,
+      )}
     </PickedContext.Provider>
     </HideContext.Provider>
   );

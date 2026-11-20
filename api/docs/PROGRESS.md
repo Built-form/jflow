@@ -1703,3 +1703,31 @@ only. Pushed to `master` with the fold above ("deploy to live", 2026-11-20); `te
   touch pointer emulated (`--blink-settings=primaryPointerType=2`) and with a mouse, on a
   temporary harness (removed). The drag and the taps are covered by tests only: not yet tried
   on a real iPad.
+
+### Date steps: the tiny scroll fixed, and pinned to the window (2026-11-20)
+
+Dev, in the device simulator: the Earlier / Later buttons "scroll tiny amount", and "should they
+be pinned to bottom window?". Web only. Committed on `master`; **not pushed**.
+
+- **Cause, reproduced first**: a step used the browser's smooth scroll. The chart mirrors the
+  grid's sideways position a frame late (`ForecastScreen` `follow`) and writes its older value
+  back, and any such write cancels a smooth scroll. Measured in headless Edge on the real
+  screen with fixture data: a lone scroller reached its target, the grid's step stopped at 3px.
+- **Fix** (`ForecastGrid` `step`): the glide is ours, one `requestAnimationFrame` at a time
+  (260ms, ease-out, timed from its own first frame), each frame setting the position outright
+  so an echo is overwritten; the last four frames hold the target while the chart settles. A
+  second tap starts from where the first got to; reduced motion jumps. Measured after: the
+  step lands on the column edge (118px, then the far end), the chart with it, and back to 0.
+  `follow` is unchanged, so mouse, wheel and finger scrolling are as they were.
+- **Pinned** (`.date-steps`): the two buttons are portalled out of the grid into a pill that
+  `ForecastScreen` keeps sticky at the bottom left of the window, for the whole Forecast: in
+  reach beside the chart (where a finger's swipe now reads the line) as well as the grid, and
+  with its own place at the page's foot. Touch only (`pointer: coarse`), and only when the
+  grid has somewhere to scroll. On touch the three "SCROLL DATES" rows are gone, which also
+  gives the pinned summary a row back. A mouse: scrollbar rows as before, no pill.
+- **Checks**: tsc clean; web vitest 529 / 530 (the grid's step test now reads the pill and waits
+  for the glide; the one failure is the clock-bound `stock.test.tsx` "plans a row …", as
+  before); `npm run build` green. Looked at in headless Edge over the debugging port, in real
+  time (headless "virtual time" does not run a smooth scroll at all, so it cannot show this
+  bug), touch emulated and with a mouse, on a temporary harness (removed). Not yet on a real
+  iPad.

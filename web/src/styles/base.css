@@ -1057,26 +1057,37 @@ select.input[data-active] {
   scrollbar-width: auto;
   scrollbar-color: var(--acc) var(--accBd);
 }
-/* Under a finger there is no scrollbar to drag (iPadOS draws a fading overlay, so the bar
-   above is an empty track): the row carries Earlier / Later steps instead (ForecastGrid
-   `step`; Dev, 2026-11-20). A sideways swipe on the grid still scrolls. */
-.ledger .ledger-step {
+/* Under a finger there is no scrollbar to drag (iPadOS draws a fading overlay, so the bars
+   above are empty tracks): the scroll rows go, and the Forecast pins Earlier / Later to the
+   bottom of the window instead (ForecastScreen's `.date-steps`, filled by ForecastGrid's
+   `step`; Dev, 2026-11-20). Sticky inside `.page`, so the pill is in reach beside the chart
+   as well as the grid, and has its own place at the page's foot. A sideways swipe on the
+   grid still scrolls. With a mouse: the bars as before, no pill. */
+.date-steps {
   display: none;
 }
 @media (pointer: coarse) {
-  .ledger .ledger-scroll {
+  .ledger tr.ledger-scroll-row {
     display: none;
   }
-  .ledger .ledger-step {
-    flex: 1 1 auto;
+  .date-steps:not(:empty) {
+    position: sticky;
+    bottom: 12px;
+    left: 0;
+    z-index: 2;
+    align-self: flex-start;
     display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    padding-right: 10px;
+    gap: 8px;
+    padding: 6px;
+    border: 1px solid var(--acc);
+    border-radius: calc(var(--radius) + 4px);
+    background: var(--raise);
+    box-shadow: var(--shadow-lg);
   }
-  .ledger .ledger-step .btn {
-    min-height: 36px;
+  .date-steps .btn {
+    min-height: 44px;
     min-width: 96px;
+    box-shadow: none;
   }
 }
 

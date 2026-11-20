@@ -174,6 +174,10 @@ export function ForecastScreen() {
   const onColumns = useCallback((next: GridColumns) => setColumns((prev) => (sameColumns(prev, next) ? prev : next)), []);
   const chartScroll = useRef<HTMLDivElement>(null);
   const gridScroll = useRef<HTMLDivElement>(null);
+  // The grid's Earlier / Later steps for touch screens: its buttons, portalled into a pill
+  // this screen pins to the bottom of the window (Dev, 2026-11-20), so they are in reach
+  // beside the chart as well as the grid.
+  const [stepsSlot, setStepsSlot] = useState<HTMLDivElement | null>(null);
   const follow = (from: RefObject<HTMLDivElement | null>, to: RefObject<HTMLDivElement | null>) => () => {
     if (from.current && to.current && to.current.scrollLeft !== from.current.scrollLeft) to.current.scrollLeft = from.current.scrollLeft;
   };
@@ -311,6 +315,7 @@ export function ForecastScreen() {
                   onColumns={onColumns}
                   scrollRef={gridScroll}
                   onScroll={follow(gridScroll, chartScroll)}
+                  stepsSlot={stepsSlot}
                 />
                 {res.rows.length === 0 && <Empty>No money in or out in this window.</Empty>}
               </>
@@ -318,6 +323,10 @@ export function ForecastScreen() {
           </section>
 
           <StartingPoint accounts={res.accounts} />
+
+          {/* Last on the page and sticky to its foot: empty (and so hidden) with a mouse or
+              when the grid has nowhere to scroll. */}
+          <div ref={setStepsSlot} className="date-steps" role="group" aria-label="Scroll the dates" data-testid="date-steps" />
         </>
       )}
 

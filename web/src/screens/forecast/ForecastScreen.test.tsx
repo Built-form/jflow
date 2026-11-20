@@ -132,7 +132,7 @@ describe('Forecast', () => {
     expect(window.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('offers Earlier / Later in the scroll row, for a touch screen with no scrollbar to drag (Dev, 2026-11-20)', async () => {
+  it('offers Earlier / Later in the pill pinned to the window, for a touch screen with no scrollbar to drag (Dev, 2026-11-20)', async () => {
     // jsdom lays nothing out: say the grid is 400 wide showing 1000 of table, in 100px columns.
     const sized = { clientWidth: 400, scrollWidth: 1000 } as const;
     for (const [k, value] of Object.entries(sized)) Object.defineProperty(HTMLElement.prototype, k, { configurable: true, get: () => value });
@@ -142,20 +142,23 @@ describe('Forecast', () => {
       stubApi(() => forecastFixture());
       renderForecast();
       const scroller = (await screen.findByTestId('forecast-grid')).parentElement as HTMLElement;
-      const row = within(await screen.findByTestId('grid-scroll'));
+      // Portalled out of the grid into the page's pill (CSS shows it on touch screens only).
+      const row = within(await screen.findByTestId('date-steps'));
       const earlier = row.getByRole('button', { name: /Earlier/ }) as HTMLButtonElement;
       const later = row.getByRole('button', { name: /Later/ }) as HTMLButtonElement;
       // At the start there is nothing earlier.
       expect(earlier.disabled).toBe(true);
       expect(later.disabled).toBe(false);
       fireEvent.click(later);
-      // A step lands on a column's edge.
-      expect(scroller.scrollLeft).toBeGreaterThan(0);
-      expect(scroller.scrollLeft % 100).toBe(0);
+      // A step glides along and lands on a column's edge: here the far end, one column on
+      // (four 100px columns after the label, 300px of them on show).
+      await waitFor(() => expect(scroller.scrollLeft).toBe(100));
       fireEvent.scroll(scroller);
       expect(earlier.disabled).toBe(false);
       fireEvent.click(earlier);
-      expect(scroller.scrollLeft).toBe(0);
+      await waitFor(() => expect(scroller.scrollLeft).toBe(0));
+      // The scroll rows carry no buttons of their own any more.
+      expect(within(screen.getByTestId('grid-scroll')).queryByRole('button')).toBeNull();
     } finally {
       for (const k of Object.keys(sized)) delete (HTMLElement.prototype as unknown as Record<string, unknown>)[k];
       HTMLTableCellElement.prototype.getBoundingClientRect = rect;
