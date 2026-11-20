@@ -19,6 +19,7 @@ import {
   pinSummary,
   shipMatcher,
   signedMoney,
+  stepScroll,
 } from './grid';
 import { line as fixtureLine, shipRow as stockRow } from '../screens/forecast/fixtures';
 
@@ -350,5 +351,39 @@ describe('the pinned balance summary (pinSummary; Dev, 2026-11-19)', () => {
 
   it('never pins with nothing measured (jsdom, a hidden tab)', () => {
     expect(pinSummary({ gridTop: 0, gridBottom: 0, pinTop: 0, summaryHeight: 0 })).toBe(false);
+  });
+});
+
+describe('stepping the dates on a touch screen (stepScroll; Dev, 2026-11-20)', () => {
+  // Six 100px columns after the label, 250px of them on show: the far end is 350.
+  const six = [100, 100, 100, 100, 100, 100];
+
+  it('later: the first column not fully on show becomes the first one', () => {
+    expect(stepScroll(six, 0, 250, 1)).toBe(200);
+    // Mid-column counts from what is fully on show now.
+    expect(stepScroll(six, 30, 250, 1)).toBe(200);
+  });
+
+  it('later stops at the far end', () => {
+    expect(stepScroll(six, 200, 250, 1)).toBe(350);
+    expect(stepScroll(six, 350, 250, 1)).toBe(350);
+  });
+
+  it('earlier: a screenful back, landing on a column edge, never before the start', () => {
+    expect(stepScroll(six, 350, 250, -1)).toBe(100);
+    expect(stepScroll(six, 100, 250, -1)).toBe(0);
+    expect(stepScroll(six, 0, 250, -1)).toBe(0);
+  });
+
+  it('always moves when it can, even past a column wider than the screen', () => {
+    expect(stepScroll([400, 100, 100], 0, 250, 1)).toBe(350);
+    expect(stepScroll([400, 400, 400], 0, 250, 1)).toBe(400);
+    expect(stepScroll([400, 400, 400], 450, 250, -1)).toBe(400);
+    expect(stepScroll([400, 400, 400], 400, 250, -1)).toBe(0);
+  });
+
+  it('has nowhere to go when everything is on show', () => {
+    expect(stepScroll([100, 100], 0, 250, 1)).toBe(0);
+    expect(stepScroll([], 0, 250, 1)).toBe(0);
   });
 });

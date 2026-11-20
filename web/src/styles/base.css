@@ -1057,6 +1057,28 @@ select.input[data-active] {
   scrollbar-width: auto;
   scrollbar-color: var(--acc) var(--accBd);
 }
+/* Under a finger there is no scrollbar to drag (iPadOS draws a fading overlay, so the bar
+   above is an empty track): the row carries Earlier / Later steps instead (ForecastGrid
+   `step`; Dev, 2026-11-20). A sideways swipe on the grid still scrolls. */
+.ledger .ledger-step {
+  display: none;
+}
+@media (pointer: coarse) {
+  .ledger .ledger-scroll {
+    display: none;
+  }
+  .ledger .ledger-step {
+    flex: 1 1 auto;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding-right: 10px;
+  }
+  .ledger .ledger-step .btn {
+    min-height: 36px;
+    min-width: 96px;
+  }
+}
 
 /* The eye in a label cell's corner (ForecastGrid `EyeToggle`): faint until the row is
    pointed at, solid once the row is hidden. */

@@ -23,6 +23,7 @@ import {
   isShipCategory,
   lineId,
   pinSummary,
+  stepScroll,
   shipMatcher,
   shortDay,
   signedMoney,
@@ -198,6 +199,8 @@ function TotalCell({
     <td
       style={{ ...style, cursor: 'cell' }}
       title={PICK_HINT}
+      // A mouse instruction, not information: no tap tip for it (components/TapTitles).
+      data-tap-title="off"
       {...pickProps(`${scope}:${col}`, value, direction, withinOf(scopes, col, scope), picked)}
     >
       {cellMoney(value)}
@@ -430,11 +433,33 @@ export function ForecastGrid({
     for (const el of [pinScrollEl.current, pinBarEl.current]) if (el) el.scrollLeft = scroller.scrollLeft;
   }, [pinned]);
 
+  // Which end the dates are at, for the touch steps below; set only when it changes.
+  const [edge, setEdge] = useState({ start: true, end: false });
+  const markEdge = () => {
+    const scroller = scrollerEl.current;
+    if (!scroller) return;
+    const next = { start: scroller.scrollLeft <= 1, end: scroller.scrollLeft >= scroller.scrollWidth - scroller.clientWidth - 1 };
+    setEdge((prev) => (prev.start === next.start && prev.end === next.end ? prev : next));
+  };
+  useEffect(markEdge, [view]);
+  // A touch screen draws no scrollbar to drag (iPadOS shows a fading overlay), so there the
+  // scroll row carries Earlier / Later instead (Dev, 2026-11-20; base.css swaps them on
+  // `pointer: coarse`). A step is a screenful, landing on a column's edge (`stepScroll`).
+  const step = (dir: 1 | -1) => {
+    const scroller = scrollerEl.current;
+    if (!scroller) return;
+    const left = stepScroll(view.cols.slice(1), scroller.scrollLeft, view.client - view.label, dir);
+    const calm = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (typeof scroller.scrollTo === 'function') scroller.scrollTo({ left, behavior: calm ? 'auto' : 'smooth' });
+    else scroller.scrollLeft = left;
+  };
+
   const onGridScroll = () => {
     const scroller = scrollerEl.current;
     for (const bar of [barEl.current, footBarEl.current, pinScrollEl.current, pinBarEl.current]) {
       if (scroller && bar && bar.scrollLeft !== scroller.scrollLeft) bar.scrollLeft = scroller.scrollLeft;
     }
+    markEdge();
     onScroll?.();
   };
   // A bar moves the grid; the grid's own scroll event then brings the other bar along.
@@ -451,6 +476,14 @@ export function ForecastGrid({
           </span>
           <div ref={ref} className="ledger-scroll" aria-hidden="true" onScroll={onBarScroll}>
             <div style={{ width: view.total - view.label, height: 1 }} />
+          </div>
+          <div className="ledger-step">
+            <button type="button" className="btn" disabled={edge.start} onClick={() => step(-1)}>
+              ‹ Earlier
+            </button>
+            <button type="button" className="btn" disabled={edge.end} onClick={() => step(1)}>
+              Later ›
+            </button>
           </div>
         </div>
       </td>

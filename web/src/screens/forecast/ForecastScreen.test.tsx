@@ -132,6 +132,36 @@ describe('Forecast', () => {
     expect(window.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('offers Earlier / Later in the scroll row, for a touch screen with no scrollbar to drag (Dev, 2026-11-20)', async () => {
+    // jsdom lays nothing out: say the grid is 400 wide showing 1000 of table, in 100px columns.
+    const sized = { clientWidth: 400, scrollWidth: 1000 } as const;
+    for (const [k, value] of Object.entries(sized)) Object.defineProperty(HTMLElement.prototype, k, { configurable: true, get: () => value });
+    const rect = HTMLTableCellElement.prototype.getBoundingClientRect;
+    HTMLTableCellElement.prototype.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 30, right: 100, bottom: 30, x: 0, y: 0, toJSON: () => ({}) });
+    try {
+      stubApi(() => forecastFixture());
+      renderForecast();
+      const scroller = (await screen.findByTestId('forecast-grid')).parentElement as HTMLElement;
+      const row = within(await screen.findByTestId('grid-scroll'));
+      const earlier = row.getByRole('button', { name: /Earlier/ }) as HTMLButtonElement;
+      const later = row.getByRole('button', { name: /Later/ }) as HTMLButtonElement;
+      // At the start there is nothing earlier.
+      expect(earlier.disabled).toBe(true);
+      expect(later.disabled).toBe(false);
+      fireEvent.click(later);
+      // A step lands on a column's edge.
+      expect(scroller.scrollLeft).toBeGreaterThan(0);
+      expect(scroller.scrollLeft % 100).toBe(0);
+      fireEvent.scroll(scroller);
+      expect(earlier.disabled).toBe(false);
+      fireEvent.click(earlier);
+      expect(scroller.scrollLeft).toBe(0);
+    } finally {
+      for (const k of Object.keys(sized)) delete (HTMLElement.prototype as unknown as Record<string, unknown>)[k];
+      HTMLTableCellElement.prototype.getBoundingClientRect = rect;
+    }
+  });
+
   it('flags negative cells: a closing below zero, and one whose bucket dips below zero', async () => {
     stubApi(() => forecastFixture());
     renderForecast();
@@ -635,5 +665,35 @@ describe('BalanceChart', () => {
     expect(screen.getByTestId('chart-line-closing')).toBeTruthy();
     expect(screen.queryByTestId('chart-line-baseline')).toBeNull();
     expect(screen.queryByTestId('chart-legend')).toBeNull();
+  });
+
+  it('reads the line out under a finger, and keeps it until a touch elsewhere (Dev, 2026-11-20)', () => {
+    const { days } = forecastFixture();
+    render(<BalanceChart days={days} withBaseline={false} />);
+    const chart = screen.getByTestId('balance-chart');
+    // jsdom lays nothing out: give the chart its viewBox as its box (960 wide, from x = 0).
+    chart.getBoundingClientRect = () => ({ left: 0, top: 0, width: 960, height: 250, right: 960, bottom: 250, x: 0, y: 0, toJSON: () => ({}) });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    // Pressed at the far left: the first day.
+    fireEvent.pointerDown(chart, { pointerType: 'touch', clientX: 0 });
+    const first = screen.getByRole('tooltip').textContent;
+    expect(first).toContain('closing');
+    // Dragged to the far right: the last day.
+    fireEvent.pointerMove(chart, { pointerType: 'touch', clientX: 960 });
+    const last = screen.getByRole('tooltip').textContent;
+    expect(last).not.toBe(first);
+    // The finger lifts (a touch pointer leaves as it does): still there to read.
+    fireEvent.pointerLeave(chart, { pointerType: 'touch' });
+    expect(screen.getByRole('tooltip').textContent).toBe(last);
+    // A touch anywhere else puts it away.
+    fireEvent.pointerDown(document.body, { pointerType: 'touch' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+
+    // A mouse is as it was: there while over the chart, gone on leaving.
+    fireEvent.pointerMove(chart, { pointerType: 'mouse', clientX: 480 });
+    expect(screen.getByRole('tooltip')).toBeTruthy();
+    fireEvent.pointerLeave(chart, { pointerType: 'mouse' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });

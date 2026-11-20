@@ -1,4 +1,4 @@
-// Copied from workflows/web/src/components/Shell.tsx — changes: nav rebuilt for JFlow's screens (PLAN: Forecast, Cash at bank, Income & outgoings, Schedules, Stock payments (Phase 2), Scenarios / Settings, People / About); one nav for both account types; nav links carry the URL's company filter from screen to screen; brand mark and caption JFlow's; dropped the instances/myTasks/families/processes/stages reads, the lot and verdict counts and the warehouse/standard/reviewer groups; scenario mode — the pinned ScenarioBanner in a `.main` column above `.content`, `scenario-mode` on the shell and the sidebar's scenario chip; the Forecast's stock payments search under its nav entry; the sidebar folds to a rail (Dev, 2026-11-20), the choice kept in `jflow.nav`
+// Copied from workflows/web/src/components/Shell.tsx — changes: nav rebuilt for JFlow's screens (PLAN: Forecast, Cash at bank, Income & outgoings, Schedules, Stock payments (Phase 2), Scenarios / Settings, People / About); one nav for both account types; nav links carry the URL's company filter from screen to screen; brand mark and caption JFlow's; dropped the instances/myTasks/families/processes/stages reads, the lot and verdict counts and the warehouse/standard/reviewer groups; scenario mode — the pinned ScenarioBanner in a `.main` column above `.content`, `scenario-mode` on the shell and the sidebar's scenario chip; the Forecast's stock payments search under its nav entry; the sidebar folds to a rail (Dev, 2026-11-20), the choice kept in `jflow.nav`; mounts TapTitles (hover titles on a finger tap)
 import { Fragment, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { ForecastFind } from '../screens/forecast/ForecastFind';
@@ -10,6 +10,7 @@ import { Segmented } from './ui';
 import { shortEmail } from '../lib/format';
 import { COMPANY_PARAM } from '../app/companyFilter';
 import { PulseMark } from './PulseMark';
+import { TapTitles } from './TapTitles';
 import { ScenarioBanner, useScenario } from '../app/ScenarioContext';
 
 interface NavEntry {
@@ -122,6 +123,8 @@ export function Shell() {
 
   return (
     <div className={`shell${scenario ? ' scenario-mode' : ''}`}>
+      {/* Hover titles shown on a finger tap, for every screen (tablets). */}
+      <TapTitles />
       {collapsed ? (
         // The rail: the way back, the mark, and on the Forecast the search the menu holds —
         // lit while a search is narrowing the grid, so a hidden box never hides that it is.

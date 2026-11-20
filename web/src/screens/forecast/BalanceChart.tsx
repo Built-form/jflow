@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import type { MouseEvent, Ref } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent, Ref } from 'react';
 import type { BucketKind, ForecastBucket, ForecastDay } from '../../api/forecast';
 import { diffDays, formatDay } from '../../lib/dates';
 import { bucketIndexOf, bucketLabel, columnLefts, compactMoney, shortDay, signedMoney } from '../../lib/grid';
@@ -16,6 +16,11 @@ import { formatMoney, toMinor } from '../../lib/money';
  * 2026-10-07): each bucket is drawn exactly as wide as its column and directly above it,
  * every other column is banded as in the grid, and the two scroll sideways together.
  * Without them it is the plain chart, evenly spaced across its own width.
+ *
+ * The read-out follows the pointer: a mouse hovering, or a finger pressed and dragged along
+ * the line (Dev, 2026-11-20, on an iPad). Under a finger the chart keeps sideways drags for
+ * that (`touch-action`), so the dates are scrolled from the grid; up and down still scrolls
+ * the page. A finger's read-out stays after it lifts, until a touch somewhere else.
  *
  * Money stays `bigint` for every label; only pixel geometry is a float, and a tick is a
  * whole number of pounds before it becomes a label.
@@ -161,6 +166,18 @@ export function BalanceChart({
   const svgRef = useRef<SVGSVGElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
 
+  // A finger's read-out is not cleared by lifting (there is no hover to leave), so a press
+  // anywhere off the chart clears it.
+  const reading = hover !== null;
+  useEffect(() => {
+    if (!reading) return;
+    const onPress = (e: PointerEvent) => {
+      if (!svgRef.current?.contains(e.target as Node)) setHover(null);
+    };
+    document.addEventListener('pointerdown', onPress);
+    return () => document.removeEventListener('pointerdown', onPress);
+  }, [reading]);
+
   if (days.length === 0) return null;
 
   // The plot's box, in the SVG's own units: the grid's label column and bucket columns when
@@ -173,7 +190,7 @@ export function BalanceChart({
   const zeroInside = g.min < 0 && g.max > 0;
   const minIndex = minDate ? days.findIndex((d) => d.date === minDate) : -1;
 
-  const onMove = (e: MouseEvent<SVGSVGElement>) => {
+  const onPoint = (e: ReactPointerEvent<SVGSVGElement>) => {
     const box = svgRef.current?.getBoundingClientRect();
     if (!box || box.width === 0) return;
     const px = ((e.clientX - box.left) / box.width) * width;
@@ -230,7 +247,8 @@ export function BalanceChart({
           onScroll={onScroll}
           data-testid={aligned ? 'chart-scroll' : undefined}
           // No scrollbar of its own: the one under the grid's Closing row moves both
-          // (Dev, 2026-10-07), and so does a sideways swipe or shift-wheel here.
+          // (Dev, 2026-10-07), and so does a shift-wheel or trackpad swipe here. A finger's
+          // sideways drag reads the line instead (the svg's `touch-action`).
           className={aligned ? 'no-scrollbar' : undefined}
           style={aligned ? { overflowX: 'auto', overflowY: 'hidden' } : undefined}
         >
@@ -241,9 +259,13 @@ export function BalanceChart({
               role="img"
               aria-label={`${lineLabel}, all accounts in GBP, ${formatDay(days[0].date)} to ${formatDay(days[days.length - 1].date)}`}
               data-testid="balance-chart"
-              style={{ display: 'block', overflow: aligned ? undefined : 'visible' }}
-              onMouseMove={onMove}
-              onMouseLeave={() => setHover(null)}
+              // `pan-y`: a finger's sideways drag is ours (the read-out), not the scroller's.
+              style={{ display: 'block', overflow: aligned ? undefined : 'visible', touchAction: 'pan-y pinch-zoom' }}
+              onPointerDown={onPoint}
+              onPointerMove={onPoint}
+              onPointerLeave={(e) => {
+                if (e.pointerType === 'mouse') setHover(null);
+              }}
             >
               {/* Below zero is an overdraft: tinted, so a dip reads before any number does. */}
               {g.min < 0 && (

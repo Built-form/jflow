@@ -129,6 +129,37 @@ export function columnLefts(columns: GridColumns): number[] {
   return out;
 }
 
+/**
+ * Where an "Earlier" / "Later" step leaves the grid's sideways scroll (Dev, 2026-11-20: a
+ * touch screen draws no scrollbar to drag, so the scroll row offers steps instead).
+ *
+ * `widths` are the columns after the sticky label column and `visible` is how much of them
+ * is on show, so a column sits first on screen when the scroll equals the widths before it.
+ * Later brings the first column not fully on show to the front; earlier goes back a
+ * screenful. Both land on a column's edge, stay inside the scroll's range and always move
+ * when there is anywhere to go (a column wider than the screen is stepped past, not stuck on).
+ */
+export function stepScroll(widths: number[], scrollLeft: number, visible: number, dir: 1 | -1): number {
+  const lefts: number[] = [];
+  let total = 0;
+  for (const w of widths) {
+    lefts.push(total);
+    total += w;
+  }
+  const max = Math.max(0, total - visible);
+  const clamp = (x: number) => Math.min(max, Math.max(0, x));
+  if (dir === 1) {
+    let i = lefts.findIndex((left, k) => left + widths[k] > scrollLeft + visible + 1);
+    if (i < 0) return max;
+    if (lefts[i] <= scrollLeft + 1) i += 1;
+    return clamp(i < lefts.length ? lefts[i] : max);
+  }
+  let i = lefts.findIndex((left) => left >= scrollLeft - visible - 1);
+  if (i < 0) return 0;
+  if (lefts[i] >= scrollLeft - 1) i -= 1;
+  return clamp(i >= 0 ? lefts[i] : 0);
+}
+
 export function sameColumns(a: GridColumns | null, b: GridColumns | null): boolean {
   if (a === null || b === null) return a === b;
   return (

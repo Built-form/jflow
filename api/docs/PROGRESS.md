@@ -1665,8 +1665,40 @@ collapsible". Web only. Committed on `master`; **not pushed** (no word to deploy
   rail, and rail in scenario mode. Not yet seen on a real iPad.
 
 ### Deferred (suggested to Dev, not built)
-- The grid's "SCROLL DATES" bar is a native scrollbar, which iPadOS draws as a fading overlay,
-  so on a tablet the row is an empty track (a sideways swipe on the grid still scrolls).
-- The balance chart's read-out follows the mouse only (`onMouseMove`); no drag-to-scrub.
-- `title=` tooltips (bucket date ranges, clipped names, flag reasons) never show on touch.
-- No home-screen (standalone) setup for the desk app: no `apple-touch-icon` or manifest.
+- No home-screen (standalone) setup for the desk app: no `apple-touch-icon` or manifest. Google
+  sign-in in standalone mode on iOS needs trying on the device first.
+
+### Touch: date steps, chart read-out, tap titles (2026-11-20)
+
+Dev picked three of the suggestions above (the scroll bar, the chart, the hover titles). Web
+only. Committed on `master`; **not pushed**.
+
+- **Earlier / Later** (`ForecastGrid` `step`, `lib/grid.ts` `stepScroll`, tests first): the grid's
+  "SCROLL DATES" bar is a native scrollbar, which iPadOS draws only as a fading overlay, so on
+  a tablet the row was an empty track. Under `pointer: coarse` the bar is hidden and the row
+  (under Closing, in the pinned summary and at the foot) shows `‹ Earlier` and `Later ›`. A step
+  is a screenful, lands on a column's edge, scrolls smoothly unless reduced motion is asked
+  for, and the button at an end is disabled. A mouse still gets the scrollbar; a sideways
+  swipe on the grid still scrolls.
+- **Chart read-out** (`BalanceChart`): pointer events in place of mouse events. A finger pressed
+  on the chart shows the day's closing, and dragged sideways it follows the line; the
+  read-out stays after the finger lifts and a touch anywhere else clears it. To make room for
+  that the chart sets `touch-action: pan-y pinch-zoom`, so **a finger's sideways swipe on the
+  chart no longer scrolls the dates** (the grid's swipe and the steps do); up and down still
+  scrolls the page. Mouse, wheel and trackpad are unchanged.
+- **Tap titles** (`components/TapTitles.tsx`, mounted by the Shell): a finger or pencil tap on
+  anything with a hover `title` shows it in the hint box (`.hint-tip`) under it, on every
+  screen: a column's dates, "Dips to … on …", what a flag tag means, a line's date and notes.
+  The next tap, a scroll, a resize or Escape closes it. Kept quiet where a title adds nothing
+  to a tap: a control's own title (the tap presses it), a title that repeats text already
+  fully on show or sits inside a control (shown all the same when the text is cut short, so a
+  clipped name can be read in full), and anything marked `data-tap-title="off"` (the totals'
+  "Click to add to the sum"). A mouse keeps the browser's tooltip.
+- **Known rough edge**: a non-editable line's tip still ends "Ctrl-click to add to the sum",
+  which a tablet cannot do.
+- **Checks**: tsc clean; web vitest 529 / 530 (new: `stepScroll`, the grid's steps, the chart
+  under a finger, `TapTitles`; the one failure is the clock-bound `stock.test.tsx` "plans a
+  row …", as before); `npm run build` green. The scroll row looked at in headless Edge with a
+  touch pointer emulated (`--blink-settings=primaryPointerType=2`) and with a mouse, on a
+  temporary harness (removed). The drag and the taps are covered by tests only: not yet tried
+  on a real iPad.
