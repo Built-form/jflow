@@ -1787,3 +1787,11 @@ menu)". Web only. Pushed to the `test` branch only ("DEPLOY TO TEST"); remote `m
   with a 52px rail beside it: the bar runs from x = 52 to the window's edge and ends on the
   bottom edge, mid-page and at the page's end, with the sum bar clear above it; with a mouse
   it is not shown. Temporary harness, removed.
+
+### Compact date bar; everything pushed to live (2026-11-20)
+
+- Dev: "narrower / more compact". The touch date bar is about 45px tall (was 61): 4px padding,
+  36px buttons with 13px text; `--foot-bar` follows, so the sum bar still clears it.
+- Pushed to `master` at Dev's word ("deploy to live"), for Vercel to build production: the
+  date-step fix, the bottom bar, Add to Home Screen and the jflow → paypulse host redirect.
+  `test` already had all of them. Web only, no `deploy.sh`.
