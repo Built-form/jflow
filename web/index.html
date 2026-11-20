@@ -4,6 +4,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The old JFlow hosts move to their PayPulse twins (Dev, 2026-11-20), keeping the path,
+         query and hash. Inline and first, so it runs before anything else loads. `replace`
+         keeps the old host out of the back button. The session cookie lives on
+         .built-form.co.uk, so sign-in carries across. -->
+    <script>
+      (function () {
+        var moved = {
+          'jflow.built-form.co.uk': 'paypulse.built-form.co.uk',
+          'test-jflow.built-form.co.uk': 'test-paypulse.built-form.co.uk',
+        };
+        var to = moved[location.hostname.toLowerCase()];
+        if (to) location.replace('https://' + to + location.pathname + location.search + location.hash);
+      })();
+    </script>
     <!-- The plain name, for the instant before the bundle runs; main.tsx overwrites it
          with the environment-aware title from src/config/env.ts. -->
     <title>PayPulse</title>

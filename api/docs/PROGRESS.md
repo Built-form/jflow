@@ -1754,3 +1754,17 @@ web app. Web only, its own commit so it can be dropped alone. **Not pushed.**
 - The home-screen name is PayPulse on the test site too (the TEST strip still shows inside).
 - **Checks**: `npm run build` green and `dist/` carries the icons and a manifest that parses;
   tsc clean. Not something a test here can cover.
+
+### Old hosts redirect to PayPulse; all of today's changes pushed to test (2026-11-20)
+
+- **Redirect** (Dev's own edit to `web/index.html`, committed here): an inline script, first in
+  `<head>`, sends `jflow.built-form.co.uk` to `paypulse.built-form.co.uk` and
+  `test-jflow.built-form.co.uk` to `test-paypulse.built-form.co.uk`, keeping path, query and
+  hash. The session cookie is on `.built-form.co.uk`, so sign-in carries across. Both new
+  hosts resolve to Vercel (checked by DNS lookup). `test-paypulse` is not in
+  `PRODUCTION_HOSTS`, so it stays a test build. Outside the repo, for Dev: the origin
+  `https://test-paypulse.built-form.co.uk` on the Google OAuth client, or sign-in fails there.
+- **Pushed to the `test` branch only** at Dev's word ("deploy all changes to test"), for Vercel
+  to build the test site: the date-step fix and pinned pill, Add to Home Screen, and this
+  redirect. `master` on the remote is unchanged (production still has the fold and the first
+  touch changes only). Web only, no `deploy.sh`.
