@@ -1768,3 +1768,22 @@ web app. Web only, its own commit so it can be dropped alone. **Not pushed.**
   to build the test site: the date-step fix and pinned pill, Add to Home Screen, and this
   redirect. `master` on the remote is unchanged (production still has the fold and the first
   touch changes only). Web only, no `deploy.sh`.
+
+### Date steps: a bar across the bottom, not a pill (2026-11-20)
+
+Dev, on the test site, of the pill at the bottom left: "should span across bottom (but not side
+menu)". Web only. Pushed to the `test` branch only ("DEPLOY TO TEST"); remote `master` unchanged.
+
+- `.date-steps` is now a bar docked across the bottom of the content area (base.css): sticky at
+  the foot of `.page` with margins out to the page's edges and down over its bottom padding,
+  so it spans from the sidebar's edge to the window's, sits flush on the bottom, and at the
+  end of the page leaves the last row clear above it. `‹ Earlier` at the left end, `Later ›`
+  at the right, a small DATES label between. Still touch only, and only when the grid has
+  somewhere to scroll; a mouse keeps the scrollbar rows.
+- The sum bar floats above it: its offset adds `--foot-bar` (the bar's height, set on `.page`
+  under `pointer: coarse`).
+- **Checks**: tsc clean; web vitest 529 / 530 (the clock-bound `stock.test.tsx` "plans a row …",
+  as before); `npm run build` green. Measured and looked at in headless Edge, touch emulated,
+  with a 52px rail beside it: the bar runs from x = 52 to the window's edge and ends on the
+  bottom edge, mid-page and at the page's end, with the sum bar clear above it; with a mouse
+  it is not shown. Temporary harness, removed.

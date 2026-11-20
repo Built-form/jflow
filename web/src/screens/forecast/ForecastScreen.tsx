@@ -174,9 +174,9 @@ export function ForecastScreen() {
   const onColumns = useCallback((next: GridColumns) => setColumns((prev) => (sameColumns(prev, next) ? prev : next)), []);
   const chartScroll = useRef<HTMLDivElement>(null);
   const gridScroll = useRef<HTMLDivElement>(null);
-  // The grid's Earlier / Later steps for touch screens: its buttons, portalled into a pill
-  // this screen pins to the bottom of the window (Dev, 2026-11-20), so they are in reach
-  // beside the chart as well as the grid.
+  // The grid's Earlier / Later steps for touch screens: its buttons, portalled into a bar
+  // this screen docks across the bottom of the window (Dev, 2026-11-20), so they are in
+  // reach beside the chart as well as the grid.
   const [stepsSlot, setStepsSlot] = useState<HTMLDivElement | null>(null);
   const follow = (from: RefObject<HTMLDivElement | null>, to: RefObject<HTMLDivElement | null>) => () => {
     if (from.current && to.current && to.current.scrollLeft !== from.current.scrollLeft) to.current.scrollLeft = from.current.scrollLeft;

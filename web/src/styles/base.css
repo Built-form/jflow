@@ -1058,11 +1058,15 @@ select.input[data-active] {
   scrollbar-color: var(--acc) var(--accBd);
 }
 /* Under a finger there is no scrollbar to drag (iPadOS draws a fading overlay, so the bars
-   above are empty tracks): the scroll rows go, and the Forecast pins Earlier / Later to the
-   bottom of the window instead (ForecastScreen's `.date-steps`, filled by ForecastGrid's
-   `step`; Dev, 2026-11-20). Sticky inside `.page`, so the pill is in reach beside the chart
-   as well as the grid, and has its own place at the page's foot. A sideways swipe on the
-   grid still scrolls. With a mouse: the bars as before, no pill. */
+   above are empty tracks): the scroll rows go, and the Forecast docks Earlier / Later in a
+   bar across the bottom of the window instead (ForecastScreen's `.date-steps`, filled by
+   ForecastGrid's `step`; Dev, 2026-11-20: "should span across bottom (but not side menu)").
+   Sticky at the foot of `.page`, so it spans the content area and never the sidebar, and is
+   in reach beside the chart as well as the grid. The margins take it out to the edges of
+   the page's own padding (24px 32px 70px) and down over its foot, so at the end of the page
+   it sits on the bottom edge with the last row clear above it. `--foot-bar` is its height,
+   for what else floats at the foot (the sum bar). A sideways swipe on the grid still
+   scrolls. With a mouse: the scrollbar rows as before, no bar. */
 .date-steps {
   display: none;
 }
@@ -1070,24 +1074,39 @@ select.input[data-active] {
   .ledger tr.ledger-scroll-row {
     display: none;
   }
+  .page {
+    --foot-bar: 61px;
+  }
   .date-steps:not(:empty) {
     position: sticky;
-    bottom: 12px;
-    left: 0;
+    bottom: 0;
     z-index: 2;
-    align-self: flex-start;
     display: flex;
-    gap: 8px;
-    padding: 6px;
-    border: 1px solid var(--acc);
-    border-radius: calc(var(--radius) + 4px);
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 -32px -70px;
+    padding: 8px 32px calc(8px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line2);
     background: var(--raise);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 0 -6px 18px rgba(15, 27, 45, 0.08);
+  }
+  /* Says what the two ends step through. */
+  .date-steps:not(:empty)::before {
+    content: 'DATES';
+    order: 1;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--dim);
   }
   .date-steps .btn {
     min-height: 44px;
-    min-width: 96px;
+    min-width: 132px;
     box-shadow: none;
+  }
+  .date-steps .btn:last-child {
+    order: 2;
   }
 }
 

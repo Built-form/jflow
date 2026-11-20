@@ -3,10 +3,10 @@
   "suite": "Web unit tests",
   "command": "npm test (in web/)",
   "runner": "vitest 2.1.9",
-  "commit": "fe3323c",
+  "commit": "27e1651",
   "branch": "master",
-  "ranAt": "2026-11-20T14:39:50.187Z",
-  "durationMs": 8249,
+  "ranAt": "2026-11-20T14:52:33.304Z",
+  "durationMs": 8259,
   "totals": {
     "files": 33,
     "tests": 530,
@@ -19,7 +19,7 @@
     {
       "path": "src/app/shell.test.tsx",
       "status": "passed",
-      "durationMs": 2633,
+      "durationMs": 2135,
       "error": null,
       "tests": [
         {
@@ -28,7 +28,7 @@
           ],
           "name": "lists PayPulse's screens, in PLAN's order",
           "status": "passed",
-          "durationMs": 134,
+          "durationMs": 125,
           "messages": []
         },
         {
@@ -37,7 +37,7 @@
           ],
           "name": "/items is built (step 9), not a placeholder",
           "status": "passed",
-          "durationMs": 31,
+          "durationMs": 22,
           "messages": []
         },
         {
@@ -46,7 +46,7 @@
           ],
           "name": "/schedules is built (step 9), not a placeholder",
           "status": "passed",
-          "durationMs": 17,
+          "durationMs": 13,
           "messages": []
         },
         {
@@ -55,7 +55,7 @@
           ],
           "name": "offers the stock payments search in the sidebar on the Forecast only, under its nav entry (Dev, 2026-11-19)",
           "status": "passed",
-          "durationMs": 75,
+          "durationMs": 79,
           "messages": []
         },
         {
@@ -64,7 +64,7 @@
           ],
           "name": "carries the company filter from screen to screen",
           "status": "passed",
-          "durationMs": 33,
+          "durationMs": 41,
           "messages": []
         },
         {
@@ -73,7 +73,7 @@
           ],
           "name": "folds the sidebar to a rail and back, and remembers the choice (Dev, 2026-11-20)",
           "status": "passed",
-          "durationMs": 59,
+          "durationMs": 62,
           "messages": []
         },
         {
@@ -91,7 +91,7 @@
           ],
           "name": "lands on Forecast, and says so for an unknown address",
           "status": "passed",
-          "durationMs": 26,
+          "durationMs": 31,
           "messages": []
         }
       ]
@@ -99,7 +99,7 @@
     {
       "path": "src/components/PayDialog.test.tsx",
       "status": "passed",
-      "durationMs": 921,
+      "durationMs": 952,
       "error": null,
       "tests": [
         {
@@ -108,7 +108,7 @@
           ],
           "name": "opens paid today, for the whole remainder, with the rest due today",
           "status": "passed",
-          "durationMs": 2,
+          "durationMs": 1,
           "messages": []
         },
         {
@@ -117,7 +117,7 @@
           ],
           "name": "refuses a pay date in the future",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -225,7 +225,7 @@
           ],
           "name": "pre-fills the remainder date with today and says why, for a part-payment on something already due",
           "status": "passed",
-          "durationMs": 167,
+          "durationMs": 183,
           "messages": []
         },
         {
@@ -234,7 +234,7 @@
           ],
           "name": "keeps the confirm disabled for a future pay date and an amount above what remains",
           "status": "passed",
-          "durationMs": 21,
+          "durationMs": 19,
           "messages": []
         },
         {
@@ -243,7 +243,7 @@
           ],
           "name": "shows the remainder date when the server answers REMAINDER_DATE_REQUIRED, and sends it on the retry",
           "status": "passed",
-          "durationMs": 88,
+          "durationMs": 92,
           "messages": []
         }
       ]
@@ -251,7 +251,7 @@
     {
       "path": "src/components/TapTitles.test.tsx",
       "status": "passed",
-      "durationMs": 598,
+      "durationMs": 702,
       "error": null,
       "tests": [
         {
@@ -260,7 +260,7 @@
           ],
           "name": "shows a title on a finger tap, and puts it away on the next tap",
           "status": "passed",
-          "durationMs": 75,
+          "durationMs": 88,
           "messages": []
         },
         {
@@ -269,7 +269,7 @@
           ],
           "name": "a second tap on the same thing closes it; Escape and a scroll do too",
           "status": "passed",
-          "durationMs": 8,
+          "durationMs": 12,
           "messages": []
         },
         {
@@ -278,7 +278,7 @@
           ],
           "name": "leaves a mouse to the browser, and a swipe is not a tap",
           "status": "passed",
-          "durationMs": 2,
+          "durationMs": 3,
           "messages": []
         },
         {
@@ -287,7 +287,7 @@
           ],
           "name": "stays quiet where the title adds nothing to a tap",
           "status": "passed",
-          "durationMs": 12,
+          "durationMs": 14,
           "messages": []
         },
         {
@@ -296,7 +296,7 @@
           ],
           "name": "shows the whole of a name that is cut short, even inside a control",
           "status": "passed",
-          "durationMs": 6,
+          "durationMs": 5,
           "messages": []
         }
       ]
@@ -304,7 +304,7 @@
     {
       "path": "src/components/ui.test.ts",
       "status": "passed",
-      "durationMs": 113,
+      "durationMs": 106,
       "error": null,
       "tests": [
         {
@@ -328,9 +328,62 @@
       ]
     },
     {
+      "path": "src/config/env.test.ts",
+      "status": "passed",
+      "durationMs": 23,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "which environment this is"
+          ],
+          "name": "is production only on the named host, test everywhere else",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "which environment this is"
+          ],
+          "name": "titles the tab",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "where the API is"
+          ],
+          "name": "is nowhere while a stage is not deployed — never the other stage",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "where the API is"
+          ],
+          "name": "takes the override first, without a trailing slash",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "where the API is"
+          ],
+          "name": "uses the stage address once it exists",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        }
+      ]
+    },
+    {
       "path": "src/screens/CashAtBankScreen.test.tsx",
       "status": "passed",
-      "durationMs": 1412,
+      "durationMs": 1329,
       "error": null,
       "tests": [
         {
@@ -339,7 +392,7 @@
           ],
           "name": "is labelled \"Cash at bank at start of day\" and defaults to today (Europe/London)",
           "status": "passed",
-          "durationMs": 125,
+          "durationMs": 143,
           "messages": []
         },
         {
@@ -348,7 +401,7 @@
           ],
           "name": "saves every filled account in one bulk call, as DECIMAL strings for today",
           "status": "passed",
-          "durationMs": 65,
+          "durationMs": 80,
           "messages": []
         },
         {
@@ -357,7 +410,7 @@
           ],
           "name": "shows no combined figure when the accounts in view are not all GBP",
           "status": "passed",
-          "durationMs": 32,
+          "durationMs": 27,
           "messages": []
         },
         {
@@ -366,7 +419,7 @@
           ],
           "name": "keeps Save disabled while a row is wrong, and says which",
           "status": "passed",
-          "durationMs": 32,
+          "durationMs": 26,
           "messages": []
         }
       ]
@@ -374,7 +427,7 @@
     {
       "path": "src/lib/balances.test.ts",
       "status": "passed",
-      "durationMs": 91,
+      "durationMs": 59,
       "error": null,
       "tests": [
         {
@@ -392,7 +445,7 @@
           ],
           "name": "names the day, and says when it is today or yesterday",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -446,7 +499,7 @@
           ],
           "name": "sums the entry table in minor units, and says when it is incomplete",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -526,7 +579,7 @@
     {
       "path": "src/lib/dates.test.ts",
       "status": "passed",
-      "durationMs": 48,
+      "durationMs": 34,
       "error": null,
       "tests": [
         {
@@ -624,7 +677,7 @@
     {
       "path": "src/lib/grid.test.ts",
       "status": "passed",
-      "durationMs": 175,
+      "durationMs": 116,
       "error": null,
       "tests": [
         {
@@ -687,7 +740,7 @@
           ],
           "name": "places each line in the server's bucket and keeps every line of one key",
           "status": "passed",
-          "durationMs": 7,
+          "durationMs": 6,
           "messages": []
         },
         {
@@ -984,7 +1037,7 @@
           ],
           "name": "has nowhere to go when everything is on show",
           "status": "passed",
-          "durationMs": 0,
+          "durationMs": 1,
           "messages": []
         }
       ]
@@ -992,7 +1045,7 @@
     {
       "path": "src/lib/keys.test.ts",
       "status": "passed",
-      "durationMs": 383,
+      "durationMs": 36,
       "error": null,
       "tests": [
         {
@@ -1001,7 +1054,7 @@
           ],
           "name": "reads the four kinds",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 2,
           "messages": []
         },
         {
@@ -1010,7 +1063,7 @@
           ],
           "name": "reads a scenario add's `new.` key back to the adjustment id the server built it from (D39)",
           "status": "passed",
-          "durationMs": 0,
+          "durationMs": 1,
           "messages": []
         },
         {
@@ -1064,7 +1117,7 @@
           ],
           "name": "refuses \"item.1.5\"",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -1261,7 +1314,7 @@
     {
       "path": "src/lib/money.test.ts",
       "status": "passed",
-      "durationMs": 54,
+      "durationMs": 196,
       "error": null,
       "tests": [
         {
@@ -1395,7 +1448,7 @@
     {
       "path": "src/lib/ship.test.ts",
       "status": "passed",
-      "durationMs": 191,
+      "durationMs": 126,
       "error": null,
       "tests": [
         {
@@ -1404,7 +1457,7 @@
           ],
           "name": "reads the feed id of ship.bal-812-s311",
           "status": "passed",
-          "durationMs": 2,
+          "durationMs": 1,
           "messages": []
         },
         {
@@ -1557,7 +1610,7 @@
           ],
           "name": "hatches and italicises an estimated line, and only that",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -1772,7 +1825,7 @@
     {
       "path": "src/lib/validation.test.ts",
       "status": "passed",
-      "durationMs": 44,
+      "durationMs": 14,
       "error": null,
       "tests": [
         {
@@ -1868,52 +1921,52 @@
       ]
     },
     {
-      "path": "src/config/env.test.ts",
+      "path": "src/screens/items/grouping.test.ts",
       "status": "passed",
-      "durationMs": 74,
+      "durationMs": 38,
       "error": null,
       "tests": [
         {
           "ancestors": [
-            "which environment this is"
+            "groupByDerivedStatus"
           ],
-          "name": "is production only on the named host, test everywhere else",
+          "name": "groups by the server's derivedStatus, in display order, leaving empty groups out",
           "status": "passed",
           "durationMs": 1,
           "messages": []
         },
         {
           "ancestors": [
-            "which environment this is"
+            "groupByDerivedStatus"
           ],
-          "name": "titles the tab",
+          "name": "names the assumed-settled group and says what it means",
           "status": "passed",
           "durationMs": 0,
           "messages": []
         },
         {
           "ancestors": [
-            "where the API is"
+            "groupByDerivedStatus"
           ],
-          "name": "is nowhere while a stage is not deployed — never the other stage",
+          "name": "never drops a row: a band this client does not know gets its own group, last",
           "status": "passed",
           "durationMs": 0,
           "messages": []
         },
         {
           "ancestors": [
-            "where the API is"
+            "groupByDerivedStatus"
           ],
-          "name": "takes the override first, without a trailing slash",
+          "name": "knows every D10 value",
           "status": "passed",
           "durationMs": 0,
           "messages": []
         },
         {
           "ancestors": [
-            "where the API is"
+            "groupByDerivedStatus"
           ],
-          "name": "uses the stage address once it exists",
+          "name": "reads ?show= as a group id, or every group",
           "status": "passed",
           "durationMs": 0,
           "messages": []
@@ -1921,9 +1974,160 @@
       ]
     },
     {
+      "path": "src/screens/items/itemForm.test.ts",
+      "status": "passed",
+      "durationMs": 38,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "sends the amount as the DECIMAL string it parses to, never through a float",
+          "status": "passed",
+          "durationMs": 2,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "refuses amounts the API would: zero, negative, three decimals, thirteen digits",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "requires the category to go the same way as the item (D14)",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "defaults the currency to the account's, and upper-cases a typed one",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "validateItem"
+          ],
+          "name": "omits blank optional fields on create",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "itemChanges"
+          ],
+          "name": "sends only what changed — \"100\" is the same amount as \"100.00\"",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/items/ItemsScreen.test.tsx",
+      "status": "passed",
+      "durationMs": 1803,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "groups one-offs by the server's derivedStatus, with Assumed settled as its own group",
+          "status": "passed",
+          "durationMs": 150,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "lists the schedules' assumed instances alongside, and Didn't happen on one tunes that instance alone (Dev, 2026-10-07)",
+          "status": "passed",
+          "durationMs": 90,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "lists assumed one-offs however old, outside the window, from a second all-time read (Dev, 2026-10-07)",
+          "status": "passed",
+          "durationMs": 30,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "offers Confirm paid and Didn't happen only on assumed-settled items",
+          "status": "passed",
+          "durationMs": 48,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "Didn't happen explains itself, sends settleMode manual, and the row moves to the group the server answers",
+          "status": "passed",
+          "durationMs": 63,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "Confirm paid opens the pay dialog at the due date and replaces the row from the response",
+          "status": "passed",
+          "durationMs": 93,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "filters to the assumed-settled group from the URL-held filter",
+          "status": "passed",
+          "durationMs": 45,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "opens with the filter from ?show=",
+          "status": "passed",
+          "durationMs": 24,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "Income & outgoings"
+          ],
+          "name": "unpay confirms first, listing the payments it removes",
+          "status": "passed",
+          "durationMs": 70,
+          "messages": []
+        }
+      ]
+    },
+    {
       "path": "src/screens/forecast/addLine.test.ts",
       "status": "passed",
-      "durationMs": 80,
+      "durationMs": 86,
       "error": null,
       "tests": [
         {
@@ -2102,7 +2306,7 @@
     {
       "path": "src/screens/forecast/BalanceChart.test.ts",
       "status": "passed",
-      "durationMs": 55,
+      "durationMs": 109,
       "error": null,
       "tests": [
         {
@@ -2128,7 +2332,7 @@
     {
       "path": "src/screens/forecast/edit.test.ts",
       "status": "passed",
-      "durationMs": 178,
+      "durationMs": 119,
       "error": null,
       "tests": [
         {
@@ -2397,7 +2601,7 @@
     {
       "path": "src/screens/forecast/ForecastScreen.test.tsx",
       "status": "passed",
-      "durationMs": 4654,
+      "durationMs": 4347,
       "error": null,
       "tests": [
         {
@@ -2406,7 +2610,7 @@
           ],
           "name": "asks for the grid, every company, week buckets — and draws one line without a scenario",
           "status": "passed",
-          "durationMs": 256,
+          "durationMs": 245,
           "messages": []
         },
         {
@@ -2415,7 +2619,7 @@
           ],
           "name": "counts the starting-point accounts in capitals throughout: 2 ACCOUNTS, not 2 ACCOUNTs",
           "status": "passed",
-          "durationMs": 121,
+          "durationMs": 73,
           "messages": []
         },
         {
@@ -2424,7 +2628,7 @@
           ],
           "name": "takes the company from the URL",
           "status": "passed",
-          "durationMs": 63,
+          "durationMs": 77,
           "messages": []
         },
         {
@@ -2433,7 +2637,7 @@
           ],
           "name": "puts the Day / Week / Month toggle and the days picker side by side, below the chart and above the grid",
           "status": "passed",
-          "durationMs": 44,
+          "durationMs": 36,
           "messages": []
         },
         {
@@ -2442,7 +2646,7 @@
           ],
           "name": "offers Earlier / Later in the pill pinned to the window, for a touch screen with no scrollbar to drag (Dev, 2026-11-20)",
           "status": "passed",
-          "durationMs": 709,
+          "durationMs": 686,
           "messages": []
         },
         {
@@ -2451,7 +2655,7 @@
           ],
           "name": "flags negative cells: a closing below zero, and one whose bucket dips below zero",
           "status": "passed",
-          "durationMs": 122,
+          "durationMs": 121,
           "messages": []
         },
         {
@@ -2460,7 +2664,7 @@
           ],
           "name": "opens with categories collapsed, and a collapsed category says which of its lines need attention",
           "status": "passed",
-          "durationMs": 33,
+          "durationMs": 34,
           "messages": []
         },
         {
@@ -2478,7 +2682,7 @@
           ],
           "name": "hides a row or a category with its eye: re-reads without it, says what went, and shows everything again",
           "status": "passed",
-          "durationMs": 148,
+          "durationMs": 134,
           "messages": []
         },
         {
@@ -2487,7 +2691,7 @@
           ],
           "name": "renders every line of a key that appears several times — the payment and the remainder",
           "status": "passed",
-          "durationMs": 58,
+          "durationMs": 40,
           "messages": []
         },
         {
@@ -2496,7 +2700,7 @@
           ],
           "name": "shows the unresolved banner from the summary, listing unresolved[]",
           "status": "passed",
-          "durationMs": 60,
+          "durationMs": 41,
           "messages": []
         },
         {
@@ -2505,7 +2709,7 @@
           ],
           "name": "shows warnings[] in words",
           "status": "passed",
-          "durationMs": 53,
+          "durationMs": 44,
           "messages": []
         },
         {
@@ -2514,7 +2718,7 @@
           ],
           "name": "says which rate is missing when the forecast is refused with FX_RATE_MISSING",
           "status": "passed",
-          "durationMs": 11,
+          "durationMs": 19,
           "messages": []
         },
         {
@@ -2523,7 +2727,7 @@
           ],
           "name": "with no scenario, an edit changes the real one-off and the forecast is read again",
           "status": "passed",
-          "durationMs": 114,
+          "durationMs": 124,
           "messages": []
         },
         {
@@ -2532,7 +2736,7 @@
           ],
           "name": "with no scenario, an instance is tuned by its schedule id and natural date",
           "status": "passed",
-          "durationMs": 89,
+          "durationMs": 101,
           "messages": []
         },
         {
@@ -2542,7 +2746,7 @@
           ],
           "name": "draws the scenario and the baseline, shows the banner, and the delta row",
           "status": "passed",
-          "durationMs": 52,
+          "durationMs": 43,
           "messages": []
         },
         {
@@ -2552,7 +2756,7 @@
           ],
           "name": "writes an adjustment instead of real data — the whole change against the baseline",
           "status": "passed",
-          "durationMs": 99,
+          "durationMs": 109,
           "messages": []
         },
         {
@@ -2562,7 +2766,7 @@
           ],
           "name": "refuses a date before today in the dialog, and shows the server refusal when one comes",
           "status": "passed",
-          "durationMs": 101,
+          "durationMs": 114,
           "messages": []
         },
         {
@@ -2572,7 +2776,7 @@
           ],
           "name": "closes from the banner and goes back to the real plan",
           "status": "passed",
-          "durationMs": 81,
+          "durationMs": 100,
           "messages": []
         },
         {
@@ -2582,7 +2786,7 @@
           ],
           "name": "offers \"Add a one-off…\" only on a draft, and posts the add from its dialog (D39)",
           "status": "passed",
-          "durationMs": 81,
+          "durationMs": 85,
           "messages": []
         },
         {
@@ -2592,7 +2796,7 @@
           ],
           "name": "offers no \"Add a one-off…\" on a scenario that is not a draft",
           "status": "passed",
-          "durationMs": 19,
+          "durationMs": 25,
           "messages": []
         },
         {
@@ -2602,7 +2806,7 @@
           ],
           "name": "splits a line into parts from its edit dialog, and posts them to …/split (D40)",
           "status": "passed",
-          "durationMs": 107,
+          "durationMs": 133,
           "messages": []
         },
         {
@@ -2612,7 +2816,7 @@
           ],
           "name": "shows a split's refusal in the line's currency",
           "status": "passed",
-          "durationMs": 91,
+          "durationMs": 126,
           "messages": []
         },
         {
@@ -2622,7 +2826,7 @@
           ],
           "name": "a scenario's own one-off: only in this scenario, nothing to leave out, and an edit sends the add whole, note kept",
           "status": "passed",
-          "durationMs": 101,
+          "durationMs": 127,
           "messages": []
         },
         {
@@ -2632,7 +2836,7 @@
           ],
           "name": "a split's anchor undoes the whole split; a part removes itself alone",
           "status": "passed",
-          "durationMs": 173,
+          "durationMs": 181,
           "messages": []
         },
         {
@@ -2641,7 +2845,7 @@
           ],
           "name": "offers no \"Add a one-off…\" without a scenario open",
           "status": "passed",
-          "durationMs": 27,
+          "durationMs": 32,
           "messages": []
         },
         {
@@ -2650,7 +2854,7 @@
           ],
           "name": "draws both lines when a scenario is open, and one when not",
           "status": "passed",
-          "durationMs": 2,
+          "durationMs": 4,
           "messages": []
         },
         {
@@ -2659,7 +2863,7 @@
           ],
           "name": "reads the line out under a finger, and keeps it until a touch elsewhere (Dev, 2026-11-20)",
           "status": "passed",
-          "durationMs": 10,
+          "durationMs": 12,
           "messages": []
         }
       ]
@@ -2667,7 +2871,7 @@
     {
       "path": "src/screens/forecast/moveContainer.test.ts",
       "status": "passed",
-      "durationMs": 161,
+      "durationMs": 134,
       "error": null,
       "tests": [
         {
@@ -2928,7 +3132,7 @@
           ],
           "name": "goes one after another, in order, and reports each as it finishes",
           "status": "passed",
-          "durationMs": 22,
+          "durationMs": 12,
           "messages": []
         },
         {
@@ -2981,7 +3185,7 @@
     {
       "path": "src/screens/forecast/ShipForecast.test.tsx",
       "status": "passed",
-      "durationMs": 6423,
+      "durationMs": 6521,
       "error": null,
       "tests": [
         {
@@ -2990,7 +3194,7 @@
           ],
           "name": "render from the server flags: estimated hatched and italic, blocked and planned marked, no mark for a derived amount, the name as sent",
           "status": "passed",
-          "durationMs": 320,
+          "durationMs": 304,
           "messages": []
         },
         {
@@ -2999,7 +3203,7 @@
           ],
           "name": "marks a SHIP_PLAN_STALE line and lists it; lists a SHIP_PLAN_ORPHANED plan with a way to clear it",
           "status": "passed",
-          "durationMs": 116,
+          "durationMs": 96,
           "messages": []
         },
         {
@@ -3008,7 +3212,7 @@
           ],
           "name": "says why SHIP_UNMAPPED rows are left out: no company linked, no company in shipping, no account to land on",
           "status": "passed",
-          "durationMs": 84,
+          "durationMs": 93,
           "messages": []
         },
         {
@@ -3017,7 +3221,7 @@
           ],
           "name": "chooses a company for payments with none in shipping, then re-reads the forecast (§10.11a)",
           "status": "passed",
-          "durationMs": 155,
+          "durationMs": 138,
           "messages": []
         },
         {
@@ -3026,7 +3230,7 @@
           ],
           "name": "sends an unresolved stock payment to the Stock payments screen",
           "status": "passed",
-          "durationMs": 54,
+          "durationMs": 53,
           "messages": []
         },
         {
@@ -3035,7 +3239,7 @@
           ],
           "name": "shows the last sync, open, undated with its £ total, and unmapped counts",
           "status": "passed",
-          "durationMs": 56,
+          "durationMs": 57,
           "messages": []
         },
         {
@@ -3044,7 +3248,7 @@
           ],
           "name": "says a feed that has never succeeded has never synced",
           "status": "passed",
-          "durationMs": 43,
+          "durationMs": 40,
           "messages": []
         },
         {
@@ -3053,7 +3257,7 @@
           ],
           "name": "posts a refresh, then reads the forecast again",
           "status": "passed",
-          "durationMs": 62,
+          "durationMs": 49,
           "messages": []
         },
         {
@@ -3062,7 +3266,7 @@
           ],
           "name": "says so when another refresh was already running (ran: false), and still reads again",
           "status": "passed",
-          "durationMs": 82,
+          "durationMs": 83,
           "messages": []
         },
         {
@@ -3071,7 +3275,7 @@
           ],
           "name": "shows a failed refresh (503 SHIPPING_UNAVAILABLE) with its reason and the snapshot still in use, and does not re-read",
           "status": "passed",
-          "durationMs": 115,
+          "durationMs": 96,
           "messages": []
         },
         {
@@ -3080,7 +3284,7 @@
           ],
           "name": "shows the reason and the last successful sync",
           "status": "passed",
-          "durationMs": 60,
+          "durationMs": 61,
           "messages": []
         },
         {
@@ -3089,7 +3293,7 @@
           ],
           "name": "says there are no stock payments when the feed has never synced",
           "status": "passed",
-          "durationMs": 39,
+          "durationMs": 35,
           "messages": []
         },
         {
@@ -3098,7 +3302,7 @@
           ],
           "name": "is absent when the refresh was fine",
           "status": "passed",
-          "durationMs": 44,
+          "durationMs": 59,
           "messages": []
         },
         {
@@ -3107,7 +3311,7 @@
           ],
           "name": "opening the category shows one row per container with its summed figure; a container opens to its suppliers, a supplier to its payments; Expand all opens every level",
           "status": "passed",
-          "durationMs": 113,
+          "durationMs": 100,
           "messages": []
         },
         {
@@ -3116,7 +3320,7 @@
           ],
           "name": "a container's eye hides every payment in it",
           "status": "passed",
-          "durationMs": 45,
+          "durationMs": 42,
           "messages": []
         },
         {
@@ -3125,7 +3329,7 @@
           ],
           "name": "opens the matching containers, suppliers and payments and shows only those; commas find several; Escape closes it all again",
           "status": "passed",
-          "durationMs": 66,
+          "durationMs": 53,
           "messages": []
         },
         {
@@ -3134,7 +3338,7 @@
           ],
           "name": "a new search opens only what it finds, whatever the last one opened or you closed; what you had open before is kept",
           "status": "passed",
-          "durationMs": 85,
+          "durationMs": 68,
           "messages": []
         },
         {
@@ -3143,7 +3347,7 @@
           ],
           "name": "reads the search from the link (?ship=), as Stock payments sends it",
           "status": "passed",
-          "durationMs": 39,
+          "durationMs": 33,
           "messages": []
         },
         {
@@ -3152,7 +3356,7 @@
           ],
           "name": "reads the row on open, and shows shipping's date and amount next to the planned ones, with the note",
           "status": "passed",
-          "durationMs": 135,
+          "durationMs": 115,
           "messages": []
         },
         {
@@ -3161,7 +3365,7 @@
           ],
           "name": "writes PUT /external-items/:key with only what changed and the row version, then reads the forecast again",
           "status": "passed",
-          "durationMs": 182,
+          "durationMs": 123,
           "messages": []
         },
         {
@@ -3170,7 +3374,7 @@
           ],
           "name": "clears the existing note with null",
           "status": "passed",
-          "durationMs": 148,
+          "durationMs": 163,
           "messages": []
         },
         {
@@ -3179,7 +3383,7 @@
           ],
           "name": "\"Use shipping's\" date clears the pinned date, so the line follows shipping again",
           "status": "passed",
-          "durationMs": 162,
+          "durationMs": 146,
           "messages": []
         },
         {
@@ -3188,7 +3392,7 @@
           ],
           "name": "pins a date equal to shipping's when the row already has a plan",
           "status": "passed",
-          "durationMs": 130,
+          "durationMs": 162,
           "messages": []
         },
         {
@@ -3197,7 +3401,7 @@
           ],
           "name": "pins shipping's own date on a planned row that follows it",
           "status": "passed",
-          "durationMs": 177,
+          "durationMs": 198,
           "messages": []
         },
         {
@@ -3206,7 +3410,7 @@
           ],
           "name": "skips a line",
           "status": "passed",
-          "durationMs": 139,
+          "durationMs": 152,
           "messages": []
         },
         {
@@ -3215,7 +3419,7 @@
           ],
           "name": "reverts to the feed with DELETE and the row version, offered only on a planned row",
           "status": "passed",
-          "durationMs": 202,
+          "durationMs": 236,
           "messages": []
         },
         {
@@ -3224,7 +3428,7 @@
           ],
           "name": "points to Revert to feed, and sends nothing, when an edit would leave no plan (the server's 400 \"Nothing to plan\")",
           "status": "passed",
-          "durationMs": 143,
+          "durationMs": 154,
           "messages": []
         },
         {
@@ -3233,7 +3437,7 @@
           ],
           "name": "refuses a planned date before today, and an amount that is not a DECIMAL above zero, before the click",
           "status": "passed",
-          "durationMs": 97,
+          "durationMs": 126,
           "messages": []
         },
         {
@@ -3242,7 +3446,7 @@
           ],
           "name": "on 409 STALE_WRITE, reads the row again and saves against the new version",
           "status": "passed",
-          "durationMs": 164,
+          "durationMs": 212,
           "messages": []
         },
         {
@@ -3251,7 +3455,7 @@
           ],
           "name": "says so when the row cannot be read on open (gone), with nothing to save",
           "status": "passed",
-          "durationMs": 104,
+          "durationMs": 138,
           "messages": []
         },
         {
@@ -3260,7 +3464,7 @@
           ],
           "name": "shows a 404 TARGET_MISSING refusal in words, and keeps the dialog open",
           "status": "passed",
-          "durationMs": 139,
+          "durationMs": 202,
           "messages": []
         },
         {
@@ -3269,7 +3473,7 @@
           ],
           "name": "shows a 409 TARGET_SETTLED refusal in words, and keeps the dialog open",
           "status": "passed",
-          "durationMs": 143,
+          "durationMs": 174,
           "messages": []
         },
         {
@@ -3278,7 +3482,7 @@
           ],
           "name": "shows a 422 PLANNED_DATE_IN_PAST refusal in words, and keeps the dialog open",
           "status": "passed",
-          "durationMs": 105,
+          "durationMs": 126,
           "messages": []
         },
         {
@@ -3287,7 +3491,7 @@
           ],
           "name": "the plan dialog says who set shipping's date, in place of what, and tags the row",
           "status": "passed",
-          "durationMs": 85,
+          "durationMs": 124,
           "messages": []
         },
         {
@@ -3296,7 +3500,7 @@
           ],
           "name": "the scenario edit dialog says the same from the line's ship block, and a moved date says where from",
           "status": "passed",
-          "durationMs": 118,
+          "durationMs": 120,
           "messages": []
         },
         {
@@ -3305,7 +3509,7 @@
           ],
           "name": "writes an adjustment like any other line, and still shows what shipping says",
           "status": "passed",
-          "durationMs": 98,
+          "durationMs": 118,
           "messages": []
         },
         {
@@ -3314,7 +3518,7 @@
           ],
           "name": "is offered on a container only while a draft scenario is open, and never on \"No container\" or one with nothing left to move",
           "status": "passed",
-          "durationMs": 125,
+          "durationMs": 160,
           "messages": []
         },
         {
@@ -3323,7 +3527,7 @@
           ],
           "name": "shifts every payment by the same days: one adjustment each, in date order, then the forecast is read again",
           "status": "passed",
-          "durationMs": 84,
+          "durationMs": 98,
           "messages": []
         },
         {
@@ -3332,7 +3536,7 @@
           ],
           "name": "holds the move back while the days are not a number, and says why",
           "status": "passed",
-          "durationMs": 66,
+          "durationMs": 93,
           "messages": []
         },
         {
@@ -3341,7 +3545,7 @@
           ],
           "name": "puts the ticked payments on one date, and leaves an unticked one where it is",
           "status": "passed",
-          "durationMs": 80,
+          "durationMs": 140,
           "messages": []
         },
         {
@@ -3350,7 +3554,7 @@
           ],
           "name": "unticks and ticks them all at once",
           "status": "passed",
-          "durationMs": 66,
+          "durationMs": 104,
           "messages": []
         },
         {
@@ -3359,7 +3563,7 @@
           ],
           "name": "says what moved and what did not when one payment is refused, and reads the forecast again on closing",
           "status": "passed",
-          "durationMs": 105,
+          "durationMs": 133,
           "messages": []
         },
         {
@@ -3368,7 +3572,7 @@
           ],
           "name": "stops at a refusal of the scenario itself and names the payments never sent",
           "status": "passed",
-          "durationMs": 78,
+          "durationMs": 94,
           "messages": []
         },
         {
@@ -3377,7 +3581,7 @@
           ],
           "name": "lists the whole container even while a search shows only part of it",
           "status": "passed",
-          "durationMs": 42,
+          "durationMs": 71,
           "messages": []
         }
       ]
@@ -3385,7 +3589,7 @@
     {
       "path": "src/screens/forecast/shipPlan.test.ts",
       "status": "passed",
-      "durationMs": 188,
+      "durationMs": 125,
       "error": null,
       "tests": [
         {
@@ -3394,7 +3598,7 @@
           ],
           "name": "knows the feed figures, the overlay as stored, the note and the version",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 2,
           "messages": []
         },
         {
@@ -3726,7 +3930,7 @@
     {
       "path": "src/screens/forecast/split.test.ts",
       "status": "passed",
-      "durationMs": 101,
+      "durationMs": 50,
       "error": null,
       "tests": [
         {
@@ -3885,446 +4089,9 @@
       ]
     },
     {
-      "path": "src/screens/items/grouping.test.ts",
-      "status": "passed",
-      "durationMs": 114,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "groups by the server's derivedStatus, in display order, leaving empty groups out",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "names the assumed-settled group and says what it means",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "never drops a row: a band this client does not know gets its own group, last",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "knows every D10 value",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "groupByDerivedStatus"
-          ],
-          "name": "reads ?show= as a group id, or every group",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/items/itemForm.test.ts",
-      "status": "passed",
-      "durationMs": 46,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "sends the amount as the DECIMAL string it parses to, never through a float",
-          "status": "passed",
-          "durationMs": 2,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "refuses amounts the API would: zero, negative, three decimals, thirteen digits",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "requires the category to go the same way as the item (D14)",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "defaults the currency to the account's, and upper-cases a typed one",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "validateItem"
-          ],
-          "name": "omits blank optional fields on create",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "itemChanges"
-          ],
-          "name": "sends only what changed — \"100\" is the same amount as \"100.00\"",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/items/ItemsScreen.test.tsx",
-      "status": "passed",
-      "durationMs": 1858,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "groups one-offs by the server's derivedStatus, with Assumed settled as its own group",
-          "status": "passed",
-          "durationMs": 133,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "lists the schedules' assumed instances alongside, and Didn't happen on one tunes that instance alone (Dev, 2026-10-07)",
-          "status": "passed",
-          "durationMs": 89,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "lists assumed one-offs however old, outside the window, from a second all-time read (Dev, 2026-10-07)",
-          "status": "passed",
-          "durationMs": 32,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "offers Confirm paid and Didn't happen only on assumed-settled items",
-          "status": "passed",
-          "durationMs": 37,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "Didn't happen explains itself, sends settleMode manual, and the row moves to the group the server answers",
-          "status": "passed",
-          "durationMs": 57,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "Confirm paid opens the pay dialog at the due date and replaces the row from the response",
-          "status": "passed",
-          "durationMs": 87,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "filters to the assumed-settled group from the URL-held filter",
-          "status": "passed",
-          "durationMs": 42,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "opens with the filter from ?show=",
-          "status": "passed",
-          "durationMs": 23,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "Income & outgoings"
-          ],
-          "name": "unpay confirms first, listing the payments it removes",
-          "status": "passed",
-          "durationMs": 84,
-          "messages": []
-        }
-      ]
-    },
-    {
-      "path": "src/screens/scenarios/scenarios.test.tsx",
-      "status": "passed",
-      "durationMs": 1962,
-      "error": null,
-      "tests": [
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "BASE_CHANGED shows its word, what happened and the fix",
-          "status": "passed",
-          "durationMs": 18,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "TARGET_SETTLED shows its word, what happened and the fix",
-          "status": "passed",
-          "durationMs": 2,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "TARGET_MISSING shows its word, what happened and the fix",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "DATE_PASSED shows its word, what happened and the fix",
-          "status": "passed",
-          "durationMs": 1,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "names each of the four reasons differently, and says rebase fixes only BASE_CHANGED",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "marks each adjustment on the scenario with its own reason",
-          "status": "passed",
-          "durationMs": 81,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "stale markers"
-          ],
-          "name": "names and prices a target outside the forecast window from the server's `current` (§6.11)",
-          "status": "passed",
-          "durationMs": 31,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "apply"
-          ],
-          "name": "surfaces SCENARIO_STALE: every key and its reason, and that nothing was written",
-          "status": "passed",
-          "durationMs": 126,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "apply"
-          ],
-          "name": "on success, says what was written and closes the scenario if it was open",
-          "status": "passed",
-          "durationMs": 48,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario's one-offs and splits (D39, D40)"
-          ],
-          "name": "lists an add by its own name, as a one-off on a date, not in the real plan",
-          "status": "passed",
-          "durationMs": 18,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario's one-offs and splits (D39, D40)"
-          ],
-          "name": "marks the split's anchor SPLIT and its part SPLIT PART",
-          "status": "passed",
-          "durationMs": 9,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario's one-offs and splits (D39, D40)"
-          ],
-          "name": "says what a stale add means: its account or category went",
-          "status": "passed",
-          "durationMs": 19,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario's one-offs and splits (D39, D40)"
-          ],
-          "name": "removing the anchor warns that the parts go too, and the list loses them",
-          "status": "passed",
-          "durationMs": 31,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario's one-offs and splits (D39, D40)"
-          ],
-          "name": "removing a one-off asks about it by name and leaves the rest",
-          "status": "passed",
-          "durationMs": 24,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "un-apply (D41)"
-          ],
-          "name": "offers \"Un-apply…\" on an applied scenario, posts it with the version read, and the scenario is a draft again",
-          "status": "passed",
-          "durationMs": 40,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "un-apply (D41)"
-          ],
-          "name": "lists every blocked line with its reason when SCENARIO_UNAPPLY_BLOCKED refuses it, and reads the scenario again",
-          "status": "passed",
-          "durationMs": 31,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "un-apply (D41)"
-          ],
-          "name": "names the four reasons",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "refusals in words"
-          ],
-          "name": "SCENARIO_NOT_APPLIED says only an applied scenario can be un-applied",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "refusals in words"
-          ],
-          "name": "SPLIT_AMOUNTS_MISMATCH prices both figures in the line's currency, or gives them as sent",
-          "status": "passed",
-          "durationMs": 0,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario that is not a draft"
-          ],
-          "name": "says so, offers no rebase or apply, and asks for no comparison",
-          "status": "passed",
-          "durationMs": 9,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "a scenario that is not a draft"
-          ],
-          "name": "surfaces SCENARIO_NOT_DRAFT when the server says it changed under us",
-          "status": "passed",
-          "durationMs": 37,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "rebase"
-          ],
-          "name": "sends dropStale, keeps what was not dropped, and says what happened",
-          "status": "passed",
-          "durationMs": 55,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the effect on the forecast"
-          ],
-          "name": "shows the baseline against the scenario, and the delta per bucket from deltaByBucket",
-          "status": "passed",
-          "durationMs": 11,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the scenarios list"
-          ],
-          "name": "opens a scenario into the context and goes to the forecast",
-          "status": "passed",
-          "durationMs": 27,
-          "messages": []
-        },
-        {
-          "ancestors": [
-            "the scenarios list"
-          ],
-          "name": "creates, duplicates and deletes",
-          "status": "passed",
-          "durationMs": 79,
-          "messages": []
-        }
-      ]
-    },
-    {
       "path": "src/screens/schedules/ScheduleDialog.test.tsx",
       "status": "passed",
-      "durationMs": 1339,
+      "durationMs": 1047,
       "error": null,
       "tests": [
         {
@@ -4333,7 +4100,7 @@
           ],
           "name": "says so before the click and offers \"Split from…\" carrying the change",
           "status": "passed",
-          "durationMs": 144,
+          "durationMs": 163,
           "messages": []
         },
         {
@@ -4342,7 +4109,7 @@
           ],
           "name": "still edits descriptive fields in place, sending only those",
           "status": "passed",
-          "durationMs": 98,
+          "durationMs": 97,
           "messages": []
         },
         {
@@ -4351,7 +4118,7 @@
           ],
           "name": "shows the server's SCHEDULE_STRUCTURE_LOCKED with its reason and the same call to action",
           "status": "passed",
-          "durationMs": 45,
+          "durationMs": 60,
           "messages": []
         }
       ]
@@ -4359,7 +4126,7 @@
     {
       "path": "src/screens/schedules/scheduleForm.test.ts",
       "status": "passed",
-      "durationMs": 113,
+      "durationMs": 374,
       "error": null,
       "tests": [
         {
@@ -4448,7 +4215,7 @@
     {
       "path": "src/screens/schedules/ScheduleScreen.test.tsx",
       "status": "passed",
-      "durationMs": 1550,
+      "durationMs": 1506,
       "error": null,
       "tests": [
         {
@@ -4457,7 +4224,7 @@
           ],
           "name": "shows where it was split from, and from when it is active",
           "status": "passed",
-          "durationMs": 169,
+          "durationMs": 180,
           "messages": []
         },
         {
@@ -4466,7 +4233,7 @@
           ],
           "name": "asks for instances in a bounded window, and groups them by the server's derivedStatus",
           "status": "passed",
-          "durationMs": 15,
+          "durationMs": 22,
           "messages": []
         },
         {
@@ -4475,7 +4242,7 @@
           ],
           "name": "Didn't happen on an assumed-settled instance tunes its settle mode to manual",
           "status": "passed",
-          "durationMs": 66,
+          "durationMs": 73,
           "messages": []
         },
         {
@@ -4484,7 +4251,7 @@
           ],
           "name": "explains OVERRIDE_HAS_PAYMENT when a revert is refused",
           "status": "passed",
-          "durationMs": 58,
+          "durationMs": 66,
           "messages": []
         },
         {
@@ -4493,7 +4260,7 @@
           ],
           "name": "pays an instance through the shared pay dialog, keyed by its natural date",
           "status": "passed",
-          "durationMs": 46,
+          "durationMs": 49,
           "messages": []
         }
       ]
@@ -4501,7 +4268,7 @@
     {
       "path": "src/screens/schedules/SplitWizard.test.tsx",
       "status": "passed",
-      "durationMs": 1533,
+      "durationMs": 1508,
       "error": null,
       "tests": [
         {
@@ -4510,7 +4277,7 @@
           ],
           "name": "offers only natural dates after the first active one, starting at the next one",
           "status": "passed",
-          "durationMs": 103,
+          "durationMs": 116,
           "messages": []
         },
         {
@@ -4519,7 +4286,7 @@
           ],
           "name": "turns SCHEDULE_HAS_OVERRIDES, then SCHEDULE_HAS_ADJUSTMENTS, into confirmations and resends with both flags",
           "status": "passed",
-          "durationMs": 179,
+          "durationMs": 162,
           "messages": []
         },
         {
@@ -4528,7 +4295,7 @@
           ],
           "name": "turns SCHEDULE_HAS_PAYMENTS into a refusal listing the dates, with nothing to resend",
           "status": "passed",
-          "durationMs": 34,
+          "durationMs": 36,
           "messages": []
         },
         {
@@ -4546,7 +4313,7 @@
           ],
           "name": "carries structural changes over from the edit dialog",
           "status": "passed",
-          "durationMs": 10,
+          "durationMs": 14,
           "messages": []
         },
         {
@@ -4555,7 +4322,240 @@
           ],
           "name": "ends after the chosen instance, confirming adjustments with dropAdjustments",
           "status": "passed",
-          "durationMs": 77,
+          "durationMs": 87,
+          "messages": []
+        }
+      ]
+    },
+    {
+      "path": "src/screens/scenarios/scenarios.test.tsx",
+      "status": "passed",
+      "durationMs": 1884,
+      "error": null,
+      "tests": [
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "BASE_CHANGED shows its word, what happened and the fix",
+          "status": "passed",
+          "durationMs": 21,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "TARGET_SETTLED shows its word, what happened and the fix",
+          "status": "passed",
+          "durationMs": 3,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "TARGET_MISSING shows its word, what happened and the fix",
+          "status": "passed",
+          "durationMs": 2,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "DATE_PASSED shows its word, what happened and the fix",
+          "status": "passed",
+          "durationMs": 1,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "names each of the four reasons differently, and says rebase fixes only BASE_CHANGED",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "marks each adjustment on the scenario with its own reason",
+          "status": "passed",
+          "durationMs": 83,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "stale markers"
+          ],
+          "name": "names and prices a target outside the forecast window from the server's `current` (§6.11)",
+          "status": "passed",
+          "durationMs": 17,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "apply"
+          ],
+          "name": "surfaces SCENARIO_STALE: every key and its reason, and that nothing was written",
+          "status": "passed",
+          "durationMs": 153,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "apply"
+          ],
+          "name": "on success, says what was written and closes the scenario if it was open",
+          "status": "passed",
+          "durationMs": 50,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario's one-offs and splits (D39, D40)"
+          ],
+          "name": "lists an add by its own name, as a one-off on a date, not in the real plan",
+          "status": "passed",
+          "durationMs": 20,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario's one-offs and splits (D39, D40)"
+          ],
+          "name": "marks the split's anchor SPLIT and its part SPLIT PART",
+          "status": "passed",
+          "durationMs": 11,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario's one-offs and splits (D39, D40)"
+          ],
+          "name": "says what a stale add means: its account or category went",
+          "status": "passed",
+          "durationMs": 12,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario's one-offs and splits (D39, D40)"
+          ],
+          "name": "removing the anchor warns that the parts go too, and the list loses them",
+          "status": "passed",
+          "durationMs": 27,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario's one-offs and splits (D39, D40)"
+          ],
+          "name": "removing a one-off asks about it by name and leaves the rest",
+          "status": "passed",
+          "durationMs": 30,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "un-apply (D41)"
+          ],
+          "name": "offers \"Un-apply…\" on an applied scenario, posts it with the version read, and the scenario is a draft again",
+          "status": "passed",
+          "durationMs": 67,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "un-apply (D41)"
+          ],
+          "name": "lists every blocked line with its reason when SCENARIO_UNAPPLY_BLOCKED refuses it, and reads the scenario again",
+          "status": "passed",
+          "durationMs": 30,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "un-apply (D41)"
+          ],
+          "name": "names the four reasons",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "refusals in words"
+          ],
+          "name": "SCENARIO_NOT_APPLIED says only an applied scenario can be un-applied",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "refusals in words"
+          ],
+          "name": "SPLIT_AMOUNTS_MISMATCH prices both figures in the line's currency, or gives them as sent",
+          "status": "passed",
+          "durationMs": 0,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario that is not a draft"
+          ],
+          "name": "says so, offers no rebase or apply, and asks for no comparison",
+          "status": "passed",
+          "durationMs": 11,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "a scenario that is not a draft"
+          ],
+          "name": "surfaces SCENARIO_NOT_DRAFT when the server says it changed under us",
+          "status": "passed",
+          "durationMs": 35,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "rebase"
+          ],
+          "name": "sends dropStale, keeps what was not dropped, and says what happened",
+          "status": "passed",
+          "durationMs": 48,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the effect on the forecast"
+          ],
+          "name": "shows the baseline against the scenario, and the delta per bucket from deltaByBucket",
+          "status": "passed",
+          "durationMs": 7,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the scenarios list"
+          ],
+          "name": "opens a scenario into the context and goes to the forecast",
+          "status": "passed",
+          "durationMs": 22,
+          "messages": []
+        },
+        {
+          "ancestors": [
+            "the scenarios list"
+          ],
+          "name": "creates, duplicates and deletes",
+          "status": "passed",
+          "durationMs": 79,
           "messages": []
         }
       ]
@@ -4563,7 +4563,7 @@
     {
       "path": "src/screens/settings/dialogs.test.tsx",
       "status": "passed",
-      "durationMs": 1522,
+      "durationMs": 1467,
       "error": null,
       "tests": [
         {
@@ -4572,7 +4572,7 @@
           ],
           "name": "refuses GBP — the base currency is always 1 and never entered (D3)",
           "status": "passed",
-          "durationMs": 127,
+          "durationMs": 156,
           "messages": []
         },
         {
@@ -4581,7 +4581,7 @@
           ],
           "name": "sends a valid rate at six decimals",
           "status": "passed",
-          "durationMs": 83,
+          "durationMs": 85,
           "messages": []
         },
         {
@@ -4590,7 +4590,7 @@
           ],
           "name": "stays disabled until the code and name are valid, and names the problem once typed",
           "status": "passed",
-          "durationMs": 20,
+          "durationMs": 24,
           "messages": []
         },
         {
@@ -4599,7 +4599,7 @@
           ],
           "name": "on edit, sends only what changed, with the row version it read",
           "status": "passed",
-          "durationMs": 74,
+          "durationMs": 69,
           "messages": []
         }
       ]
@@ -4607,7 +4607,7 @@
     {
       "path": "src/screens/settings/shipping.test.tsx",
       "status": "passed",
-      "durationMs": 1532,
+      "durationMs": 1488,
       "error": null,
       "tests": [
         {
@@ -4616,7 +4616,7 @@
           ],
           "name": "offers the feed's companies from GET /external/status, saying which is already mapped",
           "status": "passed",
-          "durationMs": 51,
+          "durationMs": 50,
           "messages": []
         },
         {
@@ -4625,7 +4625,7 @@
           ],
           "name": "writes PUT /companies/:id {shippingCompanyId} with the row version, and shows the row the server answered",
           "status": "passed",
-          "durationMs": 29,
+          "durationMs": 28,
           "messages": []
         },
         {
@@ -4643,7 +4643,7 @@
           ],
           "name": "surfaces 409 SHIPPING_COMPANY_TAKEN, naming the company that holds it, and leaves the mapping as it was",
           "status": "passed",
-          "durationMs": 16,
+          "durationMs": 19,
           "messages": []
         },
         {
@@ -4652,7 +4652,7 @@
           ],
           "name": "notes a feed that has never synced, and refreshes it from here",
           "status": "passed",
-          "durationMs": 65,
+          "durationMs": 88,
           "messages": []
         },
         {
@@ -4661,7 +4661,7 @@
           ],
           "name": "says an unconfigured feed is not set up, with nothing to refresh",
           "status": "passed",
-          "durationMs": 5,
+          "durationMs": 16,
           "messages": []
         },
         {
@@ -4670,7 +4670,7 @@
           ],
           "name": "still lets a mapping be cleared when the status read fails",
           "status": "passed",
-          "durationMs": 10,
+          "durationMs": 16,
           "messages": []
         },
         {
@@ -4697,7 +4697,7 @@
           ],
           "name": "keeps its direction fixed in the edit dialog; the name still edits",
           "status": "passed",
-          "durationMs": 47,
+          "durationMs": 59,
           "messages": []
         }
       ]
@@ -4705,7 +4705,7 @@
     {
       "path": "src/screens/stock/filters.test.ts",
       "status": "passed",
-      "durationMs": 62,
+      "durationMs": 70,
       "error": null,
       "tests": [
         {
@@ -4723,7 +4723,7 @@
           ],
           "name": "finds a supplier, a PO, a container and what the row is",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -4876,7 +4876,7 @@
           ],
           "name": "reads every filter and the sort, and ignores what is not valid",
           "status": "passed",
-          "durationMs": 1,
+          "durationMs": 0,
           "messages": []
         },
         {
@@ -4893,7 +4893,7 @@
     {
       "path": "src/screens/stock/stock.test.tsx",
       "status": "failed",
-      "durationMs": 3710,
+      "durationMs": 3440,
       "error": null,
       "tests": [
         {
@@ -4930,7 +4930,7 @@
           ],
           "name": "says this page plans the real payment, not the scenario, and links each payment on the Forecast to it there",
           "status": "passed",
-          "durationMs": 216,
+          "durationMs": 191,
           "messages": []
         },
         {
@@ -4940,7 +4940,7 @@
           ],
           "name": "without one, the page says nothing of scenarios and offers no link",
           "status": "passed",
-          "durationMs": 50,
+          "durationMs": 33,
           "messages": []
         },
         {
@@ -4958,7 +4958,7 @@
           ],
           "name": "marks a date set by hand in shipping as ShipLine does, says who and what it replaced, and says when shipping moved a date",
           "status": "passed",
-          "durationMs": 31,
+          "durationMs": 24,
           "messages": []
         },
         {
@@ -4967,7 +4967,7 @@
           ],
           "name": "says when and from what date shipping moved a payment only while DATE MOVED is hovered or clicked",
           "status": "passed",
-          "durationMs": 36,
+          "durationMs": 33,
           "messages": []
         },
         {
@@ -4976,7 +4976,7 @@
           ],
           "name": "plans a row with its note and row version known, and replaces it from the answer",
           "status": "failed",
-          "durationMs": 1069,
+          "durationMs": 1058,
           "messages": [
             "expected <div role=\"dialog\" …(4)>…(1)</div> to be null\n\nIgnored nodes: comments, script, style\n\u001b[36m<html>\u001b[39m\n  \u001b[36m<head />\u001b[39m\n  \u001b[36m<body>\u001b[39m\n    \u001b[36m<div>\u001b[39m\n      \u001b[36m<div\u001b[39m\n        \u001b[33mclass\u001b[39m=\u001b[32m\"page\"\u001b[39m\n        \u001b[33mstyle\u001b[39m=\u001b[32m\"max-width: 1240px;\"\u001b[39m\n      \u001b[36m>\u001b[39m\n        \u001b[36m<header\u001b[39m\n          \u001b[33mclass\u001b[39m=\u001b[32m\"page-header\"\u001b[39m\n          \u001b[33mrole\u001b[39m=\u001b[32m\"banner\"\u001b[39m\n        \u001b[36m>\u001b[39m\n          \u001b[36m<div\u001b[39m\n            \u001b[33mclass\u001b[39m=\u001b[32m\"head-row\"\u001b[39m\n          \u001b[36m>\u001b[39m\n            \u001b[36m<div\u001b[39m\n              \u001b[33mstyle\u001b[39m=\u001b[32m\"display: flex; flex-direction: column; gap: 5px; min-width: 0px;\"\u001b[39m\n            \u001b[36m>\u001b[39m\n              \u001b[36m<h1\u001b[39m\n                \u001b[33mclass\u001b[39m=\u001b[32m\"page-title\"\u001b[39m\n              \u001b[36m>\u001b[39m\n                \u001b[0mStock payments\u001b[0m\n              \u001b[36m</h1>\u001b[39m\n              \u001b[36m<div\u001b[39m\n                \u001b[33mclass\u001b[39m=\u001b[32m\"explainer\"\u001b[39m\n                \u001b[33mdata-info-text\u001b[39m=\u001b[32m\"whole\"\u001b[39m\n                \u001b[33mstyle\u001b[39m=\u001b[32m\"display: flex; gap: 6px; align-items: flex-start;\"\u001b[39m\n              \u001b[36m>\u001b[39m\n                \u001b[36m<span\u001b[39m\n                  \u001b[33mstyle\u001b[39m=\u001b[32m\"flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 18px; height: 1lh; min-height: 1.5em; margin-left: -2px; color: var(--dim);\"\u001b[39m\n                \u001b[36m>\u001b[39m\n                  \u001b[36m<svg\u001b[39m\n                    \u001b[33maria-hidden\u001b[39m=\u001b[32m\"true\"\u001b[39m\n                    \u001b[33mheight\u001b[39m=\u001b[32m\"14\"\u001b[39m\n                    \u001b[33mstyle\u001b[39m=\u001b[32m\"display: block;\"\u001b[39m\n                    \u001b[33mviewBox\u001b[39m=\u001b[32m\"0 0 16 16\"\u001b[39m\n                    \u001b[33mwidth\u001b[39m=\u001b[32m\"14\"\u001b[39m\n                  \u001b[36m>\u001b[39m\n                    \u001b[36m<circle\u001b[39m\n                      \u001b[33mcx\u001b[39m=\u001b[32m\"8\"\u001b[39m\n                      \u001b[33mcy\u001b[39m=\u001b[32m\"8\"\u001b[39m\n                      \u001b[33mfill\u001b[39m=\u001b[32m\"none\"\u001b[39m\n                      \u001b[33mr\u001b[39m=\u001b[32m\"6.9\"\u001b[39m\n                      \u001b[33mstroke\u001b[39m=\u001b[32m\"currentColor\"\u001b[39m\n                      \u001b[33mstroke-width\u001b[39m=\u001b[32m\"1.4\"\u001b[39m\n                    \u001b[36m/>\u001b[39m\n                    \u001b[36m<circle\u001b[39m\n                      \u001b[33mcx\u001b[39m=\u001b[32m\"8\"\u001b[39m\n                      \u001b[33mcy\u001b[39m=\u001b[32m\"4.9\"\u001b[39m\n                      \u001b[33mfill\u001b[39m=\u001b[32m\"currentColor\"\u001b[39m\n                      \u001b[33mr\u001b[39m=\u001b[32m\"1\"\u001b[39m\n                    \u001b[36m/>\u001b[39m\n                    \u001b[36m<path\u001b[39m\n                      \u001b[33md\u001b[39m=\u001b[32m\"M8 7.2v4.6\"\u001b[39m\n                      \u001b[33mstroke\u001b[39m=\u001b[32m\"currentColor\"\u001b[39m\n                      \u001b[33mstroke-linecap\u001b[39m=\u001b[32m\"round\"\u001b[39m\n                      \u001b[33mstroke-width\u001b[39m=\u001b[32m\"1.6\"\u001b[39m\n                    \u001b[36m/>\u001b[39m\n                  \u001b[36m</svg>\u001b[39m\n                \u001b[36m</span>\u001b[39m\n                \u001b[36m<span\u001b[39m\n                  \u001b[33mstyle\u001b[39m=\u001b[32m\"flex: 1 1 0%; min-width: 0px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden;\"\u001b[39m\n                \u001b[36m>\u001b[39m\n                  \u001b[0mSupplier deposits and balances from shipping. Shipping owns the figures; PayPulse can plan its own date or amount on top, or skip one, and can always revert to what shipping says.\u001b[0m\n                \u001b[36m</span>\u001b[39m\n              \u001b[36m</div>\u001b[39m\n            \u001b[36m</div>\u001b[39m\n            \u001b[36m<div\u001b[39m\n              \u001b[33mclass\u001b[39m=\u001b[32m\"page-header-actions\"\u001b[39m\n            \u001b[36m>\u001b[39m\n              \u001b[36m<label\u001b[39m\n                \u001b[33mstyle\u001b[39m=\u001b[32m\"display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--mut);\"\u001b[39m\n              \u001b[36m>\u001b[39m\n                \u001b[36m<span\u001b[39m\n                  \u001b[33mclass\u001b[39m=\u001b[32m\"kicker\"\u001b[39m\n                \u001b[36m>\u001b[39m\n                  \u001b[0mCOMPANY\u001b[0m\n                \u001b[36m</span>\u001b[39m\n                \u001b[36m<select\u001b[39m\n                  \u001b[33maria-label\u001b[39m=\u001b[32m\"Company\"\u001b[39m\n                  \u001b[33mclass\u001b[39m=\u001b[32m\"input\"\u001b[39m\n                \u001b[36m>\u001b[39m\n                  \u001b[36m<option\u001b[39m\n                    \u001b[33mvalue\u001b[39m=\u001b[32m\"all\"\u001b[39m\n                  \u001b[36m>\u001b[39m\n                    \u001b[0mAll companies\u001b[0m\n                  \u001b[36m</option>\u001b[39m\n                \u001b[36m</select>\u001b[39m\n              \u001b[36m</label>\u001b[39m\n            \u001b[36m</div>\u001b[39m\n          \u001b[36m</div>\u001b[39m\n        \u001b[36m</header>\u001b[39m\n        \u001b[36m<div\u001b[39m\n          \u001b[33mstyle\u001b[39m=\u001b[32m\"display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12.5px; color: var(--mut);\"\u001b[39m\n        \u001b[36m>\u001b[39m\n          \u001b[36m<span\u001b[39m\n            \u001b[33mclass\u001b[39m=\u001b[32m\"kicker\"\u001b[39m\n          \u001b[36m>\u001b[39m\n            \u001b[0mFEED\u001b[0m\n          \u001b[36m</span>\u001b[39m\n          \u001b[36m<span\u001b[39m\n            \u001b[33mclass\u001b[39m=\u001b[32m\"mono\"\u001b[39m\n            \u001b[33mdata-testid\u001b[39m=\u001b[32m\"stock-feed-line\"\u001b[39m\n          \u001b[36m>\u001b[39m\n            \u001b[0mLast synced 29 Sep 2026, 13:00 · 7 rows\u001b[0m\n          \u001b[36m</span>\u001b[39m\n          \u001b[36m<button\u001b[39m\n            \u001b[33mclass\u001b[39m=\u001b[32m\"btn\"\u001b[39m\n            \u001b[33mtype\u001b[39m=\u001b[32m\"button\"\u001b[39m\n          \u001b[36m>\u001b[39m\n            \u001b[0mRefresh now\u001b[0m\n          \u001b[36m</button>\u001b[39m\n        \u001b[36m</div>\u001b[39m\n        \u001b[36m<div\u001b[39m\n          \u001b[33maria-label\u001b[39m=\u001b[32m\"Stock payments\"\u001b[39m\n          \u001b[33mrole\u001b[39m=\u001b[32m\"search\"\u001b[39m\n          \u001b[33mstyle\u001b[39m=\u001b[32m\"display: flex; flex-direction: column; gap: 10px;\"\u001b[39m\n        \u001b[36m>\u001b[39m\n          \u001b[36m<div\u001b[39m\n            \u001b[33mstyle\u001b[39m=\u001b[32m\"display: flex; gap: 10px; align-items: center; flex-wrap: wrap;\"\u001b[39m\n          \u001b[36m>\u001b[39m\n            \u001b[36m<input\u001b[39m\n              \u001b[33maria-label\u001b[39m=\u001b[32m\"Search stock payments\"\u001b[39m\n              \u001b[33mclass\u001b[39m=\u001b[32m\"input\"\u001b[39m\n              \u001b[33mplaceholder\u001b[39m=\u001b[32m\"Search supplier, PO, container, note, amount or date\"\u001b[39m\n              \u001b[33mstyle\u001b[39m=\u001b[32m\"flex: 1 1 320px; min-width: 0px; max-width: 560px;\"\u001b[39m\n              \u001b[33mtype\u001b[39m=\u001b[32m\"search\"\u001b[39m\n              \u001b[33mvalue\u001b[39m=\u001b[32m\"\"\u001b[39m\n            \u001b[36m/>\u001b[39m\n            \u001b[36m<label\u001b[39m\n              \u001b[33mstyle\u001b[39m=\u001b[32m\"display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mut);\"\u001b[39m\n            \u001b[36m>\u001b[39m\n              \u001b[0mFrom\u001b[0m\n              \u001b[36m<input\u001b[39m\n                \u001b[33mclass\u001b[39m=\u001b[32m\"input mono\"\u001b[39m\n                \u001b[33mtype\u001b[39m=\u001b[32m\"date\"\u001b[39m\n                \u001b[33mvalue\u001b[39m=\u001b[32m\"\"\u001b[39m\n              \u001b[36m/>\u001b[39m\n            \u001b[36m</label>\u001b[39m\n            \u001b[36m<label\u001b[39m\n              \u001b[33mstyle\u001b[39m=\u001b[32m\"display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mut);\"\u001b[39m\n            \u001b[36m>\u001b[39m\n              \u001b[0mTo\u001b[0m\n              \u001b[36m<input\u001b[39m\n                \u001b[33mclass\u001b[39m=\u001b[32m\"input mono\"\u001b[39m\n                \u001b[33mtype\u001b[39m=\u001b[32m\"date\"\u001b[39m\n                \u001b[33mvalue\u001b[39m=\u001b[32m\"\"\u001b[39m\n              \u001b[36m/>\u001b[39m\n            \u001b[36m</label>\u001b[39m\n          \u001b[36m</div>\u001b[39m\n          \u001b[36m<div\u001b[39m\n            \u001b[33mstyle\u001b[39m=\u001b[32m\"display: flex; gap: 10px; align-items: center; flex-wrap: wrap;\"\u001b[39m\n          \u001b[36m>\u001b[39m\n            \u001b[36m<selec...\n- Expected: \nnull\n\n+ Received: \n<div\n  aria-label=\"Acme Textiles · PO-812 · balance\"\n  aria-modal=\"true\"\n  class=\"dialog-overlay\"\n  role=\"dialog\"\n  style=\"position: fixed; inset: 0px; background: rgba(10, 14, 18, 0.6); display: flex; align-items: center; justify-content: center; padding: 26px; z-index: 40;\"\n>\n  <div\n    class=\"dialog-panel\"\n    style=\"background: var(--panel); border: 1px solid var(--line2); border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 560px; max-width: 100%; max-height: 100%; overflow: auto;\"\n  >\n    <div\n      style=\"padding: 19px 21px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; align-items: flex-start;\"\n    >\n      <div\n        style=\"display: flex; flex-direction: column; gap: 5px;\"\n      >\n        <div\n          class=\"kicker\"\n        >\n          STOCK PAYMENT · PLAN\n        </div>\n        <div\n          style=\"font-size: 20.5px; font-weight: 600; letter-spacing: -0.015em;\"\n        >\n          Acme Textiles · PO-812 · balance\n        </div>\n      </div>\n      <button\n        aria-label=\"Close\"\n        style=\"border: 1px solid var(--line); border-radius: 7px; background: var(--panel2); width: 28px; height: 28px; font-size: 16px; cursor: pointer; flex: 0 0 auto; padding: 0px;\"\n        type=\"button\"\n      >\n        ×\n      </button>\n    </div>\n    <div\n      style=\"padding: 18px 21px; display: flex; flex-direction: column; gap: 15px;\"\n    >\n      <div\n        style=\"font-size: 14.5px; color: var(--mut); line-height: 1.65;\"\n      >\n        <div\n          style=\"display: flex; flex-direction: column; gap: 6px;\"\n        >\n          <div\n            data-testid=\"ship-feed\"\n          >\n            Shipping says \n            <span\n              class=\"mono\"\n              style=\"color: var(--text);\"\n            >\n              $1,500.00\n            </span>\n             on \n            Tue 13 Oct 2026\n            .\n          </div>\n          <div\n            style=\"font-size: 13px;\"\n          >\n            Waiting on artwork sign-off.\n          </div>\n          <div\n            style=\"display: flex; gap: 6px; flex-wrap: wrap; align-items: center;\"\n          >\n            <span\n              class=\"mono\"\n              style=\"font-size: 12px; color: var(--dim);\"\n            >\n              ship.bal-812-s311\n            </span>\n            <span\n              class=\"tag\"\n              style=\"border-color: var(--warnBd); background: var(--warnBg); color: var(--warn);\"\n            >\n              BLOCKED\n            </span>\n          </div>\n        </div>\n      </div>\n      <button\n        aria-checked=\"false\"\n        role=\"switch\"\n        style=\"border-top: 1px solid var(--line); border-right: 0px; border-bottom: 0px; border-left: 0px; border-image: none; background: transparent; padding: 11px 2px; display: flex; gap: 11px; align-items: flex-start; text-align: left; cursor: pointer; width: 100%;\"\n        type=\"button\"\n      >\n        <span\n          style=\"width: 32px; height: 18px; border-radius: 999px; background: var(--line2); flex: 0 0 auto; padding: 2px; display: block; transition: background-color 160ms ease;\"\n        >\n          <span\n            style=\"width: 14px; height: 14px; border-radius: 999px; display: block; background: var(--panel); transform: translateX(0); transition: transform 160ms var(--ease-out-strong), background-color 160ms ease;\"\n          />\n        </span>\n        <span\n          style=\"display: flex; flex-direction: column; gap: 2px;\"\n        >\n          <span\n            style=\"font-size: 14px;\"\n          >\n            Skip it\n          </span>\n          <span\n            style=\"font-size: 12.5px; color: var(--dim); line-height: 1.5;\"\n          >\n            Leave it out of the forecast until you unskip it or revert to the feed.\n          </span>\n        </span>\n      </button>\n      <div\n        style=\"display: flex; flex-direction: column; gap: 6px;\"\n      >\n        <div\n          class=\"mono\"\n          style=\"font-size: 11px; letter-spacing: 0.1em; color: var(--dim);\"\n        >\n          AMOUNT · USD\n        </div>\n        <div\n          style=\"display: flex; gap: 8px; align-items: center; flex-wrap: wrap;\"\n        >\n          <input\n            aria-label=\"Amount\"\n            class=\"input mono\"\n            inputmode=\"decimal\"\n            style=\"width: auto; background: var(--panel2); flex: 1 1 160px;\"\n            value=\"1500.00\"\n          />\n        </div>\n      </div>\n      <div\n        style=\"display: flex; flex-direction: column; gap: 6px;\"\n      >\n        <div\n          class=\"mono\"\n          style=\"font-size: 11px; letter-spacing: 0.1em; color: var(--dim);\"\n        >\n          DATE\n        </div>\n        <div\n          style=\"display: flex; gap: 8px; flex-wrap: wrap; align-items: center;\"\n        >\n          <input\n            aria-label=\"Date\"\n            class=\"input mono\"\n            min=\"2026-11-20\"\n            type=\"date\"\n            value=\"2026-10-27\"\n          />\n          <button\n            aria-label=\"Move to Fri 27 Nov 2026 (+7 days)\"\n            class=\"btn\"\n            title=\"Fri 27 Nov 2026\"\n            type=\"button\"\n          >\n            +\n            7\n          </button>\n          <button\n            aria-label=\"Move to Fri 4 Dec 2026 (+14 days)\"\n            class=\"btn\"\n            title=\"Fri 4 Dec 2026\"\n            type=\"button\"\n          >\n            +\n            14\n          </button>\n          <button\n            aria-label=\"Move to Sun 20 Dec 2026 (+30 days)\"\n            class=\"btn\"\n            title=\"Sun 20 Dec 2026\"\n            type=\"button\"\n          >\n            +\n            30\n          </button>\n          <button\n            class=\"btn\"\n            type=\"button\"\n          >\n            Use shipping's (\n            13 Oct\n            )\n          </button>\n        </div>\n        <div\n          data-testid=\"ship-date-mode\"\n          style=\"font-size: 12.5px; color: var(--mut);\"\n        >\n          Pinned: it stays on this date whatever shipping says. Today or later.\n        </div>\n        <div\n          style=\"font-size: 12.5px; color: var(--mut);\"\n        >\n          From \n          13 Oct\n           to \n          27 Oct\n          .\n        </div>\n        <div\n          role=\"alert\"\n          style=\"font-size: 12.5px; color: var(--fail); line-height: 1.5;\"\n        >\n          A planned date must be today or later.\n        </div>\n      </div>\n      <div\n        style=\"display: flex; flex-direction: column; gap: 6px;\"\n      >\n        <div\n          class=\"mono\"\n          style=\"font-size: 11px; letter-spacing: 0.1em; color: var(--dim);\"\n        >\n          NOTE\n        </div>\n        <input\n          aria-label=\"Note\"\n          class=\"input\"\n          maxlength=\"550\"\n          style=\"width: 100%; background: var(--panel2);\"\n          value=\"\"\n        />\n        <div\n          style=\"font-size: 12.5px; color: var(--dim); line-height: 1.5;\"\n        >\n          Optional. Clear it to remove it.\n        </div>\n      </div>\n      <div\n        style=\"border: 1px solid var(--warnBd); border-radius: 9px; background: var(--warnBg); padding: 12px 14px; font-size: 14px; color: var(--text); line-height: 1.6;\"\n      >\n        This plans the real stock payment in PayPulse. Shipping is not changed: PayPulse uses your date and amount until you revert to the feed. To try it out first, open a scenario.\n      </div>\n    </div>\n    <div\n      style=\"padding: 15px 21px; border-top: 1px solid var(--line); display: flex; gap: 9px; justify-content: flex-end;\"\n    >\n      <button\n        class=\"btn\"\n        style=\"padding: 11px 15px; font-size: 14.5px;\"\n        type=\"button\"\n      >\n        Not now\n      </button>\n      <button\n        class=\"btn-primary\"\n        disabled=\"\"\n        style=\"padding: 11px 18px;\"\n        type=\"button\"\n      >\n        Save the plan\n      </button>\n    </div>\n  </div>\n</div>\nAssertionError: expected <div role=\"dialog\" …(4)>…(1)</div> to be null\n\nIgnored nodes: comments, script, style\n<html>\n  <head />\n  <body>\n    <div>\n      <div\n        class=\"page\"\n        style=\"max-width: 1240px;\"\n      >\n        <header\n          class=\"page-header\"\n          role=\"banner\"\n        >\n          <div\n            class=\"head-row\"\n          >\n            <div\n              style=\"display: flex; flex-direction: column; gap: 5px; min-width: 0px;\"\n            >\n              <h1\n                class=\"page-title\"\n              >\n                Stock payments\n              </h1>\n              <div\n                class=\"explainer\"\n                data-info-text=\"whole\"\n                style=\"display: flex; gap: 6px; align-items: flex-start;\"\n              >\n                <span\n                  style=\"flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 18px; height: 1lh; min-height: 1.5em; margin-left: -2px; color: var(--dim);\"\n                >\n                  <svg\n                    aria-hidden=\"true\"\n                    height=\"14\"\n                    style=\"display: block;\"\n                    viewBox=\"0 0 16 16\"\n                    width=\"14\"\n                  >\n                    <circle\n                      cx=\"8\"\n                      cy=\"8\"\n                      fill=\"none\"\n                      r=\"6.9\"\n                      stroke=\"currentColor\"\n                      stroke-width=\"1.4\"\n                    />\n                    <circle\n                      cx=\"8\"\n                      cy=\"4.9\"\n                      fill=\"currentColor\"\n                      r=\"1\"\n                    />\n                    <path\n                      d=\"M8 7.2v4.6\"\n                      stroke=\"currentColor\"\n                      stroke-linecap=\"round\"\n                      stroke-width=\"1.6\"\n                    />\n                  </svg>\n                </span>\n                <span\n                  style=\"flex: 1 1 0%; min-width: 0px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden;\"\n                >\n                  Supplier deposits and balances from shipping. Shipping owns the figures; PayPulse can plan its own date or amount on top, or skip one, and can always revert to what shipping says.\n                </span>\n              </div>\n            </div>\n            <div\n              class=\"page-header-actions\"\n            >\n              <label\n                style=\"display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--mut);\"\n              >\n                <span\n                  class=\"kicker\"\n                >\n                  COMPANY\n                </span>\n                <select\n                  aria-label=\"Company\"\n                  class=\"input\"\n                >\n                  <option\n                    value=\"all\"\n                  >\n                    All companies\n                  </option>\n                </select>\n              </label>\n            </div>\n          </div>\n        </header>\n        <div\n          style=\"display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12.5px; color: var(--mut);\"\n        >\n          <span\n            class=\"kicker\"\n          >\n            FEED\n          </span>\n          <span\n            class=\"mono\"\n            data-testid=\"stock-feed-line\"\n          >\n            Last synced 29 Sep 2026, 13:00 · 7 rows\n          </span>\n          <button\n            class=\"btn\"\n            type=\"button\"\n          >\n            Refresh now\n          </button>\n        </div>\n        <div\n          aria-label=\"Stock payments\"\n          role=\"search\"\n          style=\"display: flex; flex-direction: column; gap: 10px;\"\n        >\n          <div\n            style=\"display: flex; gap: 10px; align-items: center; flex-wrap: wrap;\"\n          >\n            <input\n              aria-label=\"Search stock payments\"\n              class=\"input\"\n              placeholder=\"Search supplier, PO, container, note, amount or date\"\n              style=\"flex: 1 1 320px; min-width: 0px; max-width: 560px;\"\n              type=\"search\"\n              value=\"\"\n            />\n            <label\n              style=\"display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mut);\"\n            >\n              From\n              <input\n                class=\"input mono\"\n                type=\"date\"\n                value=\"\"\n              />\n            </label>\n            <label\n              style=\"display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--mut);\"\n            >\n              To\n              <input\n                class=\"input mono\"\n                type=\"date\"\n                value=\"\"\n              />\n            </label>\n          </div>\n          <div\n            style=\"display: flex; gap: 10px; align-items: center; flex-wrap: wrap;\"\n          >\n            <selec...\n    at c:\\Users\\OpsLondon\\jflow\\web\\src\\screens\\stock\\stock.test.tsx:242:62\n    at runWithExpensiveErrorDiagnosticsDisabled (c:\\Users\\OpsLondon\\jflow\\web\\node_modules\\@testing-library\\dom\\dist\\config.js:47:12)\n    at checkCallback (c:\\Users\\OpsLondon\\jflow\\web\\node_modules\\@testing-library\\dom\\dist\\wait-for.js:124:77)\n    at Timeout.checkRealTimersCallback (c:\\Users\\OpsLondon\\jflow\\web\\node_modules\\@testing-library\\dom\\dist\\wait-for.js:118:16)\n    at listOnTimeout (node:internal/timers:605:17)\n    at processTimers (node:internal/timers:541:7)"
           ]
@@ -4987,7 +4987,7 @@
           ],
           "name": "chooses the company of a payment shipping gives none, from its dialog (§10.11a)",
           "status": "passed",
-          "durationMs": 83,
+          "durationMs": 35,
           "messages": []
         },
         {
@@ -4996,7 +4996,7 @@
           ],
           "name": "a payment shipping gives a company has no company picker",
           "status": "passed",
-          "durationMs": 38,
+          "durationMs": 22,
           "messages": []
         },
         {
@@ -5005,7 +5005,7 @@
           ],
           "name": "unskips a skipped row from here (it is not on the Forecast)",
           "status": "passed",
-          "durationMs": 70,
+          "durationMs": 62,
           "messages": []
         },
         {
@@ -5014,7 +5014,7 @@
           ],
           "name": "shows gone rows on request, and clears a plan left on one",
           "status": "passed",
-          "durationMs": 36,
+          "durationMs": 44,
           "messages": []
         },
         {
@@ -5023,7 +5023,7 @@
           ],
           "name": "searches by supplier, PO or container, says how many it shows, and clears",
           "status": "passed",
-          "durationMs": 89,
+          "durationMs": 66,
           "messages": []
         },
         {
@@ -5032,7 +5032,7 @@
           ],
           "name": "narrows by date range, kind, currency and account, and says when nothing matches",
           "status": "passed",
-          "durationMs": 108,
+          "durationMs": 111,
           "messages": []
         },
         {
@@ -5041,7 +5041,7 @@
           ],
           "name": "sorts inside each section from the column headings, and again to reverse",
           "status": "passed",
-          "durationMs": 77,
+          "durationMs": 94,
           "messages": []
         },
         {
@@ -5050,7 +5050,7 @@
           ],
           "name": "opens on the view in the link",
           "status": "passed",
-          "durationMs": 17,
+          "durationMs": 19,
           "messages": []
         },
         {
@@ -5059,7 +5059,7 @@
           ],
           "name": "totals each section per currency, from the amounts it shows",
           "status": "passed",
-          "durationMs": 11,
+          "durationMs": 16,
           "messages": []
         }
       ]

@@ -232,7 +232,8 @@ function SumBar({ picked, onClear }: { picked: ReadonlyMap<string, Picked>; onCl
       data-testid="sum-bar"
       style={{
         position: 'sticky',
-        bottom: 12,
+        // Clear of the touch date bar docked at the window's foot (base.css `--foot-bar`).
+        bottom: 'calc(12px + var(--foot-bar, 0px))',
         zIndex: 2,
         alignSelf: 'flex-end',
         marginLeft: 'auto',
@@ -452,7 +453,7 @@ export function ForecastGrid({
   useEffect(markEdge, [view]);
   // A touch screen draws no scrollbar to drag (iPadOS shows a fading overlay), so there the
   // screen offers Earlier / Later instead (Dev, 2026-11-20): two buttons in the screen's
-  // `stepsSlot`, pinned to the bottom of the window, shown on `pointer: coarse` (base.css
+  // `stepsSlot`, a bar across the bottom of the window, shown on `pointer: coarse` (base.css
   // `.date-steps`, which also drops the scroll rows there). A step is a screenful, landing on
   // a column's edge (`stepScroll`).
   //
