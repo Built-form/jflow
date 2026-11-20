@@ -1666,8 +1666,7 @@ Vercel to build production; no `deploy.sh`. The `test` branch was not pushed.
   rail, and rail in scenario mode. Not yet seen on a real iPad.
 
 ### Deferred (suggested to Dev, not built)
-- No home-screen (standalone) setup for the desk app: no `apple-touch-icon` or manifest. Google
-  sign-in in standalone mode on iOS needs trying on the device first.
+- Home-screen (standalone) setup: built later the same day, see "Add to Home Screen" below.
 
 ### Touch: date steps, chart read-out, tap titles (2026-11-20)
 
@@ -1731,3 +1730,27 @@ be pinned to bottom window?". Web only. Committed on `master`; **not pushed**.
   time (headless "virtual time" does not run a smooth scroll at all, so it cannot show this
   bug), touch emulated and with a mouse, on a temporary harness (removed). Not yet on a real
   iPad.
+
+### Add to Home Screen on iOS (2026-11-20)
+
+Dev: "what about pinning on ios - do that too", after asking what a real iOS app would take
+(the answer given: a home-screen web app first; a Capacitor wrapper is about 1-2 weeks plus
+Apple setup and native Google sign-in; a native rewrite is months). Read as the home-screen
+web app. Web only, its own commit so it can be dropped alone. **Not pushed.**
+
+- `web/index.html`: `apple-touch-icon`, a manifest link, `apple-mobile-web-app-capable` (and
+  `mobile-web-app-capable`), and the home-screen name PayPulse. Opened from the icon the app
+  runs full screen, without Safari's bars.
+- `web/public/`: `apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png` (the coral
+  heartbeat on white, as the sidebar tile; rendered from the PulseMark path in headless Edge)
+  and `manifest.webmanifest` (`display: standalone`). Written fresh, not copied from workflows.
+- No service worker and no offline cache: this is the desk app with an icon. No `theme-color`
+  meta, so Safari's own toolbar keeps its colour.
+- **Unproven, for Dev to try on the iPad**: Google sign-in inside the home-screen app. It has
+  its own storage, so it asks for sign-in once itself, and Google's sign-in opens in a pop-up
+  that a home-screen app may not get an answer back from. If it will not sign in, Safari is
+  unaffected; take `display: standalone` and the two `-capable` metas out and the icon becomes
+  a plain shortcut into Safari.
+- The home-screen name is PayPulse on the test site too (the TEST strip still shows inside).
+- **Checks**: `npm run build` green and `dist/` carries the icons and a manifest that parses;
+  tsc clean. Not something a test here can cover.

@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Copied from workflows/web/index.html — changes: title Workflows → JFlow; fonts Inter + IBM Plex Mono (was Space Grotesk) -->
+<!-- Copied from workflows/web/index.html — changes: title Workflows → JFlow; fonts Inter + IBM Plex Mono (was Space Grotesk); home-screen icon, manifest and standalone metas -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -7,6 +7,15 @@
     <!-- The plain name, for the instant before the bundle runs; main.tsx overwrites it
          with the environment-aware title from src/config/env.ts. -->
     <title>PayPulse</title>
+    <!-- Add to Home Screen (Dev, 2026-11-20, on an iPad): the heartbeat tile as the icon, and
+         the app opened from it runs full screen, without the browser's bars. No service
+         worker and no offline cache: this is the desk app with an icon, not a PWA. A
+         home-screen app keeps its own storage, so it asks for sign-in once itself. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="PayPulse" />
     <!-- Self-host both families before production; Google Fonts is a dev convenience only. -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link
