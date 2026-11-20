@@ -30,7 +30,7 @@ export const STOCK_GROUPS: GroupMeta[] = [
   {
     id: NOT_IN_FORECAST,
     label: 'Not in the forecast',
-    explain: 'Shipping has no date for them yet, no JFlow company or account takes them, or shipping no longer lists them. Each row says which.',
+    explain: 'Shipping has no date for them yet, no PayPulse company or account takes them, or shipping no longer lists them. Each row says which.',
     tone: 'warn',
   },
   {
@@ -42,7 +42,7 @@ export const STOCK_GROUPS: GroupMeta[] = [
   {
     id: 'skipped',
     label: 'Skipped',
-    explain: 'Skipped in JFlow, so left out of the forecast. Open one to unskip it.',
+    explain: 'Skipped in PayPulse, so left out of the forecast. Open one to unskip it.',
     tone: toneOfDerivedStatus('skipped'),
   },
   {

@@ -32,7 +32,7 @@ function renderAt(path: string) {
 }
 
 describe('the shell', () => {
-  it("lists JFlow's screens, in PLAN's order", async () => {
+  it("lists PayPulse's screens, in PLAN's order", async () => {
     renderAt('/cash');
     const nav = await screen.findAllByRole('link');
     const labels = nav.map((a) => within(a).queryByText(/./, { selector: '.label' })?.textContent).filter(Boolean);

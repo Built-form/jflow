@@ -109,7 +109,7 @@ export function StockPaymentsScreen() {
         actions={<CompanyPicker companies={sortCompanies(companies.data?.data ?? [])} value={companyId} onChange={setCompanyId} />}
       >
         <InfoText className="explainer">
-          Supplier deposits and balances from shipping. Shipping owns the figures; JFlow can plan
+          Supplier deposits and balances from shipping. Shipping owns the figures; PayPulse can plan
           its own date or amount on top, or skip one, and can always revert to what shipping says.
         </InfoText>
       </PageHeader>
@@ -222,7 +222,7 @@ export function StockPaymentsScreen() {
                   ...(row.sourceScenarioId != null ? [{ id: 'fromScenario', label: 'FROM SCENARIO', tone: 'idle' as const }] : []),
                   // Shipping gives no company; the one it sits under was chosen in JFlow (§10.11a).
                   ...(row.shippingCompanyId == null && row.assignedCompanyId != null
-                    ? [{ id: 'companyInJflow', label: 'COMPANY SET IN JFLOW', tone: 'idle' as const }]
+                    ? [{ id: 'companyInJflow', label: 'COMPANY SET IN PAYPULSE', tone: 'idle' as const }]
                     : []),
                   ...notInForecastTags(row),
                 ];

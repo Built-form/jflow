@@ -258,7 +258,7 @@ describe('checkPlan — a change that leaves no plan', () => {
     expect(checkPlan(skipOnly, { ...initialPlanForm(skipOnly), skipped: false }, TODAY)).toEqual(leavesNoPlan);
   });
 
-  it("saves as before while anything of JFlow's stays on the row", () => {
+  it("saves as before while anything of PayPulse's stays on the row", () => {
     // Pinned date and a note: following shipping's date again keeps the note.
     expect(checkPlan(planned, followFeedDate(initialPlanForm(planned), planned), TODAY)).toEqual({
       action: { kind: 'plan', key: 'ship.dep-812', body: { plannedDate: null }, baseVersion: 7 },
@@ -282,7 +282,7 @@ describe('checkPlan — a change that leaves no plan', () => {
 });
 
 describe('Revert to feed', () => {
-  it('is offered while anything of JFlow is on the row, with its version', () => {
+  it('is offered while anything of PayPulse is on the row, with its version', () => {
     expect(revertAction(plain)).toBeNull();
     expect(revertAction(planned)).toEqual({ kind: 'unplan', key: 'ship.dep-812', baseVersion: 7 });
     expect(revertAction(targetFromRow(externalRow({ plannedSkipped: true })))).toEqual({

@@ -18,8 +18,8 @@ describe('which environment this is', () => {
   });
 
   it('titles the tab', () => {
-    expect(windowTitle('production')).toBe('JFlow');
-    expect(windowTitle('test')).toBe('[TEST] JFlow');
+    expect(windowTitle('production')).toBe('PayPulse');
+    expect(windowTitle('test')).toBe('[TEST] PayPulse');
   });
 });
 

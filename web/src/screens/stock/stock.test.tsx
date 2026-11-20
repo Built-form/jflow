@@ -278,7 +278,7 @@ describe('the Stock payments screen', () => {
     });
     const after = screen.getByTestId('stock-ship.dep-902');
     expect(after.closest('[data-group]')?.getAttribute('data-group')).toBe('expected');
-    expect(after.textContent).toContain('COMPANY SET IN JFLOW');
+    expect(after.textContent).toContain('COMPANY SET IN PAYPULSE');
     expect(after.textContent).not.toContain('UNMAPPED');
   });
 

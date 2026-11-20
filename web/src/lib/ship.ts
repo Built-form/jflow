@@ -152,7 +152,7 @@ export function shipFlagNotes(flags: readonly ItemFlag[], ship?: ShipNoteInfo | 
   if (look.blocked) notes.push(`${blockedText(ship?.blocked)}.`);
   if (look.dueSet) notes.push(ship?.dueSet ? dueSetText(ship.dueSet) : 'The date was set by hand in shipping.');
   if (look.dateMoved) notes.push(ship?.dateMovedAt ? dateMovedText(ship.dateMovedFrom, ship.dateMovedAt) : 'Shipping moved this date recently.');
-  if (look.planned) notes.push("Planned in JFlow: this date, amount or skip is JFlow's, not shipping's.");
+  if (look.planned) notes.push("Planned in PayPulse: this date, amount or skip is PayPulse's, not shipping's.");
   return notes;
 }
 
@@ -169,7 +169,7 @@ export function shippingReasonText(reason: ShippingReason | null | undefined): s
     case 'unreachable':
       return 'shipping could not be reached';
     case 'http_401':
-      return "shipping refused JFlow's key";
+      return "shipping refused PayPulse's key";
     case 'bad_response':
       return "shipping's answer could not be read";
     default: {
@@ -314,7 +314,7 @@ export function unmappedNote(
     return { text: `${payments} ${one ? 'has' : 'have'} no company in shipping.`, fix: null, choose: true };
   }
   return {
-    text: `${payments} ${one ? 'belongs' : 'belong'} to shipping company ${names.shippingName(u.shippingCompanyId)}, which no JFlow company is linked to.`,
+    text: `${payments} ${one ? 'belongs' : 'belong'} to shipping company ${names.shippingName(u.shippingCompanyId)}, which no PayPulse company is linked to.`,
     fix: { to: '/settings?tab=companies', label: 'Link it in Settings' },
     choose: false,
   };

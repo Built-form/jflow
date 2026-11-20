@@ -63,13 +63,13 @@ export interface StockFilterOptions {
  * same fields (`targetFromRow`, the tag list in StockPaymentsScreen), in that order.
  */
 const MARKS: { value: MarkFilter; label: string; has: (row: ExternalItem) => boolean }[] = [
-  { value: 'planned', label: 'Planned in JFlow', has: (r) => hasOverlay(r) },
+  { value: 'planned', label: 'Planned in PayPulse', has: (r) => hasOverlay(r) },
   { value: 'due_set', label: 'Set in shipping', has: (r) => r.dueSet != null },
   { value: 'date_moved', label: 'Date moved', has: (r) => r.dateMoved },
   { value: 'blocked', label: 'Blocked', has: (r) => r.blocked != null },
   { value: 'estimated', label: 'Estimated date', has: (r) => r.dateBasis === 'estimated' },
   { value: 'plan_stale', label: 'Plan ignored', has: (r) => r.planStale },
-  { value: 'company_in_jflow', label: 'Company set in JFlow', has: (r) => r.shippingCompanyId == null && r.assignedCompanyId != null },
+  { value: 'company_in_jflow', label: 'Company set in PayPulse', has: (r) => r.shippingCompanyId == null && r.assignedCompanyId != null },
   { value: 'from_scenario', label: 'From a scenario', has: (r) => r.sourceScenarioId != null },
 ];
 

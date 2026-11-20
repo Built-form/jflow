@@ -178,7 +178,7 @@ function PlanFormDialog({
       warning={
         scenarioName
           ? `“${scenarioName}” is open, but this saves the real plan, not the scenario. Shipping is not changed. To try the change in the scenario instead, close this and use “edit in scenario”.`
-          : 'This plans the real stock payment in JFlow. Shipping is not changed: JFlow uses your date and amount until you revert to the feed. To try it out first, open a scenario.'
+          : 'This plans the real stock payment in PayPulse. Shipping is not changed: PayPulse uses your date and amount until you revert to the feed. To try it out first, open a scenario.'
       }
       onConfirm={() => save(check.action)}
       onClose={onClose}
@@ -191,7 +191,7 @@ function PlanFormDialog({
           </div>
           {target.planned && (
             <div data-testid="ship-planned">
-              JFlow uses{' '}
+              PayPulse uses{' '}
               <span className="mono" style={{ color: 'var(--text)' }}>
                 {formatMoney(target.amountMinor, target.currency)}
               </span>{' '}
@@ -392,7 +392,7 @@ function ShipCompanySection({ row, onSaved }: { row: ExternalItem; onSaved: (row
     return (
       <FormField label="COMPANY">
         <div style={{ fontSize: 13, color: 'var(--mut)' }} data-testid="ship-company-overtaken">
-          Shipping gives this payment a company now, so the one chosen in JFlow ({chosenName}) is ignored.
+          Shipping gives this payment a company now, so the one chosen in PayPulse ({chosenName}) is ignored.
         </div>
         <div>
           <button
@@ -401,7 +401,7 @@ function ShipCompanySection({ row, onSaved }: { row: ExternalItem; onSaved: (row
             disabled={clear.busy}
             onClick={() => void clear.run(async () => onSaved(await external.assignCompany(row.key, null, row.rowVersion)))}
           >
-            {clear.busy ? 'Clearing…' : 'Clear the JFlow choice'}
+            {clear.busy ? 'Clearing…' : 'Clear the PayPulse choice'}
           </button>
         </div>
         {clear.error && <ErrorNote error={clear.error} />}
@@ -411,7 +411,7 @@ function ShipCompanySection({ row, onSaved }: { row: ExternalItem; onSaved: (row
   return (
     <FormField
       label="COMPANY"
-      note="Shipping gives this payment no company. JFlow puts it under the one you choose; shipping is not changed."
+      note="Shipping gives this payment no company. PayPulse puts it under the one you choose; shipping is not changed."
     >
       {companies.error ? (
         <ErrorNote error={companies.error} onRetry={companies.reload} />

@@ -1584,3 +1584,26 @@ Committed on `master` and pushed to the `test` branch only, at Dev's word ("depl
 2026-11-20), for Vercel to build the test site. Web only, so no `deploy.sh` run. Then pushed
 to `master` the same day, again at Dev's word ("deploy live"), for Vercel to build production.
 The API is unchanged on both stages.
+
+## Rebrand on screen: JFlow → PayPulse; heartbeat sign-in (2026-11-20)
+
+Dev chose the name **PayPulse** and the scope "what users see". Web only. Pushed to `test` and `master` at Dev's word ("push to test and live", 2026-11-20); no `deploy.sh`.
+
+- **Renamed on screen**: tab title (`PayPulse` / `[TEST] PayPulse`), `index.html` title, the sidebar
+  (tile `PP`, name PayPulse), the sign-in wordmark (each P of the tile opens into "ay" and
+  "ulse"), About, and every user-facing sentence that said JFlow (stock payment notes and
+  filters, the plan and company dialogs, Cash at bank, the edit refusal). Tests follow the new
+  wording.
+- **Kept as jflow on purpose**: the repo, the API and Lambda, the database and migrations, secrets,
+  the production host `jflow.built-form.co.uk` (still what makes a build production in
+  `config/env.ts`), the `jflow.theme` storage key (so nobody loses their theme), filter ids such
+  as `company_in_jflow`, code comments and the docs.
+- **Sign-in heartbeat** (Dev: "wire turns into beating heart"): the growth line is now a heartbeat
+  trace on a rising baseline, swept on left to right like a monitor (a `clip-path` sweep, since
+  dashes on a non-scaling stroke do not follow its on-screen length). At its end the line runs
+  into the bottom tip of a heart, whose outline draws on, fills, then beats lub-dub for as long
+  as the screen is open. Same blue as the line. On phones (≤ 600px) the line sits lower so the
+  heart beats below the card. Reduced motion shows the finished, still picture.
+- **Checks**: tsc clean, web vitest 515 / 516 (the clock-bound `stock.test.tsx` "plans a row …"
+  again), `npm run build` green. Looked at in headless Edge at 1440 × 900 and 390 × 844, mid-sweep,
+  heart drawing and final frame, on a temporary harness page (removed).

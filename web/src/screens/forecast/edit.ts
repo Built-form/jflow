@@ -104,7 +104,7 @@ export function checkEdit(
   const errors: Partial<Record<Field, string>> = {};
   const parsed = parseKey(item.key);
   if (!parsed) {
-    errors.form = `This line's key (${item.key}) is not one JFlow can edit.`;
+    errors.form = `This line's key (${item.key}) is not one PayPulse can edit.`;
     return { action: null, errors, unchanged: false };
   }
 

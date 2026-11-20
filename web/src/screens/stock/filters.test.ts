@@ -65,7 +65,7 @@ describe('searching stock payments', () => {
     expect(only({ q: 'deposit' })).toEqual([32]);
   });
 
-  it('finds the account, JFlow’s note and shipping’s note', () => {
+  it('finds the account, PayPulse’s note and shipping’s note', () => {
     expect(only({ q: 'hsbc' })).toEqual([32]);
     expect(only({ q: 'factory holiday' })).toEqual([34]);
     expect(only({ q: 'agreed with' })).toEqual([34]);

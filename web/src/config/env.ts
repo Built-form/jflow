@@ -96,7 +96,7 @@ export function resolveApiBase(
  * the instant before the bundle runs; `main.tsx` sets this over it.
  */
 export function windowTitle(appEnv: AppEnv): string {
-  return appEnv === 'production' ? 'JFlow' : '[TEST] JFlow';
+  return appEnv === 'production' ? 'PayPulse' : '[TEST] PayPulse';
 }
 
 export const APP_ENV: AppEnv = resolveAppEnv(

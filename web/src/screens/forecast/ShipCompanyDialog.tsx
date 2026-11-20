@@ -91,7 +91,7 @@ export function ChooseCompanyDialog({ onClose, onChanged }: { onClose: () => voi
       width={640}
       confirmLabel="Done"
       cancelLabel={null}
-      warning="Shipping is not changed. JFlow uses the company you choose only while shipping has none; once the PO gets a company in shipping, shipping's wins."
+      warning="Shipping is not changed. PayPulse uses the company you choose only while shipping has none; once the PO gets a company in shipping, shipping's wins."
       onConfirm={close}
       onClose={close}
     >

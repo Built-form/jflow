@@ -465,7 +465,7 @@ function HistorySection({
       {accounts.length > 0 && !combinedLineAllowed(accounts) && (
         <div style={{ fontSize: 13, color: 'var(--dim)', lineHeight: 1.55 }} data-testid="no-combined-line">
           No combined line: the accounts in view are not all GBP. Adding currencies together
-          needs a rate for each day, which JFlow does not keep.
+          needs a rate for each day, which PayPulse does not keep.
         </div>
       )}
 

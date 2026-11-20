@@ -66,9 +66,9 @@ export function Shell() {
     <div className={`shell${scenario ? ' scenario-mode' : ''}`}>
       <div className="sidebar">
         <div className="sidebar-brand">
-          <div className="mark">JF</div>
+          <div className="mark">PP</div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="name">JFlow</div>
+            <div className="name">PayPulse</div>
             <div className="who">{shortEmail(me?.email)}</div>
           </div>
         </div>

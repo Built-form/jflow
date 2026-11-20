@@ -1,13 +1,16 @@
-/* The sign-in screen (screens/SignInScreen.tsx). The one place JFlow performs a little:
-   the JF tile expands into the JFlow wordmark, the strapline rises word by word, and a
-   growth line draws itself across the backdrop. Everything is transform, opacity and
-   stroke-dashoffset, and reduced motion lands straight on the final frame.
+/* The sign-in screen (screens/SignInScreen.tsx). The one place PayPulse performs a little:
+   the PP tile expands into the PayPulse wordmark, the strapline rises word by word, and a
+   heartbeat line draws itself across the backdrop and turns into a beating heart.
+   Everything is transform, opacity and stroke-dashoffset, and reduced motion lands
+   straight on the final frame.
 
    The backdrop is the sidebar's navy in both themes, so signing in and the app behind it
    read as the same place. The line is blue, never green: green means settled. */
 
 .signin {
   position: relative;
+  /* How tall the heartbeat line's box is; the heart is placed on the same height. */
+  --signin-chart-h: 58vh;
   min-height: 100vh;
   overflow: hidden;
   display: flex;
@@ -35,14 +38,14 @@
   pointer-events: none;
 }
 
-/* ---------- the growth line ---------- */
+/* ---------- the heartbeat line ---------- */
 
 .signin-chart {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 58vh;
+  height: var(--signin-chart-h);
   width: 100%;
   pointer-events: none;
 }
@@ -53,27 +56,50 @@
   stroke-linejoin: round;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
-  /* Non-scaling strokes measure dashes in screen pixels (pathLength is ignored), so the dash
-     is longer than the line can ever be on screen. */
-  stroke-dasharray: 5000;
-  stroke-dashoffset: 5000;
-  animation: signin-draw 2.4s cubic-bezier(0.65, 0, 0.35, 1) 0.3s forwards;
+  /* Swept on left to right like a heart monitor: a clip that opens across the line's own
+     box, which ends at the heart's tip, so the sweep reaches the heart exactly as the heart
+     starts to draw, at any window size. (Dashes on a non-scaling stroke cannot promise
+     that.) The top and bottom insets are negative so the spikes and the stroke never clip. */
+  clip-path: inset(-50% 100% -50% 0);
+  animation: signin-sweep 2.4s linear 0.3s forwards;
 }
 .signin-chart .area {
   opacity: 0;
   animation: signin-fade 1.4s ease-out 1.4s forwards;
 }
-.signin-head {
+/* The heart the line turns into: its outline draws on from the line's end, fills, then
+   beats lub-dub for as long as the screen is open. Same blue as the line, so it reads as
+   the same wire. The tip of the heart (12, 21 in its 24 box) sits on the line's last point. */
+.signin-heart {
   position: absolute;
-  width: 11px;
-  height: 11px;
-  margin-bottom: -5px;
-  border-radius: 999px;
-  background: var(--side-acc);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--side-acc) 25%, transparent);
+  width: 46px;
+  height: 46px;
+  margin-left: -23px;
+  margin-bottom: -5.75px;
   pointer-events: none;
+  transform-origin: 50% 55%;
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--side-acc) 55%, transparent));
+  animation: signin-beat 1.25s ease-in-out 3.5s infinite;
+}
+.signin-heart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.signin-heart .outline {
+  fill: var(--side-acc);
+  fill-opacity: 0;
+  stroke: var(--side-acc);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
   opacity: 0;
-  animation: signin-fade 0.3s ease-out 2.6s forwards, signin-pulse 2.4s ease-in-out 3s infinite;
+  animation:
+    signin-fade 0.01s linear 2.62s forwards,
+    signin-draw 0.75s cubic-bezier(0.45, 0, 0.25, 1) 2.62s forwards,
+    signin-fill 0.4s ease-out 3.3s forwards;
 }
 
 /* ---------- the wordmark ---------- */
@@ -87,8 +113,8 @@
   text-align: center;
 }
 
-/* The JF tile from the sidebar, grown up. Its width follows the letters, so as "low"
-   opens the white plate widens with it. */
+/* The PP tile from the sidebar, grown up. Its width follows the letters, so as "ay" and "ulse"
+   open the white plate widens with them. */
 .signin-mark {
   display: inline-flex;
   align-items: center;
@@ -201,6 +227,9 @@
 @keyframes signin-draw {
   to { stroke-dashoffset: 0; }
 }
+@keyframes signin-sweep {
+  to { clip-path: inset(-50% 0 -50% 0); }
+}
 @keyframes signin-fade {
   to { opacity: 1; }
 }
@@ -210,21 +239,36 @@
 @keyframes signin-expand {
   0% { max-width: 0; opacity: 0; }
   40% { opacity: 1; }
-  100% { max-width: 1.9em; opacity: 1; }
+  100% { max-width: 2.4em; opacity: 1; }
 }
 @keyframes signin-rise {
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes signin-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.6); opacity: 0.55; }
+@keyframes signin-fill {
+  to { fill-opacity: 1; }
+}
+/* Lub-dub: a big beat, a smaller one, then rest. */
+@keyframes signin-beat {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.22); }
+  24% { transform: scale(0.98); }
+  36% { transform: scale(1.14); }
+  52% { transform: scale(1); }
+}
+
+/* A phone: a lower line, so the heart beats below the card instead of behind it. */
+@media (max-width: 600px) {
+  .signin {
+    --signin-chart-h: 36vh;
+  }
 }
 
 /* Reduced motion: the finished picture, at once. */
 @media (prefers-reduced-motion: reduce) {
   .signin-chart .line,
   .signin-chart .area,
-  .signin-head,
+  .signin-heart,
+  .signin-heart .outline,
   .signin-mark,
   .signin-mark .expand,
   .signin-tagline span,
@@ -238,5 +282,12 @@
   }
   .signin-mark .expand {
     max-width: none;
+  }
+  .signin-chart .line {
+    clip-path: none;
+  }
+  .signin-heart .outline {
+    stroke-dashoffset: 0;
+    fill-opacity: 1;
   }
 }

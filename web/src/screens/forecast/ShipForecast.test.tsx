@@ -201,7 +201,7 @@ describe('ship lines in the grid', () => {
     expect(within(noAccount).getByRole('link', { name: 'Open Settings → Accounts' }).getAttribute('href')).toBe('/settings?tab=accounts');
 
     await waitFor(() =>
-      expect(notLinked.textContent).toContain('2 stock payments belong to shipping company Hangerworld Ltd, which no JFlow company is linked to.'),
+      expect(notLinked.textContent).toContain('2 stock payments belong to shipping company Hangerworld Ltd, which no PayPulse company is linked to.'),
     );
     expect(within(notLinked).getByRole('link', { name: 'Link it in Settings' }).getAttribute('href')).toBe('/settings?tab=companies');
     // Other warnings still show in the general list.
@@ -332,7 +332,7 @@ describe('the SHIPPING_UNAVAILABLE banner', () => {
     renderForecast();
     await expandGrid();
     const banner = await screen.findByTestId('shipping-unavailable');
-    expect(banner.textContent).toMatch(/Stock payments could not be refreshed: shipping refused JFlow's key\. The forecast uses the snapshot from 28 Sep 2026, \d\d:\d\d\./);
+    expect(banner.textContent).toMatch(/Stock payments could not be refreshed: shipping refused PayPulse's key\. The forecast uses the snapshot from 28 Sep 2026, \d\d:\d\d\./);
     expect(banner.textContent).toContain('SHIPPING_UNAVAILABLE · http_401');
     // The forecast is still shown, built on the last snapshot.
     expect(screen.getByTestId('line-ship.dep-812')).toBeTruthy();
@@ -506,7 +506,7 @@ describe('editing a ship line with no scenario open: the overlay', () => {
     const dialog = await openDeposit();
     expect(calls.filter((c) => c.method === 'GET' && c.path === '/external-items/ship.dep-812')).toHaveLength(1);
     expect(within(dialog).getByTestId('ship-feed').textContent).toBe('Shipping says $5,000.00 on Fri 2 Oct 2026.');
-    expect(within(dialog).getByTestId('ship-planned').textContent).toBe('JFlow uses $5,000.00 on Tue 6 Oct 2026 (pinned).');
+    expect(within(dialog).getByTestId('ship-planned').textContent).toBe('PayPulse uses $5,000.00 on Tue 6 Oct 2026 (pinned).');
     expect(dialog.textContent).toContain("The date is shipping's estimate.");
     expect((within(dialog).getByLabelText('Date') as HTMLInputElement).value).toBe('2026-10-06');
     expect(within(dialog).getByTestId('ship-date-mode').textContent).toMatch(/^Pinned/);

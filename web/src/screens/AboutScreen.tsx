@@ -57,7 +57,7 @@ export function AboutScreen({ build = BUILD }: { build?: BuildInfo }) {
     <div className="page">
       <PageHeader title="About">
         <div className="explainer">
-          JFlow{' '}
+          PayPulse{' '}
           <span className="mono" style={{ fontSize: 13 }} data-testid="version">
             {versionLabel(build)}
           </span>

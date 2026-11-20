@@ -123,7 +123,7 @@ describe('adjustments', () => {
     const bad = line({ key: 'item.012', name: 'Bad' });
     const check = checkEdit(bad, { ...initialForm(bad), amount: '5' }, inScenario);
     expect(check.action).toBeNull();
-    expect(check.errors.form).toMatch(/not one JFlow can edit/);
+    expect(check.errors.form).toMatch(/not one PayPulse can edit/);
   });
 });
 
