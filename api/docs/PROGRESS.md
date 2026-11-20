@@ -1640,3 +1640,33 @@ says test). The API allows any origin (`serverless.yml` CORS `*`), so no API cha
 repo, for Dev: the domain on the Vercel production project and its DNS, and the origin
 `https://paypulse.built-form.co.uk` on the Google OAuth client, or sign-in fails there.
 Pushed to `master` and `test` ("deploy test and live").
+
+## Sidebar folds to a rail; tablet touches (2026-11-20)
+
+Dev, on an iPad mini (photo of the Forecast in Safari): "possible to make the menu bar
+collapsible". Web only. Committed on `master`; **not pushed** (no word to deploy yet).
+
+- **Fold**: a panel button in the sidebar's brand row folds the 232px sidebar to a 52px navy
+  rail (the button to bring it back, and the heartbeat mark); the grid takes the 180px. The
+  choice is kept per browser in `jflow.nav` (`rail` / `open`), beside `jflow.theme`. With no
+  choice made, a window under 900px wide (a tablet held upright) starts on the rail. No width
+  animation: the Forecast grid measures itself and would re-lay every frame of one.
+- **Search on the rail**: on the Forecast the rail carries a search button, lit while `?ship=`
+  is narrowing the grid, so the folded box never hides that a search is on. Tapping it opens
+  the menu with the cursor in the box (`ForecastFind` takes `autoFocus`).
+- **Scenario mode** on the rail: the mark turns violet as before; the banner and the content
+  rule are unchanged, so a what-if still cannot be mistaken for the real plan.
+- **Tablet touches** (`shell.css`): the shell is `100dvh` (falling back to `100vh`), so the
+  sidebar's foot is not under the browser's bars; under a coarse pointer the nav rows and the
+  fold button take 44px. A mouse sees no change.
+- **Checks**: tsc clean; web vitest 517 / 518 (two new shell tests; the one failure is the
+  clock-bound `stock.test.tsx` "plans a row …", as before); `npm run build` green. Looked at in
+  headless Edge at 1133 × 700 (iPad mini, landscape) on a temporary harness (removed): open,
+  rail, and rail in scenario mode. Not yet seen on a real iPad.
+
+### Deferred (suggested to Dev, not built)
+- The grid's "SCROLL DATES" bar is a native scrollbar, which iPadOS draws as a fading overlay,
+  so on a tablet the row is an empty track (a sideways swipe on the grid still scrolls).
+- The balance chart's read-out follows the mouse only (`onMouseMove`); no drag-to-scrub.
+- `title=` tooltips (bucket date ranges, clipped names, flag reasons) never show on touch.
+- No home-screen (standalone) setup for the desk app: no `apple-touch-icon` or manifest.

@@ -81,6 +81,42 @@ describe('the shell', () => {
     expect(screen.getByRole('link', { name: /About/ }).getAttribute('href')).toBe('/about');
   });
 
+  it('folds the sidebar to a rail and back, and remembers the choice (Dev, 2026-11-20)', async () => {
+    localStorage.removeItem('jflow.nav');
+    renderAt('/cash');
+    fireEvent.click(await screen.findByRole('button', { name: 'Hide menu' }));
+    expect(screen.getByTestId('sidebar-rail')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /People/ })).toBeNull();
+    // The screen itself stays put.
+    expect(screen.getByRole('heading', { name: 'Cash at bank' })).toBeTruthy();
+    expect(localStorage.getItem('jflow.nav')).toBe('rail');
+    // Only the Forecast has a search to reach for.
+    expect(screen.queryByRole('button', { name: /Find stock payments/ })).toBeNull();
+
+    // A new visit starts as it was left.
+    cleanup();
+    renderAt('/cash');
+    fireEvent.click(await screen.findByRole('button', { name: 'Show menu' }));
+    expect(screen.getByRole('link', { name: /People/ })).toBeTruthy();
+    expect(localStorage.getItem('jflow.nav')).toBe('open');
+  });
+
+  it('on the rail, the Forecast search says a search is on and opens the menu at its box', async () => {
+    localStorage.setItem('jflow.nav', 'rail');
+    try {
+      renderAt('/forecast?ship=PO-812');
+      const find = await screen.findByRole('button', { name: 'Find stock payments (searching for PO-812)' });
+      expect(find.hasAttribute('data-active')).toBe(true);
+      expect(screen.queryByRole('searchbox')).toBeNull();
+      fireEvent.click(find);
+      const box = (await screen.findByRole('searchbox', { name: 'Find stock payments' })) as HTMLInputElement;
+      expect(box.value).toBe('PO-812');
+      expect(document.activeElement).toBe(box);
+    } finally {
+      localStorage.removeItem('jflow.nav');
+    }
+  });
+
   it('lands on Forecast, and says so for an unknown address', async () => {
     renderAt('/');
     expect(await screen.findByRole('heading', { name: 'Forecast' })).toBeTruthy();

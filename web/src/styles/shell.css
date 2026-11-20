@@ -1,4 +1,4 @@
-/* Copied from workflows/web/src/styles/shell.css — changes: finance restyle — deep navy sidebar in both themes (--side-* tokens) with its own kicker, nav, theme switch and sign-out styling; brand mark and caption restyled; 232px width; `.main` column wrapping `.content`; scenario mode (`.scenario-banner`, `.shell.scenario-mode`, `.sidebar-scenario`, underlined `.ledger-edit` figures) */
+/* Copied from workflows/web/src/styles/shell.css — changes: finance restyle — deep navy sidebar in both themes (--side-* tokens) with its own kicker, nav, theme switch and sign-out styling; brand mark and caption restyled; 232px width; `.main` column wrapping `.content`; scenario mode (`.scenario-banner`, `.shell.scenario-mode`, `.sidebar-scenario`, underlined `.ledger-edit` figures); the sidebar folds to a 52px rail (`.sidebar.collapsed`, `.sidebar-toggle`); `100dvh` and touch-sized sidebar targets for tablets */
 /* App shell: fixed 232px sidebar, independently scrolling content area.
    This is a desk app with a phone view for the floor — screens carry a min-width and
    the content area scrolls horizontally below it rather than reflowing. */
@@ -6,6 +6,8 @@
 .shell {
   display: flex;
   height: 100vh;
+  /* The visible height where the browser's bars take some of it (tablets, phones). */
+  height: 100dvh;
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
@@ -33,7 +35,7 @@
   padding: 2px 8px 16px;
   border-bottom: 1px solid var(--side-line);
 }
-.sidebar-brand .mark {
+.sidebar .mark {
   width: 30px;
   height: 30px;
   border-radius: var(--radius);
@@ -70,6 +72,44 @@
 .sidebar-brand .who {
   font-size: 11.5px;
   color: var(--side-dim);
+}
+
+/* Folds the sidebar to a rail and back (Shell, Dev 2026-11-20): the grid wants the width on
+   a tablet. Also the rail's search button on the Forecast. */
+.sidebar-toggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--side-mut);
+  cursor: pointer;
+}
+.sidebar-toggle:hover {
+  background: var(--side-hover);
+  color: var(--side-text);
+}
+/* A search is narrowing the Forecast while its box is folded away. */
+.sidebar-toggle[data-active] {
+  background: var(--side-active);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px var(--side-acc);
+}
+.sidebar-brand .sidebar-toggle {
+  margin-left: auto;
+  margin-right: -4px;
+}
+/* No width transition: the grid measures itself, and would re-lay every frame of one. */
+.sidebar.collapsed {
+  width: 52px;
+  padding: 16px 0;
+  gap: 14px;
+  align-items: center;
+  overflow: hidden;
 }
 
 .nav-group {
@@ -211,6 +251,21 @@
   border-color: var(--side-mut);
 }
 
+/* Under a finger (tablets), the sidebar's targets take Apple's 44px; a mouse keeps the
+   tighter desk spacing. */
+@media (pointer: coarse) {
+  .nav-item {
+    min-height: 44px;
+  }
+  .sidebar-toggle {
+    width: 44px;
+    height: 44px;
+  }
+  .sidebar-brand .sidebar-toggle {
+    margin-right: -8px;
+  }
+}
+
 /* The column beside the sidebar: the scenario banner (when one is open) pinned on top, the
    scrolling screen below it. */
 .main {
@@ -323,7 +378,7 @@
 [data-theme='dark'] .ledger .ledger-move {
   color: var(--scenario-soft, #c4b5fd);
 }
-.shell.scenario-mode .sidebar-brand .mark {
+.shell.scenario-mode .sidebar .mark {
   background: var(--scenario-soft);
   color: var(--scenario-deep);
 }
@@ -361,7 +416,7 @@
    a seamless loop. Stopped for reduced motion. */
 html.env-test { --env-banner-h: 32px; }
 html.env-test body { padding-top: var(--env-banner-h); box-sizing: border-box; }
-html.env-test .shell { height: calc(100vh - var(--env-banner-h)); }
+html.env-test .shell { height: calc(100vh - var(--env-banner-h)); height: calc(100dvh - var(--env-banner-h)); }
 @keyframes env-ticker { to { transform: translateX(-50%); } }
 .env-ticker-track { animation: env-ticker 90s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .env-ticker-track { animation: none; } }

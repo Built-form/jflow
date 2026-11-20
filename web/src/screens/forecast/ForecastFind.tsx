@@ -14,7 +14,7 @@ const FROM_FIND = { fromFind: true } as const;
  * scenario" links set it the same way. The box keeps its own text, so typing never waits on
  * the router, and takes the URL's value whenever something else changes it.
  */
-export function ForecastFind() {
+export function ForecastFind({ autoFocus = false }: { autoFocus?: boolean }) {
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const value = params.get(SHIP_PARAM) ?? '';
@@ -45,6 +45,8 @@ export function ForecastFind() {
         type="search"
         aria-label="Find stock payments"
         placeholder="Find container, supplier, PO"
+        // Only when the folded sidebar's search button opened the menu to get here.
+        autoFocus={autoFocus}
         value={text}
         onChange={(e) => change(e.target.value)}
         onKeyDown={(e) => {
