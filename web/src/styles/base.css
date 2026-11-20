@@ -1075,7 +1075,7 @@ select.input[data-active] {
     display: none;
   }
   .page {
-    --foot-bar: 61px;
+    --foot-bar: 45px;
   }
   .date-steps:not(:empty) {
     position: sticky;
@@ -1086,7 +1086,7 @@ select.input[data-active] {
     justify-content: space-between;
     gap: 12px;
     margin: 0 -32px -70px;
-    padding: 8px 32px calc(8px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 32px calc(4px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--line2);
     background: var(--raise);
     box-shadow: 0 -6px 18px rgba(15, 27, 45, 0.08);
@@ -1101,8 +1101,11 @@ select.input[data-active] {
     color: var(--dim);
   }
   .date-steps .btn {
-    min-height: 44px;
-    min-width: 132px;
+    /* Compact (Dev, 2026-11-20: "narrower / more compact"): 36px still clears a fingertip. */
+    min-height: 36px;
+    min-width: 96px;
+    padding: 4px 12px;
+    font-size: 13px;
     box-shadow: none;
   }
   .date-steps .btn:last-child {
