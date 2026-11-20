@@ -1,11 +1,12 @@
 /* The sign-in screen (screens/SignInScreen.tsx). The one place PayPulse performs a little:
-   the PP tile expands into the PayPulse wordmark, the strapline rises word by word, and a
+   the heartbeat tile pops and the name slides out of it, the strapline rises word by word, and a
    heartbeat line draws itself across the backdrop and turns into a beating heart.
    Everything is transform, opacity and stroke-dashoffset, and reduced motion lands
    straight on the final frame.
 
    The backdrop is the sidebar's navy in both themes, so signing in and the app behind it
-   read as the same place. The line is blue, never green: green means settled. */
+   read as the same place. The line and the heart are PayPulse's coral (--side-pulse), never
+   green (green means settled) and not the blue of a certain payments brand. */
 
 .signin {
   position: relative;
@@ -51,7 +52,7 @@
 }
 .signin-chart .line {
   fill: none;
-  stroke: var(--side-acc);
+  stroke: var(--side-pulse);
   stroke-width: 3;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -68,7 +69,7 @@
   animation: signin-fade 1.4s ease-out 1.4s forwards;
 }
 /* The heart the line turns into: its outline draws on from the line's end, fills, then
-   beats lub-dub for as long as the screen is open. Same blue as the line, so it reads as
+   beats lub-dub for as long as the screen is open. Same coral as the line, so it reads as
    the same wire. The tip of the heart (12, 21 in its 24 box) sits on the line's last point. */
 .signin-heart {
   position: absolute;
@@ -78,7 +79,7 @@
   margin-bottom: -5.75px;
   pointer-events: none;
   transform-origin: 50% 55%;
-  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--side-acc) 55%, transparent));
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--side-pulse) 55%, transparent));
   animation: signin-beat 1.25s ease-in-out 3.5s infinite;
 }
 .signin-heart svg {
@@ -88,9 +89,9 @@
   overflow: visible;
 }
 .signin-heart .outline {
-  fill: var(--side-acc);
+  fill: var(--side-pulse);
   fill-opacity: 0;
-  stroke: var(--side-acc);
+  stroke: var(--side-pulse);
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-dasharray: 100;
@@ -113,28 +114,41 @@
   text-align: center;
 }
 
-/* The PP tile from the sidebar, grown up. Its width follows the letters, so as "ay" and "ulse"
-   open the white plate widens with them. */
+/* The sidebar's heartbeat tile, grown up, with the name sliding out beside it: lowercase,
+   white, straight on the navy. No plate behind the letters and no monogram (Dev,
+   2026-11-20: "less like PayPal"). */
 .signin-mark {
   display: inline-flex;
   align-items: center;
-  height: 1.32em;
-  padding: 0 0.3em;
-  border-radius: 0.22em;
-  background: #ffffff;
-  color: var(--side-bg);
-  font-size: clamp(46px, 9vw, 76px);
-  font-weight: 750;
-  letter-spacing: -0.035em;
+  font-size: clamp(42px, 8.4vw, 68px);
+  font-weight: 650;
+  letter-spacing: -0.045em;
   line-height: 1;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #ffffff;
   opacity: 0;
   transform: scale(0.72);
   animation: signin-pop 0.6s cubic-bezier(0.23, 1, 0.32, 1) 0.1s forwards;
 }
+.signin-mark .tile {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.28em;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.signin-mark .tile path {
+  stroke-width: 2.4;
+}
 .signin-mark .expand {
   display: inline-block;
+  box-sizing: border-box;
   max-width: 0;
+  padding-left: 0.26em;
+  padding-bottom: 0.08em;
   overflow: hidden;
   white-space: nowrap;
   opacity: 0;
@@ -163,7 +177,7 @@
 .signin-tagline span:nth-child(3) { animation-delay: 1.59s; }
 .signin-tagline span:nth-child(4) { animation-delay: 1.71s; }
 .signin-tagline .grow {
-  color: var(--side-acc);
+  color: var(--side-pulse);
   font-weight: 650;
 }
 .signin-tagline .grow::after {
@@ -239,7 +253,7 @@
 @keyframes signin-expand {
   0% { max-width: 0; opacity: 0; }
   40% { opacity: 1; }
-  100% { max-width: 2.4em; opacity: 1; }
+  100% { max-width: 6em; opacity: 1; }
 }
 @keyframes signin-rise {
   to { opacity: 1; transform: translateY(0); }

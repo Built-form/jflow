@@ -1607,3 +1607,18 @@ Dev chose the name **PayPulse** and the scope "what users see". Web only. Pushed
 - **Checks**: tsc clean, web vitest 515 / 516 (the clock-bound `stock.test.tsx` "plans a row …"
   again), `npm run build` green. Looked at in headless Edge at 1440 × 900 and 390 × 844, mid-sweep,
   heart drawing and final frame, on a temporary harness page (removed).
+
+### Less like PayPal (2026-11-20)
+
+Dev: "less like paypal". The name stays PayPulse; the look drops what echoed PayPal: the "PP"
+monogram, the bold navy-on-white-plate wordmark and the all-blue sign-in.
+
+- **Mark**: a coral heartbeat on the white tile (`components/PulseMark.tsx`), in the sidebar and on
+  sign-in. The sidebar name reads `paypulse`; the tab title stays `PayPulse`.
+- **Sign-in wordmark**: the tile pops, then lowercase `paypulse` slides out beside it, white
+  straight on the navy, no plate.
+- **Colour**: new token `--side-pulse` (#ff6b8b, both themes) for the heartbeat line, its glow,
+  the heart and the "grow" of the strapline. The app's blue accents elsewhere are unchanged.
+- **Checks**: tsc clean, web vitest 515 / 516 (the clock-bound stock test again), build green.
+  Looked at in headless Edge on a temporary harness (removed): the sign-in final frame and the
+  sidebar brand. Pushed to `master` and `test` at Dev's word ("push change", 2026-11-20).

@@ -8,6 +8,7 @@ import { useAuth } from '../app/auth';
 import { Segmented } from './ui';
 import { shortEmail } from '../lib/format';
 import { COMPANY_PARAM } from '../app/companyFilter';
+import { PulseMark } from './PulseMark';
 import { ScenarioBanner, useScenario } from '../app/ScenarioContext';
 
 interface NavEntry {
@@ -66,9 +67,9 @@ export function Shell() {
     <div className={`shell${scenario ? ' scenario-mode' : ''}`}>
       <div className="sidebar">
         <div className="sidebar-brand">
-          <div className="mark">PP</div>
+          <PulseMark className="mark" />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div className="name">PayPulse</div>
+            <div className="name">paypulse</div>
             <div className="who">{shortEmail(me?.email)}</div>
           </div>
         </div>

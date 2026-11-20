@@ -1,6 +1,7 @@
 // Copied from workflows/web/src/screens/SignInScreen.tsx — changes: JFlow's name and strapline; the not-configured example is the local API (JFlow's stacks are deployed in step 11); dropped `ReviewersOnlyScreen` and `NotForYouScreen` (JFlow has no role-gated screens, CONTRACT D5) and their roles/PageHeader/router imports; inline radii use the --radius token; SignInScreen redesigned — navy backdrop with a self-drawing growth line, the JF tile expanding into the JFlow wordmark, strapline "Help your money grow" (styles/signin.css)
 import { GoogleLogin } from '@react-oauth/google';
 import { useState } from 'react';
+import { PulseMark } from '../components/PulseMark';
 import { apiBaseUrl } from '../api/client';
 import { writeSharedToken } from '../auth/sharedSession';
 import '../styles/signin.css';
@@ -31,15 +32,11 @@ export function SignInScreen({
       <PulseLine />
 
       <div className="signin-brand">
-        {/* The sidebar's PP tile, each P opening into its half of the name. Read as one word throughout. */}
+        {/* The sidebar's heartbeat tile, with the name sliding out beside it. Read as one word throughout. */}
         <h1 className="signin-mark" aria-label="PayPulse" style={{ margin: 0 }}>
-          <span aria-hidden="true">P</span>
+          <PulseMark className="tile" />
           <span className="expand" aria-hidden="true">
-            ay
-          </span>
-          <span aria-hidden="true">P</span>
-          <span className="expand" aria-hidden="true">
-            ulse
+            paypulse
           </span>
         </h1>
         <p className="signin-tagline">
@@ -140,8 +137,8 @@ function PulseLine() {
       <svg className="signin-chart" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true">
         <defs>
           <linearGradient id="signin-area" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" style={{ stopColor: 'var(--side-acc)', stopOpacity: 0.22 }} />
-            <stop offset="100%" style={{ stopColor: 'var(--side-acc)', stopOpacity: 0 }} />
+            <stop offset="0%" style={{ stopColor: 'var(--side-pulse)', stopOpacity: 0.22 }} />
+            <stop offset="100%" style={{ stopColor: 'var(--side-pulse)', stopOpacity: 0 }} />
           </linearGradient>
         </defs>
         {/* The glow under the baseline only, so the spikes stay crisp. */}

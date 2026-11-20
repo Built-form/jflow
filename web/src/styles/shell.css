@@ -47,6 +47,20 @@
   justify-content: center;
   flex: none;
 }
+/* PayPulse's heartbeat (components/PulseMark.tsx): a coral trace on the white tile. */
+.pulse-mark svg {
+  display: block;
+  width: 72%;
+  height: 72%;
+  overflow: visible;
+}
+.pulse-mark path {
+  fill: none;
+  stroke: var(--side-pulse);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .sidebar-brand .name {
   font-size: 15.5px;
   font-weight: 650;

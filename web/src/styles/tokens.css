@@ -64,6 +64,7 @@
   --side-mut: #9fb0c8;
   --side-dim: #7589a6;
   --side-acc: #8fb8ff;
+  --side-pulse: #ff6b8b;
 }
 
 [data-theme='dark'] {
@@ -105,4 +106,5 @@
   --side-mut: #97a6bb;
   --side-dim: #6d7e96;
   --side-acc: #8fb8ff;
+  --side-pulse: #ff6b8b;
 }
