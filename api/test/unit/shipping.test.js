@@ -107,7 +107,7 @@ describe('configuration', () => {
 });
 
 describe('the schema check', () => {
-    const ALL_OPTIONAL = { payment_due_dates: true, shipping_allowed_emails: true, payment_extras: true, shipments: true, shipment_lines: true, supplier_payment_lines: true };
+    const ALL_OPTIONAL = { payment_due_dates: true, shipping_allowed_emails: true, payment_extras: true, shipments: true, shipment_lines: true, supplier_payment_lines: true, purchase_orders: true };
     /** Every column per table, required and optional together (a table may be in both lists). */
     const allColumns = () => {
         const out = {};
@@ -154,7 +154,12 @@ describe('the schema check', () => {
         await expect(source.checkSchema(columnsQuery({ drop: ['shipping_allowed_emails.display_name'] }), 'jfa'))
             .resolves.toEqual({ optional: { ...ALL_OPTIONAL, shipping_allowed_emails: false } });
         await expect(source.checkSchema(columnsQuery({ without: ['payment_due_dates', 'shipping_allowed_emails', 'payment_extras', 'shipment_lines'] }), 'jfa'))
-            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: false, payment_extras: false, shipments: true, shipment_lines: false, supplier_payment_lines: true } });
+            .resolves.toEqual({ optional: { payment_due_dates: false, shipping_allowed_emails: false, payment_extras: false, shipments: true, shipment_lines: false, supplier_payment_lines: true, purchase_orders: true } });
+        // purchase_orders is in both lists as well: no `kind` (before shipping's sample-orders migration) only turns its flag off, and
+        // every PO is then read as stock; one of its required columns missing is still source_schema.
+        await expect(source.checkSchema(columnsQuery({ drop: ['purchase_orders.kind'] }), 'jfa'))
+            .resolves.toEqual({ optional: { ...ALL_OPTIONAL, purchase_orders: false } });
+        expect((await rejectionOf(source.checkSchema(columnsQuery({ drop: ['purchase_orders.currency'] }), 'jfa'))).reason).toBe('source_schema');
         // supplier_payment_lines is in both lists too: no paid_with_json (before shipping 2026-10-19_10) only turns its flag off.
         await expect(source.checkSchema(columnsQuery({ drop: ['supplier_payment_lines.paid_with_json'] }), 'jfa'))
             .resolves.toEqual({ optional: { ...ALL_OPTIONAL, supplier_payment_lines: false } });
@@ -177,6 +182,8 @@ describe('the schema check', () => {
             shipment_lines: ['shipment_id', 'order_id', 'quantity'],
             // The re-pin to 362714c: which containers a PI line's money paid (shipping 2026-10-19_10).
             supplier_payment_lines: ['paid_with_json'],
+            // Sample orders (shipping 2026-11-25_20): the kind of a PO, 'stock' or 'sample'.
+            purchase_orders: ['kind'],
         });
     });
 

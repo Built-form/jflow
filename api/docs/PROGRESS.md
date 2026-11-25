@@ -1795,3 +1795,36 @@ menu)". Web only. Pushed to the `test` branch only ("DEPLOY TO TEST"); remote `m
 - Pushed to `master` at Dev's word ("deploy to live"), for Vercel to build production: the
   date-step fix, the bottom bar, Add to Home Screen and the jflow → paypulse host redirect.
   `test` already had all of them. Web only, no `deploy.sh`.
+
+### Sample orders: the model re-pinned to ShipLine 6ae3867 (2026-11-25)
+
+ShipLine gains a second kind of purchase order, the sample order (shipping `docs/sample-orders.md`): a few
+units by courier, owed in full on the PO date, never split by the supplier's terms, never treated as paid
+because it shipped. The rule is `summarizeSamplePo` in ShipLine's `paymentsFlowMath.ts`, taken when
+`bundle.kind === 'sample'`. On the `test` branch only; `master` is not moved ("test only for now", Dev).
+
+**Shipped**
+- **Re-pin `362714c` → `6ae3867`** (`tools/payments-flow-source.mjs`): `paymentsFlowMath.ts` is 4846 lines; the
+  other two source files are the same bytes. `model.js` rebuilt by `tools/payments-flow-port.mjs`, every patch
+  matching once; the re-exports beside it, `shippingSource.MODEL` and CONTRACT (P1, Q1) name the new commit.
+- `purchase_orders.kind` is read when the column is there (`OPTIONAL_COLUMNS.purchase_orders`, as
+  `supplier_payment_lines.paid_with_json` is): `rowToPurchaseOrder` gives `kind: 'sample' | 'stock'`, shipping's
+  mapper field for field. Without the column every PO is stock and nothing else changes. `orders.order_kind` is
+  not read: the model branches on the PO's kind alone.
+- `lib/payments-flow/sampleRule.js` asks the model itself whether it knows the rule, with one small sample
+  order, and `GET /health` reports the answer as `paymentsFlow.sampleOrders` (CONTRACT §6 health row). It is the
+  truth about the code that is deployed, whatever commit `model.js` names. shipping's
+  `tools/check-sample-orders.js` reads it (with a token in `JFLOW_TOKEN`) and will not switch sample orders on
+  for a stage whose JFlow answers false. This build answers **true**.
+- Fixture `sample-orders` (13 POs): ordered and unpaid; on its way and unpaid, with a shipping charge; part paid
+  by a transfer on the PO; received one short and paid; free; free lines with shipping; free with a payment on
+  it (overpaid); written off and still owed; settled by a PI marked paid; not sent yet; a free line beside a
+  priced one; a null price; and a stock PO of the same shape, read on the supplier's terms as before.
+- **Checks**: the oracle ran under Europe/London on all 20 fixtures: the 19 older expected files changed in
+  their `source` stamp and nowhere else. `npm run test:unit` 1175 / 1175 (29 suites), `npm run lint` clean,
+  `payments-flow-port.mjs --check` same. E2E not run.
+
+**Deferred**
+- A stage's JFlow login must be able to read `jfa.purchase_orders.kind`; where it cannot, every PO reads as
+  stock (the schema check reports `purchase_orders: false`, never `source_schema`). shipping's check tool asks
+  for it before sample orders are switched on.

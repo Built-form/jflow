@@ -16,14 +16,19 @@ import crypto from 'node:crypto';
 // PI transfer lines, combined / repackaged goods, deposits paid before their PI,
 // paid containers against their own goods (credits, shortfalls), QC units
 // overdue and not payable yet, boxes booked in through Receive.
+// Re-pinned 2026-11-25 from 362714c to 6ae3867: the sample order (shipping
+// docs/sample-orders.md). A purchase order of kind `sample` is owed in full on
+// its PO date (summarizeSamplePo): never split by the supplier's terms, never
+// treated as paid because it shipped. Nothing else in the model changed; the
+// other two files are the same bytes.
 // paymentsFlowMath.ts's runtime imports: paymentReviews.ts (the key builders,
 // lib/payments-flow/keys.js) and containerHelpers.ts (lib/payments-flow/containers.js).
 // Its import of orderHelpers.ts (containerHasLanded) is unused, so the
 // transpile drops it; tools/payments-flow-port.mjs fails if that changes.
 export const SOURCE = {
-    commit: '362714c',
+    commit: '6ae3867',
     files: {
-        'src/components/payments/paymentsFlowMath.ts': { lines: 4696, sha256: '300e18f8b217a29eb53bb88c8fac15127c2f80c68ec7f5ccc5a31f55a91224bf' },
+        'src/components/payments/paymentsFlowMath.ts': { lines: 4846, sha256: '2116d25e8ca0148eba55aaa7c900d9e34b88b21146a4da5b3ae99fae77f5dc9a' },
         'src/components/shared/containerHelpers.ts': { lines: 340, sha256: '50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98' },
         'src/components/payments/paymentReviews.ts': { lines: 213, sha256: '7bca087364c88bde1ff2d16b9dbd4c09071d24d51d21ab84fb0a8674b0380f2d' },
     },

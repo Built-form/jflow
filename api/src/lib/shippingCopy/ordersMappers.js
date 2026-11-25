@@ -15,6 +15,9 @@ function rowToPurchaseOrder(row) {
         currency: row.currency || 'USD',
         shippingTotal: row.shipping_total != null ? Number(row.shipping_total) : 0,
         companyId: row.company_id ?? null,
+        // 'stock' or 'sample' (shipping docs/sample-orders.md). A database without the
+        // column reads every PO as stock.
+        kind: row.kind === 'sample' ? 'sample' : 'stock',
         createdAt: row.created_at?.toISOString?.() ?? row.created_at,
     };
 }

@@ -1,0 +1,1552 @@
+{
+ "fixture": "sample-orders",
+ "source": {
+  "commit": "6ae3867",
+  "files": {
+   "src/components/payments/paymentsFlowMath.ts": {
+    "lines": 4846,
+    "sha256": "2116d25e8ca0148eba55aaa7c900d9e34b88b21146a4da5b3ae99fae77f5dc9a"
+   },
+   "src/components/shared/containerHelpers.ts": {
+    "lines": 340,
+    "sha256": "50065005de3aca01d1c93ffe552fae542b6ca51b68bcd30724cf2c6681ad6f98"
+   },
+   "src/components/payments/paymentReviews.ts": {
+    "lines": 213,
+    "sha256": "7bca087364c88bde1ff2d16b9dbd4c09071d24d51d21ab84fb0a8674b0380f2d"
+   }
+  }
+ },
+ "tz": "Europe/London",
+ "today": "2026-11-27",
+ "output": {
+  "today": "2026-11-27",
+  "currencies": [
+   {
+    "currency": "USD",
+    "kpis": {
+     "overdue": 148.5,
+     "due7": 40.6,
+     "due30": 40.6,
+     "unscheduled": 0,
+     "outstanding": 189.1,
+     "later": 0,
+     "notPayable": 40.6,
+     "overdueCount": 7,
+     "itemCount": 9,
+     "qc": 0,
+     "qcCount": 0,
+     "qcOverdue": 0,
+     "qcOverdueCount": 0,
+     "credit": 0
+    },
+    "items": [
+     {
+      "id": "derived:dep:4317",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 4317,
+      "poNumber": "PO_04317J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 15,
+      "dueDate": "2026-11-03",
+      "contractualDate": "2026-11-03",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "sample"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Sample order",
+        "value": 15,
+        "result": 15,
+        "source": "the lines, in full"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:4312",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 4312,
+      "poNumber": "PO_04312J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 15,
+      "dueDate": "2026-11-10",
+      "contractualDate": "2026-11-10",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "sample",
+       "partly_paid"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Sample order",
+        "value": 25,
+        "result": 25,
+        "source": "the lines, in full"
+       },
+       {
+        "op": "−",
+        "label": "Paid",
+        "value": 10,
+        "result": 15,
+        "source": "payments recorded on this order"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:4311",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 4311,
+      "poNumber": "PO_04311J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 58,
+      "dueDate": "2026-11-18",
+      "contractualDate": "2026-11-18",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "sample"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Sample order",
+        "value": 58,
+        "result": 58,
+        "source": "the lines and the shipping, in full"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:4310",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 4310,
+      "poNumber": "PO_04310J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 25,
+      "dueDate": "2026-11-20",
+      "contractualDate": "2026-11-20",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "sample"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Sample order",
+        "value": 25,
+        "result": 25,
+        "source": "the lines, in full"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:4321",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 4321,
+      "poNumber": "PO_04321J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 13.5,
+      "dueDate": "2026-11-21",
+      "contractualDate": "2026-11-21",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "sample"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Sample order",
+        "value": 13.5,
+        "result": 13.5,
+        "source": "the lines, in full"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:4315",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 4315,
+      "poNumber": "PO_04315J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 12,
+      "dueDate": "2026-11-21",
+      "contractualDate": "2026-11-21",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "sample"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Sample order",
+        "value": 12,
+        "result": 12,
+        "source": "the lines and the shipping, in full"
+       }
+      ]
+     },
+     {
+      "id": "derived:dep:4319",
+      "kind": "deposit",
+      "basis": "derived",
+      "poId": 4319,
+      "poNumber": "PO_04319J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 10,
+      "dueDate": "2026-11-26",
+      "contractualDate": "2026-11-26",
+      "trigger": "order",
+      "containerNumber": null,
+      "containerShare": null,
+      "status": "projected",
+      "blocked": null,
+      "shipmentPaymentId": null,
+      "flags": [
+       "sample",
+       "po_not_sent"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Sample order",
+        "value": 10,
+        "result": 10,
+        "source": "the lines, in full"
+       }
+      ]
+     },
+     {
+      "id": "derived:bal:4320:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 4320,
+      "poNumber": "PO_04320J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 28,
+      "dueDate": "2026-11-27",
+      "contractualDate": "2026-11-27",
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container",
+       "departed_no_date"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Goods not yet in a container",
+        "value": 40,
+        "result": 40,
+        "source": "1 line"
+       },
+       {
+        "op": "×",
+        "label": "Balance 70%",
+        "value": 0.7,
+        "result": 28,
+        "source": "the supplier's terms in JFPRO “30% T/T in advance, 70% B/L copy.”"
+       }
+      ]
+     },
+     {
+      "id": "derived:charges:4320:none",
+      "kind": "balance",
+      "basis": "derived",
+      "poId": 4320,
+      "poNumber": "PO_04320J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "amount": 12.6,
+      "dueDate": "2026-11-27",
+      "contractualDate": "2026-11-27",
+      "trigger": "bl",
+      "containerNumber": null,
+      "containerShare": 1,
+      "status": "projected",
+      "blocked": "shipment",
+      "shipmentPaymentId": null,
+      "flags": [
+       "no_container",
+       "departed_no_date",
+       "po_charges"
+      ],
+      "invoiceId": null,
+      "paymentId": null,
+      "balanceOf": "charges",
+      "chargesValue": 18,
+      "chargesFrom": "shipping",
+      "derivation": [
+       {
+        "op": "=",
+        "label": "Shipping on the PO",
+        "value": 18,
+        "result": 18,
+        "source": "the PO's shipping total — paid with its first container"
+       },
+       {
+        "op": "×",
+        "label": "Balance 70%",
+        "value": 0.7,
+        "result": 12.6,
+        "source": "the supplier's terms in JFPRO “30% T/T in advance, 70% B/L copy.”"
+       }
+      ]
+     }
+    ],
+    "qcItems": [],
+    "qcClosed": [],
+    "pos": [
+     {
+      "poId": 4310,
+      "poNumber": "PO_04310J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 25,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 25,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 25,
+      "derivedDeposit": 25,
+      "derivedBalance": 0,
+      "outstanding": 25,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "sample"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:4310",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 4310,
+        "poNumber": "PO_04310J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 25,
+        "dueDate": "2026-11-20",
+        "contractualDate": "2026-11-20",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "sample"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Sample order",
+          "value": 25,
+          "result": 25,
+          "source": "the lines, in full"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     },
+     {
+      "poId": 4311,
+      "poNumber": "PO_04311J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 58,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 40,
+      "shippingTotal": 18,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 58,
+      "derivedDeposit": 58,
+      "derivedBalance": 0,
+      "outstanding": 58,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "sample"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:4311",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 4311,
+        "poNumber": "PO_04311J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 58,
+        "dueDate": "2026-11-18",
+        "contractualDate": "2026-11-18",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "sample"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Sample order",
+          "value": 58,
+          "result": 58,
+          "source": "the lines and the shipping, in full"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     },
+     {
+      "poId": 4312,
+      "poNumber": "PO_04312J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 25,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 25,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 10,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 15,
+      "derivedDeposit": 15,
+      "derivedBalance": 0,
+      "outstanding": 15,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "sample"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:4312",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 4312,
+        "poNumber": "PO_04312J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 15,
+        "dueDate": "2026-11-10",
+        "contractualDate": "2026-11-10",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "sample",
+         "partly_paid"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Sample order",
+          "value": 25,
+          "result": 25,
+          "source": "the lines, in full"
+         },
+         {
+          "op": "−",
+          "label": "Paid",
+          "value": 10,
+          "result": 15,
+          "source": "payments recorded on this order"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     },
+     {
+      "poId": 4313,
+      "poNumber": "PO_04313J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 25,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 25,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 25,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 0,
+      "derivedDeposit": 0,
+      "derivedBalance": 0,
+      "outstanding": 0,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": "fully_paid",
+      "flags": [
+       "sample"
+      ],
+      "items": [],
+      "qcItems": []
+     },
+     {
+      "poId": 4315,
+      "poNumber": "PO_04315J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 12,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 0,
+      "shippingTotal": 12,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 12,
+      "derivedDeposit": 12,
+      "derivedBalance": 0,
+      "outstanding": 12,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "sample"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:4315",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 4315,
+        "poNumber": "PO_04315J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 12,
+        "dueDate": "2026-11-21",
+        "contractualDate": "2026-11-21",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "sample"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Sample order",
+          "value": 12,
+          "result": 12,
+          "source": "the lines and the shipping, in full"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     },
+     {
+      "poId": 4316,
+      "poNumber": "PO_04316J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 0,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 0,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 10,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 0,
+      "derivedDeposit": 0,
+      "derivedBalance": 0,
+      "outstanding": 0,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": "fully_paid",
+      "flags": [
+       "sample",
+       "overpaid"
+      ],
+      "items": [],
+      "qcItems": []
+     },
+     {
+      "poId": 4317,
+      "poNumber": "PO_04317J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 15,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 15,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 1,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 15,
+      "derivedDeposit": 15,
+      "derivedBalance": 0,
+      "outstanding": 15,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "sample"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:4317",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 4317,
+        "poNumber": "PO_04317J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 15,
+        "dueDate": "2026-11-03",
+        "contractualDate": "2026-11-03",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "sample"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Sample order",
+          "value": 15,
+          "result": 15,
+          "source": "the lines, in full"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     },
+     {
+      "poId": 4318,
+      "poNumber": "PO_04318J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 30,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 30,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 30,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 0,
+      "derivedDeposit": 0,
+      "derivedBalance": 0,
+      "outstanding": 0,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": "fully_paid",
+      "flags": [
+       "sample"
+      ],
+      "items": [],
+      "qcItems": []
+     },
+     {
+      "poId": 4319,
+      "poNumber": "PO_04319J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 10,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 10,
+      "shippingTotal": 0,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 10,
+      "derivedDeposit": 10,
+      "derivedBalance": 0,
+      "outstanding": 10,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "sample"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:4319",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 4319,
+        "poNumber": "PO_04319J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 10,
+        "dueDate": "2026-11-26",
+        "contractualDate": "2026-11-26",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "sample",
+         "po_not_sent"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Sample order",
+          "value": 10,
+          "result": 10,
+          "source": "the lines, in full"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     },
+     {
+      "poId": 4320,
+      "poNumber": "PO_04320J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 58,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 40,
+      "shippingTotal": 18,
+      "lineCount": 1,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 17.4,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 58,
+      "derivedDeposit": 17.4,
+      "derivedBalance": 40.6,
+      "outstanding": 40.6,
+      "rule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% T/T in advance, 70% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [
+       {
+        "containerNumber": null,
+        "share": 1,
+        "lineCount": 1,
+        "units": 1,
+        "value": 40,
+        "dueDate": "2026-11-27",
+        "contractualDate": "2026-11-27",
+        "landed": false,
+        "departed": true,
+        "estimated": false,
+        "blocked": "shipment",
+        "flags": [
+         "no_container",
+         "departed_no_date"
+        ],
+        "etd": "2026-11-22",
+        "eta": null,
+        "settledBy": null,
+        "airOwed": false,
+        "deliveredOn": null,
+        "open": null
+       }
+      ],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "assumed_paid"
+      ],
+      "items": [
+       {
+        "id": "derived:bal:4320:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 4320,
+        "poNumber": "PO_04320J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 28,
+        "dueDate": "2026-11-27",
+        "contractualDate": "2026-11-27",
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container",
+         "departed_no_date"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Goods not yet in a container",
+          "value": 40,
+          "result": 40,
+          "source": "1 line"
+         },
+         {
+          "op": "×",
+          "label": "Balance 70%",
+          "value": 0.7,
+          "result": 28,
+          "source": "the supplier's terms in JFPRO “30% T/T in advance, 70% B/L copy.”"
+         }
+        ]
+       },
+       {
+        "id": "derived:charges:4320:none",
+        "kind": "balance",
+        "basis": "derived",
+        "poId": 4320,
+        "poNumber": "PO_04320J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 12.6,
+        "dueDate": "2026-11-27",
+        "contractualDate": "2026-11-27",
+        "trigger": "bl",
+        "containerNumber": null,
+        "containerShare": 1,
+        "status": "projected",
+        "blocked": "shipment",
+        "shipmentPaymentId": null,
+        "flags": [
+         "no_container",
+         "departed_no_date",
+         "po_charges"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "balanceOf": "charges",
+        "chargesValue": 18,
+        "chargesFrom": "shipping",
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Shipping on the PO",
+          "value": 18,
+          "result": 18,
+          "source": "the PO's shipping total — paid with its first container"
+         },
+         {
+          "op": "×",
+          "label": "Balance 70%",
+          "value": 0.7,
+          "result": 12.6,
+          "source": "the supplier's terms in JFPRO “30% T/T in advance, 70% B/L copy.”"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     },
+     {
+      "poId": 4321,
+      "poNumber": "PO_04321J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "supplierRaw": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "poTotal": 13.5,
+      "totalBasis": "lines",
+      "invoiceTotalFrom": null,
+      "linesValue": 13.5,
+      "shippingTotal": 0,
+      "lineCount": 2,
+      "unpricedLines": 0,
+      "destroyedLines": 0,
+      "paid": 0,
+      "assumedPaid": 0,
+      "shipmentPaid": 0,
+      "shipmentStated": 0,
+      "stated": 0,
+      "remainder": 13.5,
+      "derivedDeposit": 13.5,
+      "derivedBalance": 0,
+      "outstanding": 13.5,
+      "rule": {
+       "depositPct": 100,
+       "balanceTrigger": "order",
+       "balanceOffsetDays": 0,
+       "source": "none",
+       "raw": "Sample order: paid in full, upfront",
+       "confidence": "parsed",
+       "notes": [
+        "sample_order"
+       ]
+      },
+      "policy": {
+       "depositPct": null,
+       "depositTrigger": "po_sent",
+       "depositOffsetDays": null,
+       "depositGraceDays": 0,
+       "balanceTrigger": null,
+       "balanceDocumentType": null,
+       "balanceOffsetDays": null,
+       "balanceGraceDays": 0,
+       "estimates": {
+        "artwork": null,
+        "pi": null,
+        "piSigned": null,
+        "ready": null,
+        "telex": null,
+        "document": null,
+        "departure": null,
+        "transit": {
+         "sea": null,
+         "air": null,
+         "road": null
+        }
+       },
+       "airOwedFrom": null,
+       "airLimitDays": 60,
+       "defaultRule": null,
+       "supplierRule": null
+      },
+      "containers": [],
+      "proofCount": 0,
+      "proofsMatched": 0,
+      "excluded": null,
+      "flags": [
+       "sample"
+      ],
+      "items": [
+       {
+        "id": "derived:dep:4321",
+        "kind": "deposit",
+        "basis": "derived",
+        "poId": 4321,
+        "poNumber": "PO_04321J",
+        "supplier": "Sample Supplier Co., Ltd",
+        "currency": "USD",
+        "amount": 13.5,
+        "dueDate": "2026-11-21",
+        "contractualDate": "2026-11-21",
+        "trigger": "order",
+        "containerNumber": null,
+        "containerShare": null,
+        "status": "projected",
+        "blocked": null,
+        "shipmentPaymentId": null,
+        "flags": [
+         "sample"
+        ],
+        "invoiceId": null,
+        "paymentId": null,
+        "derivation": [
+         {
+          "op": "=",
+          "label": "Sample order",
+          "value": 13.5,
+          "result": 13.5,
+          "source": "the lines, in full"
+         }
+        ]
+       }
+      ],
+      "qcItems": []
+     }
+    ],
+    "bySupplier": [
+     {
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "outstanding": 189.1,
+      "overdue": 148.5,
+      "due30": 40.6,
+      "unscheduled": 0,
+      "paid": 75,
+      "assumedPaid": 17.4,
+      "poCount": 11,
+      "itemCount": 9,
+      "nextDue": "2026-11-03",
+      "supplierRule": {
+       "depositPct": 30,
+       "balanceTrigger": "bl",
+       "balanceOffsetDays": 0,
+       "source": "supplier",
+       "raw": "30% T/T in advance, 70% B/L copy.",
+       "confidence": "parsed",
+       "notes": []
+      },
+      "supplierTerms": "30% T/T in advance, 70% B/L copy.",
+      "jfproName": null,
+      "matchHow": "exact",
+      "aliases": []
+     }
+    ],
+    "byContainer": [],
+    "dataQuality": [
+     {
+      "kind": "overpaid",
+      "poId": 4316,
+      "poNumber": "PO_04316J",
+      "supplier": "Sample Supplier Co., Ltd",
+      "currency": "USD",
+      "detail": "10 paid on a sample order worth 0",
+      "amount": 10,
+      "shipmentReference": null
+     }
+    ],
+    "credits": []
+   }
+  ],
+  "poCount": 13
+ }
+}

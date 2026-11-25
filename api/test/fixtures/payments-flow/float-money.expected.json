@@ -1,11 +1,11 @@
 {
  "fixture": "float-money",
  "source": {
-  "commit": "362714c",
+  "commit": "6ae3867",
   "files": {
    "src/components/payments/paymentsFlowMath.ts": {
-    "lines": 4696,
-    "sha256": "300e18f8b217a29eb53bb88c8fac15127c2f80c68ec7f5ccc5a31f55a91224bf"
+    "lines": 4846,
+    "sha256": "2116d25e8ca0148eba55aaa7c900d9e34b88b21146a4da5b3ae99fae77f5dc9a"
    },
    "src/components/shared/containerHelpers.ts": {
     "lines": 340,

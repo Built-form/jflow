@@ -71,6 +71,24 @@ describe('health', () => {
         expect(calls.map((c) => c.sql)).toEqual(['SELECT 1']);   // no allowlist lookup
     });
 
+    test('says whether the payments model it runs knows the sample-order rule, as the model itself answers', async () => {
+        asType('admin');
+        const { sampleRuleKnown } = require('../../src/lib/payments-flow/sampleRule');
+        const res = await request(app).get('/api/v1/health').expect(200);
+        expect(res.body.paymentsFlow).toEqual({ sampleOrders: sampleRuleKnown() });
+    });
+
+    test('a dead database does not hide it: the model needs no database', async () => {
+        db.withConnection.mockImplementation(async () => { throw new Error('ECONNREFUSED'); });
+        const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const res = await request(app).get('/api/v1/health').expect(200);
+            expect(typeof res.body.paymentsFlow.sampleOrders).toBe('boolean');
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
     test('a dead database is a 200 saying so, not a failed probe', async () => {
         db.withConnection.mockImplementation(async () => { throw new Error('ECONNREFUSED'); });
         const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});

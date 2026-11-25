@@ -45,6 +45,7 @@ const {
 // Account types (CONTRACT D5): standard | admin. The vocabulary and the admin
 // gate live in src/lib/roles.js.
 const { USER_TYPES, isAdmin, requireAdmin } = require('../lib/roles');
+const { sampleRuleKnown } = require('../lib/payments-flow/sampleRule');
 
 // ── App + middleware ────────────────────────────────────────────────────────
 const app = express();
@@ -290,6 +291,12 @@ app.use((req, res, next) => {
 
 // ── Health / me / meta ──────────────────────────────────────────────────────
 
+// Whether the payments model this build runs knows the sample-order rule, asked of
+// the model itself once (lib/payments-flow/sampleRule.js: pure, no database).
+// shipping's tools/check-sample-orders.js reads it here before sample orders are
+// switched on for a stage.
+const SAMPLE_RULE_KNOWN = sampleRuleKnown();
+
 app.get('/api/v1/health', async (req, res) => {
     // Reports DB reachability without failing the probe on it: a 200 with
     // database:'down' tells a human more than a 503 with no detail.
@@ -317,6 +324,7 @@ app.get('/api/v1/health', async (req, res) => {
         // False only if schema convergence has not completed — the signal an
         // orchestrator should gate traffic on.
         schema: database === 'up' ? 'ready' : 'pending',
+        paymentsFlow: { sampleOrders: SAMPLE_RULE_KNOWN },
         time: new Date().toISOString(),
     });
 });

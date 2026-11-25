@@ -80,6 +80,12 @@ const OPTIONAL_COLUMNS = Object.freeze({
     // Record payment since 2026-10-19; shipping migration 2026-10-19_10). Without the column
     // the lines are read as before and name none — the model then places that money itself.
     supplier_payment_lines: ['paid_with_json'],
+    // Sample orders (shipping migration 2026-11-25_20, docs/sample-orders.md): the kind of a
+    // PO, 'stock' or 'sample'. The model owes a sample order in full on its PO date
+    // (summarizeSamplePo, in a model re-pinned to a ShipLine commit that has it; GET /health
+    // says whether this one does). Without the column no sample order can exist: every PO
+    // is read as stock, as before.
+    purchase_orders: ['kind'],
 });
 
 const ph = (list) => list.map(() => '?').join(',');
@@ -114,14 +120,15 @@ async function loadOrders(q, t) {
 /**
  * loadPurchaseOrdersForOrders: { [poId]: bundle } for every live PO the orders
  * point at — the header plus its invoices, signed PIs and proof-of-payment
- * files, each list in its query's order.
+ * files, each list in its query's order. `optional.purchase_orders` (checkSchema's)
+ * says the `kind` column is there to read; without it every PO is stock.
  */
-async function loadPurchaseOrdersForOrders(q, t, orders) {
+async function loadPurchaseOrdersForOrders(q, t, orders, optional = {}) {
     const poIds = [...new Set(orders.map(o => o.purchaseOrderId).filter(Boolean))];
     if (!poIds.length) return {};
 
     const [poRows] = await q.query(
-        `SELECT id, po_number, supplier, currency, shipping_total, company_id, created_at
+        `SELECT id, po_number, supplier, currency, shipping_total, company_id, created_at${optional && optional.purchase_orders ? ', kind' : ''}
            FROM ${t('purchase_orders')} WHERE id IN (${ph(poIds)}) AND deleted_at IS NULL`,
         poIds
     );
@@ -532,7 +539,7 @@ async function loadPaymentDueDates(q, t, { withNames = true } = {}) {
  */
 async function loadSources(q, t, { optional = {} } = {}) {
     const orders = await loadOrders(q, t);
-    const purchaseOrders = await loadPurchaseOrdersForOrders(q, t, orders);
+    const purchaseOrders = await loadPurchaseOrdersForOrders(q, t, orders, optional);
     const shipmentsById = await loadShipmentsForOrders(q, t, orders);
     const containers = await loadContainers(q, t);
     const invoicePayments = await loadInvoicePayments(q, t);
@@ -587,6 +594,7 @@ module.exports = {
     SOURCE_COLUMNS,
     OPTIONAL_COLUMNS,
     loadSources,
+    loadPurchaseOrdersForOrders,
     loadPaymentDueDates,
     loadPaymentExtras,
     loadOpenShipments,

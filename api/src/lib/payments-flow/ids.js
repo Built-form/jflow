@@ -1,4 +1,4 @@
-// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 362714c — changes: new, not in the TS: stable JFlow feed ids (PHASE2 §3 P2) for every item kind the model emits at this pin (goods, charges, QC units, top-ups, extras, split parts in a draft or plan, combined / repackaged goods) and for every transfer line kind
+// Ported from ShipLine src/components/payments/paymentsFlowMath.ts @ 6ae3867 — changes: new, not in the TS: stable JFlow feed ids (PHASE2 §3 P2) for every item kind the model emits at this pin (goods, charges, QC units, top-ups, extras, split parts in a draft or plan, combined / repackaged goods) and for every transfer line kind
 'use strict';
 
 // Stable feed ids for payments-flow rows — JFlow PHASE2 §3 "Ids (P2)" and

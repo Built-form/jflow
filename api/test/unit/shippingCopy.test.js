@@ -160,6 +160,17 @@ describe('paymentDueDates (shipping payment-due-dates.js rowToJson)', () => {
 });
 
 describe('shipping mappers (orders.js, payment-rules.js, shipments.js)', () => {
+    test('rowToPurchaseOrder: the kind is "sample" only when the row says so; no column, null or anything else is stock', () => {
+        const row = { id: 431, po_number: 'PO_00431J', supplier: 'Acme', currency: null, shipping_total: '18.00', company_id: 1, created_at: new Date('2026-11-25T09:00:00Z') };
+        expect(M.rowToPurchaseOrder({ ...row, kind: 'sample' }))
+            .toEqual({ id: 431, poNumber: 'PO_00431J', supplier: 'Acme', currency: 'USD', shippingTotal: 18, companyId: 1, kind: 'sample', createdAt: '2026-11-25T09:00:00.000Z' });
+        // shipping's key order: the kind sits before createdAt.
+        expect(Object.keys(M.rowToPurchaseOrder({ ...row, kind: 'sample' }))).toEqual(['id', 'poNumber', 'supplier', 'currency', 'shippingTotal', 'companyId', 'kind', 'createdAt']);
+        for (const kind of [undefined, null, '', 'stock', 'SAMPLE', 'other']) {
+            expect(M.rowToPurchaseOrder({ ...row, kind }).kind).toBe('stock');
+        }
+    });
+
     test('rowToContainer keeps the live times; actual flags are === 1', () => {
         const at = new Date('2026-09-02T02:00:00Z');
         expect(M.rowToContainer({ container_number: 'X', departure_date: at, departure_is_actual: 1, arrival_date: null, arrival_is_actual: 0, eta: null, ata: null }))
